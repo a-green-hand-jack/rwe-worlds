@@ -1,0 +1,11 @@
+import pymupdf,re,glob
+for f in sorted(glob.glob('/hutian/work/corpus/*.pdf')):
+    d=pymupdf.open(f); full='\n'.join(p.get_text() for p in d[:6])
+    m=re.search(r'\n\s*(?:1\.?\s*)?Introduction\s*\n',full)
+    s=full[m.end():] if m else ''
+    e=re.search(r'\n\s*2\.?\s+[A-Z][^\n]{2,60}\n',s)
+    intro=s[:e.start()] if e else s[:6000]
+    contrib=bool(re.search(r'contribution',intro,re.I)); bullets=len(re.findall(r'^\s*[•\-–]\s',intro,re.M))
+    cites=len(re.findall(r'\[\d+(?:[,–-]\s*\d+)*\]|\([A-Z][A-Za-z\-]+(?: et al\.)?,? (?:19|20)\d\d[a-z]?\)',intro))
+    nfig=len(re.findall(r'Figure \d|Fig\. \d',intro))
+    print(f.split('/')[-1],'intro_words',len(intro.split()),'contribution_word',contrib,'bullets',bullets,'cites',cites,'fig_refs',nfig, 'numbers_in_intro', len(re.findall(r'\d+(?:\.\d+)?\s?%',intro)))

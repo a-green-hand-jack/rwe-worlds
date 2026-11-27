@@ -1,0 +1,35 @@
+import fitz,re,glob,json,statistics as st
+rows=json.load(open('/hutian/ac/sample.json'))
+titles={}
+for y,u,t in rows:
+    h=re.search(r'hash/([0-9a-f]+)-',u).group(1); titles[f'{y}_{h[:8]}']=t
+out=[]
+for f in sorted(glob.glob('/hutian/ac/pdf/*.pdf')):
+    key=f.split('/')[-1][:-4]
+    d=fitz.open(f); n=len(d)
+    pages=[p.get_text() for p in d]
+    # reference heading: line exactly 'References' (optionally numbered)
+    refpage=None; refpos=None
+    for i,tx in enumerate(pages):
+        m=re.search(r'^\s*(?:\d+\s+)?(References|REFERENCES|Bibliography)\s*$',tx,re.M)
+        if m and i>=3:
+            refpage=i; refpos=m.start(); break
+    if refpage is None: out.append((key,'NOREF')); continue
+    # main-text = text before heading
+    main='\n'.join(pages[:refpage])+'\n'+pages[refpage][:refpos]
+    figs=set(re.findall(r'^\s*(?:Figure|Fig\.)\s+(\d+)\s*[:.]',main,re.M))
+    tabs=set(re.findall(r'^\s*Table\s+(\d+)\s*[:.]',main,re.M))
+    # references block until next 'Appendix|A ' heading or end; count by [n] or by lines
+    refs=pages[refpage][refpos:]+'\n'+'\n'.join(pages[refpage+1:])
+    nums=[int(x) for x in re.findall(r'^\s*\[(\d+)\]',refs,re.M)]
+    nref=max(nums) if nums else None
+    # abstract words
+    am=re.search(r'Abstract\s*\n(.*?)\n\s*1\s+Introduction',pages[0],re.S|re.I)
+    aw=len(am.group(1).split()) if am else None
+    im=re.search(r'\n\s*1\s+Introduction\s*\n(.*?)\n\s*2\s+[A-Z]',main,re.S)
+    iw=len(im.group(1).split()) if im else None
+    # words in main text and fraction pages
+    fig1_early = bool(re.search(r'^\s*(?:Figure|Fig\.)\s+1\s*[:.]','\n'.join(pages[:2]),re.M))
+    out.append(dict(key=key,title=titles[key][:60],pages=n,refpage=refpage+1,refpos_frac=round(refpos/max(1,len(pages[refpage])),2),figs=len(figs),tabs=len(tabs),nref=nref,abstract_words=aw,intro_words=iw,fig1_in_first2=fig1_early))
+for o in out: print(o)
+json.dump(out,open('/hutian/ac/stats.json','w'),indent=1)

@@ -1,0 +1,52 @@
+"""results/random_vs_formula.csv (claim C2): measured random-deletion reversal probability next to the formula's expectation, and the noise-equivalent
+fraction f_q over the adversary's fraction k*/N.  From random/<unit>.eqbudget.parquet (02_random.py): pairs with z_fisher in [1,8], deletion, budgets 0.5/1/2 x k*
+(k* of the iterated search), 300 uniform random deletions per pair.
+formula  = Phi(-z sqrt((1-f)/f)), f = k/N, z = z_fisher (conditional-on-the-sample formula; PREANALYSIS 'What the synthetic calibration says')
+measured = share of the 300 draws that reverse the pair (mean over pairs); also the maximum over pairs.
+f_q = z^2/(z^2 + c_q^2), c_q = |Phi^-1(q)|, q = 16%: the fraction of random deletions at which the formula reaches reversal probability q.
+fq_over_adv = f_q / (k*/N) per pair, median over pairs: the factor by which a random deletion must exceed the adversary's size before it reverses 16% (formula-based lower bound where
+random does not reach q in the draws).  One row per design pool (all units of a design) and per unit for the four named data sets; all real data."""
+import glob, os, sys
+import numpy as np, pandas as pd
+from scipy.stats import norm
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src")); sys.path.insert(0, os.path.dirname(__file__))
+from core01 import OUT
+import importlib
+T6 = importlib.import_module("06_tables")
+TM = importlib.import_module("10_tables_more")
+Q = 0.16
+
+
+def main():
+    rows = []
+    allu = []
+    for fn in sorted(glob.glob(f"{OUT}/random/*.eqbudget.parquet")):
+        e = pd.read_parquet(fn); e = e[(e["mode"] == "delete") & (e.z_fisher >= 1) & (e.z_fisher <= 8)]
+        if len(e) == 0:
+            continue
+        u = e.unit.iloc[0]
+        e = e.assign(dataset=T6.dataset_id(u), design=TM.design_of(u))
+        allu.append(e)
+    d = pd.concat(allu, ignore_index=True)
+    d["formula"] = norm.cdf(-d.z_fisher * np.sqrt((1 - d.f) / d.f))
+    cq = abs(norm.ppf(Q)); d["f_q"] = d.z_fisher ** 2 / (d.z_fisher ** 2 + cq ** 2)
+    one = d[d.mult == 1.0]
+    d = d.merge(one[["dataset", "a", "b", "f"]].rename(columns={"f": "f_adv"}), on=["dataset", "a", "b"])
+    named = ["arena55k", "arena_single", "mtbench_human", "mtbench_gpt4"]
+    groups = [(n, d[d.dataset == n]) for n in named] + [(f"design:{g}", x) for g, x in d.groupby("design")]
+    strata = [("1-8", 1, 8.0001), ("1-2", 1, 2), ("2-4", 2, 4), ("4-8", 4, 8.0001)]
+    for (name, x), (sl, zlo, zhi) in [(g, s_) for g in groups for s_ in strata]:
+        x = x[(x.z_fisher >= zlo) & (x.z_fisher < zhi)]
+        for mult, y in x.groupby("mult"):
+            rows.append(dict(scope=name, z_fisher_range=sl, perturbation="delete", synthetic=0, budget_over_kstar=mult, n_pairs=len(y), n_units=y.dataset.nunique(), draws=300,
+                             measured_upper95_rule_of_three=3 / (300 * len(y)),
+                             measured_mean=y.p_flip_random.mean(), measured_max=y.p_flip_random.max(), formula_mean=y.formula.mean(), formula_max=y.formula.max(),
+                             fq_over_adv_median=(y.f_q / y.f_adv).median(), fq_over_adv_min=(y.f_q / y.f_adv).min(), share_pairs_f_adv_above_fq=(y.f_adv >= y.f_q).mean()))
+    o = pd.DataFrame(rows)
+    o.to_csv(f"{T6.REPO}/random_vs_formula.csv", index=False, float_format="%.5g")
+    pd.set_option("display.width", 250)
+    print(o.to_string())
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,9 @@
+#!/bin/bash
+# SE ratio of every computed core unit: run_se_ratio.sh K NJOBS  (takes every NJOBS-th unit starting at K)
+cd "$(dirname "$0")"
+i=0
+for f in $(ls ${BT_RESULTS:-/hutian/results}/core/*.parquet | grep -v '\.null\.' | grep -v '\.models\.'); do
+  u=$(basename $f .parquet | sed 's/^judge_/judge:/;s/^nba_/nba:/')
+  if [ $((i % $2)) -eq $1 ]; then python3 13_se_ratio.py "$u" || echo "FAILED $u"; fi
+  i=$((i+1))
+done

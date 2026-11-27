@@ -1,0 +1,39 @@
+# What the figure and table scripts read
+
+The data are `experiment-repo`'s `results/tables/` (delivered to `paper-repo` `results/tables/`; its dictionary is `results/README.md`). The names below are
+the delivered ones (the first proposal of this file was replaced by them). A script fails loudly on a missing file or column; absent cells are not drawn.
+
+Common keys: `dataset`, `model`, `estimator` (`shap_kernel` = the unchanged `shap.KernelExplainer`, `kernel_paired`, `permutation_antithetic`), `l1_reg` (`False`, `auto`,
+`num_features(10)`, `NA`; read as strings), `budget_m`, `instance_id`. The headline arm is `shap_kernel`, `l1_reg=False`, k = 3.
+
+| Output | Script | Reads | What it draws |
+|---|---|---|---|
+| Fig 1 | `fig1_concept.py` | `runs_example` | one instance (rule: `runs_example_README.txt`), runs against the exact values; run gap between the exact 3rd and 4th feature |
+| Fig 2 | `fig2_headline.py` | `sensitivity`, `instance_level`, `cells` | share with P_c^ε ≥ 0.9 (CI) and strict P_c vs budget; mean Pearson vs budget; share of instances with P_c ≤ x at the reference budget |
+| Fig 4 | `fig4_budget.py` | `phi_error`, `scaling_fit`, `paired_diff`, `mstar_by_margin`, `mstar_fit`, `cells` | φ-error vs m with slope −1/2; paired differences of the two own estimators against the shap default at equal evaluations; m* against margin with the c/g² fit |
+| Fig 4 (c, d) | `fig4_budget.py` | `mstar_by_margin`, `mstar_tobit` | interpolated m* per margin quartile (secondary) with the interval-censored fit line; Tobit slope per model and criterion |
+| Fig 3 (margin) | `fig3_margin.py` | `margin_strata` | share P_c ≥ 0.9, share P_c^ε ≥ 0.9 and flat-group share by margin quartile (rev 8) |
+| Fig 7, Fig A floor b | `fig7_floor_b.py` | `floor_b_by_background` | floor b by B and k-means against floor a of the shap default and of paired Kernel; paired differences; d ≥ 16 at the default budget, d ≤ 10 at the largest sampled budget (rev 8) |
+| Fig B (M5 robustness) | `figB_m5_robust.py` | `probit_collapse`, `probit_fit`, `mstar_robust` | collapse on x = g√m/σ, probit β, Tobit slope under grid thinning (rev 8) |
+| Fig A (background) | `figA_background.py` | `background_reference_shift`, `background_paired_diff`, `cells` | appendix: exact top-3 set vs B=50, and paired change of single-run P_c, under B=20, B=200, k-means 50 (German, ACS Employment; subsets of instances, `n_instances`) |
+| Fig 5 | `fig5_floors.py` | `floors`, `floors_models`, `cells` | floors a (run), b (background), c (retrain: bootstrap, seed, hyper-parameter) as agreement of the top-3 set, per dataset |
+| Fig 6 | `fig6_certificate.py` | `certificate_bins`, `certificate_paired_diff` | reliability of the certificate and run-twice; paired Brier differences |
+| Table 1 | `tab1_design.py` | `cells` | design |
+| Table 2 | `tab2_guidance.py` | `guidance` | minimum evaluations per margin quartile (criterion P_c^ε ≥ 0.9 for ≥ 90 % of the quartile) |
+| Table 3 | `tab3_certificate.py` | `certificate_budget_rule` | minimum-budget rule: share stopped, share exact, evaluations used, flat evaluations for the same share |
+| Table A1 | `tabA1_sensitivity.py` | `sensitivity`, `cells` | ε, threshold, k and `l1_reg` sensitivity at the reference budget |
+| Table A2 | `tabA2_h1.py` | `h1_contrast`, `cells` | H1 contrasts (Pearson minus share P_c^ε ≥ 0.9), small and reference budget |
+
+Reference budget (`figstyle.ref_budget`): the shap default 2d+2048 where it samples (R > 1); where the default enumerates all coalitions (d ≤ 10, R = 1, exact by construction) the
+largest sampling budget instead. It is printed in the panels and must be stated in the captions.
+
+Rules applied in the scripts, so that `analysis` need not:
+- Headline CIs (shares, contrasts, paired differences, m*) are drawn as supplied; the plotting code bootstraps only the floor panels (Fig 5, instance bootstrap, seed 0), the Pearson CI in Fig 2 and the pooled reliability bins (count-weighted).
+- Repeats are never plotted as independent evidence; no dataset-level CI (N = 4–5), the per-dataset display is the primary one.
+- `guidance.csv` as delivered has no `criterion` column although `derive.guidance` writes both criteria (pc_exact rows first, then pc_eps, per cell and bin); `tab2_guidance.py` recovers it
+  from the row order and asserts that the stricter criterion never needs fewer evaluations. Reported to `experiment-repo`#3.
+
+Delivered by experiment-repo#6 and drawn: `probit_fit`, `probit_collapse`, `mstar_robust` (Fig B), `criterion` in `guidance` (Table 2), second instance in `runs_example` (Fig 1), CI of the saving in `certificate_budget_rule` (Table 3 b), `floor_b_by_background` (Fig 7), `margin_strata` (Fig 3). Not delivered: A1's RF log-odds vs probability comparison (analysis: not run) and floor b for German/ACS Employment/GMSC MLP.
+Delivered since: `mstar_tobit.csv` (Fig 4 c, d), `background_reference_shift.csv` and `background_paired_diff.csv` (figA_background; complete for the scheduled cells: German RF 10, GBM/MLP 20, ACS Employment 30 instances).
+`background_sensitivity.csv` (shares per background) is not drawn separately: its paired differences are in `background_paired_diff.csv`.
+Not delivered yet (not drawn): the RF log-odds against probability comparison (appendix A1).

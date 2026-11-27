@@ -1,0 +1,15 @@
+\section{Discussion and limitations}
+\label{sec:discussion}
+
+\paragraph{What to log and report.}
+Log the item-level correctness of every configuration evaluated, declare the candidate space before the search, and report the max-t lower bound over the declared space together with $n$, $B$ and $\Keff$.
+On the real pool this bound, over the declared space, was valid under all three searchers (in exact-null synthetic worlds at $240$ items it covers $91$--$93\%$), narrower than the held-out and Bonferroni bounds, and cost no items; reported scores overstated the gain from tuning several-fold at $n\le100$ and ranked a search with five times the budget higher in more than half of the comparisons with no true difference.
+When items are cheap, a held-out split is also reliable here: it cost at most $0.0025$ in deployed accuracy.
+
+\paragraph{Scope.}
+The numbers describe one model of 1.5B parameters, one benchmark, and one configuration space of $128$ choices of demonstrations, format, wording and cue, scored by the log-probability of an answer letter.
+The space has no generated or chain-of-thought outputs and no programs of several model calls, so how the gap behaves for such pipelines is not measured.
+The pool has $1500$ items, which sets the floor on the fresh-item noise ($0.012$--$0.014$).
+The model is weak here (mean accuracy $0.27$) and the true spread is small ($0.014$), so tuning gains at most $0.025$ over the default and the gap is close to the pure-noise optimism; larger true differences would shrink it relative to the prediction, as in the synthetic arm.
+Searches are replayed on a cached matrix except for one live tool at $n=60$ (Section~\ref{sec:tool}); the predictor and bounds are validated for the replayed searchers only.
+The generative model extends the measurements beyond $n\le200$ and $K\le128$ only to the extent of its validation checks, which have wide intervals and do not discriminate between the models of dependence.

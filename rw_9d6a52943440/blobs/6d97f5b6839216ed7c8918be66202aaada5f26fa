@@ -1,0 +1,28 @@
+\begingroup\setlength{\tabcolsep}{2.5pt}
+\begin{tabular}{lcccc}
+\toprule
+Class & LOBO-selected (no. of choices) & vs uniform & vs stratified & Post hoc \\
+\midrule
+\multicolumn{5}{l}{\emph{interpolation}} \\
+design & balanced $\times$ cal. reg. (1) & 0.71 [0.70, 0.72] & 0.88 [0.86, 0.89] & 0.71 \\
+model & balanced $\times$ ridge plug-in (1) & 0.65 [0.63, 0.66] & 0.80 [0.78, 0.82] & 0.65 \\
+diff. & balanced $\times$ diff. IRT (1) & 0.65 [0.63, 0.67] & 0.80 [0.78, 0.82] & 0.65 \\
+anchor & anchor $\times$ diff. ridge (1) & 0.72 [0.67, 0.76] & 0.89 [0.82, 0.93] & 0.72 \\
+info/CAT & IRT-CAT $\times$ diff. IRT (1) & 0.68 [0.63, 0.71] & 0.84 [0.77, 0.88] & 0.68 \\
+\midrule
+\multicolumn{5}{l}{\emph{extrapolation}} \\
+design & balanced $\times$ cal. reg. (1) & 0.77 [0.76, 0.79] & 0.91 [0.89, 0.93] & 0.77 \\
+model & balanced $\times$ ridge plug-in (1) & 0.84 [0.80, 0.87] & 1.00 [0.95, 1.02] & 0.84 \\
+diff. & balanced $\times$ diff. IRT (2) & 0.87 [0.84, 0.89] & 1.03 [0.99, 1.05] & 0.82 \\
+anchor & anchor $\times$ diff. ridge (1) & 1.01 [0.94, 1.05] & 1.20 [1.12, 1.24] & 1.01 \\
+info/CAT & IRT-CAT $\times$ diff. IRT (1) & 1.04 [0.91, 1.10] & 1.23 [1.08, 1.29] & 1.04 \\
+\midrule
+\multicolumn{5}{l}{\emph{lineage-held-out}} \\
+design & PPS $\times$ cal. reg. (1) & 0.73 [0.71, 0.75] & 0.88 [0.86, 0.90] & 0.73 \\
+model & balanced $\times$ ridge plug-in (2) & 0.69 [0.67, 0.72] & 0.83 [0.80, 0.86] & 0.69 \\
+diff. & PPS $\times$ diff. IRT (3) & 0.73 [0.69, 0.77] & 0.88 [0.83, 0.92] & 0.70 \\
+anchor & anchor $\times$ diff. ridge (1) & 0.79 [0.70, 0.84] & 0.94 [0.85, 1.00] & 0.79 \\
+info/CAT & IRT-CAT $\times$ diff. IRT (1) & 0.67 [0.61, 0.70] & 0.80 [0.74, 0.84] & 0.67 \\
+\bottomrule
+\end{tabular}
+\endgroup

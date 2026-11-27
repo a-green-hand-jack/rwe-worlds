@@ -1,0 +1,51 @@
+# Derivations and their numerical checks (experiment-repo)
+
+Notation: x = mu + W z + e, z ~ N(0, I_r), e ~ N(0, D), D diagonal, W in R^{N x r}. S = benchmarks run (|S| = k), T or U = benchmarks to infer, disjoint from S.
+b_j = D_j^{-1/2} w_j (whitened loading of benchmark j), A = sum_j b_j b_j' = W' D^{-1} W. Everything is in the model space (after the chosen transform); the paper's
+metrics are on the original standardised scale (code/DEVIATIONS.md). Checks are in `results/*.csv` named below.
+
+## 1. Risk of the Gaussian-conditioning predictor (exact under the model with known W, D)
+Given x_S, z | x_S ~ N(m, Sigma_S), Sigma_S = (I + W_S' D_S^-1 W_S)^-1 = (I + sum_{j in S} b_j b_j')^-1, m = Sigma_S W_S' D_S^-1 (x_S - mu_S).
+For j in T, x_T - mu_T - W_T m = W_T (z - m) + e_T, and e_T is independent of x_S (T disjoint from S), so
+  E ||x_T - xhat_T||^2 = tr(W_T Sigma_S W_T') + tr(D_T).
+The second term is the floor (idiosyncratic noise on the measured score); the first is the reducible part. Greedy A-optimal selection maximises the one-step gain of
+f(S) = tr(W_T W_T') - tr(W_T Sigma_S W_T'); f is monotone. Submodularity of f is NOT proved and is not assumed: `coherence.csv` reports a sampled submodularity ratio
+(gamma_hat is a minimum over samples, hence an upper bound on the true ratio), so 1 - exp(-gamma_hat) is a heuristic and no guarantee for greedy is claimed.
+Check: `theory.csv`, `theory_gap.csv`, `theory_shape.csv` (formula vs measured held-out error, four tiers).
+Result: exact on synthetic with true parameters (median relative gap 0.5 %); with fitted parameters the gap shrinks with the history size (27 % at M=60 to 1.5 % at M=2000,
+roughly as 1/M, the estimation noise of W, D that the formula ignores); on real data it is 36-69 % mostly as a near-constant offset (model misspecification), the k-dependence is predicted much better.
+
+## 2. Random selection: expectation (Jensen)
+Draw S uniformly without replacement, |S| = k. Then E sum_{j in S} b_j b_j' = (k/N) A. The matrix inverse is operator convex, so
+E_S (I + sum_{j in S} b_j b_j')^-1 >= (I + (k/N) A)^-1 (Loewner order), and therefore, over all N columns,
+E_S tr(W Sigma_S W') >= tr(W (I + (k/N) A)^-1 W').
+Check: `bound_check.csv`, columns all_columns_risk_mean >= jensen_lower_bound: true in all 35 (matrix, k) rows.
+For D = sigma^2 I and A with eigenvalues lambda_j: tr(W (I + cA)^-1 W') = sigma^2 sum_j lambda_j / (1 + c lambda_j), the "sum over factors" form (c = k/N).
+
+## 3. Random selection: a high-probability bound (matrix Chernoff)
+Source: Tropp (2012), Thm 1.1 / Cor. 5.2 / Remark 5.3 as stated in `idea-repo/theory_sources.md` (statement checked there against the source; not re-read here).
+Let l_j = b_j' A^-1 b_j (leverage score), sum_j l_j = r, l_max = max_j l_j = mu r / N, with coherence mu = N l_max / r in [1, N/r]. Draw J_1..J_k i.i.d. uniform and put
+X_i = A^-1/2 b_{J_i} b_{J_i}' A^-1/2 >= 0, lambda_max(X_i) <= l_max, E X_i = I/N, so lambda_min(sum_i E X_i) = k/N. Remark 5.3 with t = 1 - eps gives
+  P{ lambda_min(A^-1/2 (sum_i b_{J_i} b_{J_i}') A^-1/2) <= (1 - eps) k/N } <= r exp(-eps^2 (k/N) / (2 l_max)) = r exp(-eps^2 k / (2 mu r)).
+Re-derived here: the arithmetic is correct. The right side is <= eta iff k >= k_suff := 2 mu r log(r/eta) / eps^2. On that event sum_i b b' >= (1-eps)(k/N) A, hence
+Sigma_S <= (I + (1-eps)(k/N) A)^-1 (operator monotonicity of the inverse) and, for any T, tr(W_T Sigma_S W_T') <= tr(W (I + (1-eps)(k/N) A)^-1 W') (superset of columns, PSD terms).
+Two gaps that matter:
+ (a) The source bound is for i.i.d. (with-replacement) draws; a multiset with repeats is not a set of distinct benchmarks, and sum over the distinct set is <= sum over the multiset, so the
+     with-replacement statement does not by itself bound the distinct-set quantity. The extension to sampling without replacement needs Gross and Nesme (2010) (idea-repo has read its abstract only).
+     Until that is read, the without-replacement bound is checked numerically, not proved (below).
+ (b) k_suff is large. With eps = 0.5, eta = 0.1, and the loadings fitted on all rows at the median over the ten grouped outer folds of the rank the main runs used (r = 4, 6, 2):
+     k_suff = 459 (synthetic N=60, r=4, mu=3.9), 506 (mteb_eng, N=70, r=4, mu=4.3), 742 (mteb_multi, N=247, r=6, mu=3.8), 171 (helm_mmlu, N=57, r=2, mu=3.6).
+     So k_suff exceeds N on every matrix: the bound is vacuous at every k that can be run (the Chernoff value is exactly 1.0 in all 35 rows). It is a sufficient condition, not a prediction of k*.
+     (Sensitivity: with the rank chosen on the full pool by the inner-CV rule, r = 5, 6, 1, k_suff = 551, 742, 57; only on helm_mmlu with r = 1 is the bound non-vacuous, in 8 rows. Both fits are in `bound_check.csv`, column rank_source.)
+Check (`bound_check.csv`, 2000 draws per k, without replacement): the empirical share of draws with q = lambda_min(...)/(k/N) <= 1 - eps is never above the Chernoff value (35 of 35 rows
+at the median fold rank), but this is trivially true because the Chernoff value is 1.0 in every one of those rows; it is a non-trivial comparison only for the helm_mmlu r = 1 sensitivity fit (8 of 8 rows).
+Where the event q >= 0.5 fails (small k: q is about 0 for k < r because a rank-k matrix cannot dominate a rank-r one), the risk bound B(eps=0.5) is below the mean reducible risk (e.g. mteb_eng k=1:
+bound 0.235, mean 0.338). The bound is below the measured mean at k <= 3 on mteb_eng (equal at k=5) and k <= 8 on mteb_multi; on helm_mmlu it is above the mean from k=1. At k=30 it is looser than the
+measured mean by a factor 2.7 (mteb_eng), 1.6 (mteb_multi) and 3.2 (synthetic); on helm_mmlu 2.7 at k=20 (columns bound_eps0.5 and reducible_risk_mean). The without-replacement case is
+checked numerically only (a rank-k set, 2000 draws), not proved. What the bound does support, qualitatively, is the
+direction used in C5: the shortfall 1 - q falls as k grows and as coherence falls (`coherence.csv`, eps_emp and mu).
+
+## 4. What the paper may state
+* Section 1 as a theorem-with-proof (one paragraph; exact under the model); Section 2 as a one-line lemma with the Jensen argument; Section 3 as a remark: the bound is a
+  with-replacement sufficient condition, vacuous at these matrix sizes (numbers above), checked without replacement only numerically.
+* No constant is taken from memory; the only imported constant is the 2 of Remark 5.3 (idea-repo's checked statement).

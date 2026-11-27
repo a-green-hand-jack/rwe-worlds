@@ -1,0 +1,33 @@
+"""Fig 5 (C3/E8): labels-only headroom diagnostic vs realised width gain; sign agreement reported."""
+import json
+import numpy as np
+import matplotlib.pyplot as plt
+import style, schema, captions
+from common import nice
+
+style.apply()
+df, nr = schema.drop_not_run(schema.load("diagnostic.csv"))
+for _a in (("diagnostic.csv", "realised_gain", "gain_lo", "gain_hi"),):
+    schema.check_ci(df, *_a)
+dg = df[df.pred_gain.notna()]          # cells without a diagnostic value are counted, not drawn
+fig, ax = plt.subplots(figsize=(style.COL_W, style.COL_W * 0.95))
+GR = {"reference_grid": ("real sets (reference grid)", style.OI["blue"], "o"),
+      "stress_monotone_transform": ("real, monotone-transformed outcome", style.OI["orange"], "^")}
+for gname, g in dg.groupby(dg.group.where(dg.group.isin(GR), "synthetic")):
+    lab, col, mkr = GR.get(gname, ("synthetic (E1 sweeps)", style.OI["green"], "s"))
+    ax.errorbar(g.pred_gain, g.realised_gain, yerr=[g.realised_gain - g.gain_lo, g.gain_hi - g.realised_gain],
+                fmt=mkr, color=col, ms=3.2, lw=0.4, capsize=0, label=lab, alpha=0.85)
+lim = [min(dg.pred_gain.min(), dg.realised_gain.min()), max(dg.pred_gain.max(), dg.realised_gain.max())]   # axes follow the points; long CIs are clipped
+pad = 0.05 * (lim[1] - lim[0]); lim = [lim[0] - pad, lim[1] + pad]
+ax.plot(lim, lim, color="k", lw=0.7, ls="--", zorder=0)      # identity: diagnostic equals realised gain
+ax.axhline(0, color="k", lw=0.5); ax.axvline(0, color="k", lw=0.5)
+ax.set_xlim(lim); ax.set_ylim(lim); ax.set_aspect("equal")
+ax.set_xlabel("diagnostic gain (from $\\hat\\Delta$ − learning cost)")
+ax.set_ylabel("realised gain (1 − width ratio)")
+ax.legend(fontsize=style.FONT, ncol=1, loc="upper left", handletextpad=0.2, borderpad=0.3)
+agree = float(np.mean(np.sign(dg.pred_gain) == np.sign(dg.realised_gain)))
+(style.outdir("tables") / "fig5_stats.json").write_text(json.dumps({"n_cells": int(len(df)), "n_drawn": int(len(dg)), "sign_agreement": agree}))
+style.save(fig, "fig_diagnostic")
+captions.write("figures", "fig_diagnostic", "C3/E8: a labels-only diagnostic predicts whether calibration will shorten the interval.",
+    "per (dataset, n, calibrator) cell: relative width gain predicted from the cross-fitted gap minus learning cost (x) against realised gain (1 - paired width ratio to PPI++, y, 95% CI); dashed line = identity; axes follow the points, so a CI longer than the axis is cut at its edge. Real sets: reference grid and the monotone-transformed outcomes; synthetic: E1 sweeps.",
+    "points on the dashed line: the diagnostic predicts the size of the gain; same quadrant: it gets the sign right (share in tables/fig5_stats.json). Cells with no diagnostic value are not drawn; their count is n_cells - n_drawn in that file.", df)

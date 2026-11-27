@@ -1,0 +1,17 @@
+#!/bin/bash
+# foreground helper: run low-d cells in the sandbox with 4 processes for at most $1 seconds (resumable)
+cd /hutian/repo
+timeout $1 xargs -P4 -L1 bash -c 'env TMPDIR=/hutian/tmp python3 -u scripts/run_cell.py run $0 $1 0 0 100 100 2>&1 | grep -v -i warn' <<LIST
+pima rf
+pima gbm
+pima mlp
+pima lr
+acs_income rf
+acs_income gbm
+acs_income mlp
+acs_income lr
+gmsc rf
+gmsc gbm
+gmsc mlp
+gmsc lr
+LIST

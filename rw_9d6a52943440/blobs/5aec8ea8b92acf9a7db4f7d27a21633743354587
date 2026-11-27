@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Sensitivity of the extrapolation split to the target fraction (added after the main runs): targets = top 10 % / top 50 %.
+cd "$(dirname "$0")/.."
+for b in mmlu_pro bbh openllm_math gpqa musr arc_challenge ifeval legalbench commonsense gsm math med_qa mmlu; do
+  for s in extrap10 extrap50; do
+    ht-resource run local-compute --cwd "$PWD" --cpus 1 --memory 6000 --note "$b-$s" -- \
+      python3 -I -u scripts/02_run.py "$b" "$s" --draws 10 --d 2 --out results/raw > /dev/null
+  done
+done

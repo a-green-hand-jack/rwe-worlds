@@ -1,0 +1,13 @@
+\paragraph{What the results say.}
+For the top-3 set, one run of the \texttt{shap} Kernel explainer at its default budget with \texttt{l1\_reg=False} is a reliable basis on these datasets, models and instances, with two qualifications.
+First, whether a swap across a near tie counts as an error is a decision about the use: read strictly, between $0$ and $21\%$ of the instances of a cell miss the exact set with probability above $0.1$ (random forest on GMSC the worst), concentrated in the smallest-margin quartile; with a $5\%$ tolerance, none do.
+A decision that turns on the third and fourth feature needs the strict reading and the budgets of Table~\ref{tab:guidance}.
+Second, the library's default regularisation, a lasso path over ten features, is biased and does worse, so \texttt{l1\_reg=False} should be set at $d>10$ (Section~\ref{sec:headline}).
+The weight given to the floor comparison was not pre-specified.
+At a $50$-row background, a re-drawn background or a retrained model changes the top-3 set more often than the randomness of the \texttt{shap} Kernel explainer (not in general that of the noisier paired Kernel estimator), so a reader asking whether a model's top features are trustworthy should vary those first.
+The certificate comparison is mixed: the registered contrast favours running twice, the matched one the certificate.
+
+\paragraph{Limitations.}
+The retraining floors rest on one trained model per population; there are five datasets of at most $20$ attributes and one tree-model extension at $279$ (Section~\ref{sec:headline}), four model classes at default hyperparameters, a marginal value function with $50$ background rows (Appendix~\ref{app:background}) and $40$ to $100$ instances per dataset, so the intervals are wide and carry no dataset-level interval; the floors use $K\le10$ models.
+The margin law holds for antithetic permutation only (Section~\ref{sec:budget}).
+The thresholds ($0.9$, $5\%$) are our choices; the strict conclusion is not stable over them (Table~\ref{tab:sens}).

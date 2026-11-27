@@ -1,0 +1,14 @@
+"""Usage: run_cell.py prep DATASET SEED | run DATASET MODEL SEED START END R"""
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+import time
+from shapreliab import pipeline as P
+if sys.argv[1] == "prep":
+    meta = P.prepare(sys.argv[2], int(sys.argv[3]))
+    print({k: (round(v["auc"], 4), round(v["acc"], 4)) for k, v in meta["models"].items()}, flush=True)
+else:
+    _, _, ds, kind, seed, a, b, R = sys.argv
+    for i in range(int(a), int(b)):
+        t = time.time()
+        P.run_instance(ds, kind, i, int(seed), int(R))
+        print(f"{ds} {kind} inst {i} done {time.time()-t:.1f}s", flush=True)

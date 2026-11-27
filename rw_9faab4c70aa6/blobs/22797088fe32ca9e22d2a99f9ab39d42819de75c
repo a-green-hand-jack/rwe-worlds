@@ -1,0 +1,41 @@
+"""Synthetic arm: gap (reported - fresh-item accuracy of the selected configuration) vs n, K, sigma_theta and
+item x configuration interaction strength phi.  Random/grid search over K configurations; the search-log
+predictor E max_k Z_k (multiplier bootstrap on the item-level matrix of S) is computed on the same S.
+Usage: python experiments/syn_gap.py OUT.jsonl [--quick]"""
+import sys, json, itertools, time; import os; sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "analysis"))
+import numpy as np
+from multiprocessing import Pool
+from core import gen_synthetic, search_random, kappa_max
+
+NS = [30, 60, 100, 200, 400, 800]; KS = [2, 4, 8, 16, 32, 64, 128]; SIGS = [0.0, 0.01, 0.02, 0.04]; PHIS = [0.25, 0.5, 1.0]
+W, R = 4, 150
+
+def cell(args):
+    sig, phi, wi = args
+    rng = np.random.default_rng([int(sig * 1000), int(phi * 100), wi])
+    Kmax = max(KS)
+    w = gen_synthetic(max(NS) + 200, Kmax, rng, base=0.35, sigma_theta=max(sig, 1e-6), phi=phi, N_pop=30000)
+    if sig == 0.0: w.theta = np.full(Kmax, w.theta.mean())  # exactly equal true accuracy; sampling noise only
+    rows = []
+    for K in KS:
+        cand = np.arange(K)
+        for n in NS:
+            gaps, preds, ths = [], [], []
+            for _ in range(R):
+                S = rng.choice(len(w.Y), n, replace=False)
+                c, _, _ = search_random(w, S, cand, rng)
+                gaps.append(w.Y[S, c].mean() - w.theta[c])
+                preds.append(kappa_max(w.Y[S][:, cand].astype(float), rng, B=200)[0])
+            rows.append(dict(sigma_theta=sig, phi=phi, world=wi, K=K, n=n, gap=float(np.mean(gaps)), gap_sd=float(np.std(gaps)),
+                             pred=float(np.mean(preds)), theta_sd_realised=float(w.theta[:K].std()), theta_mean=float(w.theta[:K].mean())))
+    return rows
+
+if __name__ == "__main__":
+    out = sys.argv[1]
+    if "--quick" in sys.argv: NS[:] = [30, 100]; KS[:] = [4, 32]; SIGS[:] = [0.02]; PHIS[:] = [0.5]; W = 1; R = 30
+    tasks = [(s, p, wi) for s in SIGS for p in PHIS for wi in range(W)]
+    t0 = time.time()
+    with Pool(int(sys.argv[2]) if len(sys.argv) > 2 and sys.argv[2].isdigit() else 4) as pool, open(out, "w") as f:
+        for rows in pool.imap_unordered(cell, tasks):
+            for r in rows: f.write(json.dumps(r) + "\n")
+            f.flush(); print(f"done {len(rows)} rows, {time.time()-t0:.0f}s", flush=True)

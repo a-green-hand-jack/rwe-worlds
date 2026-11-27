@@ -1,0 +1,57 @@
+"""Fig 5 (C6): where the max-t bound can be trusted. Coverage of the one-sided 95% max-t lower bound by searcher and
+candidate-set definition ('declared' = all K configurations; 'evaluated' = those the search touched; for successive
+halving the last-round survivors). Panels = N_tot; filled = sigma_theta 0, open = 0.03.
+usage: python figures/src/fig5.py RESULTS_DIR OUT.pdf"""
+import sys
+import matplotlib.pyplot as plt
+sys.path.insert(0, __file__.rsplit("/", 1)[0])
+import figstyle as fs
+
+ROWS = [("random", 20.0, "random, $B$=20"), ("random", 100.0, "random, $B$=100"), ("hillclimb", None, "hill-climb"),
+        ("sh", 20.0, "succ. halving, 20"), ("sh", 100.0, "succ. halving, 100")]
+SETS = [("declared", "declared set", "bound", "o"), ("evaluated", "evaluated set", "reported", "s")]
+
+
+def main(rd, out):
+    sy = fs.load(rd, "bound_coverage_synthetic"); rl = fs.load(rd, "bound_coverage_real")
+    sy = sy[sy.protocol.str.startswith("maxt") & (sy.sigma_theta == 0.0)]; rl = rl[rl.protocol.str.startswith("maxt")]
+    for nm, b in (("synthetic", sy), ("real", rl)):
+        print(f"Fig 5 data [{nm}]:", b.pool.iloc[0], "| truth:", b.truth.iloc[0], "| worlds/pools =", int(b.n_boot_or_worlds.min()), "| draws =", int(b.draws.min()),
+              "| interval:", b.ci_kind.iloc[0], "| sigma_theta:", "pool" if nm == "real" else "0")
+    fs.apply(); c = fs.C
+    W, H = fs.VENUE["text_width_in"], fs.VENUE["max_height_in"]
+    fig = plt.figure(figsize=(W, H))
+    ntots = [120, 240]
+    axs = [fig.add_axes([x, 0.19, 0.31, 0.68]) for x in (0.235, 0.63)]
+    # (candidate set, arm) -> vertical offset within a searcher row
+    OFF = {("declared", "syn"): 0.32, ("declared", "real"): 0.12, ("evaluated", "real"): -0.12, ("evaluated", "syn"): -0.32}
+    pr = []
+    for ax, nt in zip(axs, ntots):
+        for i, (s, B, lab) in enumerate(ROWS):
+            for cs, _, col, mk in SETS:
+                for arm, b in (("syn", sy), ("real", rl)):
+                    q = b[(b.searcher == s) & (b.N_tot == nt) & (b.candidate_set == cs) & (b.B.fillna(-1) == (B if B else -1))]
+                    if q.empty: continue
+                    q = q.iloc[0]; y = -i + OFF[(cs, arm)]
+                    ax.errorbar([q.coverage], [y], xerr=[[max(q.coverage - q.cov_lo, 0)], [max(q.cov_hi - q.coverage, 0)]],
+                                fmt=mk, ms=3.8 if arm == "syn" else 3.4, color=c[col], mfc="white" if arm == "syn" else c[col], capsize=1.5, elinewidth=0.8)
+                    if arm == "real":
+                        ax.plot([q.coverage_cons], [y], color=c[col], marker="|", ms=5, mew=1.1, ls="none")
+                        pr.append(f"{lab}/{cs}/N{nt}: {q.coverage:.3f}|{q.coverage_cons:.3f}")
+        ax.axvline(0.95, color=c["ink"], lw=0.7, ls="--")
+        ax.set_xlim(0.3, 1.02); ax.set_ylim(-len(ROWS) + 0.5, 0.6); ax.set_xticks([0.4, 0.6, 0.8, 0.95]); ax.set_xticklabels([".4", ".6", ".8", ".95"])
+        ax.set_yticks([-i for i in range(len(ROWS))]); ax.tick_params(axis="y", length=0); ax.spines["left"].set_visible(False)
+        ax.set_xlabel("coverage (nominal .95)"); ax.grid(axis="y", color=c["light"], lw=0.5); ax.set_axisbelow(True)
+        ax.set_title(f"$N_{{tot}}$ = {nt} items", fontsize=7.5, weight="bold", loc="left", pad=3)
+    print("Fig 5 real pairs (anti-conservative | conservative): " + "; ".join(pr))
+    axs[0].set_yticklabels([r[2] for r in ROWS]); axs[1].set_yticklabels([])
+    h = [plt.Line2D([], [], color=c[col], marker=mk, ls="none", ms=3.8, label=lab) for _, lab, col, mk in SETS]
+    h += [plt.Line2D([], [], color=c["ink"], marker="o", ls="none", ms=3.4, label="real pool"),
+          plt.Line2D([], [], color=c["ink"], marker="|", ls="none", ms=5, mew=1.1, label="real, conserv. score"),
+          plt.Line2D([], [], color=c["ink"], marker="o", ls="none", ms=3.8, mfc="white", label=r"synthetic, $\sigma_\theta$=0")]
+    axs[1].legend(handles=h, frameon=False, loc="upper left", bbox_to_anchor=(0.0, 1.0), fontsize=7, handletextpad=0.1, borderaxespad=0.1, labelspacing=0.2)
+    fig.savefig(out, bbox_inches=None, pad_inches=0)
+
+
+if __name__ == "__main__":
+    main(*sys.argv[1:3])

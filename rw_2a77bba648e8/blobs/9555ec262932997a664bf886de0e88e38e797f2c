@@ -1,0 +1,28 @@
+"""Graph neural network baseline on the Tier A cells:  python scripts/run_gnn.py SHARD NSHARDS OUTDIR [R_USE]
+Cell i of grid.tierA_runs() goes to shard i % NSHARDS; the first R_USE (default 10) of the 40 assignments of each of the 5 graph draws are used (50 draws); the real-graph cells (1 graph, 200 assignments) use the first 50."""
+import os
+import pickle
+import sys
+import time
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+import grid  # noqa: E402
+from gate import gnn  # noqa: E402
+
+if __name__ == "__main__":
+    shard, nsh, outdir = int(sys.argv[1]), int(sys.argv[2]), sys.argv[3]
+    r_use = int(sys.argv[4]) if len(sys.argv) > 4 else 10
+    os.makedirs(outdir, exist_ok=True)
+    for i, c in enumerate(grid.tierA_runs()):
+        if i % nsh != shard:
+            continue
+        f = os.path.join(outdir, c["id"] + ".pkl")
+        if os.path.exists(f):
+            continue
+        t = time.time()
+        res = gnn.run_gnn(c, r_use=50 if c["G"] == 1 else r_use)
+        with open(f + ".tmp", "wb") as fh:
+            pickle.dump(res, fh, protocol=4)
+        os.replace(f + ".tmp", f)
+        print(f"DONE {c['id']} {time.time()-t:.0f}s", flush=True)

@@ -1,0 +1,20 @@
+\begingroup\setlength{\tabcolsep}{2.5pt}
+\begin{tabular}{lrrrrrrrrr}
+\toprule
+ & \multicolumn{3}{c}{interpolation} & \multicolumn{3}{c}{extrapolation} & \multicolumn{3}{c}{lineage-held-out} \\
+\cmidrule(lr){2-4} \cmidrule(lr){5-7} \cmidrule(lr){8-10}
+Method & $\rho$ & $\tau$ & P@10\% & $\rho$ & $\tau$ & P@10\% & $\rho$ & $\tau$ & P@10\% \\
+\midrule
+uniform $\times$ mean & 0.90 & 0.79 & 0.74 & 0.77 & 0.62 & 0.55 & 0.90 & 0.79 & 0.71 \\
+stratified $\times$ mean & 0.90 & 0.79 & 0.74 & 0.76 & 0.61 & 0.56 & 0.90 & 0.79 & 0.71 \\
+uniform $\times$ cal. reg. & 0.90 & 0.79 & 0.74 & 0.77 & 0.62 & 0.55 & 0.90 & 0.79 & 0.71 \\
+anchor $\times$ IRT plug-in & 0.93 & 0.83 & 0.78 & 0.53 & 0.40 & 0.32 & 0.93 & 0.82 & 0.75 \\
+balanced $\times$ mean & 0.93 & 0.82 & 0.76 & 0.78 & 0.63 & 0.57 & 0.92 & 0.81 & 0.74 \\
+uniform $\times$ IRT model & 0.92 & 0.80 & 0.74 & 0.47 & 0.36 & 0.31 & 0.92 & 0.80 & 0.70 \\
+uniform $\times$ diff. IRT & 0.93 & 0.81 & 0.76 & 0.76 & 0.60 & 0.54 & 0.93 & 0.81 & 0.73 \\
+balanced $\times$ cal. reg. & 0.93 & 0.82 & 0.76 & 0.78 & 0.63 & 0.57 & 0.92 & 0.81 & 0.74 \\
+balanced $\times$ diff. IRT & 0.94 & 0.83 & 0.76 & 0.77 & 0.61 & 0.57 & 0.93 & 0.82 & 0.75 \\
+PPS $\times$ diff. IRT & 0.94 & 0.83 & 0.76 & 0.77 & 0.60 & 0.57 & 0.93 & 0.82 & 0.74 \\
+\bottomrule
+\end{tabular}
+\endgroup

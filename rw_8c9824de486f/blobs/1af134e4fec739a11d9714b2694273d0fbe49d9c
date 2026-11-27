@@ -1,0 +1,23 @@
+{
+  "analysis_commit": "66252a8",
+  "figure": "figtab/tab1_coverage.tex",
+  "inputs": [
+    {
+      "path": "results/table1_filter.csv",
+      "sha256": "dfa357062ca1b415897898604f43e01a5cfef89bf6202505d076f1247787f7b2"
+    },
+    {
+      "path": "results/table1_splits.csv",
+      "sha256": "25e9563860f0140d60b2d4434bc954ef5bb9c917ce338f1de067cdf0da8f46ef"
+    },
+    {
+      "path": "results/table1_shape.json",
+      "sha256": "7deea3b515e3defe2fb6e863be057420a7e51cd6b89b73faa7b40eaa699a802c"
+    },
+    {
+      "path": "results/ct_curves.csv",
+      "sha256": "27bb53a8af520ef897a78082d20f92e2740e8ddc528ea9fbabe78522dfaa9fcc"
+    }
+  ],
+  "script": "figtab/make_tables.py"
+}

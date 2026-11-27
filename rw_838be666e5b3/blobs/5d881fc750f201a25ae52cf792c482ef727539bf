@@ -1,0 +1,73 @@
+\documentclass{article}
+
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{etoolbox}
+% the tables are numbered by hand (\refstepcounter); a longtable without a caption must not advance the counter
+\AtBeginEnvironment{longtable}{\addtocounter{table}{-1}}
+\usepackage{hyperref}
+\newcommand{\theHalgorithm}{\arabic{algorithm}}
+
+\usepackage{icml2027}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{amsthm}
+\usepackage[capitalize,noabbrev]{cleveref}
+
+\theoremstyle{plain}
+\newtheorem{proposition}{Proposition}
+\newtheorem{corollary}{Corollary}
+\theoremstyle{definition}
+\newtheorem{assumption}{Assumption}
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}
+
+\input{macros}
+
+\icmltitlerunning{How much shorter can a prediction-powered interval be?}
+
+\begin{document}
+
+\twocolumn[
+  \icmltitle{How much shorter can a prediction-powered interval be?\\
+    Headroom over PPI++ when labels, unlabeled data and predictor are fixed}
+
+  \begin{icmlauthorlist}
+    \icmlauthor{Anonymous Authors}{anon}
+  \end{icmlauthorlist}
+  \icmlaffiliation{anon}{Anonymous Institution}
+  \icmlcorrespondingauthor{Anonymous}{anonymous@example.com}
+  \icmlkeywords{prediction-powered inference, confidence intervals, semi-supervised inference}
+
+  \vskip 0.3in
+]
+
+\printAffiliationsAndNotice{}
+
+\begin{abstract}
+\input{sections/abstract}
+\end{abstract}
+
+\input{sections/intro}
+\input{sections/related}
+\input{sections/setting}
+\input{sections/method}
+\input{sections/experiments}
+\input{sections/results}
+\input{sections/discussion}
+
+\input{sections/statements}
+
+\bibliography{references}
+\bibliographystyle{icml2027}
+
+\appendix
+\onecolumn
+\input{sections/appendix}
+
+\end{document}

@@ -1,0 +1,79 @@
+"""Reporting protocols at equal total item budget N_tot.
+
+Every protocol receives the same set U of N_tot items (drawn uniformly from the pool / synthetic items) and
+the same searcher; it returns the configuration it would deploy, a point report, and (if it has one) a
+one-sided lower bound at nominal level 1-alpha.  Each is scored against the *same* yardstick
+(truth of the deployed configuration on fresh items) and also on its own estimand where that differs.
+"""
+import numpy as np
+from scipy.stats import norm, beta
+from core import SEARCHERS, kappa_max
+
+
+def _se(p, n):
+    return np.sqrt(np.maximum(p * (1 - p), 1.0 / (4 * n)) / n)      # floor avoids se=0 at p in {0,1}
+
+
+def clopper_lower(k, n, alpha):
+    return 0.0 if k == 0 else beta.ppf(alpha, k, n - k + 1)
+
+
+def maxt_quantile(Ys, rng, alpha, B=500):
+    """(1-alpha) quantile of max_k Z_k/se_k, Z by Gaussian multiplier bootstrap from the item-level matrix Ys (n,K)
+    (centered columns), i.e. the studentised max statistic that gives simultaneous one-sided lower bounds."""
+    n, K = Ys.shape
+    X = Ys - Ys.mean(0)
+    sd = np.sqrt((X ** 2).mean(0)); sd = np.where(sd < 1e-9, 1e-9, sd)
+    xi = rng.standard_normal((B, n))
+    T = (xi @ X / n) / (sd / np.sqrt(n))
+    return np.quantile(T.max(1), 1 - alpha)
+
+
+def run_protocols(world, U, rng, searcher="random", cand=None, B=None, alpha=0.05, split_fracs=(0.2, 0.5),
+                  folds=5, n_boot=100, search_kw=None, candidate_sets=("evaluated", "declared")):
+    """Returns {protocol_name: dict(c=deployed config, theta=its truth, report=point or None, lb=lower bound or None,
+    est_target=truth of the protocol's own estimand if different)}."""
+    search = SEARCHERS[searcher]; kw = dict(search_kw or {}); cand = np.arange(world.K) if cand is None else cand
+    if B is not None: kw["B"] = B
+    n = len(U); Y = world.Y; out = {}
+    # ---- full search on all of U (shared by naive, bounds, bootstrap, cross-fit deployment)
+    c, cells, info = search(world, U, cand, rng, **kw)
+    th = world.truth(U, c); ybar = Y[U, c].mean(); se_th = 0.0 if world.theta is not None else world.fresh_se(U, c)
+    out["naive"] = dict(c=c, theta=th, th_se=se_th, report=ybar, lb=None, cells=cells)
+    # ---- max-t and Sidak/Bonferroni lower bounds for theta(c_hat)
+    ev_all = {"evaluated": np.asarray(info["evaluated"]), "declared": cand}
+    for cs in candidate_sets:
+        cands = ev_all[cs]
+        q = maxt_quantile(Y[U][:, cands].astype(float), rng, alpha)
+        out[f"maxt[{cs}]"] = dict(c=c, theta=th, th_se=se_th, report=None, lb=ybar - q * _se(ybar, n), cells=cells)
+        m = len(cands)
+        zb = norm.ppf(1 - alpha / m); zs = norm.ppf((1 - alpha) ** (1.0 / m))
+        out[f"bonferroni[{cs}]"] = dict(c=c, theta=th, th_se=se_th, report=None, lb=ybar - zb * _se(ybar, n), cells=cells)
+        out[f"sidak[{cs}]"] = dict(c=c, theta=th, th_se=se_th, report=None, lb=ybar - zs * _se(ybar, n), cells=cells)
+    out["pointwise_lb"] = dict(c=c, theta=th, th_se=se_th, report=None, lb=ybar - norm.ppf(1 - alpha) * _se(ybar, n), cells=cells)
+    # ---- optimism bootstrap (Efron & Tibshirani 1997) and its .632 variant
+    opt = []; oob = []
+    for _ in range(n_boot):
+        Sb = rng.choice(U, n, replace=True)
+        cb, _, _ = search(world, Sb, cand, rng, **kw)
+        opt.append(Y[Sb, cb].mean() - Y[U, cb].mean())
+        oo = U[~np.isin(U, Sb)]
+        if len(oo): oob.append(Y[oo, cb].mean())
+    opt_hat = float(np.mean(opt))
+    out["optimism_bootstrap"] = dict(c=c, theta=th, th_se=se_th, report=ybar - opt_hat, lb=None, cells=cells * (1 + n_boot))
+    if oob:
+        out["boot632"] = dict(c=c, theta=th, th_se=se_th, report=0.368 * ybar + 0.632 * float(np.mean(oob)), lb=None, cells=cells * (1 + n_boot))
+    # ---- nested cross-fit: search on F-1 folds, score on the held-out fold; deployed = c (full search)
+    perm = rng.permutation(U); parts = np.array_split(perm, folds); sc = []; ths = []; sizes = []
+    for f in range(folds):
+        tr = np.concatenate([parts[g] for g in range(folds) if g != f]); te = parts[f]
+        cf, _, _ = search(world, tr, cand, rng, **kw)
+        sc.append(Y[te, cf].mean() * len(te)); ths.append(world.truth(tr, cf)); sizes.append(len(te))
+    out["crossfit"] = dict(c=c, theta=th, th_se=se_th, report=sum(sc) / sum(sizes), lb=None, est_target=float(np.mean(ths)), cells=cells * (1 + folds))
+    # ---- split: search on (1-f) of U, report on the held-out f of U (exact binomial lower bound too)
+    for f in split_fracs:
+        m = int(round(f * n)); perm = rng.permutation(U); te, tr = perm[:m], perm[m:]
+        cs_, _, _ = search(world, tr, cand, rng, **kw)
+        k = int(Y[te, cs_].sum()); ths_ = world.truth(U, cs_); se_ = 0.0 if world.theta is not None else world.fresh_se(U, cs_)
+        out[f"split{int(f*100)}"] = dict(c=cs_, theta=ths_, th_se=se_, report=k / m, lb=clopper_lower(k, m, alpha), est_target=ths_, cells=cells)
+    return out

@@ -1,0 +1,65 @@
+"""Training-side k*(epsilon) rule (post hoc, PREREG Deviation 4a) against the empirical k* on the outer test models.
+Inputs: <inner_dir> with GI_*/TI_*/SI_* parquet files of 26_inner_all.sh (S0, S6 x P5 on inner-held-out training models, 10 C/T splits), <ct_dir> result files of the outer
+run (for the empirical curve, via results/ct_excess_curve_ct_*_fixed.csv), <data_dir>. Output: results/inner_kstar.csv, results/inner_excess_curves.csv.
+Training-side curve = mean over inner-held-out models (equal weights; a model appears in the training set of 9 of the 10 outer G folds and is counted once per fold, the
+fold being the pooling unit) of RMSE(S6+P5) - RMSE(floor), model's mean over its eligible splits; bootstrap resamples training groups.
+usage: python 32_inner_kstar.py <data_dir> <inner_dir> <res_dir> [B]"""
+import os, sys, glob, numpy as np, pandas as pd
+sys.path.insert(0, os.path.dirname(__file__))
+from common import *
+data_dir, inner, res = sys.argv[1:4]; B = int(sys.argv[4]) if len(sys.argv) > 4 else 5000
+Y, mods, tasks, et = load_matrix(data_dir); org = mods.org.values; kg = K_GRID
+EPS = [("delta_floor", None), ("2delta_floor", None)] + [(f"eps_{e}", e) for e in (0.25, 0.5, 1.0, 1.5, 2.0, 3.0)]
+
+def curve_rows(split):
+    fs = sorted(glob.glob(os.path.join(inner, f"{split}I_*_inner.parquet"))); d = pd.concat([pd.read_parquet(f) for f in fs], ignore_index=True)
+    d["outer"] = d.fold // 10; d["org"] = org[d.model.values]
+    fl = d[d.rule == "floor"][["fold", "model", "k", "rmse", "delta_mean", "floorj_mean"]].rename(columns={"rmse": "floor"})
+    s6 = d[(d.rule == "S6") & (d.inf == "P5")][["fold", "model", "k", "rmse", "org", "outer"]].merge(fl, on=["fold", "model", "k"])
+    s0 = d[(d.rule == "S0") & (d.inf == "P5")][["fold", "model", "k", "rmse"]].rename(columns={"rmse": "rmse0"})
+    return s6.merge(s0, on=["fold", "model", "k"])
+
+def boot(x, g, seed):
+    ug, inv = np.unique(g, return_inverse=True); rng = np.random.default_rng(seed); dr = rng.integers(0, len(ug), size=(B, len(ug)))
+    return np.bincount(inv, weights=x, minlength=len(ug)), np.bincount(inv, minlength=len(ug)).astype(float), dr
+
+def kstar(c, eps):
+    ok = np.where(c <= eps)[0]; return kg[ok[0]] if len(ok) else 9999
+out_rows, curve_out = [], []
+emp = pd.concat([pd.read_csv(f).assign(path=f) for f in glob.glob(os.path.join(res, "ct_excess_curve_ct_*_fixed.csv"))])
+ekst = pd.read_csv(os.path.join(res, "ct_kstar.csv"))
+for split in ("G", "T", "S"):
+    if not glob.glob(os.path.join(inner, f"{split}I_*_inner.parquet")): continue      # a matrix without that split (e.g. no temporal split on the Open LLM LB)
+    d = curve_rows(split)
+    # fixed subset: models eligible at the largest k that every fold reaches
+    kk = [k for k in kg if (d.k == k).any()]; kfix = kk[-1]
+    keep = d[d.k == kfix][["fold", "model"]].drop_duplicates(); d = d.merge(keep, on=["fold", "model"])
+    exc = {}; reps = []; pts = []
+    for i, k in enumerate(kk):
+        x = d[d.k == k]; e = (x.rmse - x.floor).values; sums, cnt, dr = boot(e, x.org.values, 7 + i)
+        pts.append(e.mean()); reps.append(sums[dr].sum(1) / cnt[dr].sum(1))
+        e0 = (x.rmse0 - x.floor).values; curve_out.append(dict(split=split, k=k, excess_S6_train=e.mean(), excess_S0_train=e0.mean(), n_models=len(x), n_groups=len(set(x.org)), kfix=kfix))
+    pts = np.array(pts); reps = np.array(reps)
+    for c in curve_out[-len(kk):]:
+        i = kk.index(c["k"]); c["lo90"] = np.percentile(reps[i], 5); c["hi90"] = np.percentile(reps[i], 95)
+    dfl = 0.25 * d[d.k == kfix].floorj_mean.mean(); dT = d[d.k == kfix].delta_mean.mean()
+    for name, eps in EPS:
+        if name == "delta_floor": eps = dfl
+        if name == "2delta_floor": eps = 2 * dfl
+        khat = kstar(pts, eps); rk = np.array([kstar(reps[:, j], eps) for j in range(B)])
+        er = ekst[(ekst.split == split) & (ekst.subset == "fixed") & (ekst.epsilon_name == name)]
+        kemp = er.k_emp.iloc[0] if len(er) else np.nan; lo = er.k_emp_lo.iloc[0] if len(er) else np.nan; hi = er.k_emp_hi.iloc[0] if len(er) else np.nan
+        steps = (kg.index(khat) - kg.index(int(kemp))) if (khat != 9999 and kemp == kemp and kemp != 9999) else np.nan
+        out_rows.append(dict(split=split, epsilon_name=name, epsilon=eps, k_hat=khat, k_hat_lo=float(np.percentile(rk, 5, method="lower")), k_hat_hi=float(np.percentile(rk, 95, method="higher")),
+                             k_emp=kemp, k_emp_lo=lo, k_emp_hi=hi, grid_steps_hat_minus_emp=steps, k_emp_in_hat_ci=bool(np.percentile(rk, 5, method="lower") <= kemp <= np.percentile(rk, 95, method="higher")) if kemp == kemp else np.nan,
+                             n_train_side_models=int(len(d[d.k == kfix])), note="grid values; 9999 = not reached on the grid"))
+# per outer fold (what a user of the rule would have: only that fold's training side), G
+d = curve_rows("G"); kfix = max(k for k in kg if (d.k == k).any()); keep = d[d.k == kfix][["fold", "model"]].drop_duplicates(); d = d.merge(keep, on=["fold", "model"]); fr = []
+for of, g in d.groupby("outer"):
+    c = np.array([(g[g.k == k].rmse - g[g.k == k].floor).mean() for k in kg if (g.k == k).any()]); dfl = 0.25 * g[g.k == kfix].floorj_mean.mean()
+    r = dict(outer_fold=of, n_models=int(len(g[g.k == kfix])), delta_floor=dfl)
+    for name, eps in (("delta_floor", dfl), ("2delta_floor", 2 * dfl), ("eps_1.0", 1.0), ("eps_2.0", 2.0)): r["k_hat_" + name] = kstar(c, eps)
+    fr.append(r)
+pd.DataFrame(fr).to_csv(os.path.join(res, "inner_kstar_by_outer_fold_G.csv"), index=False); print(pd.DataFrame(fr).round(2).to_string())
+pd.DataFrame(out_rows).to_csv(os.path.join(res, "inner_kstar.csv"), index=False); pd.DataFrame(curve_out).to_csv(os.path.join(res, "inner_excess_curves.csv"), index=False)
+pd.set_option("display.width", 200); print(pd.DataFrame(out_rows).drop(columns=["note"]).round(2).to_string())

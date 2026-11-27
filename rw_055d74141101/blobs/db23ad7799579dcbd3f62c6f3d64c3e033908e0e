@@ -1,0 +1,34 @@
+{
+ "inputs": {
+  "predictive_rule.csv": {
+   "sha256": "23f6f95644305bd2853aa0602314fbf0d2f5991a66a918b06aedb578a4f45917",
+   "rows": 76,
+   "dataset": [
+    "pooled"
+   ],
+   "design": [
+    "all"
+   ],
+   "perturbation": [
+    "delete",
+    "flip"
+   ],
+   "synthetic": [
+    "0"
+   ],
+   "N_range": [
+    1019243,
+    1019243
+   ]
+  }
+ },
+ "families": [
+  "delete",
+  "flip"
+ ],
+ "n_full_fit_units": {
+  "delete": 91,
+  "flip": 91
+ },
+ "omitted": "design_comparison_units (89-unit) variants of the reference rows; see predictive_rule.csv"
+}

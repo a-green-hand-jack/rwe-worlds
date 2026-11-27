@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Secondary endpoint n/N = 2 %: n = round(0.02 N) per benchmark; outputs in results/raw_2pct (analysed by 03_analyze.py with TWO_PCT=1)
+cd "$(dirname "$0")/.."
+for b in commonsense gsm math med_qa mmlu legalbench arc_challenge gpqa ifeval musr openllm_math bbh mmlu_pro; do
+  n=$(python3 -I -c "import sys; sys.path.insert(0,'src'); from bpred import data; print(round(0.02*data.get('$b')['Y'].shape[1]))")
+  for s in interp lineage extrap; do
+    [ "$b" = legalbench ] && [ "$s" = lineage ] && continue
+    ht-resource run local-compute --cwd "$PWD" --cpus 1 --memory 6000 --note "$b-$s-2pct" -- \
+      python3 -I -u scripts/02_run.py "$b" "$s" --draws 10 --d 2 --ngrid $n --out results/raw_2pct > /dev/null
+  done
+done

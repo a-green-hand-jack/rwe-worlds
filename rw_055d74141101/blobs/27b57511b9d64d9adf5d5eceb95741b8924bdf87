@@ -1,0 +1,77 @@
+term,coef,lo,hi,heldout_scheme,heldout_err,n_heldout_units,perturbation,n_units,dataset,design,synthetic,n_pairs_fit,N
+intercept,0.994888,0.693734,1.68531,none (full fit),0.257496,0,delete,91,pooled,all,0,30884,1019243
+log_z,1.09224,1.05473,1.11963,none (full fit),0.257496,0,delete,91,pooled,all,0,30884,1019243
+log_N,0.151699,0.0480492,0.197634,none (full fit),0.257496,0,delete,91,pooled,all,0,30884,1019243
+log_density,-0.310313,-1.42699,0.136528,none (full fit),0.257496,0,delete,91,pooled,all,0,30884,1019243
+tie_rate,1.57283,0.471141,3.11045,none (full fit),0.257496,0,delete,91,pooled,all,0,30884,1019243
+heldout_sq_err_diff(base-design),0.0124446,0.00631844,0.0196563,"leave-one-dataset-out, designs with >=2 units ['crowd', 'llm_judge', 'sports']",0.263212,90,delete,91,pooled,all,0,30884,1019243
+heldout_sq_err_diff(base-design)_median_over_units,0.00431503,0.00271535,0.0064703,"leave-one-dataset-out, median over held-out units",,90,delete,91,pooled,all,0,30884,1019243
+n_heldout_units_where_design_better,66,,,leave-one-dataset-out,,90,delete,91,pooled,all,0,30884,1019243
+heldout_sq_err_diff(base-design)_ridge,0.0102122,0.00548196,0.0157054,"leave-one-dataset-out, design dummies ridge-shrunk (lambda=1.0), designs with >=2 units ['crowd', 'llm_judge', 'sports']",0.243039,90,delete,91,pooled,all,0,30884,1019243
+heldout_sq_err_diff(base-design)_ridge_median_over_units,0.0037121,0.00243087,0.00568579,"leave-one-dataset-out, median over held-out units (ridge dummies)",,90,delete,91,pooled,all,0,30884,1019243
+n_heldout_units_where_design_better_ridge,69,,,leave-one-dataset-out,,90,delete,91,pooled,all,0,30884,1019243
+heldout_rmse_design_model,0.238403,,,"leave-one-dataset-out, designs with >=2 units",0.238403,90,delete,91,pooled,all,0,30884,1019243
+heldout_rmse_base[crowd],0.656238,,,leave-one-design-out,0.656238,2,delete,91,pooled,all,0,30884,1019243
+heldout_rmse_base[expert],0.529217,,,leave-one-design-out,0.529217,1,delete,91,pooled,all,0,30884,1019243
+heldout_rmse_base[llm_judge],1.00324,,,leave-one-design-out,1.00324,19,delete,91,pooled,all,0,30884,1019243
+heldout_rmse_base[sports],0.36876,,,leave-one-design-out,0.36876,69,delete,91,pooled,all,0,30884,1019243
+intercept,-0.236141,-0.343073,-0.0947763,none (full fit),0.215109,0,flip,91,pooled,all,0,30884,1019243
+log_z,1.15781,1.14035,1.17252,none (full fit),0.215109,0,flip,91,pooled,all,0,30884,1019243
+log_N,0.251124,0.230046,0.26732,none (full fit),0.215109,0,flip,91,pooled,all,0,30884,1019243
+log_density,0.437505,0.16235,0.620101,none (full fit),0.215109,0,flip,91,pooled,all,0,30884,1019243
+tie_rate,0.561997,0.161958,1.02929,none (full fit),0.215109,0,flip,91,pooled,all,0,30884,1019243
+heldout_sq_err_diff(base-design),0.0006346,-3.25124e-05,0.00144395,"leave-one-dataset-out, designs with >=2 units ['crowd', 'llm_judge', 'sports']",0.215875,90,flip,91,pooled,all,0,30884,1019243
+heldout_sq_err_diff(base-design)_median_over_units,0.000173711,-0.000109793,0.000407182,"leave-one-dataset-out, median over held-out units",,90,flip,91,pooled,all,0,30884,1019243
+n_heldout_units_where_design_better,52,,,leave-one-dataset-out,,90,flip,91,pooled,all,0,30884,1019243
+heldout_sq_err_diff(base-design)_ridge,0.000578341,0.000217705,0.000985715,"leave-one-dataset-out, design dummies ridge-shrunk (lambda=1.0), designs with >=2 units ['crowd', 'llm_judge', 'sports']",0.214531,90,flip,91,pooled,all,0,30884,1019243
+heldout_sq_err_diff(base-design)_ridge_median_over_units,0.000194002,-6.68175e-05,0.000354622,"leave-one-dataset-out, median over held-out units (ridge dummies)",,90,flip,91,pooled,all,0,30884,1019243
+n_heldout_units_where_design_better_ridge,51,,,leave-one-dataset-out,,90,flip,91,pooled,all,0,30884,1019243
+heldout_rmse_design_model,0.2144,,,"leave-one-dataset-out, designs with >=2 units",0.2144,90,flip,91,pooled,all,0,30884,1019243
+heldout_rmse_base[crowd],0.426014,,,leave-one-design-out,0.426014,2,flip,91,pooled,all,0,30884,1019243
+heldout_rmse_base[expert],0.2738,,,leave-one-design-out,0.2738,1,flip,91,pooled,all,0,30884,1019243
+heldout_rmse_base[llm_judge],0.453272,,,leave-one-design-out,0.453272,19,flip,91,pooled,all,0,30884,1019243
+heldout_rmse_base[sports],0.27506,,,leave-one-design-out,0.27506,69,flip,91,pooled,all,0,30884,1019243
+heldout_rmse_ref[intercept_only][design_comparison_units],0.814942,0.74846,0.880302,"leave-one-dataset-out, design_comparison_units",0.814942,89,delete,91,pooled,all,0,30884,1019243
+heldout_sq_err_diff(intercept_only-base)[design_comparison_units],0.595544,0.508869,0.685446,"leave-one-dataset-out, design_comparison_units",,89,delete,91,pooled,all,0,30884,1019243
+heldout_rmse_ref[log_z_only][design_comparison_units],0.446664,0.385426,0.505364,"leave-one-dataset-out, design_comparison_units",0.446664,89,delete,91,pooled,all,0,30884,1019243
+heldout_sq_err_diff(log_z_only-base)[design_comparison_units],0.130922,0.0983787,0.168683,"leave-one-dataset-out, design_comparison_units",,89,delete,91,pooled,all,0,30884,1019243
+heldout_rmse_ref[base_model][design_comparison_units],0.261891,0.220071,0.302286,"leave-one-dataset-out, design_comparison_units",0.261891,89,delete,91,pooled,all,0,30884,1019243
+heldout_rmse_ref[first_order_rescaled][design_comparison_units],0.37568,0.3494,0.402179,"leave-one-dataset-out, design_comparison_units",0.37568,89,delete,91,pooled,all,0,30884,1019243
+heldout_sq_err_diff(first_order_rescaled-base)[design_comparison_units],0.0725488,0.0407782,0.104035,"leave-one-dataset-out, design_comparison_units",,89,delete,91,pooled,all,0,30884,1019243
+heldout_rmse_ref[null_mean][design_comparison_units],0.260229,0.21742,0.300673,"leave-one-dataset-out, design_comparison_units",0.260229,89,delete,91,pooled,all,0,30884,1019243
+heldout_sq_err_diff(null_mean-base)[design_comparison_units],-0.000867488,-0.00877946,0.00622683,"leave-one-dataset-out, design_comparison_units",,89,delete,91,pooled,all,0,30884,1019243
+heldout_rmse_ref[null_mean_rescaled][design_comparison_units],0.259783,0.215531,0.2989,"leave-one-dataset-out, design_comparison_units",0.259783,89,delete,91,pooled,all,0,30884,1019243
+heldout_sq_err_diff(null_mean_rescaled-base)[design_comparison_units],-0.00109967,-0.00904398,0.00582117,"leave-one-dataset-out, design_comparison_units",,89,delete,91,pooled,all,0,30884,1019243
+heldout_rmse_ref[intercept_only][all_units],0.830736,0.759864,0.898139,"leave-one-dataset-out, all_units",0.830736,90,delete,91,pooled,all,0,30884,1019243
+heldout_sq_err_diff(intercept_only-base)[all_units],0.619185,0.528145,0.717922,"leave-one-dataset-out, all_units",,90,delete,91,pooled,all,0,30884,1019243
+heldout_rmse_ref[log_z_only][all_units],0.449744,0.387365,0.507921,"leave-one-dataset-out, all_units",0.449744,90,delete,91,pooled,all,0,30884,1019243
+heldout_sq_err_diff(log_z_only-base)[all_units],0.131333,0.0974834,0.167169,"leave-one-dataset-out, all_units",,90,delete,91,pooled,all,0,30884,1019243
+heldout_rmse_ref[base_model][all_units],0.266339,0.225714,0.304868,"leave-one-dataset-out, all_units",0.266339,90,delete,91,pooled,all,0,30884,1019243
+heldout_rmse_ref[first_order_rescaled][all_units],0.374027,0.3477,0.400827,"leave-one-dataset-out, all_units",0.374027,90,delete,91,pooled,all,0,30884,1019243
+heldout_sq_err_diff(first_order_rescaled-base)[all_units],0.0689594,0.0375728,0.100186,"leave-one-dataset-out, all_units",,90,delete,91,pooled,all,0,30884,1019243
+heldout_rmse_ref[null_mean][all_units],0.259143,0.216108,0.296217,"leave-one-dataset-out, all_units",0.259143,90,delete,91,pooled,all,0,30884,1019243
+heldout_sq_err_diff(null_mean-base)[all_units],-0.00378161,-0.0139043,0.00449933,"leave-one-dataset-out, all_units",,90,delete,91,pooled,all,0,30884,1019243
+heldout_rmse_ref[null_mean_rescaled][all_units],0.258723,0.218984,0.29979,"leave-one-dataset-out, all_units",0.258723,90,delete,91,pooled,all,0,30884,1019243
+heldout_sq_err_diff(null_mean_rescaled-base)[all_units],-0.00399915,-0.0136366,0.00427333,"leave-one-dataset-out, all_units",,90,delete,91,pooled,all,0,30884,1019243
+heldout_rmse_ref[intercept_only][design_comparison_units],0.849927,0.790534,0.908491,"leave-one-dataset-out, design_comparison_units",0.849927,89,flip,91,pooled,all,0,30884,1019243
+heldout_sq_err_diff(intercept_only-base)[design_comparison_units],0.675411,0.588819,0.765663,"leave-one-dataset-out, design_comparison_units",,89,flip,91,pooled,all,0,30884,1019243
+heldout_rmse_ref[log_z_only][design_comparison_units],0.436278,0.380074,0.490655,"leave-one-dataset-out, design_comparison_units",0.436278,89,flip,91,pooled,all,0,30884,1019243
+heldout_sq_err_diff(log_z_only-base)[design_comparison_units],0.143374,0.109941,0.181759,"leave-one-dataset-out, design_comparison_units",,89,flip,91,pooled,all,0,30884,1019243
+heldout_rmse_ref[base_model][design_comparison_units],0.216713,0.182442,0.245619,"leave-one-dataset-out, design_comparison_units",0.216713,89,flip,91,pooled,all,0,30884,1019243
+heldout_rmse_ref[first_order_rescaled][design_comparison_units],0.154926,0.137252,0.176677,"leave-one-dataset-out, design_comparison_units",0.154926,89,flip,91,pooled,all,0,30884,1019243
+heldout_sq_err_diff(first_order_rescaled-base)[design_comparison_units],-0.0229627,-0.0404281,-0.00698496,"leave-one-dataset-out, design_comparison_units",,89,flip,91,pooled,all,0,30884,1019243
+heldout_rmse_ref[null_mean][design_comparison_units],0.24255,0.208006,0.27518,"leave-one-dataset-out, design_comparison_units",0.24255,89,flip,91,pooled,all,0,30884,1019243
+heldout_sq_err_diff(null_mean-base)[design_comparison_units],0.011866,0.00880571,0.0151844,"leave-one-dataset-out, design_comparison_units",,89,flip,91,pooled,all,0,30884,1019243
+heldout_rmse_ref[null_mean_rescaled][design_comparison_units],0.241922,0.207715,0.274897,"leave-one-dataset-out, design_comparison_units",0.241922,89,flip,91,pooled,all,0,30884,1019243
+heldout_sq_err_diff(null_mean_rescaled-base)[design_comparison_units],0.0115615,0.00866684,0.014721,"leave-one-dataset-out, design_comparison_units",,89,flip,91,pooled,all,0,30884,1019243
+heldout_rmse_ref[intercept_only][all_units],0.859622,0.79839,0.921749,"leave-one-dataset-out, all_units",0.859622,90,flip,91,pooled,all,0,30884,1019243
+heldout_sq_err_diff(intercept_only-base)[all_units],0.691674,0.601559,0.788959,"leave-one-dataset-out, all_units",,90,flip,91,pooled,all,0,30884,1019243
+heldout_rmse_ref[log_z_only][all_units],0.435709,0.376872,0.48972,"leave-one-dataset-out, all_units",0.435709,90,flip,91,pooled,all,0,30884,1019243
+heldout_sq_err_diff(log_z_only-base)[all_units],0.142566,0.107099,0.179557,"leave-one-dataset-out, all_units",,90,flip,91,pooled,all,0,30884,1019243
+heldout_rmse_ref[base_model][all_units],0.21743,0.184622,0.247877,"leave-one-dataset-out, all_units",0.21743,90,flip,91,pooled,all,0,30884,1019243
+heldout_rmse_ref[first_order_rescaled][all_units],0.154068,0.135628,0.176152,"leave-one-dataset-out, all_units",0.154068,90,flip,91,pooled,all,0,30884,1019243
+heldout_sq_err_diff(first_order_rescaled-base)[all_units],-0.0235388,-0.0391219,-0.00725311,"leave-one-dataset-out, all_units",,90,flip,91,pooled,all,0,30884,1019243
+heldout_rmse_ref[null_mean][all_units],0.241568,0.206699,0.272474,"leave-one-dataset-out, all_units",0.241568,90,flip,91,pooled,all,0,30884,1019243
+heldout_sq_err_diff(null_mean-base)[all_units],0.0110793,0.00758343,0.0143716,"leave-one-dataset-out, all_units",,90,flip,91,pooled,all,0,30884,1019243
+heldout_rmse_ref[null_mean_rescaled][all_units],0.240966,0.205896,0.274159,"leave-one-dataset-out, all_units",0.240966,90,flip,91,pooled,all,0,30884,1019243
+heldout_sq_err_diff(null_mean_rescaled-base)[all_units],0.0107887,0.00738911,0.0139615,"leave-one-dataset-out, all_units",,90,flip,91,pooled,all,0,30884,1019243

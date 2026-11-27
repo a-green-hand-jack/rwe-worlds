@@ -1,0 +1,53 @@
+"""Assemble the anonymous code archive: python scripts/deliver.py TARGET_DIR
+
+Copies src/, scripts/, analysis/, requirements.lock and a scrubbed ANALYSIS_PLAN.md into TARGET_DIR/code/ and checks
+that no collaborator, repository or host name remains. Result tables are copied separately by scripts/export_results.py.
+"""
+import re
+import shutil
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+FORBID = re.compile(r"experiment-repo|figtab|idea-repo|story-repo|paper-repo|idea-review|internal-review|venue-repo|"
+                    r"forgejo|hutian|ht-resource|ht-role|ResearchWorld", re.I)
+SUBS = [
+    (r"`idea-repo` Brief rev\. 4", "study brief rev. 4"),
+    (r"`story-repo` Outline rev\. 1", "paper outline rev. 1"),
+    (r"objective `experiment-repo`#1", "the research objective"),
+    (r"\(to be settled with `idea-repo`\)", "(settled in the brief)"),
+    (r"to be reported to `idea-repo` for a substitute", "settled by dropping the method (see REPRODUCE.md)"),
+    (r"answers to `story-repo` #4 and `idea-review-repo` #5", "answers to the outline and plan reviews"),
+    (r"answer to `idea-review-repo` #5 last comment", "answer to the plan review"),
+    (r"`idea-repo`\s+then fixed", "the study brief then fixed"),
+]
+
+
+def scrub(text):
+    for a, b in SUBS:
+        text = re.sub(a, b, text)
+    return text
+
+
+def main(target):
+    dst = Path(target) / "code"
+    if dst.exists():
+        shutil.rmtree(dst)
+    for d in ("src", "scripts", "analysis"):
+        shutil.copytree(ROOT / d, dst / d, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+    (dst / "scripts" / "deliver.py").unlink()  # packaging tool; it names the forbidden words
+    shutil.copy(ROOT / "requirements.lock", dst / "requirements.lock")
+    (dst / "ANALYSIS_PLAN.md").write_text(scrub((ROOT / "ANALYSIS_PLAN.md").read_text()))
+    bad = []
+    for f in dst.rglob("*"):
+        if f.is_file():
+            for i, line in enumerate(f.read_text(errors="ignore").splitlines(), 1):
+                if FORBID.search(line):
+                    bad.append(f"{f.relative_to(dst)}:{i}: {line[:100]}")
+    if bad:
+        sys.exit("forbidden names remain:\n" + "\n".join(bad))
+    print("code archive ok:", sum(1 for f in dst.rglob("*") if f.is_file()), "files")
+
+
+if __name__ == "__main__":
+    main(sys.argv[1])

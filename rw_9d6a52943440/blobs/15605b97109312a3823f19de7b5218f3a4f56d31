@@ -1,0 +1,54 @@
+"""Fig. 7 (appendix): pairwise order accuracy vs the true score gap of the pair, n = 100, with the sample-only reference.
+usage: python3 figures/scripts/fig7_ordering.py CODE_DIR OUT_PDF [interp,extrap[,lineage]]
+Source: results/pairwise.csv (x, accuracy) and results/pairwise_bands.csv (95 % intervals, drawn for four methods: bootstrap over benchmarks, at most 13 units). A pair is two target models of the same fold; accuracy = share of pairs whose predicted
+order is right (ties count half), pooled over non-thin benchmarks with pair counts as weights; x = mean gap of the bin.
+Reference (dotted): probability that n uniformly sampled shared items order the pair correctly (analysis: Phi(|gap|/sd));
+plain sampling only, not a bound for source-aided methods. Shared-subset designs only (IRT-CAT has per-target items)."""
+import sys
+import matplotlib.pyplot as plt
+import numpy as np
+sys.path.insert(0, __file__.rsplit("/", 1)[0])
+import style, common
+
+style.apply()
+R = common.Results(sys.argv[1])
+splits = (sys.argv[3] if len(sys.argv) > 3 else "interp,extrap").split(",")
+pw = R.csv("pairwise.csv"); tg = R.csv("targets.csv")
+pw = pw.merge(tg[["bench", "split", "thin"]], on=["bench", "split"]); pw = pw[(pw.n == 100) & (~pw.thin)]
+pw = pw[~pw.method.str.startswith("cat|")]
+shown = R.shown(pw.method.unique())
+fig, axs = plt.subplots(1, len(splits), figsize=(style.TEXT_WIDTH_IN, 3.6), sharey=True)
+axs = np.atleast_1d(axs)
+
+
+def pooled(g, col):
+    return (g[col] * g.pairs).groupby(g.gap_bin).sum() / g.pairs.groupby(g.gap_bin).sum()
+
+
+BANDED = {"uniform|mean", "uniform|irt-model", "anchor|irt-plugin", "balanced|diff-irt"}  # bands for all ten would overprint
+bands = R.csv("pairwise_bands.csv"); bands = bands[bands.n == 100]
+
+
+for ax, sp in zip(axs, splits):
+    d = pw[pw.split == sp]
+    for m, c in shown:
+        g = d[d.method == m]
+        if g.empty:
+            continue
+        st = style.CLASS_STYLE[c]
+        x = 100 * pooled(g, "gap_mean"); bd = bands[(bands.split == sp) & (bands.method == m)].set_index("gap_bin").reindex(x.index)
+        if m in BANDED:
+            ax.fill_between(x.values, bd.ci_lo.values, bd.ci_hi.values, color=st["color"], alpha=0.18, lw=0)
+        ax.plot(x, pooled(g, "acc"), color=st["color"], marker=st["marker"], ls=st["ls"], label=common.label(m))
+    g = d[d.method == common.BASE]
+    if not g.empty:
+        ax.plot(100 * pooled(g, "gap_mean"), pooled(g, "ref_acc"), color="0.4", ls=(0, (1, 1.5)), lw=1.4, label="sample-only reference")
+    ax.axhline(0.5, color="0.7", lw=0.5)
+    ax.set_xscale("log"); ax.set_xlabel("true score gap of the pair, points")
+    ax.xaxis.set_major_formatter(plt.FormatStrFormatter("%g")); ax.xaxis.set_minor_formatter(plt.NullFormatter())
+    ax.set_title(common.SPLIT_LABEL[sp], loc="left")
+axs[0].set_ylabel("pairwise order accuracy")
+h, l = axs[0].get_legend_handles_labels()
+fig.subplots_adjust(left=0.1 if len(splits) < 3 else 0.08, right=0.99, top=0.93, bottom=0.37, wspace=0.05)
+fig.legend(h, l, loc="lower center", ncol=3, bbox_to_anchor=(0.5, 0.0), handlelength=2.4)
+fig.savefig(sys.argv[2])

@@ -1,0 +1,6 @@
+results/raw/*.pkl filter=lfs diff=lfs merge=lfs -text
+results/data_out/*.npz filter=lfs diff=lfs merge=lfs -text
+results/raw/robust/*.pkl filter=lfs diff=lfs merge=lfs -text
+results/raw/colskill/*.pkl filter=lfs diff=lfs merge=lfs -text
+results/raw/adaptive/*.pkl filter=lfs diff=lfs merge=lfs -text
+results/raw/small/*.pkl filter=lfs diff=lfs merge=lfs -text

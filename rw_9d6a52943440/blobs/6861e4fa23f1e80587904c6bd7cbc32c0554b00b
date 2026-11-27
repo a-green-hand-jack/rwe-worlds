@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# check of the IRT settings against the public p-IRT: latent dimension 10 (tag _d10) and a near-flat ability prior (BPRED_IRTW_PREC=0.01) at d = 2 (tag _d2w) and d = 10,
+# anchor and uniform designs, n = 100, interpolation and extrapolation of the six benchmarks of the public stage B -> results/raw_dsweep
+cd "$(dirname "$0")/.."
+for s in extrap interp; do
+  for b in arc_challenge gpqa ifeval musr openllm_math bbh; do
+    for cfg in "10 _d10" "2 _d2w"; do
+      set -- $cfg
+      ht-resource run local-compute --cwd "$PWD" --cpus 1 --memory 6000 --note "dsweep-$b-$s-d$1" -- \
+        env BPRED_IRTW_PREC=0.01 python3 -I -u scripts/02_run.py "$b" "$s" --draws 10 --d $1 --ngrid 100 --designs anchor,uniform \
+        --no-cat --extra --tag $2 --out results/raw_dsweep > /dev/null
+    done
+  done
+done

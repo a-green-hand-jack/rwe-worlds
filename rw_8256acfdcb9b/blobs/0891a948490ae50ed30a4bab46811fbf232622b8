@@ -1,0 +1,1 @@
+{"auc_ref": 0.897810821552383, "n": 30, "K": 6, "filter": "|AUC - AUC_ref| <= 0.01", "variants": {"hp": {"tried": 12, "kept": 6}}}

@@ -1,0 +1,67 @@
+# Choosing items to predict a model's full-benchmark score: code and results
+
+Code, protocol and result tables for the study of how to choose `n ≪ N` benchmark items for a target model and predict its full-benchmark score from the item-level results of other ("source") models. Thirteen binary item × model matrices (7 Open LLM Leaderboard v2, 6 HELM), three target splits (random models, held-out model families, models above every source), seven item-selection designs, about a hundred predictor/estimator combinations.
+
+Contents
+
+| path | what |
+|---|---|
+| `src/bpred/` | library: data loading and de-duplication (`data.py`), designs, predictors, estimators, adaptive CAT (`core.py`) |
+| `scripts/` | experiments and analyses, numbered in execution order (below); `run_all.sh` runs everything on one machine |
+| `PROTOCOL.md` | the protocol, written before any target was scored, with the log of later deviations |
+| `RESULTS_SCHEMA.md` | every file in `results/`, its columns, and how to read a method name |
+| `REPRODUCE.md` | commands, seeds, compute budget, script → table/figure map |
+| `REPRO_NOTES.md` | disclosure of an exposure to a related paper's summary (read it) |
+| `results/` | all aggregate CSVs behind the paper's numbers (~8 MB); raw per-draw predictions are too large for the repository (see "Raw outputs") |
+
+## Environment
+
+Python 3.11; numpy 2.4.6, scipy 1.17.1, pandas 3.0.6, scikit-learn 1.9.1, torch 2.14.1 (CPU build), joblib 1.6.0, pyarrow 26.0.0 (`requirements.txt`). No GPU. The scripts set `OPENBLAS_NUM_THREADS=OMP_NUM_THREADS=MKL_NUM_THREADS=1`; keep BLAS single-threaded (multi-threaded BLAS made the small eigen-decompositions 10× slower on a shared machine). Peak memory of one worker < 6 GB.
+
+## Data
+
+`scripts/00_download.sh` downloads the 13 score matrices and model lists from a public repository at a pinned commit (`55faff496947789f94e6b5908c77cbc3e84f81ad` of `socialfoundations/benchmark-prediction`; ~80 MB) into `data/raw/` and writes `SHA256SUMS`. The data are **not** bundled here. Only the binary item-level outcomes (and model names, used to derive families) are used; no benchmark text, no code of that repository. The source repository states an MIT licence; the licences of the benchmark datasets whose outcomes the matrices record (Open LLM Leaderboard v2 tasks, HELM scenarios) were not individually verified, which is one reason the matrices are fetched rather than redistributed. `python3 scripts/01_audit.py` writes the audit (`results/audit.csv`): models, duplicates dropped, constant items, families.
+
+## Run
+
+```
+bash scripts/00_download.sh
+python3 -I scripts/01_audit.py
+bash scripts/run_all.sh 8            # 8 worker processes; all experiments and analyses, writes results/raw*/ and results/*.csv
+```
+
+`SKIP="extra inner50 kmstrong highR" bash scripts/run_all.sh 8` leaves out stages (`main variants msrc 2pct extra inner50 kmstrong highR analyze`). Step by step: `python3 -I scripts/02_run.py BENCH SPLIT --draws 10 --d 2 --out results/raw` runs one (benchmark, split) cell (`BENCH` ∈ the 13 names, `SPLIT` ∈ `interp lineage extrap extrap10 extrap50`; `--ngrid N` runs a single budget, `--designs`, `--no-cat`, `--msrc M`, `--extra`, `--inner-frac F`, `--tag`: see the header of the script); then `03_analyze.py`, `04_msrc.py`, `05_bands.py`, `06_select.py`, `09_paired.py` (paired inner-split comparison, `results/inner50/paired_vs_main.csv`), `10_ceiling_centred.py` and `11_extrap_bias.py` (checks of two explanations; `results/ceiling_centred.csv`, `results/extrap_bias.csv`; usage in their headers). `scripts/pilot_d.py` is the source-only pilot that fixed the latent dimension d = 2 (`results/pilot_d.csv`).
+
+Seeds: `BASE_SEED = 20261126` combined with the tuple (benchmark, split, fold, n, draw, design index); fold assignment uses seed 0; bootstraps use fixed seeds in the scripts. Reproducibility across machines (other CPU, other BLAS) was not tested; small floating-point differences in individual predictions are possible.
+
+Compute (single-threaded workers on a shared machine; hours are the wall-clock time of each job measured in the runner, an upper bound of its CPU time): main runs (38 jobs) 3.3 hours; sensitivity splits `extrap10`/`extrap50` (26 jobs) 1.4; source-count (`--msrc`), 2 % budget, extra estimators, larger-gap inner split, strong k-means (7 benchmarks only) and the 100-draw run: stage table with hours in `REPRODUCE.md`. The largest cells are `mmlu_pro`, `bbh`, `openllm_math` (up to ~25 min per cell at the main runs).
+
+## Script → output → paper item
+
+| script | output | used for |
+|---|---|---|
+| `01_audit.py` | `results/audit.csv` | data audit table |
+| `02_run.py` | `results/raw*/*.pkl` | all experiments |
+| `03_analyze.py` | `targets.csv`, `primary.csv`, `ratio_by_n.csv.gz`, `per_bench.csv.gz`, `ordering.csv.gz`, `pairwise.csv.gz`, `bias_by_score.csv.gz`, `ceiling.csv`, `raw/target_level.parquet` | primary-endpoint table, error-vs-n figure, bias/variance table, ordering table, ceiling figure |
+| `04_msrc.py` | `msrc.csv` | error vs number of source models |
+| `05_bands.py` | `bias_bands.csv`, `pairwise_bands.csv` | signed error vs target position, pairwise-ordering figure |
+| `06_select.py` | `selected*.csv`, `primary_suite*.csv` | class representatives chosen without the held-out benchmark's outcomes; OLL/HELM suites |
+| `03_analyze.py` with `TWO_PCT=1` | `results/twopct/*` | secondary endpoint n/N = 2 % |
+
+## Raw outputs
+
+`results/raw/*.pkl` (per-draw predictions, float32) and `results/raw/target_level.parquet` (one row per benchmark, split, n, method and target model) total ~90 MB for the main runs and are regenerated by `run_all.sh`; they are attached to the repository's release assets where the venue permits.
+
+## What this code does not do
+
+Not run: the assessor (Pacchiardi et al.), active-evaluation acquisition (Li et al.), SubLIME, and the original tinyBenchmarks/metabench code; `anchor` (k-means with n_init = 1, 25 iterations, medoid weighted by cluster size) and `infotop` (d = 2 latent-factor Fisher information, top-n) are our implementations of their ideas, not the published code. The estimator grid and hyperparameters were chosen per cell on an inner split of the sources; the headline "best method" rows of the paper are the best of ~100 combinations picked after seeing results, which the tables say.
+
+## Uncertainty, compute, licences (checklist answers)
+
+- **Intervals.** Error bars are 95 % percentile intervals of a family bootstrap: within each benchmark the target model families (individual models for the random-fold split) are resampled with replacement, 2000 replicates, the same replicate for every method of a benchmark so that method-to-method ratios are paired; the aggregate is the geometric mean over benchmarks of the RMSE ratio. They reflect target sampling only: the subsets drawn (R = 10 per fold and budget, 40 in the extrapolation split) are averaged inside the RMSE; benchmarks are treated as fixed, and the benchmarks are not independent (HELM models recur across its benchmarks). Intervals of "best method" rows are optimistic because the method was picked after the results; `results/selected.csv` gives the same classes with the representative chosen without the held-out benchmark.
+- **Compute.** CPU only; single-threaded workers (1 CPU, < 6 GB each). Main + sensitivity-split runs 4.7 hours of wall-clock time of single-threaded jobs (an upper bound of CPU time); the remaining stages are listed in `REPRODUCE.md`.
+- **Licences.** The score matrices come from a public repository stated to be MIT-licensed (data not redistributed here); the underlying benchmarks' licences were not checked individually. No baseline code was reused: the `benchpred` package of that repository is not used, and every method is implemented in `src/bpred`. The public code of three baselines (tinyBenchmarks, Anchor Points, the py-irt fork) was cloned and run only as an outside check of our re-implementations (`scripts/12_public_baselines.py`, `13_public_compare.py`); none of it is copied into or imported by this repository, and the check is not part of `run_all.sh`'s default stages. No licence is declared for this code here.
+
+## Use of AI assistance
+
+The code, experiments and this documentation were produced by an AI agent (Claude) in an automated research setting; the scripts, logs and result files here are the record of what was run.

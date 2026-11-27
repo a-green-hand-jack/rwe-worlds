@@ -1,0 +1,34 @@
+import fitz,re,json,sys
+S=json.load(open('raw/sample.json'))
+res=[]
+for i,s in enumerate(S):
+    d=fitz.open(f'pdf/{i:02d}.pdf'); n=len(d)
+    pages=[p.get_text() for p in d]
+    # locate References heading
+    ref_pg=None;ref_pos=None
+    for k,t in enumerate(pages):
+        m=re.search(r'^\s*(\d+\s+)?(References|REFERENCES|Bibliography)\s*$',t,re.M)
+        if m and k>=2: ref_pg=k;ref_pos=m.start();break
+    if ref_pg is None: ref_pg=n-1;ref_pos=0
+    main=''.join(pages[:ref_pg])+pages[ref_pg][:ref_pos]
+    figs=sorted(set(int(x) for x in re.findall(r'^\s*(?:Figure|Fig\.)\s+(\d+)\s*[:.]',main,re.M)))
+    tabs=sorted(set(int(x) for x in re.findall(r'^\s*Table\s+(\d+)\s*[:.]',main,re.M)))
+    # abstract
+    t0=''.join(pages[:2])
+    ma=re.search(r'Abstract\s*(.*?)\n\s*1\s+Introduction',t0,re.S|re.I)
+    abst=ma.group(1) if ma else ''
+    # intro
+    mi=re.search(r'\n\s*1\s+Introduction\s*\n(.*?)\n\s*2\s+[A-Z]',main,re.S)
+    intro=mi.group(1) if mi else ''
+    # refs: count entries
+    after=''.join(pages[ref_pg:])[ref_pos:]
+    # cut at appendix
+    ma2=re.search(r'\n\s*(Appendix|A)\s+[A-Z][^\n]{0,80}\n',after)
+    nref=len(re.findall(r'^\s*\[\d+\]',after,re.M))
+    if nref==0: nref=len(re.findall(r'\n[A-Z][a-z]+(?:,| and)[^\n]*\n',after))*0
+    res.append(dict(i=i,group=s['group'],title=s['title'][:70],pages=n,ref_page=ref_pg+1,
+      figs=len(figs),maxfig=max(figs,default=0),tabs=len(tabs),maxtab=max(tabs,default=0),
+      abs_words=len(abst.split()),intro_words=len(intro.split()),nref_bracket=nref,
+      contrib_in_intro=len(re.findall(r'contribut',intro,re.I))))
+json.dump(res,open('raw/measure_auto.json','w'),indent=1)
+for r in res: print(r)

@@ -1,0 +1,75 @@
+"""Table 8 (robustness, appendix) from the result files.
+usage: python3 figures/scripts/table8_robust.py CODE_DIR OUT_FILE
+  Block 1: difference estimators, extrapolation, n = 100, non-thin benchmarks, RMSE ratio to uniform x mean with the
+           family-bootstrap interval: tuned lambda (inner split of the main analysis), tuned lambda with the larger-gap
+           inner split (results/inner50/primary.csv), and lambda fixed at 1 (primary.csv; only the IRT difference estimator has one).
+           A fourth column gives the paired change (results/inner50/paired_vs_main.csv: geometric mean of ratio(top 50%)/ratio(main), shared family resample).
+  Block 2: anchor designs with the light and the strong anchor k-means (results/kmstrong.csv): geometric mean over the
+           benchmarks of the RMSE ratio to uniform x mean; the file has no interval and the two columns use different draws.
+"""
+import sys
+import numpy as np
+import pandas as pd
+sys.path.insert(0, __file__.rsplit("/", 1)[0])
+import common
+
+R = common.Results(sys.argv[1]); out = sys.argv[2]
+SP = ["interp", "extrap"]
+
+
+def cell(r):
+    return f"{r.geomean_ratio:.2f} [{r.ci_lo:.2f}, {r.ci_hi:.2f}]"
+
+
+def tex(s):
+    return s.replace("×", r"$\times$").replace("&", r"\&").replace("_", r"\_")
+
+
+def paired(pv, m):
+    """b_over_a of paired_vs_main.csv: geometric mean over benchmarks of ratio(top 50%) / ratio(main), shared family resample."""
+    if pv is None:
+        return "--"
+    g = pv[(pv.method == m) & (pv.split == "extrap") & (pv.n == 100)]
+    return f"{g.b_over_a.iloc[0]:.2f} [{g.ci_lo.iloc[0]:.2f}, {g.ci_hi.iloc[0]:.2f}]" if len(g) else "--"
+
+
+def pick(df, m):
+    g = df[(df.method == m) & (df.split == "extrap") & (df.n == 100) & (df.flavour == "non_thin") & (df.baseline == common.BASE)]
+    return g.iloc[0] if len(g) else None
+
+
+L = [r"\begin{tabular}{lcccc}", r"\toprule",
+     r"Method (design $\times$ estimator) & tuned $\lambda$ & tuned $\lambda$, top-50\% inner & $\lambda = 1$ & paired ratio \\", r"\midrule"]
+if R.has("inner50/primary.csv"):
+    p0 = R.csv("primary.csv"); p5 = R.csv("inner50/primary.csv")
+    nb = int(pick(p5, "uniform|diff-irt").n_bench)
+    pv = R.csv("inner50/paired_vs_main.csv") if R.has("inner50/paired_vs_main.csv") else None
+    for d in ["uniform", "balanced", "pps", "strat"]:
+        for e in ["diff-irt", "diff-knn", "diff-ridge"]:
+            if d != "uniform" and d != "balanced" and e != "diff-irt":
+                continue
+            m = f"{d}|{e}"
+            a, b, c = pick(p0, m), pick(p5, m), pick(p0, f"{d}|fixed:{e}@1.0")
+            if a is None or b is None:
+                print(f"WARNING: {m} not in primary/inner50; omitted", file=sys.stderr); continue
+            L.append(" & ".join([tex(common.label(m)), cell(a), cell(b), cell(c) if c is not None else "--", paired(pv, m)]) + r" \\")
+    L += [r"\midrule", f"Benchmarks & {nb} & {nb} & {nb} & {nb}" + r" \\"]
+else:
+    print("WARNING: inner50/primary.csv missing; block 1 omitted", file=sys.stderr)
+
+if R.has("kmstrong.csv"):
+    k = R.csv("kmstrong.csv")
+    L += [r"\midrule", r"\multicolumn{5}{l}{\emph{Anchor designs, light vs strong anchor $k$-means (geometric mean over %d benchmarks, no interval)}} \\" % k.bench.nunique(),
+          r"Method & split & light $k$-means & strong $k$-means & \\", r"\midrule"]
+    for m in ["anchor|mean", "anchor|calreg", "anchor|irt-plugin", "anchor|diff-irt"]:
+        for sp in SP:
+            g = k[(k.method == m) & (k.split == sp)]
+            if not len(g):
+                continue
+            gm = lambda c: np.exp(np.log(g[c]).mean())
+            L.append(" & ".join([tex(common.label(m)), common.SPLIT_LABEL[sp], f"{gm('ratio_light'):.2f}", f"{gm('ratio_strong'):.2f}"]) + r" \\")
+else:
+    print("WARNING: kmstrong.csv missing; block 2 omitted", file=sys.stderr)
+
+L += [r"\bottomrule", r"\end{tabular}"]
+open(out, "w").write("\\begingroup\\footnotesize\\setlength{\\tabcolsep}{2.5pt}\n" + "\n".join(L) + "\n\\endgroup\n")

@@ -1,0 +1,90 @@
+"""Factor analysis x = mu + W z + e, e ~ N(0, diag(D)), fitted by EM; Gaussian conditioning; held-out-likelihood rank choice.
+Everything here is a function of the *training* matrix only (callers pass the training fold)."""
+import numpy as np
+
+D_FLOOR = 0.05  # floor on idiosyncratic variance for standardised columns (avoids Heywood cases)
+
+def fit_fa(Y, r, n_iter=300, tol=1e-6, d_floor=D_FLOOR, mask=None):
+    """Y: (M,N) centred/standardised. mask: optional boolean (M,N), True = observed (missing-data EM). Returns W (N,r), D (N,)."""
+    M, N = Y.shape
+    Yf = np.where(mask, Y, 0.0) if mask is not None else Y
+    if mask is None:
+        S = Yf.T @ Yf / M
+        ev, U = np.linalg.eigh(S); idx = np.argsort(ev)[::-1][:r]
+        sig2 = max(ev[np.argsort(ev)[::-1][r:]].mean() if r < N else 1e-3, 1e-3)
+        W = U[:, idx] * np.sqrt(np.maximum(ev[idx] - sig2, 1e-3))
+        D = np.maximum(np.diag(S) - (W ** 2).sum(1), d_floor)
+        prev = -np.inf
+        for it in range(n_iter):
+            Di = 1.0 / D
+            G = np.linalg.inv(np.eye(r) + (W.T * Di) @ W)          # posterior cov of z
+            beta = G @ (W.T * Di)                                     # (r,N)
+            SB = S @ beta.T
+            Ezz = G + beta @ SB
+            Wn = SB @ np.linalg.inv(Ezz)
+            D = np.maximum(np.diag(S) - (Wn * SB).sum(1), d_floor)
+            W = Wn
+            if it % 10 == 0:
+                ll = loglik(Yf, W, D).mean()
+                if ll - prev < tol: break
+                prev = ll
+        return W, D
+    # missing-data EM
+    obs_counts = mask.sum(0)
+    ev, U = np.linalg.eigh(np.cov(Yf.T) + 1e-3 * np.eye(N)); idx = np.argsort(ev)[::-1][:r]
+    W = U[:, idx] * np.sqrt(np.maximum(ev[idx] - 1e-2, 1e-3)); D = np.ones(N) * 0.3
+    for it in range(n_iter):
+        Sz = np.zeros((r, r)); num = np.zeros((N, r)); dnum = np.zeros(N)
+        Ez = np.zeros((M, r)); Gs = np.zeros((M, r, r))
+        for i in range(M):
+            o = mask[i]; Wo = W[o]; Di = 1.0 / D[o]
+            G = np.linalg.inv(np.eye(r) + (Wo.T * Di) @ Wo); ez = G @ (Wo.T @ (Di * Yf[i, o]))
+            Ez[i] = ez; Gs[i] = G
+        # M-step per benchmark j
+        Wn = W.copy(); Dn = D.copy()
+        for j in range(N):
+            ii = np.where(mask[:, j])[0]
+            if len(ii) == 0: continue
+            A = (Ez[ii].T @ Ez[ii] + Gs[ii].sum(0)) + 1e-6 * np.eye(r)
+            b = Ez[ii].T @ Yf[ii, j]
+            w = np.linalg.solve(A, b); Wn[j] = w
+            res = Yf[ii, j] - Ez[ii] @ w
+            Dn[j] = max((res @ res + np.trace(Gs[ii].sum(0) @ np.outer(w, w))) / len(ii), d_floor)
+        dW = np.abs(Wn - W).max(); W, D = Wn, Dn
+        if dW < 1e-5: break
+    return W, D
+
+def cov_of(W, D):
+    return W @ W.T + np.diag(D)
+
+def loglik(Y, W, D):
+    """Per-row Gaussian log-likelihood under N(0, WW^T+D) (Woodbury)."""
+    M, N = Y.shape; r = W.shape[1]; Di = 1.0 / D
+    A = np.eye(r) + (W.T * Di) @ W
+    sign, logdetA = np.linalg.slogdet(A)
+    logdet = np.log(D).sum() + logdetA
+    YD = Y * Di
+    q = (Y * YD).sum(1) - np.einsum('ij,jk,ik->i', YD @ W, np.linalg.inv(A), YD @ W)
+    return -0.5 * (N * np.log(2 * np.pi) + logdet + q)
+
+def choose_rank(Y, ranks, n_inner=5, seed=0, d_floor=D_FLOOR, one_se=True):
+    """Rank r_eff by held-out Gaussian log-likelihood (inner K-fold over the training rows only; dense Y).
+    one_se=True: smallest rank whose mean held-out log-lik is within one standard error of the best (the likelihood plateau is flat
+    on real leaderboards, so the arg-max is noisy). Returns (r, {rank: (mean, se)}, argmax rank)."""
+    M = Y.shape[0]; rng = np.random.default_rng(seed); perm = rng.permutation(M)
+    folds = np.array_split(perm, n_inner); score = {}
+    for r in ranks:
+        ll = []
+        for f in folds:
+            tr = np.setdiff1d(np.arange(M), f)
+            W, D = fit_fa(Y[tr], r, d_floor=d_floor)
+            ll.append(loglik(Y[f], W, D))
+        ll = np.concatenate(ll); score[r] = (float(ll.mean()), float(ll.std(ddof=1) / np.sqrt(len(ll))))
+    best = max(score, key=lambda r: score[r][0])
+    if not one_se: return best, score, best
+    thr = score[best][0] - score[best][1]
+    return min(r for r in ranks if score[r][0] >= thr), score, best
+
+def condition(Sg, S, R, xS):
+    """E[x_R | x_S] for a zero-mean Gaussian with covariance Sg. xS: (n,|S|) -> (n,|R|)."""
+    return xS @ np.linalg.solve(Sg[np.ix_(S, S)], Sg[np.ix_(S, R)])

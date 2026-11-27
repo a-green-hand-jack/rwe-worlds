@@ -1,0 +1,19 @@
+#!/bin/bash
+# Copy code/, results/ and REPRODUCE.md of this repository into paper-repo's dev branch (the delivery root) and push.
+# usage: tools/sync_delivery.sh "commit message"   (needs a clone of paper-repo at $PAPER, default /hutian/paper-repo)
+set -e
+PAPER=${PAPER:-/hutian/paper-repo}
+HERE=$(cd "$(dirname "$0")/.." && pwd)
+cd "$PAPER"
+git fetch -q origin dev && git checkout -q -B dev origin/dev
+mkdir -p code results
+rm -rf code/src code/scripts
+cp -r "$HERE/src" code/src && cp -r "$HERE/scripts" code/scripts
+find code -name __pycache__ -prune -exec rm -rf {} +
+cp "$HERE"/PREANALYSIS.md code/PREANALYSIS.md
+cp "$HERE"/results/* results/ 2>/dev/null || true
+cp "$HERE"/REPRODUCE.md REPRODUCE.md
+git add -A code results REPRODUCE.md
+git commit -qm "$1" -m "Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>" || { echo "nothing to commit"; exit 0; }
+git push -q origin HEAD:dev
+git log --oneline | head -1

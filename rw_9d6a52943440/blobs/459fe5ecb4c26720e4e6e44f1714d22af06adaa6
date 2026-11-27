@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# target-recalibrated regression grid (recal-{s,q}[irt][0]) and weak-prior IRT (irtw: prior variance x10), designs
+# uniform/strat/pps/balanced, all five splits, n = 100 -> results/raw_extra/n100, n = round(0.02 N) -> results/raw_extra/2pct.
+cd "$(dirname "$0")/.."
+for s in extrap extrap10 extrap50 interp lineage; do
+  for b in commonsense gsm math med_qa mmlu legalbench arc_challenge gpqa ifeval musr openllm_math bbh mmlu_pro; do
+    [ "$b" = legalbench ] && [ "$s" = lineage ] && continue
+    n2=$(python3 -I -c "import sys; sys.path.insert(0,'src'); from bpred import data; print(round(0.02*data.get('$b')['Y'].shape[1]))")
+    for set in n100 2pct; do
+      n=100; [ $set = 2pct ] && n=$n2
+      ht-resource run local-compute --cwd "$PWD" --cpus 1 --memory 6000 --note "extra-$b-$s-$set" -- \
+        python3 -I -u scripts/02_run.py "$b" "$s" --draws 10 --d 2 --ngrid $n --designs uniform,strat,pps,balanced \
+        --no-cat --extra --out results/raw_extra/$set > /dev/null
+    done
+  done
+done

@@ -1,0 +1,10 @@
+\section{Discussion and limitations}
+\label{sec:discussion}
+
+With $n$, $N$ and $f$ fixed, the room above PPI++ is $(1/n-1/M)\Delta$ in variance, and $\Delta$ is the departure of $\E[Y\mid f]$ from a line. On the nine standard datasets $\Delta$ is small relative to the residual variance, so a calibrated interval is predicted to win only above a break-even $n$ that lies above the largest $n$ we ran on six of the nine; where $\E[Y\mid f]$ is clearly nonlinear (synthetic designs) the room is large, up to $47\%$ of the labels. In practice, fit PPI++ and the calibrated alternative on the same labels and prefer the latter only if cross-fitted residuals say that $\Delta$ exceeds the learning cost, as our selection does; at $n\le100$ the selection costs width (median $1.9\%$ above the strongest valid baseline), so below that size we would use PPI++ alone, unclipped where the slope of $Y$ on $f$ exceeds one and $n$ is large enough for its weight to be stable.
+
+The study has limits that bear on how far the answer reaches.
+(i)~The floor is an estimate within a model class, so it can be too optimistic or slightly pessimistic; seven classes agree to within $0.2\%$ in $\sigma^2_{\mathrm{res}}$, but a richer class could find more room than we report.
+(ii)~Each real dataset is a finite population sampled with replacement, so the truth is exact but records are not drawn from a larger population (disjoint draws shrink the SD of PPI++ only where $n+N$ is a large share of the dataset: \texttt{galaxies}, by $6\%$ at $n=500$, \cref{app:finitepop}), and the datasets are few; ``near the floor'' is for these predictors, mostly good ones.
+(iii)~Labels are missing completely at random with known propensity; \cref{fig:regime} shows what happens when this fails. The target is a mean; other functionals have a different bound and are not studied.
+(iv)~The one positive real cell is a property of \texttt{ppi-python} 0.2.3, whose clip of $\hat\lambda$ makes its interval wider where the slope of $Y$ on $f$ exceeds one; we ran no other implementation.

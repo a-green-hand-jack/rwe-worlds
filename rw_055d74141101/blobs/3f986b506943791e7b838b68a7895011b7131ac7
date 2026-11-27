@@ -1,0 +1,202 @@
+"""C5: how well do (z, N, density, tie rate) predict k*, and does the evaluation design add anything?
+Per perturbation family, WLS of log k* on [1, log z_fisher, log N, log density, tie rate] over all pairs with z_fisher in [1,8]
+(each data set carries equal total weight).  Held-out schemes (all over data sets, never over pairs):
+  leave-one-dataset-out (LODO)  : error of the prediction of every held-out unit with the base model and with the base model + design dummies
+                                  (only held-out units of designs with >= 2 units; the dummy of the held-out design is then identified)
+  leave-one-design-out          : base model only, one number per design
+Design effect = paired difference of held-out squared errors (base - design) per held-out unit; 95% interval by bootstrap over units.
+Coefficient intervals: bootstrap over data sets (B=1000).  Output results/predictive_rule.csv, results/predictive_rule_units.csv
+usage: 09_predictive.py"""
+import glob, os, sys
+import numpy as np, pandas as pd
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src")); sys.path.insert(0, os.path.dirname(__file__))
+from core01 import OUT
+import importlib
+T6 = importlib.import_module("06_tables")
+REPO = T6.REPO
+TERMS = ["intercept", "log_z", "log_N", "log_density", "tie_rate"]
+
+
+def load():
+    fr = []
+    for fn in sorted(glob.glob(f"{OUT}/core/*.parquet")):
+        if fn.endswith(".null.parquet") or fn.endswith(".models.parquet"):
+            continue
+        r = pd.read_parquet(fn)
+        r["dataset"] = r.unit.map(T6.dataset_id)
+        nf = fn[:-len(".parquet")] + ".null.parquet"
+        if os.path.exists(nf):  # same-graph null k* (mean of the replicates at the pair's z): a reference predictor that needs no search on the real data
+            nl = pd.read_parquet(nf)
+            nl["dataset"] = nl.unit.map(T6.dataset_id); nl["Q"] = nl.k_ver * nl.gmax / nl.gap
+            r["Q"] = r.k_ver * r.gmax / r.gap
+            r = T6.attach_null(r, T6.null_curves(nl))
+        fr.append(r)
+    d = pd.concat(fr, ignore_index=True)
+    d["design_f"] = d.design.map(T6.DESIGN)
+    d = d[(d.gap > 0) & (d.z_fisher >= T6.ZLO) & (d.z_fisher <= T6.ZHI) & np.isfinite(d.k_ver) & (d.k_ver > 0)].copy()
+    d["y"] = np.log(d.k_ver)
+    d["w"] = 1.0 / d.groupby(["dataset", "family"]).y.transform("size")
+    return d
+
+
+def design_matrix(d, designs=None):
+    X = np.column_stack([np.ones(len(d)), np.log(d.z_fisher), np.log(d.N), np.log(d.density), d.tie_rate])
+    if designs:
+        X = np.column_stack([X] + [(d.design_f.values == k).astype(float) for k in designs[1:]])  # first design = reference
+    return X
+
+
+def wls(X, y, w):
+    sw = np.sqrt(w)
+    beta, *_ = np.linalg.lstsq(X * sw[:, None], y * sw, rcond=None)
+    return beta
+
+
+def ridge_wls(X, y, w, pen, lam):
+    """WLS with a ridge penalty lam on the columns flagged in pen (the design dummies); covariate columns are not penalised."""
+    sw = np.sqrt(w)
+    A = (X * sw[:, None]).T @ (X * sw[:, None]) + lam * np.diag(pen.astype(float))
+    return np.linalg.solve(A + 1e-10 * np.eye(len(A)), (X * sw[:, None]).T @ (y * sw))
+
+
+RIDGE = 1.0  # fixed a priori: on the scale of one data set's weight-1 mass (weights sum to 1 per data set), a dummy of one unit is shrunk to 0 unless the others identify it
+
+
+REFS = ["intercept_only", "log_z_only", "base_model", "first_order_rescaled", "null_mean", "null_mean_rescaled"]
+
+
+def reference_errors(f, units, X0, y, w):
+    """held-out mean squared error of log k* per held-out data set for the reference predictors; all fitted / rescaled on the training units only.
+    first_order_rescaled: log k_lin + median over training pairs of (log k* - log k_lin); null_mean: log of the same-graph null mean k* at the pair's z
+    (the held-out data set's own null, no search on its real data); null_mean_rescaled: the same plus the training median of (log k* - log k_null_mean)."""
+    out = {}
+    ok_l = np.isfinite(f.k_lin.values) & (f.k_lin.values > 0)
+    ok_n = np.isfinite(f.k_null_mean.values) & (f.k_null_mean.values > 0)
+    ll = np.log(np.where(ok_l, f.k_lin.values, 1.0)); ln = np.log(np.where(ok_n, f.k_null_mean.values, 1.0))
+    for u in units:
+        te = f.dataset.values == u; tr = ~te
+        v = {}
+        for lab, cols in (("intercept_only", [0]), ("log_z_only", [0, 1]), ("base_model", list(range(X0.shape[1])))):
+            p = X0[te][:, cols] @ wls(X0[tr][:, cols], y[tr], w[tr])
+            v["mse_" + lab] = np.average((y[te] - p) ** 2, weights=w[te])
+        for lab, lg, ok in (("first_order_rescaled", ll, ok_l), ("null_mean", ln, ok_n), ("null_mean_rescaled", ln, ok_n)):
+            m = ok[te]
+            if m.sum() < 5:
+                v["mse_" + lab] = np.nan; continue
+            off = 0.0
+            if lab != "null_mean":
+                dtr = (y - lg)[tr & ok]; off = np.median(dtr)  # median log bias of the training units' pairs
+            v["mse_" + lab] = np.average((y[te][m] - (lg[te][m] + off)) ** 2, weights=w[te][m])
+            v["n_pairs_" + lab] = int(m.sum())
+        out[u] = v
+    return out
+
+
+def reference_rows(r, rng):
+    """RMSE (root of the mean over held-out data sets of the per-unit MSE) and its bootstrap interval over data sets, for every reference, on the held-out units of the
+    design comparison (designs with >= 2 units) and on all units; plus the paired difference to the base model (reference - base; > 0 means the base model is better)"""
+    rows = []
+    for fam, g in r.groupby("perturbation"):
+        for scope, x in (("design_comparison_units", g[g.in_design_comparison]), ("all_units", g)):
+            x = x.dropna(subset=["mse_" + k for k in REFS])
+            for k in REFS:
+                m = x["mse_" + k].values; b = x.mse_base_model.values
+                idx = [rng.integers(0, len(m), len(m)) for _ in range(2000)]
+                rm = np.sqrt([m[i].mean() for i in idx])
+                rows.append(dict(term=f"heldout_rmse_ref[{k}][{scope}]", coef=np.sqrt(m.mean()), lo=np.percentile(rm, 2.5), hi=np.percentile(rm, 97.5),
+                                 heldout_scheme=f"leave-one-dataset-out, {scope}", heldout_err=np.sqrt(m.mean()), n_heldout_units=len(m), perturbation=fam, n_units=len(g)))
+                if k != "base_model":
+                    dd = m - b; bd = np.array([dd[i].mean() for i in idx])
+                    rows.append(dict(term=f"heldout_sq_err_diff({k}-base)[{scope}]", coef=dd.mean(), lo=np.percentile(bd, 2.5), hi=np.percentile(bd, 97.5),
+                                     heldout_scheme=f"leave-one-dataset-out, {scope}", heldout_err=np.nan, n_heldout_units=len(m), perturbation=fam, n_units=len(g)))
+    return rows
+
+
+def main():
+    d = load()
+    rows, urows, rrows = [], [], []
+    rng = np.random.default_rng(0)
+    for fam, f in d.groupby("family"):
+        units = np.array(sorted(f.dataset.unique()))
+        ndes = f.groupby("design_f").dataset.nunique()
+        multi = [k for k in ndes.index if ndes[k] >= 2]
+        designs = sorted(f.design_f.unique())
+        X0, X1, y, w = design_matrix(f), design_matrix(f, designs), f.y.values, f.w.values
+        b0 = wls(X0, y, w)
+        # coefficient CI: bootstrap over data sets
+        B_ = []
+        for _ in range(1000):
+            pick = rng.choice(units, len(units))
+            idx = np.concatenate([np.where(f.dataset.values == u)[0] for u in pick])
+            wb = w[idx]
+            B_.append(wls(X0[idx], y[idx], wb))
+        B_ = np.array(B_)
+        resid = y - X0 @ b0
+        for i, t in enumerate(TERMS):
+            rows.append(dict(term=t, coef=b0[i], lo=np.percentile(B_[:, i], 2.5), hi=np.percentile(B_[:, i], 97.5), heldout_scheme="none (full fit)",
+                             heldout_err=np.sqrt(np.average(resid ** 2, weights=w)), n_heldout_units=0, perturbation=fam, n_units=len(units)))
+        # reference predictors, leave-one-dataset-out over ALL units (columns of the design matrix: intercept; intercept + log z)
+        ref = reference_errors(f, units, X0, y, w)
+        for u, v in ref.items():
+            rrows.append(dict(perturbation=fam, dataset=u, design=f.design_f.values[f.dataset.values == u][0], in_design_comparison=f.design_f.values[f.dataset.values == u][0] in multi, **v))
+        # LODO
+        sq0, sq1, sq2 = {}, {}, {}
+        pen = np.r_[np.zeros(X0.shape[1]), np.ones(X1.shape[1] - X0.shape[1])]
+        for u in units:
+            te = f.dataset.values == u
+            tr = ~te
+            if f.design_f.values[te][0] not in multi:
+                continue
+            p0 = X0[te] @ wls(X0[tr], y[tr], w[tr])
+            p1 = X1[te] @ wls(X1[tr], y[tr], w[tr])
+            p2 = X1[te] @ ridge_wls(X1[tr], y[tr], w[tr], pen, RIDGE)
+            sq0[u] = np.average((y[te] - p0) ** 2, weights=w[te]); sq1[u] = np.average((y[te] - p1) ** 2, weights=w[te])
+            sq2[u] = np.average((y[te] - p2) ** 2, weights=w[te])
+            urows.append(dict(perturbation=fam, dataset=u, design=f.design_f.values[te][0], mse_base=sq0[u], mse_design=sq1[u], mse_design_ridge=sq2[u]))
+        if sq0:
+            us = list(sq0)
+            diff = np.array([sq0[u] - sq1[u] for u in us])
+            bs = np.array([diff[rng.integers(0, len(diff), len(diff))].mean() for _ in range(2000)])
+            rows.append(dict(term="heldout_sq_err_diff(base-design)", coef=diff.mean(), lo=np.percentile(bs, 2.5), hi=np.percentile(bs, 97.5),
+                             heldout_scheme=f"leave-one-dataset-out, designs with >=2 units {multi}", heldout_err=np.sqrt(np.mean(list(sq0.values()))),
+                             n_heldout_units=len(us), perturbation=fam, n_units=len(units)))
+            for lab, sq in (("", sq1), ("_ridge", sq2)):
+                dd = np.array([sq0[u] - sq[u] for u in us])
+                if lab:
+                    bs2 = np.array([dd[rng.integers(0, len(dd), len(dd))].mean() for _ in range(2000)])
+                    rows.append(dict(term="heldout_sq_err_diff(base-design)_ridge", coef=dd.mean(), lo=np.percentile(bs2, 2.5), hi=np.percentile(bs2, 97.5),
+                                     heldout_scheme=f"leave-one-dataset-out, design dummies ridge-shrunk (lambda={RIDGE}), designs with >=2 units {multi}",
+                                     heldout_err=np.sqrt(np.mean(list(sq2.values()))), n_heldout_units=len(us), perturbation=fam, n_units=len(units)))
+                bm = np.array([np.median(dd[rng.integers(0, len(dd), len(dd))]) for _ in range(2000)])
+                rows.append(dict(term=f"heldout_sq_err_diff(base-design){lab}_median_over_units", coef=np.median(dd), lo=np.percentile(bm, 2.5), hi=np.percentile(bm, 97.5),
+                                 heldout_scheme="leave-one-dataset-out, median over held-out units" + (" (ridge dummies)" if lab else ""), heldout_err=np.nan,
+                                 n_heldout_units=len(us), perturbation=fam, n_units=len(units)))
+                rows.append(dict(term=f"n_heldout_units_where_design_better{lab}", coef=float((dd > 0).sum()), lo=np.nan, hi=np.nan,
+                                 heldout_scheme="leave-one-dataset-out", heldout_err=np.nan, n_heldout_units=len(us), perturbation=fam, n_units=len(units)))
+            rows.append(dict(term="heldout_rmse_design_model", coef=np.sqrt(np.mean(list(sq1.values()))), lo=np.nan, hi=np.nan,
+                             heldout_scheme="leave-one-dataset-out, designs with >=2 units", heldout_err=np.sqrt(np.mean(list(sq1.values()))),
+                             n_heldout_units=len(us), perturbation=fam, n_units=len(units)))
+        # leave-one-design-out (base model)
+        for k in designs:
+            te = f.design_f.values == k
+            if te.all() or te.sum() == 0:
+                continue
+            p = X0[te] @ wls(X0[~te], y[~te], w[~te])
+            rows.append(dict(term=f"heldout_rmse_base[{k}]", coef=np.sqrt(np.average((y[te] - p) ** 2, weights=w[te])), lo=np.nan, hi=np.nan,
+                             heldout_scheme="leave-one-design-out", heldout_err=np.sqrt(np.average((y[te] - p) ** 2, weights=w[te])),
+                             n_heldout_units=int(f[te].dataset.nunique()), perturbation=fam, n_units=len(units)))
+    rows += reference_rows(pd.DataFrame(rrows), rng)
+    pd.DataFrame(rrows).to_csv(f"{REPO}/predictive_references_units.csv", index=False, float_format="%.6g")
+    o = pd.DataFrame(rows)
+    o["dataset"] = "pooled"; o["design"] = "all"; o["synthetic"] = 0
+    # n_pairs_fit: model pairs entering the fit (z_fisher in [1, 8], verified k*); N: comparisons summed over the data sets in the fit
+    # (data sets that share comparisons, e.g. Arena-55k and Arena single-turn, are counted once each)
+    o["n_pairs_fit"] = o.perturbation.map(d.groupby("family").size())
+    o["N"] = o.perturbation.map(d.groupby(["family", "dataset"]).N.first().groupby("family").sum())
+    o.to_csv(f"{REPO}/predictive_rule.csv", index=False, float_format="%.6g")
+    pd.DataFrame(urows).to_csv(f"{REPO}/predictive_rule_units.csv", index=False, float_format="%.6g")
+    print(o.to_string())
+
+
+if __name__ == "__main__":
+    main()

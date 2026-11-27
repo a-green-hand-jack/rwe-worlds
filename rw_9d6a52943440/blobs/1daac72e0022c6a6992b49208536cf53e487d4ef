@@ -1,0 +1,197 @@
+% Verified entries only: the starter-literature items (details from the task's starter list,
+% arXiv ids as given) and extra sources whose metadata was fetched from arXiv / ACL Anthology / OpenAlex.
+@inproceedings{vivek2024anchor,
+  title={Anchor Points: Benchmarking Models with Much Fewer Examples},
+  author={Vivek, Rajan and Ethayarajh, Kawin and Yang, Diyi and Kiela, Douwe},
+  booktitle={EACL}, year={2024}, note={arXiv:2309.08638}}
+@inproceedings{maiapolo2024tiny,
+  title={tinyBenchmarks: evaluating {LLMs} with fewer examples},
+  author={Maia Polo, Felipe and Weber, Lucas and Choshen, Leshem and Sun, Yuekai and Xu, Gongjun and Yurochkin, Mikhail},
+  booktitle={ICML}, year={2024}, note={arXiv:2402.14992}}
+@inproceedings{kipnis2025metabench,
+  title={metabench -- A Sparse Benchmark of Reasoning and Knowledge in {LLMs}},
+  author={Kipnis, Alex and Voudouris, Konstantinos and Schulze Buschoff, Luca M. and Schulz, Eric},
+  booktitle={ICLR}, year={2025}, note={arXiv:2407.12844}}
+@misc{pacchiardi2024100,
+  title={100 instances is all you need: predicting the success of a new {LLM} on unseen data by testing on a few instances},
+  author={Pacchiardi, Lorenzo and Cheke, Lucy G. and Hern{\'a}ndez-Orallo, Jos{\'e}},
+  year={2024}, note={arXiv:2409.03563}}
+@inproceedings{li2025active,
+  title={Active Evaluation Acquisition for Efficient {LLM} Benchmarking},
+  author={Li, Yang and Ma, Jie and Ballesteros, Miguel and Benajiba, Yassine and Horwood, Graham},
+  booktitle={ICML}, year={2025}, note={arXiv:2410.05952}}
+@inproceedings{zhang2025miss,
+  title={How Benchmark Prediction from Fewer Data Misses the Mark},
+  author={Zhang, Guanhua and Dorner, Florian E. and Hardt, Moritz},
+  booktitle={NeurIPS}, year={2025}, note={arXiv:2506.07673}}
+@misc{balkir2026confident,
+  title={Confident Rankings with Fewer Items: Adaptive {LLM} Evaluation with Continuous Scores},
+  author={Balk{\i}r, Esma and Pernthaller, Alice and Basaldella, Marco and Hern{\'a}ndez-Orallo, Jos{\'e} and Collier, Nigel},
+  year={2026}, note={arXiv:2601.13885}}
+@misc{ghosh2024onebench,
+  title={{ONEBench} to Test Them All: Sample-Level Benchmarking Over Open-Ended Capabilities},
+  author={Ghosh, Adhiraj and Dziadzio, Sebastian and Prabhu, Ameya and Udandarao, Vishaal and Albanie, Samuel and Bethge, Matthias},
+  year={2024}, note={arXiv:2412.06745}}
+@inproceedings{fogliato-etal-2024-precise,
+  title={Precise Model Benchmarking with Only a Few Observations},
+  author={Fogliato, Riccardo and Patil, Pratik and Akpinar, Nil-Jana and Monfort, Mathew},
+  booktitle={Proceedings of EMNLP 2024}, year={2024}, pages={9563--9575},
+  doi={10.18653/v1/2024.emnlp-main.536}}
+@inproceedings{perlitz-etal-2024-efficient,
+  title={Efficient Benchmarking (of Language Models)},
+  author={Perlitz, Yotam and Bandel, Elron and Gera, Ariel and Arviv, Ofir and Ein-Dor, Liat and Shnarch, Eyal and Slonim, Noam and Shmueli-Scheuer, Michal and Choshen, Leshem},
+  booktitle={Proceedings of NAACL 2024 (Long Papers)}, year={2024}, pages={2519--2536},
+  doi={10.18653/v1/2024.naacl-long.139}}
+@article{angelopoulos2023ppi,
+  title={Prediction-powered inference},
+  author={Angelopoulos, Anastasios N. and Bates, Stephen and Fannjiang, Clara and Jordan, Michael I. and Zrnic, Tijana},
+  journal={Science}, year={2023}, doi={10.1126/science.adi6000}}
+@misc{angelopoulos2023ppiplus,
+  title={{PPI++}: Efficient Prediction-Powered Inference},
+  author={Angelopoulos, Anastasios N. and Duchi, John C. and Zrnic, Tijana},
+  year={2023}, note={arXiv:2311.01453}}
+@misc{kossen2021active,
+  title={Active Testing: Sample-Efficient Model Evaluation},
+  author={Kossen, Jannik and Farquhar, Sebastian and Gal, Yarin and Rainforth, Tom},
+  year={2021}, note={arXiv:2103.05331 (ICML 2021)}}
+@misc{yilmaz2021sample,
+  title={Sample Efficient Model Evaluation},
+  author={Yilmaz, Emine and Hayes, Peter and Habib, Raza and Burgess, Jordan and Barber, David},
+  year={2021}, note={arXiv:2109.12043}}
+@book{sarndal1992model,
+  title={Model Assisted Survey Sampling},
+  author={S{\"a}rndal, Carl-Erik and Swensson, Bengt and Wretman, Jan},
+  publisher={Springer}, year={1992}}
+@misc{zrnic2024active,
+  title={Active Statistical Inference},
+  author={Zrnic, Tijana and Cand{\`e}s, Emmanuel J.},
+  year={2024}, note={arXiv:2403.03208}}
+@inproceedings{chatzi2024prediction,
+  title={Prediction-Powered Ranking of Large Language Models},
+  author={Chatzi, Ivi and Straitouri, Eleni and Thejaswi, Suhas and Gomez-Rodriguez, Manuel},
+  booktitle={NeurIPS}, year={2024}, doi={10.52202/079017-3594}}
+@misc{hofmann2025fluid,
+  title={Fluid Language Model Benchmarking},
+  author={Hofmann, Valentin and Heineman, David and Magnusson, Ian and Lo, Kyle and Dodge, Jesse and Sap, Maarten and Koh, Pang Wei and Wang, Chun and Hajishirzi, Hannaneh and Smith, Noah A.},
+  year={2025}, note={arXiv:2509.11106}}
+@inproceedings{saranathan-etal-2025-sublime,
+  title={{SubLIME}: Subset Selection via Rank Correlation Prediction for Data-Efficient {LLM} Evaluation},
+  author={Saranathan, Gayathri and Xu, Cong and Alam, Mahammad Parwez and Kumar, Tarun and Foltin, Martin and Wong, Soon Yee and Bhattacharya, Suparna},
+  booktitle={Proceedings of ACL 2025 (Long Papers)}, year={2025}, doi={10.18653/v1/2025.acl-long.1477}}
+@inproceedings{maiapolo2024prompteval,
+  title={Efficient multi-prompt evaluation of {LLMs}},
+  author={Maia Polo, Felipe and Xu, Ronald and Weber, Lucas and Silva, M{\'\i}rian and Bhardwaj, Onkar and Choshen, Leshem and de Oliveira, Allysson Flavio Melo and Sun, Yuekai and Yurochkin, Mikhail},
+  booktitle={NeurIPS}, year={2024}, doi={10.52202/079017-0707}}
+
+@inproceedings{prabhu2024lifelong,
+  title     = {Efficient Lifelong Model Evaluation in an Era of Rapid Progress},
+  author    = {Prabhu, Ameya and Udandarao, Vishaal and Torr, Philip and Bethge, Matthias and Bibi, Adel and Albanie, Samuel},
+  booktitle = {Advances in Neural Information Processing Systems},
+  volume    = {37},
+  year      = {2024},
+  note      = {arXiv:2402.19472}
+}
+
+@misc{zhuang2023adaptive,
+  title         = {Position: {AI} Evaluation Should Learn from How We Test Humans},
+  author        = {Zhuang, Yan and Liu, Qi and Pardos, Zachary A. and Kyllonen, Patrick C. and Zu, Jiyun and Huang, Zhenya and Wang, Shijin and Chen, Enhong},
+  year          = {2023},
+  eprint        = {2306.10512},
+  archivePrefix = {arXiv},
+  note          = {Latest arXiv version; adaptive testing (computerized adaptive testing with item response theory) for LLM evaluation}
+}
+
+@misc{truong2025amortized,
+  title         = {Reliable and Efficient Amortized Model-based Evaluation},
+  author        = {Truong, Sang and Tu, Yuheng and Liang, Percy and Li, Bo and Koyejo, Sanmi},
+  year          = {2025},
+  eprint        = {2503.13335},
+  archivePrefix = {arXiv}
+}
+
+@inproceedings{ruan2024observational,
+  title     = {Observational Scaling Laws and the Predictability of Language Model Performance},
+  author    = {Ruan, Yangjun and Maddison, Chris J. and Hashimoto, Tatsunori},
+  booktitle = {Advances in Neural Information Processing Systems},
+  volume    = {37},
+  year      = {2024},
+  note      = {arXiv:2405.10938}
+}
+
+@misc{owen2024predictable,
+  title         = {How predictable is language model benchmark performance?},
+  author        = {Owen, David},
+  year          = {2024},
+  eprint        = {2401.04757},
+  archivePrefix = {arXiv}
+}
+
+@misc{boyeau2024autoeval,
+  title         = {{AutoEval} Done Right: Using Synthetic Data for Model Evaluation},
+  author        = {Boyeau, Pierre and Angelopoulos, Anastasios N. and Yosef, Nir and Malik, Jitendra and Jordan, Michael I.},
+  year          = {2024},
+  eprint        = {2403.07008},
+  archivePrefix = {arXiv}
+}
+
+@misc{madaan2024variance,
+  title         = {Quantifying Variance in Evaluation Benchmarks},
+  author        = {Madaan, Lovish and Singh, Aaditya K. and Schaeffer, Rylan and Poulton, Andrew and Koyejo, Sanmi and Stenetorp, Pontus and Narang, Sharan and Hupkes, Dieuwke},
+  year          = {2024},
+  eprint        = {2406.10229},
+  archivePrefix = {arXiv}
+}
+
+@misc{chen2025compact,
+  title         = {Learning Compact Representations of {LLM} Abilities via Item Response Theory},
+  author        = {Chen, Jianhao and Wang, Chenxu and Zhang, Gengrui and Ye, Peng and Bai, Lei and Hu, Wei and Qu, Yuzhong and Hu, Shuyue},
+  year          = {2025},
+  eprint        = {2510.00844},
+  archivePrefix = {arXiv}
+}
+
+@misc{shnitzer2023routing,
+  title         = {Large Language Model Routing with Benchmark Datasets},
+  author        = {Shnitzer, Tal and Ou, Anthony and Silva, M{\'\i}rian and Soule, Kate and Sun, Yuekai and Solomon, Justin and Thompson, Neil and Yurochkin, Mikhail},
+  year          = {2023},
+  eprint        = {2309.15789},
+  archivePrefix = {arXiv}
+}
+
+@misc{yax2024phylolm,
+  title         = {{PhyloLM}: Inferring the Phylogeny of Large Language Models and Predicting their Performances in Benchmarks},
+  author        = {Yax, Nicolas and Oudeyer, Pierre-Yves and Palminteri, Stefano},
+  year          = {2024},
+  eprint        = {2404.04671},
+  archivePrefix = {arXiv}
+}
+
+@inproceedings{vania-etal-2021-comparing,
+  title     = {Comparing Test Sets with Item Response Theory},
+  author    = {Vania, Clara and Htut, Phu Mon and Huang, William and Mungra, Dhara and Pang, Richard Yuanzhe and Phang, Jason and Liu, Haokun and Cho, Kyunghyun and Bowman, Samuel R.},
+  booktitle = {Proceedings of the 59th Annual Meeting of the Association for Computational Linguistics and the 11th International Joint Conference on Natural Language Processing (Volume 1: Long Papers)},
+  year      = {2021},
+  pages     = {1141--1158},
+  publisher = {Association for Computational Linguistics},
+  doi       = {10.18653/v1/2021.acl-long.92}
+}
+
+@inproceedings{lalor-etal-2016-building,
+  title     = {Building an Evaluation Scale using Item Response Theory},
+  author    = {Lalor, John P. and Wu, Hao and Yu, Hong},
+  booktitle = {Proceedings of the 2016 Conference on Empirical Methods in Natural Language Processing},
+  year      = {2016},
+  pages     = {648--657},
+  publisher = {Association for Computational Linguistics},
+  doi       = {10.18653/v1/D16-1062}
+}
+
+@article{martinezplumed2019irt,
+  title   = {Item response theory in {AI}: Analysing machine learning classifiers at the instance level},
+  author  = {Mart{\'\i}nez-Plumed, Fernando and Prud{\^e}ncio, Ricardo B. C. and Mart{\'\i}nez-Us{\'o}, Adolfo and Hern{\'a}ndez-Orallo, Jos{\'e}},
+  journal = {Artificial Intelligence},
+  volume  = {271},
+  pages   = {18--42},
+  year    = {2019},
+  doi     = {10.1016/j.artint.2018.09.004}
+}

@@ -1,0 +1,13 @@
+"""E3 robustness: K = 10 cross-fitting folds (instead of 5) at n in {100, 500} on three sets, same arms.
+usage: python exp3c_K10.py PROCS"""
+import sys
+from common import *
+
+procs = int(sys.argv[1])
+cfg = dict(T1_CFG, K=10)
+cells = []
+for nm, N in (("galaxies", 10000), ("gene_expression", 10000), ("census_income", 10000)):
+    pop = load_pool(nm)
+    for n in (100, 500):
+        cells.append(dict(id=f"{nm}_K10_n{n}_N{N}", pop=pop, n=n, N=N, R=2000, cfg=cfg))
+run_grid("exp3k10", cells, procs)

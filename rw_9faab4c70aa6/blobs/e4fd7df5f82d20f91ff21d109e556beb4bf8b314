@@ -1,0 +1,56 @@
+"""Fig 6 (C7, appendix): the semi-synthetic arm (generator fitted to the real matrix, rank 20, l2 0.005).
+(a) validation: predicted gap vs the gap measured on held-out real items; split-half fit and extrapolation (fit on 75 of 128 configurations, predict all 128);
+    vertical bars = item-bootstrap interval of the measured value (Monte-Carlo noise of the draws included, so conservative).
+(b) predicted gap (random search, B = 100) against n for K = 32, 128, 512; open markers = outside the validated support (n > 200 or K > 128).
+(c) coverage of the max-t lower bound in the same generated worlds, nominal .95.
+Rows used: seed = -1 (mean of 3 fitted-generator seeds).
+usage: python figures/src/fig6.py RESULTS_DIR OUT.pdf"""
+import sys
+import numpy as np
+import matplotlib.pyplot as plt
+sys.path.insert(0, __file__.rsplit("/", 1)[0])
+import figstyle as fs
+
+KC = {32: "#A6DBC4", 128: "#009E73", 512: "#00513C"}
+
+
+def main(rd, out):
+    d = fs.load(rd, "semisynth"); d = d[d.seed == -1]
+    v = d[d.kind.isin(["validation_split_half", "extrapolation"])]; cv = d[d.kind == "curve"]
+    print("Fig 6 data:", d.pool.iloc[0], "| generator rank", int(d.fit_rank.iloc[0]), "l2", d.fit_l2.iloc[0], "| seeds averaged: 3 (seed = -1) | validation cells:", len(v),
+          "(n 30-200 x B 20,100) | curve draws/cell:", int(cv.draws.iloc[0]), "| interval:", v.ci_kind.iloc[0],
+          "| mean predicted - measured: " + ", ".join(f"{k} {(g.predicted - g.real_value).mean():+.4f}" for k, g in v.groupby("kind")),
+          "| max-t coverage range %.3f-%.3f" % (cv.coverage_maxt.min(), cv.coverage_maxt.max()))
+    fs.apply(); c = fs.C
+    W, H = fs.VENUE["text_width_in"], 1.9
+    fig = plt.figure(figsize=(W, H))
+    a = fig.add_axes([0.075, 0.24, 0.222, 0.64]); b = fig.add_axes([0.40, 0.24, 0.25, 0.64]); cc = fig.add_axes([0.745, 0.24, 0.235, 0.64])
+    for kind, col, mk, lab in (("validation_split_half", c["fresh"], "o", "split-half fit"), ("extrapolation", c["reported"], "s", "fit on 75 of 128")):
+        q = v[v.kind == kind]
+        a.errorbar(q.predicted, q.real_value, yerr=[q.real_value - q.lo, q.hi - q.real_value], fmt=mk, ms=3.2, color=col, elinewidth=0.6, capsize=0, mec="white", mew=0.2, label=lab)
+    a.plot([0, 0.15], [0, 0.15], color=c["ink"], ls="--", lw=0.7)
+    a.set_xlim(0, 0.15); a.set_ylim(0, 0.15); a.set_xticks([0, 0.05, 0.10, 0.15]); a.set_xticklabels(["0", ".05", ".10", ".15"]); a.set_yticks([0, 0.05, 0.10, 0.15]); a.set_yticklabels(["0", ".05", ".10", ".15"])
+    a.set_xlabel("predicted gap"); a.set_ylabel("measured gap")
+    a.legend(frameon=False, loc="upper left", fontsize=7, handletextpad=0.1, borderaxespad=0.0, labelspacing=0.2)
+    fs.panel_label(a, "(a) validation")
+    for K, col in KC.items():
+        g = cv[cv.K == K].sort_values("n")
+        b.plot(g.n, g.predicted, "-", color=col, lw=1.1)
+        for _, r in g.iterrows():
+            b.plot(r.n, r.predicted, "o", ms=3.4, color=col, mfc=col if r.inside_support else "white", mew=0.8)
+        cc.plot(g.n, g.coverage_maxt, "-", color=col, lw=1.1)
+        for _, r in g.iterrows():
+            cc.plot(r.n, r.coverage_maxt, "o", ms=3.4, color=col, mfc=col if r.inside_support else "white", mew=0.8)
+    for ax in (b, cc):
+        ax.set_xscale("log"); ax.set_xticks([30, 100, 300, 800]); ax.set_xticklabels(["30", "100", "300", "800"]); ax.minorticks_off(); ax.set_xlabel("search-set size $n$")
+    b.set_yscale("log"); b.set_yticks([0.01, 0.03, 0.1]); b.set_yticklabels([".01", ".03", ".1"]); b.set_ylim(0.005, 0.2); b.set_ylabel("predicted gap")
+    b.legend(handles=[plt.Line2D([], [], color=KC[K], marker="o", ms=3.4, label=f"$K$={K}") for K in KC] + [plt.Line2D([], [], color="#555555", marker="o", ms=3.4, mfc="white", ls="none", label="outside support")], frameon=False, loc="lower left", fontsize=7, handlelength=1.6, handletextpad=0.4, borderaxespad=0.0, labelspacing=0.2)
+    fs.panel_label(b, "(b) beyond the matrix")
+    cc.axhline(0.95, color=c["ink"], ls="--", lw=0.7); cc.set_ylim(0.93, 1.0); cc.set_yticks([0.95, 0.97, 0.99]); cc.set_yticklabels([".95", ".97", ".99"]); cc.set_ylabel("max-$t$ coverage")
+    cc.text(30, 0.9515, "nominal", fontsize=7, va="bottom", ha="left")
+    fs.panel_label(cc, "(c) bound coverage")
+    fig.savefig(out, bbox_inches=None, pad_inches=0)
+
+
+if __name__ == "__main__":
+    main(*sys.argv[1:3])

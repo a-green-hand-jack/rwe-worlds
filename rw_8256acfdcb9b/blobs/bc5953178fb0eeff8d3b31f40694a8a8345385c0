@@ -1,0 +1,159 @@
+"""M5 decision fit (Outline rev 6): is the exact top-k correctness of one run a function of x = g * sqrt(m) / sigma_k ?
+
+For each (instance, budget) point of a cell (dataset, model, estimator, l1_reg) with R > 1 runs:
+  a, b      the exact k-th and (k+1)-th features by |phi| (k = 3); g_abs = |phi_a| - |phi_b|, g_rel = g_abs / max|phi| (the margin of the paper);
+  D_r       |phi_hat_r[a]| - |phi_hat_r[b]| of run r (the boundary statistic: the pair whose swap changes the top-k set);
+  sd_D      standard deviation of D over the R runs at that budget;
+  n_correct number of runs whose top-k set equals the exact one (metrics.correct_exact).
+Noise scale per instance (sigma_k, in phi units, per sqrt(coalition)):
+  sigma_loo     median over the OTHER budgets with m_eff >= 256 of sd_D * sqrt(m_eff) (leave-budget-out: the fitted budget does not enter its own sigma);
+  sigma_plugin  median over runs of sqrt(se_a^2 + se_b^2) * sqrt(m_eff) from the estimator's own plug-in standard errors at this budget
+                (kernel_paired and permutation_antithetic only; ignores the covariance of the two features; available from one run).
+Probit: n_correct ~ Binomial(R, Phi(beta * x)), x = g_abs * sqrt(m_eff) / sigma ; H3 predicts beta = 1 and a collapse of all points on Phi(x).
+"""
+import glob, os, re
+import numpy as np
+import pandas as pd
+from scipy.optimize import minimize_scalar, minimize
+from scipy.special import ndtr, ndtri
+from . import metrics as M, pipeline as P, tables as T
+
+K = 3
+MIN_SIGMA_M = 256
+
+
+def instance_points(ds, kind, i, seed=0):
+    d_ = P.cell_dir(ds, seed)
+    r = np.load(os.path.join(d_, f"inst_{kind}_{i:04d}.npz"))
+    files = [r]
+    ef = os.path.join(d_, f"ext_{kind}_{i:04d}.npz")
+    if os.path.exists(ef):
+        files.append(np.load(ef))
+    ref = r["phi"]
+    d = len(ref)
+    order = np.argsort(-np.abs(ref), kind="stable")
+    a, b = order[K - 1], order[K]
+    g_abs = abs(ref[a]) - abs(ref[b])
+    g_rel = M.margin(ref, K)
+    rows = []
+    for f in files:
+        for key in f.files:
+            mt = T.KEY_RE.match(key)
+            if not mt or mt.group(1) == "shap_nf10" or mt.group(1) == "shap_auto":
+                continue
+            est = f[key]
+            R = est.shape[0]
+            if R <= 1:
+                continue
+            estimator, l1 = T.EST[mt.group(1)]
+            m = int(mt.group(2))
+            me = T.m_eff(estimator, m, d)
+            D = np.abs(est[:, a]) - np.abs(est[:, b])
+            row = dict(dataset=ds, model=kind, estimator=estimator, l1_reg=l1, budget_m=m, instance_id=i, d=d, R=R, m_eff=me,
+                       n_correct=int(M.correct_exact(est, ref, K).sum()), g_abs=g_abs, g_rel=g_rel, max_abs_phi=float(np.abs(ref).max()),
+                       mean_D=float(D.mean()), sd_D=float(D.std(ddof=1)), sigma_plugin=np.nan)
+            sk = key.replace("unb_", "unb_se_").replace("perm_", "perm_se_")
+            if sk != key and sk in f.files:
+                se = f[sk]
+                row["sigma_plugin"] = float(np.median(np.sqrt(se[:, a] ** 2 + se[:, b] ** 2))) * np.sqrt(me)
+            rows.append(row)
+    return rows
+
+
+def add_sigma_loo(pts):
+    """sigma_loo per point from the other budgets with m_eff >= MIN_SIGMA_M of the same (cell, instance)."""
+    pts = pts.copy()
+    pts["sigma_unit"] = pts.sd_D * np.sqrt(pts.m_eff)
+    out = np.full(len(pts), np.nan)
+    for _, g in pts.groupby(["dataset", "model", "estimator", "l1_reg", "instance_id"]):
+        ok = g.m_eff.to_numpy() >= MIN_SIGMA_M
+        su = g.sigma_unit.to_numpy()
+        for j, ix in enumerate(g.index):
+            others = ok.copy()
+            others[j] = False
+            if others.any():
+                out[pts.index.get_loc(ix)] = np.median(su[others])
+    pts["sigma_loo"] = out
+    return pts
+
+
+def _nll(beta, x, n, R, alpha=0.0):
+    p = np.clip(ndtr(alpha + beta * x), 1e-12, 1 - 1e-12)
+    return -(n * np.log(p) + (R - n) * np.log1p(-p)).sum()
+
+
+def fit_beta(x, n, R):
+    r = minimize_scalar(lambda b: _nll(b, x, n, R), bounds=(0.0, 20.0), method="bounded", options=dict(xatol=1e-5))
+    return float(r.x), float(r.fun)
+
+
+def fit_alpha_beta(x, n, R):
+    r = minimize(lambda t: _nll(t[1], x, n, R, t[0]), [0.0, 1.0], method="Nelder-Mead", options=dict(xatol=1e-5, fatol=1e-8))
+    return float(r.x[0]), float(r.x[1]), float(r.fun)
+
+
+XBINS = [0, 0.5, 1, 1.5, 2, 3, 4, 6, 10, np.inf]
+
+
+def fit_cell(g, sigma_col, nboot=300, seed=20260101):
+    """g: points of one cell; returns (fit row, collapse rows, per-instance m* frame)."""
+    g = g[np.isfinite(g[sigma_col]) & (g[sigma_col] > 0) & (g.g_abs > 0)].copy()
+    if g.instance_id.nunique() < 10:
+        return None
+    g["x"] = g.g_abs * np.sqrt(g.m_eff) / g[sigma_col]
+    ids = np.sort(g.instance_id.unique())
+    by = {i: h for i, h in g.groupby("instance_id")}
+    x, n, R = g.x.to_numpy(), g.n_correct.to_numpy(float), g.R.to_numpy(float)
+    beta, nll1 = fit_beta(x, n, R)
+    alpha, beta2, nll2 = fit_alpha_beta(x, n, R)
+    # g-only competitor (no sigma): x_g = g_rel * sqrt(m_eff), one coefficient
+    xg = (g.g_rel * np.sqrt(g.m_eff)).to_numpy()
+    bg, nllg = fit_beta(xg, n, R)
+    rng = np.random.default_rng(seed)
+    bs = []
+    for _ in range(nboot):
+        sel = rng.choice(ids, len(ids))
+        h = pd.concat([by[i] for i in sel])
+        bs.append(fit_beta(h.x.to_numpy(), h.n_correct.to_numpy(float), h.R.to_numpy(float))[0])
+    blo, bhi = np.percentile(bs, [2.5, 97.5])
+    z9 = float(ndtri(0.9))
+    # per-instance m*(P=0.9) implied by the fitted probit: x = z9/beta  =>  m* = (z9/beta)^2 sigma^2 / g^2 (sigma per sqrt(coalition))
+    inst = g.groupby("instance_id").agg(g_rel=("g_rel", "first"), g_abs=("g_abs", "first"), sigma=(sigma_col, "median")).reset_index()
+    ok = (inst.g_rel > 0) & (inst.sigma > 0)
+    lg, ls = np.log(inst.g_rel[ok].to_numpy()), np.log(inst.sigma[ok].to_numpy() / g.max_abs_phi.groupby(g.instance_id).first().loc[inst.instance_id[ok]].to_numpy())
+    sl_sig = np.polyfit(lg, ls, 1)[0]            # d log(sigma_rel) / d log g
+    sl_m = -2 + 2 * sl_sig                       # slope of log m* on log g implied by the probit with per-instance sigma
+    sb, sm = [], []
+    for _ in range(nboot):
+        j = rng.integers(0, len(lg), len(lg))
+        s = np.polyfit(lg[j], ls[j], 1)[0]
+        sb.append(s)
+    slo, shi = np.percentile(sb, [2.5, 97.5])
+    key = g.iloc[0]
+    row = dict(dataset=key.dataset, model=key.model, estimator=key.estimator, l1_reg=key.l1_reg, sigma_def=sigma_col, link="probit",
+               n_points=len(g), n_instances=len(ids), n_budgets=g.budget_m.nunique(), R=int(g.R.max()),
+               beta=beta, beta_ci_lo=blo, beta_ci_hi=bhi, nll_sigma=nll1,
+               alpha_free=alpha, beta_free=beta2, nll_sigma_free_intercept=nll2, beta_g_only=bg, nll_g_only=nllg,
+               nll_gain_vs_g_only=nllg - nll1, z90=z9, x_for_p90=z9 / beta if beta > 0 else np.nan,
+               slope_logsigma_vs_logg=sl_sig, slope_logsigma_ci_lo=slo, slope_logsigma_ci_hi=shi,
+               slope_logmstar_vs_logg=-2 + 2 * sl_sig, slope_logmstar_ci_lo=-2 + 2 * slo, slope_logmstar_ci_hi=-2 + 2 * shi,
+               sigma_note=("sigma_loo: median over other budgets (m_eff>=256) of sd_D*sqrt(m_eff)" if sigma_col == "sigma_loo" else
+                           "sigma_plugin: median plug-in se of the boundary pair * sqrt(m_eff), covariance ignored"),
+               x_def="g_abs*sqrt(m_eff)/sigma, g_abs = |phi|_(3)-|phi|_(4) of the exact phi")
+    g["bin"] = pd.cut(g.x, XBINS, right=False)
+    g["fit_p"] = ndtr(beta * g.x)
+    g["theory_p"] = ndtr(g.x)
+    cr = []
+    for bn, h in g.groupby("bin", observed=True):
+        if len(h) == 0:
+            continue
+        per = h.groupby("instance_id").agg(nc=("n_correct", "sum"), nr=("R", "sum"), fp=("fit_p", "mean"), tp=("theory_p", "mean"), npt=("x", "size"))
+        hi_ids = per.index.to_numpy()
+        w = (per.nc / per.nr).to_numpy()
+        bsh = [w[rng.integers(0, len(w), len(w))].mean() for _ in range(300)]
+        cr.append(dict(dataset=key.dataset, model=key.model, estimator=key.estimator, l1_reg=key.l1_reg, sigma_def=sigma_col,
+                       x_lo=bn.left, x_hi=bn.right, x_mid=float(h.x.median()), n_points=len(h), n_instances=len(hi_ids),
+                       observed_share=float(h.n_correct.sum() / h.R.sum()), observed_ci_lo=float(np.percentile(bsh, 2.5)),
+                       observed_ci_hi=float(np.percentile(bsh, 97.5)), fitted_probability=float(h.fit_p.mean()),
+                       theory_probability_beta1=float(h.theory_p.mean())))
+    return row, cr

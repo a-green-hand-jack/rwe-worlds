@@ -1,0 +1,4 @@
+sample,predictor,cells,r2,best_benchmark_r2,best_benchmark
+"original cells, leave-one-mechanism-out",S_adj (parametric-bootstrap noise part) + corner x curvature,2142,-0.09368261624063834,-0.20213782275973524,p(1-p)
+"original cells, leave-one-mechanism-out","S_adj (null-column noise part, exploratory definition) + corner x curvature",2142,-0.07594838512661028,-0.20213782275973524,p(1-p)
+"original cells, leave-one-mechanism-out",S_bar (pre-registered) + corner x curvature,2142,-0.19378836631158802,-0.20213782275973524,p(1-p)

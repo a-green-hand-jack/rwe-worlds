@@ -1,0 +1,25 @@
+12 tasks
+/hutian/repo/experiments/../analysis/semisynth.py:27: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:820.)
+  return dict(a=a.detach().numpy(), b=b.detach().numpy(), U=U.detach().numpy(), V=V.detach().numpy(), mu=float(mu), loss=float(loss))
+/hutian/repo/experiments/../analysis/semisynth.py:27: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:820.)
+  return dict(a=a.detach().numpy(), b=b.detach().numpy(), U=U.detach().numpy(), V=V.detach().numpy(), mu=float(mu), loss=float(loss))
+/hutian/repo/experiments/../analysis/semisynth.py:27: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:820.)
+  return dict(a=a.detach().numpy(), b=b.detach().numpy(), U=U.detach().numpy(), V=V.detach().numpy(), mu=float(mu), loss=float(loss))
+/hutian/repo/experiments/../analysis/semisynth.py:27: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:820.)
+  return dict(a=a.detach().numpy(), b=b.detach().numpy(), U=U.detach().numpy(), V=V.detach().numpy(), mu=float(mu), loss=float(loss))
+done ('check2', 0) 149s total 149s
+done ('check1', 0) 177s total 177s
+done ('check3', 0) 182s total 182s
+done ('curves', 0) 281s total 281s
+done ('check1', 1) 137s total 285s
+done ('check2', 1) 137s total 314s
+done ('check3', 1) 184s total 367s
+done ('check1', 2) 151s total 436s
+done ('check2', 2) 136s total 450s
+done ('curves', 1) 228s total 509s
+done ('check3', 2) 148s total 514s
+done ('curves', 2) 91s total 527s

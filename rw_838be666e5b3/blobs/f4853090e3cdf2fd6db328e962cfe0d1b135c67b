@@ -1,0 +1,22 @@
+#!/bin/sh
+# Usage (from the directory that holds figures/ and tables/):
+#   RESULTS_DIR=<dir with cells.csv, prop_check.csv, breakeven.csv, diagnostic.csv> [FIGTAB_OUT=.] sh <this dir>/make_all.sh
+# In figtab-repo this dir is figtab/ and FIGTAB_OUT defaults to the repository root; in paper-repo it is figures/generate/
+# (run `RESULTS_DIR=results FIGTAB_OUT=. sh figures/generate/make_all.sh` at its root).
+# Geometry in use is printed first; every script stops with a message if its input is missing or malformed.
+D=$(cd "$(dirname "$0")" && pwd)
+export FIGTAB_OUT="${FIGTAB_OUT:-$D/..}"
+RESULTS_DIR=$(cd "$RESULTS_DIR" && pwd) || exit 1
+export RESULTS_DIR PYTHONDONTWRITEBYTECODE=1
+cd "$FIGTAB_OUT" || exit 1
+python3 -I -c "import sys; sys.path.insert(0,'$D'); import style; print('geometry:', style.GEOM)"
+rc=0
+for s in fig2_prop fig3_ladder fig4_breakeven fig5_diag fig6_regime; do
+  echo "== $s"; PYTHONPATH="$D" python3 "$D/$s.py" || rc=1
+done
+echo "== fig_clip"
+if [ -f "$RESULTS_DIR/clip_sweep.csv" ]; then PYTHONPATH="$D" python3 "$D/fig_clip.py" || rc=1
+else echo "no clip_sweep.csv yet (E9, experiment-repo#9): Fig 6 not drawn"; fi
+echo "== tables"; PYTHONPATH="$D" python3 "$D/tables.py" || rc=1
+echo "== fonts"; sh "$D/check_fonts.sh" || rc=1
+exit $rc

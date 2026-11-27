@@ -1,0 +1,253 @@
+{
+ "rule": "(fixed before looking at the real values): a rung is *consistent* with the real matrix if every diagnostic of the real matrix lies inside the\n[5%, 95%] range of that diagnostic over the rung's seeds, widened by 10% of the range; the real matrix is placed on the set of consistent rungs, or \"outside\nthe ladder\" if the set is empty.",
+ "n_seeds": 20,
+ "placed_on": "outside the ladder",
+ "rungs": {
+  "L0_correct": {
+   "consistent": false,
+   "diagnostics": {
+    "calib": {
+     "real": 2.7542727891169068,
+     "lo": 1.144879518360099,
+     "hi": 1.1627066156114767,
+     "inside": false
+    },
+    "calib_med": {
+     "real": 1.5482808042176968,
+     "lo": 1.1461539264701743,
+     "hi": 1.2139742326032,
+     "inside": false
+    },
+    "kurt": {
+     "real": 29.417215582859697,
+     "lo": 0.04230324450680578,
+     "hi": 0.21086362338798162,
+     "inside": false
+    },
+    "rescorr": {
+     "real": 0.12419280828362177,
+     "lo": 0.08228734613189362,
+     "hi": 0.087386093199436,
+     "inside": false
+    },
+    "het": {
+     "real": 0.09728397647047997,
+     "lo": -0.007386301424629834,
+     "hi": 0.013512202000387295,
+     "inside": false
+    },
+    "link": {
+     "real": 0.00030418926096887835,
+     "lo": -0.011074014692229295,
+     "hi": 0.010519288540020544,
+     "inside": true
+    }
+   }
+  },
+  "L0_decaying_spectrum": {
+   "consistent": false,
+   "diagnostics": {
+    "calib": {
+     "real": 2.7542727891169068,
+     "lo": 1.2285783766995817,
+     "hi": 1.2598569040002567,
+     "inside": false
+    },
+    "calib_med": {
+     "real": 1.5482808042176968,
+     "lo": 1.2227027091120282,
+     "hi": 1.2968483428708517,
+     "inside": false
+    },
+    "kurt": {
+     "real": 29.417215582859697,
+     "lo": 0.030381341642795046,
+     "hi": 0.15087094908419993,
+     "inside": false
+    },
+    "rescorr": {
+     "real": 0.12419280828362177,
+     "lo": 0.10545180969952203,
+     "hi": 0.11514290495530063,
+     "inside": false
+    },
+    "het": {
+     "real": 0.09728397647047997,
+     "lo": -0.008011453526940222,
+     "hi": 0.010271398131922215,
+     "inside": false
+    },
+    "link": {
+     "real": 0.00030418926096887835,
+     "lo": -0.014163090152350977,
+     "hi": 0.012691695122103951,
+     "inside": true
+    }
+   }
+  },
+  "L1_saturating_link": {
+   "consistent": false,
+   "diagnostics": {
+    "calib": {
+     "real": 2.7542727891169068,
+     "lo": 1.153302706163293,
+     "hi": 1.1694891582500575,
+     "inside": false
+    },
+    "calib_med": {
+     "real": 1.5482808042176968,
+     "lo": 1.1466943858669054,
+     "hi": 1.2125811376617446,
+     "inside": false
+    },
+    "kurt": {
+     "real": 29.417215582859697,
+     "lo": 0.03413462535066798,
+     "hi": 0.4200395673223146,
+     "inside": false
+    },
+    "rescorr": {
+     "real": 0.12419280828362177,
+     "lo": 0.08596812595647858,
+     "hi": 0.09317070147182474,
+     "inside": false
+    },
+    "het": {
+     "real": 0.09728397647047997,
+     "lo": -0.026895015417118986,
+     "hi": 0.031728312164543304,
+     "inside": false
+    },
+    "link": {
+     "real": 0.00030418926096887835,
+     "lo": -0.050607317738985066,
+     "hi": 0.0473545148676177,
+     "inside": true
+    }
+   }
+  },
+  "L2_heavy_tails": {
+   "consistent": false,
+   "diagnostics": {
+    "calib": {
+     "real": 2.7542727891169068,
+     "lo": 1.1860850567325127,
+     "hi": 1.3944009489158395,
+     "inside": false
+    },
+    "calib_med": {
+     "real": 1.5482808042176968,
+     "lo": 0.6669417598220962,
+     "hi": 0.7284168607041834,
+     "inside": false
+    },
+    "kurt": {
+     "real": 29.417215582859697,
+     "lo": 13.478688703831178,
+     "hi": 338.46987250732053,
+     "inside": true
+    },
+    "rescorr": {
+     "real": 0.12419280828362177,
+     "lo": 0.08027701509397273,
+     "hi": 0.08615095326415259,
+     "inside": false
+    },
+    "het": {
+     "real": 0.09728397647047997,
+     "lo": -0.014687012752476747,
+     "hi": 0.008423006355693978,
+     "inside": false
+    },
+    "link": {
+     "real": 0.00030418926096887835,
+     "lo": -0.012247560214685699,
+     "hi": 0.009490066017262957,
+     "inside": true
+    }
+   }
+  },
+  "L3_heteroscedastic_ceiling": {
+   "consistent": false,
+   "diagnostics": {
+    "calib": {
+     "real": 2.7542727891169068,
+     "lo": 1.1883637607175064,
+     "hi": 1.2230797501760937,
+     "inside": false
+    },
+    "calib_med": {
+     "real": 1.5482808042176968,
+     "lo": 0.7311434193711638,
+     "hi": 0.7828872290084015,
+     "inside": false
+    },
+    "kurt": {
+     "real": 29.417215582859697,
+     "lo": 3.659926957910056,
+     "hi": 4.957687335249405,
+     "inside": false
+    },
+    "rescorr": {
+     "real": 0.12419280828362177,
+     "lo": 0.0846822759227534,
+     "hi": 0.09169795973048578,
+     "inside": false
+    },
+    "het": {
+     "real": 0.09728397647047997,
+     "lo": 0.3016955794411085,
+     "hi": 0.3249856785465646,
+     "inside": false
+    },
+    "link": {
+     "real": 0.00030418926096887835,
+     "lo": -0.02788574260887084,
+     "hi": 0.0035267243592302334,
+     "inside": true
+    }
+   }
+  },
+  "L4_correlated_residuals": {
+   "consistent": false,
+   "diagnostics": {
+    "calib": {
+     "real": 2.7542727891169068,
+     "lo": 1.1459990493508643,
+     "hi": 1.183543966628664,
+     "inside": false
+    },
+    "calib_med": {
+     "real": 1.5482808042176968,
+     "lo": 1.1365459081708307,
+     "hi": 1.205381793330848,
+     "inside": false
+    },
+    "kurt": {
+     "real": 29.417215582859697,
+     "lo": -0.045671776355921186,
+     "hi": 0.21003999796940093,
+     "inside": false
+    },
+    "rescorr": {
+     "real": 0.12419280828362177,
+     "lo": 0.14402445506613648,
+     "hi": 0.15558069942290242,
+     "inside": false
+    },
+    "het": {
+     "real": 0.09728397647047997,
+     "lo": -0.010728659270763974,
+     "hi": 0.008292351748525459,
+     "inside": false
+    },
+    "link": {
+     "real": 0.00030418926096887835,
+     "lo": -0.016493227223330967,
+     "hi": 0.014530917923007732,
+     "inside": true
+    }
+   }
+  }
+ }
+}

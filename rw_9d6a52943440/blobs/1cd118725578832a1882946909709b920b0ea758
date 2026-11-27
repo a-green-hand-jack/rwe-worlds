@@ -1,0 +1,94 @@
+\section{Data processing and model families}
+\label{app:families}
+
+Models repeated under the same name in the Open LLM Leaderboard files are dropped (the first is kept), and so is any model whose response vector is identical to that of an earlier model.
+Items that every model answers identically are kept; they add no variance and are counted in Table~\ref{tab:audit}.
+For the HELM files the model of each row comes from the list of 83 models published with the data.
+The \texttt{legalbench} file has 79 rows and no published mapping from rows to models, so its families are unknown: each row is its own family, the file is left out of the lineage split, and its intervals are clustered by row.
+
+A model's family is the first keyword (for example \texttt{qwen}, \texttt{llama}, \texttt{mistral}, \texttt{claude}) found in its lower-cased name, and otherwise the organisation prefix of the name.
+The rule is a heuristic and was checked by reading the resulting groups; families may still merge unrelated models or split related ones.
+All intervals resample whole families, with every subset draw of a family kept together.
+
+\begin{table}[h]
+\centering\small
+\caption{Data audit of the 13 binary score matrices after de-duplication. Models: rows kept after dropping repeated model names and rows identical to an earlier row (``Dup.\ dropped'' counts both). Families: distinct families derived from the names by keyword; for LegalBench they are unknown and every row counts as its own. Constant items: items answered identically by all models (kept). Full score: minimum, median and maximum of the models' full-benchmark accuracy. All matrices were checked to be binary.}
+\label{tab:audit}
+\resizebox{\linewidth}{!}{\input{../tables/table2_audit}}
+\end{table}
+
+\section{Additional tables and figures}
+\label{app:tables}
+
+\begin{table}[h]
+\centering\small
+\caption{Squared bias, variance and mean squared error relative to uniform~$\times$~mean, $n=100$. Mean over non-thin benchmarks of the per-benchmark ratio of bias$^2$, of variance and of mean squared error to the mean squared error of uniform~$\times$~mean. Variance: mean over targets of the variance of the estimate across subset draws; bias$^2$: mean over targets of the squared draw-mean error minus the variance divided by the number of draws, so that bias$^2$ plus variance is the mean squared error; it is an unbiased estimate and can be slightly below $0$. Deterministic designs have variance $0$ by construction.}
+\label{tab:biasvar}
+\input{../tables/table3_biasvar}
+\end{table}
+
+\begin{table}[h]
+\centering\small
+\caption{Ranking quality of the predicted scores, $n=100$: Spearman $\rho$, Kendall $\tau_b$ and precision of the top decile (P@10\%) over the target models of a fold, computed per fold and subset draw and averaged, then averaged over non-thin benchmarks.}
+\label{tab:ordering}
+\input{../tables/table4_ordering}
+\end{table}
+
+\begin{table}[h]
+\centering\small
+\caption{Leave-one-benchmark-out representative of each method class, per split (ratio to uniform~$\times$~mean and to stratified~$\times$~mean at $n=100$; geometric mean over non-thin benchmarks, 95\% family-bootstrap interval). ``No.\ of choices'' is the number of distinct cells chosen across the held-out benchmarks; the cell shown is the most frequent. ``Post hoc'': the best cell of the class by the primary endpoint, chosen after the results (ratio to uniform~$\times$~mean).}
+\label{tab:lobo}
+\resizebox{\linewidth}{!}{\input{../tables/table5_lobo}}
+\end{table}
+
+\begin{table}[h]
+\centering\small
+\caption{Secondary endpoint: as Table~\ref{tab:primary}, with $n=\mathrm{round}(0.02\,N)$ items per benchmark ($9$ for MATH to $241$ for MMLU-Pro), the same targets, thin-cell rule and bootstrap. The last three rows of the first block were chosen as best at $n=100$ (Table~\ref{tab:primary}), after seeing the results.}
+\label{tab:twopct}
+\input{../tables/table6_twopct}
+\end{table}
+
+\begin{table}[h]
+\centering\small
+\caption{Primary endpoint by suite: as Table~\ref{tab:primary} for the seven Open LLM Leaderboard and the six HELM benchmarks separately (lineage: HELM has five, LegalBench has no family information), against uniform~$\times$~mean and against stratified~$\times$~mean.}
+\label{tab:suite}
+\input{../tables/table7_suite}
+\addtocounter{table}{-1}% longtable steps the table counter once more
+\end{table}
+
+\begin{table}[h]
+\centering\small
+\caption{Robustness of the difference estimators to the tuning split (extrapolation, $n=100$, geometric mean over the $13$ non-thin benchmarks of the ratio to uniform~$\times$~mean, 95\% family-bootstrap interval; the last column is the paired ratio of the top-50\% inner split to the main one, with a shared resample, and is the column to compare the two splits by) and of the anchor design to the $k$-means (seven Open LLM Leaderboard benchmarks, no interval; the two columns use different draws). The inner split of the top $50\%$ of the sources is a post-hoc diagnosis; $\lambda=1$ is a fixed weight (only the IRT estimator has this cell).}
+\label{tab:robust}
+\resizebox{\linewidth}{!}{\input{../tables/table8_robust}}
+\end{table}
+
+\clearpage
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.8\textwidth]{../figures/fig5_ablation}
+\caption{RMSE relative to uniform~$\times$~mean at $n=100$ (geometric mean over non-thin benchmarks) for each design (rows) and estimator (columns); colour is log-scaled and centred at 1 (blue better than uniform, red worse). Boxed italic entries: the 95\% bootstrap interval includes 1. Blank: not run. $\dagger$ IRT-CAT chooses items per target, a different protocol, so its cells are not paired with the shared-subset designs.}
+\label{fig:ablation}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.85\textwidth]{../figures/fig6_msrc}
+\caption{RMSE relative to uniform~$\times$~mean at $n=100$ against the number of source models $M$ (10, 30, 100, all), geometric mean over non-thin benchmarks with a 95\% family-bootstrap band. The $M$ sources are drawn at random per fold; a benchmark with fewer than $M$ sources uses all of them (the HELM files have about $80$ models, so for them $M=100$ is all). Designs and estimators that use the sources are re-fitted at each $M$; uniform~$\times$~mean does not use them. Anchor selection and information-top were not run for this block.}
+\label{fig:msrc}
+\end{figure}
+\clearpage
+
+\refstepcounter{table}\label{tab:all}
+\noindent\textbf{Table~\thetable:} Every method of the grid as in Table~\ref{tab:primary} (ratio to uniform~$\times$~mean at $n=100$, geometric mean over non-thin benchmarks with a 95\% family-bootstrap interval). ``naive'': residuals not cross-fitted; ``fixed'': $\lambda=1$ (diagnostics, Section~\ref{sec:method}).
+\begin{small}
+\input{../tables/table9_primary_all}
+\end{small}
+\addtocounter{table}{-1}% longtable steps the table counter once more
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{../figures/fig7_ordering}
+\caption{Share of target pairs whose order is predicted correctly (ties count half) against the true score gap of the pair, $n=100$; pairs pooled over non-thin benchmarks and weighted by pair counts; points are six gap bins (0--0.5, 0.5--1, 1--2, 2--4, 4--8, $>8$ points). IRT-CAT is omitted (items differ per target). Bands, drawn for four methods, are 95\% intervals from a bootstrap over benchmarks (at most 13 units, so coarse). The sample-only reference (dotted, probability that $n$ uniformly sampled shared items order the pair) is a reference for plain sampling, not a bound for methods that use the sources.}
+\label{fig:order}
+\end{figure}

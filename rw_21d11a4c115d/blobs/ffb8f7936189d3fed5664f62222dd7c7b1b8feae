@@ -1,0 +1,4 @@
+dataset,n_logit_columns,ll_identity,ll_logit,folds_prefer_logit_ll,n_folds,rmse_identity,rmse_logit,choice_by_likelihood,choice_by_error,chosen
+helm_mmlu,57,-61.0022885239301,-30.864090838377496,10,10,0.7501471869559495,0.7020210248041469,logit,logit,logit
+mteb_eng,63,-56.25072601668637,-68.89938090344917,0,10,0.6930642290956084,0.7058935486820899,identity,identity,identity
+mteb_multi,232,-165.62458313271492,-161.01714222469803,6,10,0.7543556885690735,0.7651728881182203,logit,identity,logit

@@ -1,0 +1,17 @@
+# fig_prop_check
+
+**Claim carried:** C1: the excess width of PPI++ and of the calibrated estimators over the floor equals the closed-form prediction; the exactly affine case sits at zero.
+
+**Shows:** predicted (x) against measured (y) excess width over the estimated floor, one point per cell and estimator (filled = synthetic cell, hollow centre = real dataset; estimators without a closed form are not drawn), with the Monte-Carlo CI of the measurement; dashed line = identity.
+
+**How to read:** points on the dashed line within their CI mean the formula holds in that cell; points off it are cells where it does not.
+
+**Computed on** (from the rows drawn):
+- datasets/scenarios: alphafold, ballots, census_education, census_healthcare, census_income, forest, galaxies, gene_expression, plankton, syn_affine, syn_binary, syn_binary_a-4.5, syn_nonmono, syn_quad_c0.05, syn_quad_c0.1, syn_quad_c0.2, syn_quad_c0.5, syn_tanh
+- n: 100, 1000, 1600, 200, 25, 30, 300, 3000, 400, 50, 500, 800
+- N: 1000, 10000, 1200, 12800, 1600, 16000, 200, 3200, 400, 4000, 5000, 6400, 800, 8000
+- n (and N) per dataset: alphafold n=30, 100, 300, 500, 1000, 3000 (N=8000); ballots n=30, 100, 300, 500 (N=5000); census_education n=30, 100, 300, 500, 1000, 3000 (N=10000); census_healthcare n=30, 100, 300, 500, 1000, 3000 (N=10000); census_income n=30, 100, 300, 500, 1000, 3000 (N=10000); forest n=30, 100, 200, 300, 500 (N=1000); galaxies n=30, 100, 300, 500, 1000, 3000 (N=10000); gene_expression n=30, 100, 300, 500, 1000, 3000 (N=10000); plankton n=30, 100, 300, 500, 1000, 3000 (N=10000); syn_affine n=25, 50, 100, 200, 400, 800, 1600 (N=200, 400, 800, 1200, 1600, 3200, 4000, 6400, 12800, 16000); syn_binary n=100, 400, 1600 (N=800, 3200, 12800); syn_binary_a-4.5 n=100, 400, 1600 (N=800, 3200, 12800); syn_nonmono n=100, 400, 1600 (N=800, 3200, 12800); syn_quad_c0.05 n=25, 50, 100, 200, 400, 800, 1600 (N=200, 400, 800, 1600, 3200, 6400, 12800); syn_quad_c0.1 n=25, 50, 100, 200, 400, 800, 1600 (N=200, 400, 800, 1600, 3200, 6400, 12800); syn_quad_c0.2 n=25, 50, 100, 200, 400, 800, 1600 (N=200, 400, 800, 1200, 1600, 3200, 4000, 6400, 12800, 16000); syn_quad_c0.5 n=25, 50, 100, 200, 400, 800, 1600 (N=200, 400, 800, 1600, 3200, 6400, 12800); syn_tanh n=100, 400, 1600 (N=800, 3200, 12800)
+- Monte-Carlo repetitions per row: min 2000, max 5000
+- rows: 958
+
+**Placement:** natural size 2.86 in wide, 2.74 in tall; the smallest type is 7 pt at that size (column 3.25 in, text block 6.75 in). Intended for a single-column `figure`; include it at `width=2.86in` or up to the full width of its float, never narrower (scaling by s gives 7s pt).

@@ -1,0 +1,43 @@
+"""Fig. 7 (appendix, claim C6): how much history the method needs. Grid-averaged RMSE relative to full history (ratio) against
+(a) the fraction of history models, (b) the fraction of cells observed (missing at random), (c) the fraction of cells
+observed when weaker models lack cells. Grouped K-fold, k = 1..min(10, N/2). Dashed line: 10% above full history."""
+import argparse
+import style, venue
+from data import load
+import matplotlib.pyplot as plt
+
+p = argparse.ArgumentParser()
+p.add_argument("--results", required=True); p.add_argument("--out", default="out")
+p.add_argument("--datasets", nargs="+", default=["mteb_eng", "mteb_multi", "helm_mmlu"])
+p.add_argument("--selectors", nargs="+", default=["greedyA", "random"]); p.add_argument("--draft", action="store_true")
+a = p.parse_args()
+v = venue.get(a.draft)
+size = style.setup(v["TEXT_WIDTH_IN"], v["MIN_FONT_PT"], aspect=0.40)
+import pandas as pd, os
+h = pd.read_csv(os.path.join(a.results, "history_sweep.csv")); p1 = os.path.join(a.results, "history_sweep.csv")
+fig, axs = plt.subplots(1, 3, figsize=size, sharey=True)
+PANELS = [("size", "history_fraction", "fraction of history models"), ("random", "cell_density", "fraction of cells observed"),
+          ("weak", "cell_density", "fraction of cells observed")]
+meta = {}
+for ax, (pat, xcol, xl) in zip(axs, PANELS):
+    for ds in a.datasets:
+        for si, s in enumerate(a.selectors):
+            d = h[(h.dataset == ds) & (h.pattern == pat) & (h.selector == s)].sort_values(xcol)
+            col = style.DATASET_COLORS[ds]
+            ax.errorbar(d[xcol], d.ratio_to_full_history, yerr=[d.ratio_to_full_history - d.ratio_lo, d.ratio_hi - d.ratio_to_full_history],
+                        color=col, marker="o" if si == 0 else "s", mfc=col if si == 0 else "white", ls="-" if si == 0 else "--", ms=3.2, lw=0.9, capsize=1.0, elinewidth=0.5)
+    ax.axhline(1.10, color="0.35", ls=":", lw=0.9); ax.axhline(1.0, color="0.3", lw=0.6)
+    ax.set_yscale("log"); ax.set_xlabel(xl); ax.invert_xaxis() if False else None
+    xs = sorted(h[h.pattern == pat][xcol].unique()); ax.set_xticks(xs); ax.set_xticklabels([f"{x:g}" for x in xs]); ax.set_xlim(max(xs) + 0.05, min(xs) - 0.05)
+    meta[pat] = dict(x=xcol, values=[float(x) for x in xs])
+axs[0].set_ylabel("RMSE / RMSE with full history")
+yt = [1, 1.25, 1.5, 2, 3, 6]; axs[0].set_yticks(yt); axs[0].set_yticklabels([f"{y:g}" for y in yt]); axs[0].yaxis.set_minor_locator(plt.NullLocator())
+for ax, t in zip(axs, ("(a) fewer history models", "(b) random missing cells", "(c) weaker models missing")):
+    ax.set_title(t, loc="left")
+from matplotlib.lines import Line2D
+hd = [Line2D([], [], color=c, lw=2, label=style.DATASET_SHORT[k]) for k, c in style.DATASET_COLORS.items() if k in a.datasets]
+hs = [Line2D([], [], color="0.3", marker="o" if i == 0 else "s", mfc="0.3" if i == 0 else "white", ls="-" if i == 0 else "--", ms=3.2, lw=0.9, label=style.LABELS[s]) for i, s in enumerate(a.selectors)]
+fig.legend(hd + hs + [Line2D([], [], color="0.35", ls=":", lw=0.9, label="+10%")], [x.get_label() for x in hd + hs + [Line2D([], [], label="+10%")]],
+           loc="outside lower center", ncol=3, columnspacing=1.2)
+print(style.save(fig, "fig7_history", a.out, dict(claim="C6", inputs={p1: style.sha(p1)}, split="grouped", selectors=a.selectors, panels=meta,
+                                                  bars="family-bootstrap CI of the ratio", draft=a.draft)))

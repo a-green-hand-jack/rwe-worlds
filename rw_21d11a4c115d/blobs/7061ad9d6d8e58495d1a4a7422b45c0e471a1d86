@@ -1,0 +1,40 @@
+# Deviations from / interpretations of the Brief (idea-repo `Brief`; started at rev 3 (2026-11-25 16:08 UTC); the thresholds in rev 4 (commit c6be9ad, wiki) are the ones the final runs record)
+
+Each is logged when made; the paper must state them.
+
+1. **Target set.** The Brief asks that R = P \ S be identical for every selector, which is impossible when S differs by selector. Primary design
+   (`design=fixed`): a fixed target set T (30% of the columns, drawn at random, 5 partitions per fold) is held out; S is chosen among the other 70%;
+   T is identical for every selector, predictor and k. The evaluator's literal problem (R = P \ S, S chosen among all N columns) is run as a
+   secondary design (`design=allrest`) with random and greedy A-optimal only, to quantify the effect of R depending on S.
+2. **r_eff.** Rank chosen by inner 5-fold held-out log-likelihood on training rows; because the likelihood is flat near its maximum, the
+   smallest rank within one standard error of the best is used (`r_eff`); the arg-max (`r_argmax`) is reported alongside. Rank grid 1,2,3,4,5,6,8,10,12,15,20,25 (<= N/3).
+3. **Closure** C(k) is computed on mean *squared* standardised error (the theory's risk is a squared error); RMSE-based skill is also reported.
+4. **MTEB time proxy.** First-commit date is bulk-dominated in the pinned clone (largest single commit holds ~61-63% of pool models), so
+   the model's `release_date` from its `model_meta.json` (100% coverage in both pools) is used for the time-forward split; first-commit is kept as a column.
+5. **MTEB pools** (two, not pooled with each other): `mteb_eng` = English-only tasks, de-duplicated, top-coverage tasks such that >= 120 models
+   have all (124 models x 70 tasks); `mteb_multi` = all-language tasks with coverage >= 100 models, greedy deletion to a complete block (117 x 247).
+   Both rules are fixed in `code/build_mteb_matrix.py` and `code/make_pools.py`.
+6. **Grid** for k: 1..10 (the H2 primary grid, capped at N/2) plus 12, 15, 20, 30 (capped at min(N/2, 0.7 N)) for the k-curve/k*.
+7. **Best simple predictor (Brief rev 4, 'k* for two predictors').** The candidate set is {one-factor offset, ridge, kNN (k=10), Ledoit-Wolf Gaussian conditioning},
+   wider than the Brief's parenthetical (one-factor, ridge/PLS), because the headline k* is a minimum over predictors and a wider set is the harder test for the
+   PPCA method. The choice is made per outer fold on its TRAINING rows only (`code/best_simple.py`: inner grouped 5-fold, greedy-A selection, grid-averaged inner
+   squared error); the held-out rows of the fold are not used. The same per-fold choice is applied to the random-selector errors. Soft-Impute is not in the set.
+8. **Soft-Impute** is the 'fold-in' variant: lambda chosen on the training matrix (10% held-out cells), the shrinkage operator of the full training SVD is kept fixed and
+   the new row is completed by the fixed point of x_T = [P x]_T given x_S. It is not a refit of the full matrix per new model. Compared in a paired run with 50 draws.
+9. **Transform (C7).** Identity vs logit chosen per dataset on training folds by held-out log-likelihood *in original score space* (Jacobian included; `code/transform_choice.py`):
+   logit is applied only to columns whose scores all lie strictly in (0,1) (clip 0.005); other columns stay identity. Primary criterion is the share of the 10 outer folds
+   preferring the transform; held-out original-space error is the secondary criterion and is reported (they disagree on `mteb_multi`; the likelihood rule decides, as pre-stated).
+   All main results use the chosen transform; the other one is a robustness row (`results/raw/robust`).
+10. **Inner rank selection** uses random (not family-grouped) inner folds; siblings across inner folds may favour a larger rank slightly. The one-SE rule limits this; not changed.
+11. **k* confidence intervals** are family-bootstrap percentiles of the replicate k*, with 'level never reached on the grid' coded as grid_max + 1; the share of such replicates is reported.
+    The plateau criterion (error within 10% of the lowest error on the grid) is reported as `k_plateau10`.
+12. **Extra metrics** (raw-score RMSE/MAE, pairwise-winner accuracy, per-benchmark Spearman) are computed for random (first 20 draws) and greedy A-optimal with PPCA, ridge and
+    column mean at k in {1,2,3,5,10}. Pairwise accuracy is within-fold (pairs of held-out models of the same outer fold) and its CI is the family bootstrap over models, which
+    is approximate for pairs; the Spearman CI is a bootstrap over the 10 folds.
+13. **Near-duplicate removal** is run as 'near-neighbour removal': models whose standardised rows are within rms 0.3 of an earlier model are dropped (16-21 models per dataset), because at
+    the Brief's tight thresholds the pools contain essentially no near-duplicates (nearest-neighbour rms >= 0.14 in MTEB).
+14. **Sparse leaderboard matrix (review M1; `bmk/sparse.py`).** Not in the Brief. Added at the review's request: grouped 10-fold on the MTEB matrix with its real missing cells (see `RESULTS.md`), candidate set = the test model's observed
+    cells, targets = a random 30 % of them, masked-EM factor model, k grid up to 20 (not 30), identity transform only, 3 partitions x 30 random draws (the dense runs use 50 to 200), models with < 30 observed cells not tested,
+    training columns need >= 10 observed training cells. Baselines that handle missing cells: pairwise-complete correlation conditioning and masked Soft-Impute fold-in. The LOBO analogue is the lower of two predictors' errors
+    (all of C predicting T), so it is a reference and closure may exceed 1. `eng_full` uses tasks seen by >= 20 models (21 % density); the density-trimmed subsets are built greedily (`build_sparse_subsets.py`) and are one
+    choice among many.

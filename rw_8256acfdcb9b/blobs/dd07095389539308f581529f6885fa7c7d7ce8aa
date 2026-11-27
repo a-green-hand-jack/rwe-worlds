@@ -1,0 +1,9 @@
+{
+ "table": "tab3_certificate",
+ "inputs": {
+  "results/tables/certificate_budget_rule.csv": "c96082f00b9ab4c86aa2267aff64030514b3bd806dd7cfc1d260bb89f779b577",
+  "results/tables/certificate_summary.csv": "35ca2387a4601b9f274e44b555dac1496434574fe7f583dc96fa179721423694",
+  "results/tables/certificate_paired_diff.csv": "752ff596852331d4ee03a34233a2bf8839e54d5e3347bfd8ba41a7c4e67bb433"
+ },
+ "note": "panel (a): held-out instances, rows model='all', m='all' of certificate_summary / certificate_paired_diff (pooled over the four models and the budget ladder), instance-bootstrap CI as supplied; registered = pre-registered contrast, scored against the correctness of the run each method delivers (certificate: its 2m-coalition run; run-twice: the first of its two m-runs), so the base rates p differ; variant = run-twice delivers the mean of its two runs (same base rate as the certificate within 0.01). panel (b): held-out instances, threshold 0.90, top-3; rows model='all' of certificate_budget_rule.csv (the four models pooled), per dataset; saved = relative saving of the rule against a flat single run with the same share exact (log-m interpolation on the flat grid), instance-bootstrap CI (2000 resamples; n_boot_defined of them had a defined flat comparison, see the csv); negative = more evaluations than the flat run; n.a. = the share exact is outside the flat grid; evaluations = model evaluations incl. background rows (certificate (2m+1)*50+1, run-twice both runs); flat = evaluations of a single run (certificate: 2m coalitions; run-twice: m) with the same share exact"
+}

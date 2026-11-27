@@ -1,0 +1,14 @@
+import pymupdf,re,glob,json
+for f in sorted(glob.glob('/hutian/venue_data/pdfs/*.pdf')):
+    d=pymupdf.open(f)
+    keys_main=set();keys_all=set();ref=None
+    for i,p in enumerate(d):
+        t=p.get_text()
+        if ref is None and re.search(r'^\s*(References|REFERENCES|Bibliography)\s*$',t,re.M): ref=i
+    for i,p in enumerate(d):
+        for l in p.get_links():
+            nm=l.get('nameddest') or l.get('name') or ''
+            if nm.startswith('cite') :
+                keys_all.add(nm)
+                if ref is not None and i<=ref: keys_main.add(nm)
+    print(f.split('/')[-1],'ref_page',ref+1,'distinct cites main',len(keys_main),'all',len(keys_all), list(keys_all)[:2])

@@ -1,0 +1,49 @@
+{
+ "inputs": {
+  "fragility_vs_N.csv": {
+   "sha256": "5794439c126acc7735d0074a6f20e906b241121ff181af2cac1a5cb41fa45f7d",
+   "rows": 240,
+   "dataset": [
+    "arena55k",
+    "arena_judge_Athene-70B",
+    "arena_judge_Mistral-7B-Instruct-v0.1",
+    "arena_judge_Qwen2-72B-Instruct",
+    "arena_single",
+    "mtbench_gpt4",
+    "mtbench_human",
+    "nba_1990",
+    "nba_2005",
+    "nba_2015"
+   ],
+   "design": [
+    "crowd",
+    "expert",
+    "llm_judge",
+    "sports"
+   ],
+   "perturbation": [
+    "delete",
+    "flip"
+   ],
+   "synthetic": [
+    "0"
+   ]
+  }
+ },
+ "dropped": {},
+ "n_rep": [
+  1,
+  2,
+  4,
+  5
+ ],
+ "F_over_z_off_scale": [
+  {
+   "dataset": "nba_2005",
+   "perturbation": "flip",
+   "n_sub": 38,
+   "value": 40.5283,
+   "n_pairs": 7
+  }
+ ]
+}

@@ -1,0 +1,117 @@
+"""Noise floors b (background resampling) and c (retraining), each explained exactly, same metric as floor a.
+
+usage: floors.py DATASET MODEL [N_INST] [K] [PARTS]
+PARTS (comma list of b, boot, seed, hp; default all) computes only those floors and writes
+results/floors/<ds>_<model>__<part>.csv/json, so the parts can run as separate jobs (merged by merge_floor_parts.py).
+Writes /hutian/work/<ds>_s0/floors_<model>.npz (exact phi per instance for each draw) and
+results/floors/<ds>_<model>.csv (per-instance pairwise top-k agreement, k=1,3,5).
+"""
+import sys, os, pickle, time, json
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+import numpy as np, pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import roc_auc_score
+from shapreliab import data, models, exact, pipeline as P, analyze as A
+
+ds, kind = sys.argv[1], sys.argv[2]
+n_use = int(sys.argv[3]) if len(sys.argv) > 3 else None
+K = int(sys.argv[4]) if len(sys.argv) > 4 else 10
+parts = sys.argv[5].split(",") if len(sys.argv) > 5 else None
+suffix = "" if parts is None else "__" + "_".join(parts)
+seed = 0
+out = P.cell_dir(ds, seed)
+sp = np.load(os.path.join(out, "split.npz"))
+ref = pickle.load(open(os.path.join(out, f"model_{kind}.pkl"), "rb"))
+X, names, cat, y = data.load(ds)
+d = X.shape[1]
+Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.3, random_state=seed, stratify=y)
+if len(ytr) > P.TRAIN_CAP:
+    Xtr, ytr = Xtr[:P.TRAIN_CAP], ytr[:P.TRAIN_CAP]
+Xi = sp["X"][:n_use] if n_use else sp["X"]
+n = len(Xi)
+auc_ref = roc_auc_score(yte, ref.f(Xte))
+
+
+def exact_phi(model, x, bg):
+    if kind == "lr":
+        v = exact.lr_value_table(model.f, x, bg)
+        return exact.exact_shapley(v)
+    if kind == "mlp":
+        return exact.exact_shapley(exact.mlp_value_table(model, x, bg))
+    import shap
+    te = shap.TreeExplainer(model.m, data=bg, feature_perturbation="interventional")
+    sv = np.asarray(te.shap_values(x[None], check_additivity=False))
+    return (sv[0, :, 1] if sv.ndim == 3 else sv[0])
+
+
+def phis(model, bg):
+    if kind in ("rf", "gbm"):
+        import shap
+        te = shap.TreeExplainer(model.m, data=bg, feature_perturbation="interventional")
+        sv = np.asarray(te.shap_values(Xi, check_additivity=False))
+        return sv[:, :, 1] if sv.ndim == 3 else sv
+    return np.array([exact_phi(model, x, bg) for x in Xi])
+
+
+res = {}
+t0 = time.time()
+# ---- floor b: K independent backgrounds of B_DEF rows, same model
+if parts is None or "b" in parts:
+    phi_b = []
+    for kk in range(K):
+        bgk = Xtr[np.random.RandomState(100 + kk).choice(len(Xtr), P.B_DEF, replace=False)]
+        phi_b.append(phis(ref, bgk))
+    res["b"] = np.stack(phi_b, 1)  # (n,K,d)
+    print("floor b done", time.time() - t0, flush=True)
+
+
+# ---- floor c: retrained models, fixed (cell) background
+def fit_variant(variant, j):
+    rng = np.random.RandomState(5000 + j)
+    idx = rng.choice(len(Xtr), len(Xtr), replace=True) if variant != "seed" else np.arange(len(Xtr))
+    hp = {}
+    if variant == "hp":
+        if kind == "rf":
+            hp = dict(min_samples_leaf=int(rng.choice([2, 3, 5, 8, 12])), n_estimators=int(rng.choice([50, 100, 200])))
+        elif kind == "gbm":
+            hp = dict(max_depth=int(rng.choice([3, 4, 5, 6])), learning_rate=float(rng.choice([0.05, 0.1, 0.2])),
+                      n_estimators=int(rng.choice([100, 200, 300])))
+        elif kind == "mlp":
+            small = len(Xtr) < 5000
+            hp = dict(hidden=[(16,), (32,), (64,)][rng.randint(3)] if small else [(32, 32), (64, 64), (128, 64)][rng.randint(3)],
+                      alpha=float(rng.choice([0.3, 1.0, 3.0] if small else [1e-4, 1e-3, 1e-2])))
+        elif kind == "lr":
+            hp = dict(C=float(rng.choice([0.1, 0.3, 1.0, 3.0, 10.0])))
+    return models.Model(kind, d, cat, seed=1000 + j, **hp).fit(Xtr[idx], ytr[idx]), hp
+
+
+info = {}
+for variant in ("boot", "seed", "hp"):
+    if parts is not None and variant not in parts:
+        continue
+    keep, tried = [], 0
+    while len(keep) < K and tried < 4 * K:
+        mdl, hp = fit_variant(variant, tried)
+        tried += 1
+        auc = roc_auc_score(yte, mdl.f(Xte))
+        if abs(auc - auc_ref) <= 0.01:  # accuracy-equivalence filter (AUC within 1 point of the reference model)
+            keep.append(mdl)
+    info[variant] = dict(tried=tried, kept=len(keep))
+    res["c_" + variant] = np.stack([phis(mm, sp["bg"]) for mm in keep], 1) if len(keep) >= 2 else np.zeros((n, 0, d))
+    print("floor c", variant, info[variant], time.time() - t0, flush=True)
+np.savez_compressed(os.path.join(out, f"floors_{kind}{suffix}.npz"), **res)
+
+rows = []
+for fl, arr in res.items():
+    Kf = arr.shape[1]
+    if Kf < 2:
+        continue
+    for i in range(n):
+        for k in A.KS:
+            if k >= d:
+                continue
+            rows.append(dict(dataset=ds, model=kind, floor=fl, inst=i, k=k, K=Kf, agree=A.agreement(arr[i], k)))
+os.makedirs("results/floors", exist_ok=True)
+pd.DataFrame(rows).to_csv(f"results/floors/{ds}_{kind}{suffix}.csv", index=False)
+json.dump(dict(auc_ref=auc_ref, n=n, K=K, filter="|AUC - AUC_ref| <= 0.01", variants=info), open(f"results/floors/{ds}_{kind}{suffix}.json", "w"))
+print("done", time.time() - t0)

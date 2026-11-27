@@ -1,0 +1,3 @@
+Selection rules (fixed by position in the margin order, before looking at any run): German Credit, RF, shap.KernelExplainer l1_reg='auto', m=2088 (=2d+2048), 100 independent runs each. The first instance (n//2) was fixed in the first delivery; the second (n//8) was added at figtab-repo's request after the first showed no set change in 100/100 runs (so it is chosen to show what a small-margin instance looks like; it is one instance of the 40, not evidence of frequency).
+median_margin: position 20 (0-based) of the n=40 instances sorted by exact k=3 margin -> instance_id=36, margin=0.0812
+small_margin_quartile_median: position 5 (0-based) of the n=40 instances sorted by exact k=3 margin -> instance_id=27, margin=0.0077

@@ -1,0 +1,110 @@
+\appendix
+
+\section{Data and splits}
+\label{app:data}
+
+\begin{table}[h]
+\centering
+\caption{The coverage filter and the final matrix of $M=238$ models and $N=328$ benchmarks (top), and the held-out units of each split (bottom); the last column gives the models and organisations in the headline subset of Section~\ref{sec:experiments}.}
+\label{tab:coverage}
+\input{../figtab/tab1_coverage.tex}
+\end{table}
+
+The MTEB scores are the public results (CC0-1.0), commit \texttt{6dabbcc68c28ea5f180ce7df79347b3ca9cc6383}; the Open LLM Leaderboard matrix is built from the per-subtask results supplied with the task.
+
+\section{Further results}
+\label{app:further}
+
+\paragraph{A rule for $k^*$ from training data (post hoc).}
+Post hoc, we asked whether $k^*$ can be read off the training side: the excess over the floor of the designed run set in cross-validation on the training organisations alone. On the held-out organisations it matches the measured $k^*$ at 7 of 8 margins and is within one grid step at all 8, on the strength split it is within two steps at all eight, and on the temporal split (13 models) it is 2--6 grid steps too large. The training and test sides of the first split share a population, so we treat this as supporting evidence only.
+
+\begin{table}[h]
+\centering
+\caption{Smallest $k$ on the grid whose mean excess over the floor is at most $\epsilon$, for every split, subset and $\epsilon$; ``fixed'' is the subset of models that can be given 109 pool benchmarks (the headline), ``all'' every model that enters at that $k$. Empirical value with its 90\% group-bootstrap interval, and the value predicted by the risk of Section~\ref{sec:theory}; $>109$: not reached on the grid.}
+\label{tab:kstar_all}
+\input{../figtab/tabA_kstar_all.tex}
+\end{table}
+
+\paragraph{Scope.}
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{../figtab/fig4_scope_map.pdf}
+\caption{Scope. (a--c) The floor and $k^*$ at $0.25$ and $0.5$ of each condition's own floor (5th--95th bootstrap percentiles on the grid) for the three hold-outs (headline subsets; 154, 22 and 13 models) and for one-at-a-time sweeps on four of the ten held-out folds (67 models, 20 splits; 68 and 75 models for the task types and the suite; the sweep grid ends at $k=32$, and the sweeps have their own reference row); the logit-transformed scores have their floor in logit units. (d) Diagnostics of Section~\ref{sec:experiments} for each rung of the synthetic ladder: filled if the real matrix's value lies inside the rung's 5--95\% seed range (20 seeds); no rung contains all six, so the real matrix is outside the ladder.}
+\label{fig:scope}
+\end{figure}
+
+\paragraph{Further baselines.}
+S3 (a greedy wrapper that scores each candidate benchmark by the cross-validated error of the factor model on training rows, with a closed-form evaluation for cost), S5 ($k$-medoids on $1-|\text{correlation}|$ of the benchmarks), S6s and S7 (a regression tree and nearest-neighbour interview, run on continuous scores rather than ratings as in \citealt{golbandi2011adaptive}) were run on 20 of the 50 splits with the factor model for inference, on the same 154 models; S3 and S7 only for $k\le32$ because of their cost. The paired gain over random selection (points; the same quantity as in Table~\ref{tab:primary_contrast}) is, at $k=1$, 2, 8 and 20: S3 1.90, 1.35, 0.32, $-0.30$; S5 1.49, 1.68, 0.46, 0.25; S7 1.08, 1.11, $-0.13$, $-0.54$; S6 1.68, 1.98, 0.77, 0.49 on these splits (1.58, 1.88, 0.81, 0.49 on all 50); and S6s 1.68, 2.20, 0.79, 0.50.
+
+\paragraph{Greedy against exhaustive.} On the 24 held-out models of the first group fold that have more than 20 observed cells, we compared the greedy set with the best set of the same criterion $F(S)$, over all of a model's observed cells as candidates and all benchmarks as target, with the factor model at the rank chosen for that $k$ (exhaustive for $k=2,3$, a single-swap search from the greedy set for $k=8,20$). Here the error is on the cells left unrun, not on the common target set, and there is no interval. The criterion of the greedy set is worse than the best found by 17.5\% on average at $k=2$ (at most 39\%) and 35\% at $k=3$ (at most 52\%); the two sets coincide for 17\% of models at $k=2$ and for none at $k=3$. The RMSE of the factor model is 10.35 against 9.24 points at $k=2$ and 9.26 against 8.75 at $k=3$ for the greedy and the best set, the better set winning for 46\% and 63\% of the models. With the swap search the gap is 5.2\% at $k=8$ (RMSE 8.52 against 8.44) and 1.7\% at $k=20$ (7.73 against 7.80, the swapped set worse).
+
+\paragraph{Inference rules.} Table~\ref{tab:pipelines} gives, for S6 selection, the error of each inference rule of Section~\ref{sec:experiments} and its paired difference from the factor model (P5) at the headline subset; Table~\ref{tab:pipelines_TS} gives the same for the temporal and strength hold-outs, where the intervals are wide. P0 predicts the training mean of each benchmark and so does not depend on $k$. The tables use 20 of the 50 splits, so the S6 and P5 column differs slightly from Table~\ref{tab:primary_contrast} (floor 4.99 points on these splits, against 5.06 on all 50). The difference is RMSE(S6+P5) minus RMSE(S6+rule) in points, positive when the rule is better; an arrow marks a difference larger than the secondary margin $\delta_{\text{floor}}$ with the interval clear of it. The intervals are 90\% group-bootstrap intervals over models.
+
+\begin{table}[t]
+\centering
+\caption{Inference rules under S6 selection on the 154 models of the headline subset (51 organisations; 20 splits). P1: mean of the revealed standardised scores; P2: ridge regression on the revealed benchmarks, trained on the completed training matrix; P3: $k$ nearest training models; P4: Soft-Impute row update; P5: factor-model posterior mean; P6: principal-component regression with a sigmoid link (an adaptation of observational scaling laws, not as published). Upper block: RMSE on the model's held-out target cells, lowest per row in bold. Lower block: paired difference from P5 with 90\% interval.}
+\label{tab:pipelines}
+\input{../figtab/tab3_pipelines.tex}
+\end{table}
+
+\begin{table}[t]
+\centering
+\caption{As Table~\ref{tab:pipelines} for the temporal (T) and strength (S) hold-outs; margins $\delta_{\text{floor}}$ as printed in each block.}
+\label{tab:pipelines_TS}
+\input{../figtab/tabA_pipelines_TS.tex}
+\end{table}
+
+\paragraph{Open LLM Leaderboard.} Table~\ref{tab:olb} gives the contrast of designed and random selection on the second matrix, and Table~\ref{tab:ksrule} the training-side rule of Section~\ref{sec:method} against the measured $k^*$ on both matrices.
+
+\begin{table}[t]
+\centering
+\caption{Open LLM Leaderboard (4,507 models, $N=39$ benchmarks; scores are accuracy $\times100$; 50 common target sets of $|T|=12$ benchmarks stratified by benchmark family). G: held-out families (475 groups, a heuristic from model-name stems); S: strongest quarter of the models. Gain is S0 minus S6 on the error of the target set, with its 90\% group-bootstrap interval; T1 gain is the gain predicted by the risk of Section~\ref{sec:theory}. The pre-set margin $\delta$ is 0 on this matrix, so the secondary margin $\delta_{\text{floor}}$ is read: helps = interval above it, equiv.\ = interval inside $\pm\delta_{\text{floor}}$. Below: $k^*$ as in Table~\ref{tab:primary_contrast}, where $13$ is the last grid point and $>13$ means not reached; the floor ratio is the measured mean squared floor error over the factor model's predicted noise.}
+\label{tab:olb}
+\input{../figtab/tab2b_olb.tex}
+\end{table}
+
+\begin{table}[t]
+\centering
+\caption{Training-side rule for $k^*$ (Section~\ref{sec:method}): each cell is the smallest grid $k$ at which the pooled inner-CV excess over the floor of the training groups is at most $\epsilon$, with its 90\% interval over bootstrap resamples of training groups when it spans more than one grid value, then the measured $k^*$ of the held-out models. A dagger marks a measured $k^*$ outside the interval. $\delta_{\text{floor}}$ is each split's own value (MTEB 1.17, 1.09, 1.06; Open LLM 1.20, 1.20 points). $>109$ and $>13$ mean not reached on the grid. The rule was chosen after the MTEB results and fixed in advance for the Open LLM Leaderboard; on G the training and test models share a population.}
+\label{tab:ksrule}
+\input{../figtab/tab4_ksrule.tex}
+\end{table}
+
+\paragraph{Structure of the matrix.} Figure~\ref{fig:spectrum} shows the spectrum and the held-out error against rank that Section~\ref{sec:experiments} summarises.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{../figtab/fig2_spectrum.pdf}
+\caption{Structure of the matrix. (a) Eigenvalues of the pairwise-complete correlation matrix of the standardised scores of all 238 models (descriptive, not a held-out quantity), the 95th percentile of the same spectrum under 200 within-benchmark permutations (parallel analysis), the Gavish--Donoho noise edge, and the three rank estimates. (b) Held-out RMSE in standardised units against factor rank, from inner group cross-validation on training organisations when all other benchmarks of the model's run set are revealed (mean over the 10 folds, $\pm1.645$ standard errors).}
+\label{fig:spectrum}
+\end{figure}
+
+\section{Checks of the method}
+\label{app:checks}
+
+\paragraph{Adaptive and batch selection.}
+We check Proposition~\ref{prop:t3} numerically on a simulated model with known parameters ($N=60$ benchmarks, $r=4$ factors, $k=6$, 4000 draws of a new model). The greedy sequence is the same for every draw of the scores, and the Monte-Carlo mean squared error of the batch design on the unrun benchmarks, 0.682 (standard error 0.0026), matches the closed form of Proposition~\ref{prop:t1}, 0.683. The proposition needs known parameters, and our adaptive baseline S7 does not use them: on the synthetic ladder (8 seeds, 80 test models per seed, every rule scored on the benchmarks outside the union of the S6 and S7 sets) the designed batch set S6 has the lower squared error on every rung at every $k\ge2$, by 0.04--0.07 at $k=2$, 0.14--0.17 at $k=5$ and 0.03--0.06 at $k=20$ in standardised units (at least 3.1 standard errors). S7 recovers 53\%, 22\% and 14\% of S6's gain over random selection at $k=1$, 2 and 5 (mean over rungs). This is a statement about this untuned neighbour-tree rule and not about adaptive design in general.
+
+\paragraph{Synthetic data.}
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.62\linewidth]{../figtab/fig3c_estimation_vs_M.pdf}
+\caption{Estimation term of the risk on synthetic data (separated factors, correct model): the measured error minus the error with the true parameters against the number of training models $M$ at $k=1$, 5 and 20, with least-squares fits $c/M$; the log-log slope is $-1.26$ to $-1.15$ over $k=1$ to 32.}
+\label{fig:estimation}
+\end{figure}
+The synthetic studies of Section~\ref{sec:experiments} use $N=120$ benchmarks and a factor model with intercepts $\mathcal N(0,1)$ and noise variances $\psi_j=\bigl(U(0.3,1)\bigr)^2\times0.35\times$ the mean signal variance. In the separated regime the true rank is 6, with loadings $\mathcal N(0,1/N)\times8$ (equal strengths) and the model fitted at rank 6; in the decaying regime the true rank is 40, with strengths $16\,i^{-0.8}$, and the model fitted at rank 8. Each model observes a share of the benchmarks drawn from $\mathrm{Beta}(2,1.33)$ (mean 0.6). Training sizes are $M\in\{40,80,160,320,640\}$ for the correct separated model and $M=240$ for the decaying regime and the four misspecified rungs (a $\tanh$ link; Student-$t_3$ noise of equal variance; noise scaled by $1+1.5\times$ the clipped upper-tail standardised latent; noise shared within clusters of benchmarks). The test set is 150 fully observed models, the target is the $N-k$ benchmarks not run, random selection averages 20 draws per model, and the figures average 8 seeds; the diagnostics of the ladder use 20 seeds. Columns are standardised by the training mean and standard deviation.
+
+\paragraph{Diagnostics on the other held-out settings.} The six diagnostics of the ladder (Section~\ref{sec:experiments}) and its placement rule, unchanged, applied to the leaderboard (families, 10 folds; strongest quarter) and to the MTEB temporal and strength splits (one outer fold each), place none of them on a rung. Calibration of the predictive variance is 2.8 (MTEB, organisations), 24.8 (temporal), 75.5 (strength), 1.9 (leaderboard, families) and 5.5 (strongest quarter); excess kurtosis of the residuals is 29, 81, 234, 29 and 107. The ratio of the measured floor to the predicted noise is 2.5, 9.6, 7.9, 1.1 and 2.5 in the same order. The MTEB temporal ratio has wide bounds [3.75, 10.7] (4 organisations). Across these five settings the rank correlation of the ratio with calibration, residual correlation and heteroscedasticity is 0.8, 0.8 and 0.9, with kurtosis 0.5 and with the link diagnostic $-1.0$; with five points this is descriptive and not a test. The ladder has 120 benchmarks and 238 training models, so for the leaderboard (39 benchmarks) it is a reference scale and not a matched design.
+
+\paragraph{Fixed factor rank (post hoc).} With the rank fixed at 4, 8 or 12 for every fold and $k$ (headline subset, 20 of the 50 splits, floor at the same rank), the floor is 6.24, 5.64 and 5.22 points, against 4.99 with the rank chosen by inner cross-validation on the same splits (5.06 on all 50). The excess of S6 over the floor at $k=20$ is 0.25, 0.38 and 0.59 points (1.33 with the cross-validated rank), and $k^*$ at the secondary margin is 3, 8 and 20 (32 [20, 50], the same on all 50 splits). The RMSE of S6 at $k=20$ is 6.49, 6.03 and 5.81 points against 6.31. Paired by model, the RMSE of the cross-validated rank minus that of the fixed rank at $k=20$ is $-0.17$ [$-0.28$, $-0.07$] for rank 4, 0.29 [0.18, 0.40] for rank 8 and 0.50 [0.32, 0.69] for rank 12, and at $k=2$ it is $-2.5$ for rank 12; at $k=80$ the cross-validated rank is lowest. So $k^*$ measures the distance to the floor of a model of the same capacity, and a rank chosen with hindsight on the test models is better than the cross-validated one at $k=20$ and 32 by up to 0.6 points (rank 12 at $k=32$: 0.57 [0.43, 0.71]); no rule that avoids the hindsight is claimed.
+
+\paragraph{Leaderboard groups by uploader.} Holding out the 717 uploaders instead of the 475 family stems (G split, same 50 splits, k grid and rank grid; the bootstrap resamples uploaders) gives a floor of 4.79 points (4.82 with families) and a gain of S6 over S0 (both with the factor-model posterior mean) of 2.11, 1.88, 1.35, 0.79, 0.44 and 0.25 points at $k=1$, 2, 3, 5, 8 and 13 (2.10, 1.84, 1.40, 0.77, 0.44, 0.28 with families), within 0.05 point of the family run at every $k$. $k^*$ at $\delta_{\text{floor}}$ is 5 [3, 5] against 3 [3, 5], one grid step, and the excess at $k=3$ (1.12) sits at the margin (1.12). The training-side rule was not re-run on this grouping, and the strongest-quarter split is unchanged.
+
+\section{Compute, licences and use of language models}
+\label{app:compute}
+
+All experiments ran on CPU only, on shared containers of four cores, one process per fold with four at a time and single-thread linear algebra. Per outer fold, fitting the factor models and the inner cross-validation took 23 to 27 s on the group split and 54 s on the temporal and strength splits; evaluating S0, S1, S2, S4, S6 and S6T over 50 splits took 54 to 80 s on the group split, 62 s on the temporal and 80 s on the strength split; the additional baselines and inference rules took 51 to 58 s per group fold and 107 to 123 s on the other two, with 857 s for the strength fold of the inference-rule table. The primary evaluation as a whole took about 216 s on four processes. The synthetic study, the leaderboard runs and the sensitivity runs took longer (the synthetic study about 25 minutes). Pilot runs and the analyses added after the first results (listed in the pre-registration record released with the code) used further compute that these figures do not include. Fitting the factor model once per training set and one greedy pass per new model are small next to running a single benchmark.
+
+The raw MTEB scores are the public MTEB results, released under CC0-1.0. The Open LLM Leaderboard per-subtask results are the supplied task data; they declare no licence that we know of. The code uses \texttt{mteb} 2.27.24 (Apache-2.0), NumPy, SciPy, pandas and scikit-learn (BSD-3-Clause) and PyArrow (Apache-2.0); versions are in the lock file released with the code.
+
+The study, including its code, analyses and the text of this paper, was carried out by language-model agents working under a research-group protocol; the method itself uses no language model.

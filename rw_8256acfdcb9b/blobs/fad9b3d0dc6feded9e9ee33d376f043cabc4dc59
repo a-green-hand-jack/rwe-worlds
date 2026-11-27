@@ -1,0 +1,27 @@
+\subsection{Attribution, value function and conclusions}
+\label{sec:setting}
+A trained model $f$ maps an instance $x$ with $d$ raw attributes to a score. Each raw attribute is one player; a categorical attribute is one player and is one-hot encoded inside the model wrapper.
+The value function of a coalition $S$ is the marginal (interventional) expectation of the score when the attributes outside $S$ are drawn from a background of $B=50$ training rows, drawn once per dataset and seed and held fixed in every experiment of this paper.
+The background is thus part of the definition of the attribution, and the Shapley value $\phi(x)\in\mathbb{R}^d$ of this value function is the exact reference.
+A run of a randomised estimator with budget $m$ coalition samples returns $\hat\phi(x)$; all of its randomness is in the sampling of coalitions.
+Scores are taken in one output space for both $\phi$ and $\hat\phi$: log-odds for logistic regression, the MLP and gradient boosting, and the class-1 probability for the random forest, the quantity that TreeSHAP explains.
+Because model class and output space change together, we do not compare families as such.
+
+A reader draws three conclusions from one run: (C1) the top feature; (C2) the top-$k$ set by $|\hat\phi_j|$, with $k=3$ as primary and $k\in\{1,5\}$ as sensitivity ($k=5$ only for $d\ge16$); (C3) the sign of each feature with $|\phi_j|\ge0.1\max_i|\phi_i|$.
+
+\subsection{Single-run correctness and reliability}
+For an instance $x$, the \emph{single-run correctness} is $P_c(x)=\Pr_{\text{run}}[\text{top-}k(\hat\phi)=\text{top-}k(\phi)]$, estimated from $R$ independent runs.
+The \emph{margin} of $x$ is $g_k(x)=(|\phi|_{(k)}-|\phi|_{(k+1)})/\max_j|\phi_j|$, where $|\phi|_{(i)}$ is the $i$-th largest magnitude.
+A small margin makes the top-$k$ set a near-tie, so we also report the \emph{tolerance-aware} correctness $P_c^{\varepsilon}(x)$, which counts a run as correct if it differs from the exact top-$k$ set only by swaps among features whose exact $|\phi_j|$ lies within $\varepsilon\max_i|\phi_i|$ of the $k/(k{+}1)$ boundary ($\varepsilon=0.05$ unless stated).
+When this tolerance group contains more than one feature beyond the boundary pair, the attribution is nearly flat and $P_c^{\varepsilon}$ is satisfied vacuously; we report the share of such instances.
+\emph{Run-to-run agreement} $A(x)$ is the probability that two independent runs give the same top-$k$ set; it is what a user who reruns sees, and $A\le P_c$ in general.
+Our headline is population-level: the fraction of instances with $P_c^{\varepsilon}\ge0.9$ in a dataset--model cell, shown with its sensitivity to $\varepsilon\in\{0,0.02,0.05,0.1\}$ and to the threshold in $\{0.8,0.9,0.95\}$.
+We make no per-instance claim at confidence $0.95$, which tens of repeats cannot support.
+
+\subsection{Reference values and noise floors}
+\label{sec:reference}
+The exact value $\phi$ (reference class E1) comes from enumerating all $2^d$ coalitions of the same value function: for each instance, model and background the value $v(S)$ is computed once for every $S$ and stored, and both $\phi$ and every estimator's runs are computed from this table.
+For forests and boosted trees, interventional TreeSHAP on the same background is an independent check of $\phi$.
+Logistic regression with a marginal value function is additive, so the \texttt{shap} Kernel explainer (\texttt{l1\_reg=False}) and antithetic permutation sampling return the exact value, up to rounding, whenever the regression is well posed; their run-to-run variance is zero, which serves as a negative control (the paired Kernel estimator does not have this property).
+
+To judge whether explainer noise matters, we compare it with two other sources of variation in the same metric, pairwise top-$k$ agreement between two independent draws on the same instances: (a)~explainer noise at budget $m$ for a fixed model and background; (b)~background resampling, two independent backgrounds of 50 rows each explained exactly; (c)~retraining, $K$ models obtained from bootstrap resamples of the training data and a new seed, kept if their AUC is within 0.01 of the reference model, each explained exactly. Seed-only and hyperparameter-perturbed retraining are sensitivity variants of (c).

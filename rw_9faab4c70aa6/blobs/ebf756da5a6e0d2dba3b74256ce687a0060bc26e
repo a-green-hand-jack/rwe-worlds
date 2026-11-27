@@ -1,0 +1,50 @@
+"""Tab 2 (C5): reporting protocols at equal total item budget (search + report share N_tot items; random search, B evaluated of 128).
+Booktabs/array tabular fragment (needs packages booktabs, array; sets its own \footnotesize and column separation) from protocols_real.parquet and protocols_synthetic.parquet.
+Per protocol: P(report > truth of the deployed config) for point reports (calibrated .50), coverage of the one-sided 95% lower bound (nominal .95),
+mean bound width and deployed-accuracy cost of holding items out (both in accuracy points = 100 x accuracy). Real: pool-bootstrap interval (anti-conservative score);
+synthetic: sigma_theta = 0, t-interval over worlds.
+usage: python tables/src/tab2.py RESULTS_DIR OUT.tex [--ntot 120] [--B 100]"""
+import sys
+import pandas as pd
+
+# (protocol key, label) ; None = rule
+ROWS = [("naive", r"naive (on $S$)"), ("boot632", r".632 bootstrap"), ("optimism_bootstrap", "optimism bootstrap"), ("crossfit", r"cross-fit (fold configs)"),
+        ("split20", r"split, 20\% report"), ("split50", r"split, 50\% report"), None,
+        ("maxt[declared]", r"max-$t$, declared set"), ("maxt[evaluated]", r"max-$t$, evaluated set"), ("bonferroni[declared]", r"Bonferroni, declared set"),
+        ("pointwise_lb", "pointwise (no correction)")]
+
+
+def main(rd, out, ntot=120, B=100.0):
+    arms = {}
+    for nm, f, sg in (("real", "protocols_real", None), ("syn", "protocols_synthetic", 0.0)):
+        p = pd.read_parquet(f"{rd}/{f}.parquet")
+        p = p[(p.searcher == "random") & (p.N_tot == ntot) & (p.B == B)]
+        if sg is not None: p = p[p.sigma_theta == sg]
+        arms[nm] = p.set_index("protocol")
+        print(f"Tab 2 data [{nm}]:", p.pool.iloc[0], "| truth:", p.truth.iloc[0], "| random search B =", B, "| N_tot =", ntot, "| worlds/pools =", int(p.n_boot_or_worlds.min()),
+              "| draws =", int(p.draws.min()), "| interval:", p.ci_kind.iloc[0], "| sigma_theta:", "pool" if nm == "real" else "0")
+    nz = lambda x: f"{x:.2f}".lstrip("0") if abs(x) < 1 else f"{x:.2f}"
+    def rate(q, kind):
+        v, lo, hi = (q.overstate_prob, q.overstate_lo, q.overstate_hi) if kind == "p" else (q.coverage, q.cov_lo, q.cov_hi)
+        return "--" if v != v else f"{nz(v)} ({nz(lo)}--{nz(hi)})"
+    pts = lambda x: "--" if x != x else f"{100 * x:.1f}".replace("-", "$-$")
+    cost = lambda x: "--" if x != x else f"{100 * x:.2f}".replace("-", "$-$")
+    L = [r"{\footnotesize\setlength{\tabcolsep}{2pt}", r"\begin{tabular}{@{}l c c r r c c r@{}}", r"\toprule",
+         r" & \multicolumn{4}{c}{Real pool (MMLU-Pro, pool-bootstrap CI)} & \multicolumn{3}{c}{Synthetic, equal configs ($t$, worlds)} \\",
+         r"\cmidrule(lr){2-5}\cmidrule(l){6-8}",
+         r"Protocol & P(rep.\,$>$\,truth) & coverage & width & cost & P(rep.\,$>$\,truth) & coverage & width \\",
+         r" & (.50) & (.95) & & & (.50) & (.95) & \\", r"\midrule"]
+    for r in ROWS:
+        if r is None:
+            L.append(r"\addlinespace"); continue
+        k, lab = r
+        a, s = arms["real"].loc[k], arms["syn"].loc[k]
+        L.append(" & ".join([lab, rate(a, "p"), rate(a, "c"), pts(a.width), cost(a.true_perf_cost), rate(s, "p"), rate(s, "c"), pts(s.width)]) + r" \\")
+    L += [r"\bottomrule", r"\end{tabular}}"]
+    open(out, "w").write("\n".join(L) + "\n")
+    print("Tab 2 rows:", len([r for r in ROWS if r]), "| width and cost in accuracy points (100 x accuracy)")
+
+
+if __name__ == "__main__":
+    arg = lambda k, d: type(d)(sys.argv[sys.argv.index(k) + 1]) if k in sys.argv else d
+    main(sys.argv[1], sys.argv[2], arg("--ntot", 120), arg("--B", 100.0))

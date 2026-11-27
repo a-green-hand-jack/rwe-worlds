@@ -1,0 +1,51 @@
+"""Shared figure style. Sizes come from the venue (venue-repo); change VENUE only there.
+
+Every figure is made at its final printed size (inches) so that no scaling happens in
+LaTeX and the smallest text in the PDF equals MIN_PT or more.
+"""
+import matplotlib as mpl
+
+# Venue sizes (venue-repo, venue.md): NeurIPS 2026 main track, one column, 5.5 in text
+# block; half-width figures <= 2.6 in side by side. No venue rule on figure text: 7 pt
+# (the \scriptsize floor) is venue-repo's recommendation; fonts must be embedded.
+VENUE = {"name": "NeurIPS 2026", "text_in": 5.5, "half_in": 2.6, "min_pt": 7.0}
+
+# Okabe-Ito (colour-blind safe); colour follows the method, never the rank.
+COLORS = {
+    "designed": "#0072B2",   # S6 + P5 (designed selection)
+    "random": "#D55E00",     # S0 + P5 (random-k)
+    "meanoffset": "#7F7F7F", # general-factor / mean-offset baseline
+    "floor": "#000000",      # all-others floor
+    "theory": "#009E73",     # T1 prediction
+    "other": "#CC79A7",
+    "other2": "#E69F00",
+}
+MARKERS = {"designed": "o", "random": "s", "meanoffset": "^", "theory": None}
+LINESTYLES = {"designed": "-", "random": "--", "meanoffset": ":", "floor": "-", "theory": "-."}
+
+
+def apply(min_pt=None):
+    """Set rcParams so every text element is >= min_pt at final size."""
+    s = float(min_pt or VENUE["min_pt"])
+    mpl.rcParams.update({
+        "font.family": "serif", "font.serif": ["STIXGeneral", "DejaVu Serif"], "mathtext.fontset": "stix",
+        "font.size": s, "axes.titlesize": s, "axes.labelsize": s,
+        "xtick.labelsize": s, "ytick.labelsize": s, "legend.fontsize": s,
+        "figure.titlesize": s,
+        "axes.linewidth": 0.6, "xtick.major.width": 0.6, "ytick.major.width": 0.6,
+        "xtick.major.size": 2.5, "ytick.major.size": 2.5,
+        "lines.linewidth": 1.2, "lines.markersize": 3.5,
+        "axes.spines.top": False, "axes.spines.right": False,
+        "axes.grid": True, "grid.color": "#DDDDDD", "grid.linewidth": 0.4,
+        "axes.axisbelow": True,
+        "legend.frameon": False,
+        "pdf.fonttype": 42, "ps.fonttype": 42,   # embedded TrueType, no Type 3
+        "savefig.bbox": None,                    # keep the declared size exact
+        "figure.constrained_layout.use": True,
+    })
+
+
+def fig_size(width="text", aspect=0.6):
+    """width: 'text' (5.5 in) or 'half' (2.6 in)."""
+    w = VENUE["half_in"] if width == "half" else VENUE["text_in"]
+    return (w, w * aspect)

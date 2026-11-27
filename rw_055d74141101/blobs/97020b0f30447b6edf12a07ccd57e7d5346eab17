@@ -1,0 +1,101 @@
+"""Matched contrasts with a JOINT cluster bootstrap: members that judged the same items are refit on the same resampled
+clusters, so differences between members carry the right (positively correlated) uncertainty.
+  arena   : crowd votes vs 17 LLM judges on the identical single-turn battles (cluster = battle id as in core01)
+  mtbench : human vs GPT-4 on the same (question, turn, pair) cells (cluster = question)
+Per member x family: a FIXED set of up to --npairs conclusions (z_fisher in [1,8] at the point estimate, spread over z, oriented
+by the member's own point-estimate ranking); per replicate each conclusion is re-evaluated (refit, k*, Q) and kept if its
+replicate gap is positive.  Null reference: the member's own z-binned parametric-bootstrap null curve (from core01),
+held fixed across replicates.  Output $BT_RESULTS/matched/<contrast>.shard<i>.parquet; aggregation in 06_tables.py.
+usage: 07_matched.py CONTRAST [--boot 300] [--npairs 30] [--shard i/n] [--seed 0]"""
+import argparse, os, sys, time
+import numpy as np, pandas as pd, scipy.sparse as sp
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src")); sys.path.insert(0, os.path.dirname(__file__))
+import btlib as B, analysis as A, datasets as D
+from core01 import OUT, get
+import importlib
+T6 = importlib.import_module("06_tables")
+FAMS = ["delete", "flip"]
+
+
+def members(contrast):
+    if contrast == "arena":
+        return ["arena_single"] + ["judge:" + f[:-6] for f in sorted(os.listdir(D.DATA + "/potsawee/prob-avg"))]
+    if contrast == "mtbench":
+        return ["mtbench_human", "mtbench_gpt4_matched"]
+    raise ValueError(contrast)
+
+
+def joint_cluster(unit, d):
+    if unit.startswith("mtbench_"):
+        return np.array([c.split("|")[0] for c in d["extra"]["cell"]])
+    return d["cluster"]
+
+
+def interp_null(cv, z):
+    """log Q_null at z by linear interpolation of the binned median in log z (flat outside)"""
+    return np.interp(np.log(np.maximum(z, 1e-3)), np.log(cv.zc.values), np.log(cv.Q.values))
+
+
+def main():
+    ap = argparse.ArgumentParser(); ap.add_argument("contrast")
+    ap.add_argument("--boot", type=int, default=300); ap.add_argument("--npairs", type=int, default=30)
+    ap.add_argument("--shard", default="0/1"); ap.add_argument("--seed", type=int, default=0)
+    a = ap.parse_args()
+    si, sn = map(int, a.shard.split("/"))
+    units = members(a.contrast)
+    Ps, Cs, pairs, curves = {}, {}, {}, {}
+    keys = {}
+    for u in units:
+        d = get(u); Ps[u] = A.Prepared(d); keys[u] = joint_cluster(u, d)
+    uni = pd.factorize(pd.concat([pd.Series(k) for k in keys.values()]))[1]
+    ix = {k: i for i, k in enumerate(uni)}
+    NCL = len(uni)
+    for u in units:
+        P = Ps[u]
+        cl = np.array([ix[k] for k in keys[u]])
+        Cs[u] = sp.csr_matrix((np.ones(len(cl)), (cl, P.cell)), shape=(NCL, 3 * P.g.P))
+        fn = f"{OUT}/core/{u.replace(':', '_')}.parquet"
+        real = pd.read_parquet(fn); null = pd.read_parquet(fn.replace(".parquet", ".null.parquet"))
+        for d_ in (real, null):
+            d_["dataset"] = d_.unit.map(T6.dataset_id); d_["Q"] = d_.k_ver * d_.gmax / d_.gap
+        cv = T6.null_curves(null)
+        for fam in FAMS:
+            x = real[(real.family == fam) & (real.gap > 0) & (real.z_fisher >= T6.ZLO) & (real.z_fisher <= T6.ZHI) & (real.k_ver > 0)].sort_values("z_fisher")
+            sel = x.iloc[np.linspace(0, len(x) - 1, min(a.npairs, len(x))).astype(int)]
+            pairs[(u, fam)] = list(zip(sel.a.astype(int), sel.b.astype(int)))
+            curves[(u, fam)] = cv[(T6.dataset_id(u), fam)]
+    types = {u: {f: B.Types(Ps[u].g, f) for f in FAMS} for u in units}
+    rows, t0 = [], time.time()
+    for rep in [-1] + list(range(a.boot)):
+        if rep >= 0 and rep % sn != si:
+            continue
+        if rep == -1 and si != 0:
+            continue
+        w = None if rep < 0 else np.random.default_rng([a.seed, 11, rep]).multinomial(NCL, np.full(NCL, 1.0 / NCL))
+        for u in units:
+            P = Ps[u]; g = P.g
+            cb = P.cnt if rep < 0 else (Cs[u].T @ w).reshape(g.P, 3)
+            th, H = B.fit(g, cb, theta0=P.theta, return_H=True)
+            Hinv = np.linalg.inv(H)
+            for fam in FAMS:
+                for a_, b_ in pairs[(u, fam)]:
+                    d = B.make_d(P.M, a_, b_)
+                    gap = d @ th
+                    if gap <= 0:
+                        continue
+                    z = gap / np.sqrt(d @ Hinv @ d)
+                    res = B.kstar(g, types[u][fam], cb, d, th0=th)
+                    if not (res["k_ver"] > 0 and np.isfinite(res["k_ver"])):
+                        continue
+                    q = res["k_ver"] * res["gmax"] / gap
+                    rows.append(dict(contrast=a.contrast, unit=u, family=fam, rep=rep, a=a_, b=b_, gap=gap, z_fisher=z, k=res["k_ver"],
+                                     Q=q, N=float(cb.sum()), logQ_excess=np.log(q) - interp_null(curves[(u, fam)], z) if T6.ZLO <= z <= T6.ZHI else np.nan))
+        if rep % 10 == 0:
+            print(a.contrast, "rep", rep, round(time.time() - t0), flush=True)
+    os.makedirs(f"{OUT}/matched", exist_ok=True)
+    pd.DataFrame(rows).to_parquet(f"{OUT}/matched/{a.contrast}.shard{si}of{sn}.parquet")
+    print("done", round(time.time() - t0), flush=True)
+
+
+if __name__ == "__main__":
+    main()

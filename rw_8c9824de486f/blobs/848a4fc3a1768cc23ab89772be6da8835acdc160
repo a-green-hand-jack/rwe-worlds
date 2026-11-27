@@ -1,0 +1,14 @@
+\section{Related work}
+\label{sec:related}
+
+\paragraph{Cheaper evaluation within one benchmark.}
+tinyBenchmarks~\citep{polo2024tinybenchmarks}, metabench~\citep{kipnis2024metabench} and anchor points~\citep{vivek2024anchor} choose \emph{examples} of one benchmark so that its full score can be recovered. We choose \emph{whole benchmarks} and predict \emph{other} benchmarks, so the target is not a function of what was run.
+
+\paragraph{Low-dimensional structure of model scores.}
+Observational scaling laws~\citep{ruan2024observational} and Sloth~\citep{polo2024sloth} find that scores of language models lie near a low-dimensional capability space and use it to extrapolate across models and families; neither asks which $k$ benchmarks to run for a new model or how large $k$ must be. Factor analyses of language-model scores find a dominant general factor and a few more~\citep{burnell2023structure,ilic2024evidence}, and item-response models of many benchmarks study what they separate~\citep{zhou2025lost}; adaptive item selection chooses items of one benchmark~\citep{hofmann2025fluid}. None picks whole benchmarks for a new model. Agreement between benchmarks depends on analysis choices~\citep{perlitz2024benchbench}, so we fix the matrix and the margins before any result.
+
+\paragraph{Cold-start elicitation and matrix completion.}
+Which items to ask a new user to rate is the cold-start problem of recommenders~\citep{rashid2002getting,golbandi2011adaptive,elahi2016survey,houlsby2014coldstart}; a new model is a new user, a benchmark an item. Probabilistic PCA with missing data~\citep{tipping1999ppca} supplies our inference model. Matrix-completion theory~\citep{candes2009exact,candes2010power,mazumder2010spectral} assumes the observed entries are sampled at random, whereas here the new row's observed set is \emph{chosen}.
+
+\paragraph{Optimal design and adaptive testing.}
+Choosing columns to predict the rest is column subset selection~\citep{boutsidis2009css}; greedy selection carries guarantees through the submodularity ratio~\citep{das2011submodular,bian2017guarantees} and Bayesian experimental design~\citep{chaloner1995bayesian}, and multidimensional adaptive testing selects items by such criteria~\citep{mulder2009multidimensional}. We claim no new selection method; we add the measured answer on real leaderboard matrices with missing cells and whole models held out, a decomposition of the error, and the conditions under which the answer holds.

@@ -1,0 +1,91 @@
+"""Tier A summaries and the Han-Ugander-style CV-loss benchmark for the diagnostic.
+    python analysis/make_tierA.py OUTDIR RAWA_DIR DIAG_CELLS.parquet
+tierA_cells.csv : per (run, mechanism, s, estimator): bias, sd, rmse (+ graph-draw CI), paired log ratio to DM and to chin
+cv_benchmark.csv: on the Tier A cells (matched Tier-G run of the same configuration), held-out (leave-one-mechanism-out) R2 of log RMSE(chin) for the
+                  combined score, the degree benchmarks and the CV-loss benchmark (mean cross-validated loss of the lasso selection, with / without corner loss).
+Everything is at the single noise level m = 0.5 of the Tier A runs; draws are G x R as in the run config."""
+import datetime
+import glob
+import json
+import os
+import pickle
+import subprocess
+import sys
+
+import numpy as np
+import pandas as pd
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+sys.path.insert(0, os.path.dirname(__file__))
+import agg  # noqa: E402
+from gate import mech, tierA  # noqa: E402
+
+MATCH = lambda rid: rid.replace("A_SBM_", "core_SBM_").replace("A_ER_", "fam_ER_").replace("A_BA_", "fam_BA_").replace("A_WS_", "fam_WS_") \
+    .replace("A_Stanford3_", "real_Stanford3_").replace("A_ego-Facebook_", "real_ego-Facebook_")
+
+
+def main(outdir, rawA, diagcells):
+    os.makedirs(outdir, exist_ok=True)
+    rows, cvrows = [], []
+    for f in sorted(glob.glob(os.path.join(rawA, "*.pkl"))):
+        o = pickle.load(open(f, "rb"))
+        cfg = o["cfg"]
+        G, R = cfg["G"], cfg["R"]
+        th = o["tau_hat"].astype(float)
+        tau = np.repeat(o["tau"], R, axis=0)               # NR x J
+        err = (th - tau[:, None, :]) / tau[:, None, :]
+        for j in tierA.TEST_COLS:
+            mname, s = mech.COLS[j]
+            E = {e: err[:, i, j].reshape(G, R) for i, e in enumerate(tierA.AEST)}
+            for e, x in E.items():
+                st = agg.metrics(x, seed=j)
+                if st is None:
+                    continue
+                row = dict(run_id=cfg["id"], graph=cfg["family"], d_target=cfg["d"], p=cfg["p"], mechanism=mname, s=s, estimator=e,
+                           tier="A" if e.startswith("A_") else "G", n_draws=st["n_draws"], defined=st["defined"], bias=st["bias"], sd=st["sd"],
+                           rmse=st["rmse"], rmse_mc_lo=st["rmse_lo"], rmse_mc_hi=st["rmse_hi"], bias_mc_lo=st["bias_lo"], bias_mc_hi=st["bias_hi"])
+                for ref in ("dm", "chin"):
+                    if e != ref:
+                        lr = agg.log_ratio(x, E[ref], seed=j)
+                        if lr is not None:
+                            row[f"log_ratio_vs_{ref}"], row[f"log_ratio_vs_{ref}_lo"], row[f"log_ratio_vs_{ref}_hi"] = lr
+                rows.append(row)
+            cvl = o["diag"][:, 0, j]
+            cor = o["diag"][:, 1, j]
+            cvrows.append(dict(run_id=cfg["id"], matched_run=MATCH(cfg["id"]), mechanism=mname, s=s,
+                               cv_loss=float(np.nanmean(cvl)), corner_loss=float(np.nanmean(cor)), n_sel=float(np.nanmean(o["diag"][:, 2, j]))))
+    A = pd.DataFrame(rows)
+    A.to_csv(os.path.join(outdir, "tierA_cells.csv"), index=False)
+    cv = pd.DataFrame(cvrows)
+    dc = pd.read_parquet(diagcells) if diagcells.endswith(".parquet") else pd.read_csv(diagcells)
+    dc = dc[(dc.s == 0.5)]
+    m = cv[cv.s == 0.5].merge(dc, left_on=["matched_run", "mechanism"], right_on=["run_id", "mechanism"], how="inner", suffixes=("", "_g"))
+    out = []
+    if len(m) > 12:
+        y = np.log(m["rmse"].values)
+        grp = m["mechanism"].values
+        C = np.column_stack([np.ones(len(m)), m["logn"].values])
+        feats = {"mean_degree": np.log(m["d"].values), "p(1-p)": np.log(m["p"].values * (1 - m["p"].values)),
+                 "n p(1-p)/d": np.log(m["n"].values * m["p"].values * (1 - m["p"].values) / m["d"].values),
+                 "CV loss (Han-Ugander style)": np.log(m["cv_loss"].values), "CV loss + corner loss": np.log(m["cv_loss"].values + m["corner_loss"].values)}
+        def cvfit(Z):
+            pr = np.zeros(len(m))
+            for g in np.unique(grp):
+                te = grp == g
+                b = np.linalg.lstsq(Z[~te], y[~te], rcond=None)[0]
+                pr[te] = Z[te] @ b
+            return pr
+        r2 = lambda p_: 1 - ((y - p_) ** 2).sum() / ((y - y.mean()) ** 2).sum()
+        for k, v in feats.items():
+            out.append(dict(predictor=k, held_out_r2=r2(cvfit(np.column_stack([C, v]))), n_cells=len(m), note="leave-one-mechanism-out, Tier A cells only"))
+        if "pred_logrmse_combined" in m.columns:
+            out.append(dict(predictor="combined score (pre-registered, Tier-G held-out prediction)", held_out_r2=r2(m["pred_logrmse_combined"].values),
+                            n_cells=len(m), note="held out in the full Tier-G leave-one-mechanism-out"))
+    pd.DataFrame(out).to_csv(os.path.join(outdir, "cv_benchmark.csv"), index=False)
+    commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, cwd=os.path.dirname(os.path.abspath(__file__))).stdout.strip()
+    for nm in ("tierA_cells", "cv_benchmark"):
+        json.dump(dict(script="analysis/make_tierA.py", code_commit=commit, date=str(datetime.date.today()), seed=20261125), open(os.path.join(outdir, nm + ".meta.json"), "w"), indent=1)
+
+
+if __name__ == "__main__":
+    main(*sys.argv[1:4])

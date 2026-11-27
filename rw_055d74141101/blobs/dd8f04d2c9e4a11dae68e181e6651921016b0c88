@@ -1,0 +1,40 @@
+"""Cost sensitivity for outcome flips: a flip that moves a comparison by a full win (b wins -> a wins) costs 2 half-win units, a tie -> win costs 1.
+For z-stratified pairs two verified upper bounds on the minimum cost-weighted alteration cost are reported: cost2_upper, the unit-cost search solution re-priced,
+and cost2_search, the result of the same search with costs in the greedy fill (best effect per unit cost) and the budget in cost units. The unit-cost count k
+is a lower bound on the cost-weighted minimum (every alteration costs at least 1), up to search error as everywhere else.
+usage: 11_sensitivity.py UNIT [--npairs 40]   -> $OUT/sens/cost2_<unit>.parquet"""
+import argparse, os, sys
+import numpy as np, pandas as pd
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src")); sys.path.insert(0, os.path.dirname(__file__))
+import btlib as B, analysis as A
+from core01 import OUT, get, stratified
+
+ap = argparse.ArgumentParser(); ap.add_argument("unit"); ap.add_argument("--npairs", type=int, default=40)
+a = ap.parse_args()
+P = A.Prepared(get(a.unit))
+ty = B.Types(P.g, "flip")
+th, H = B.fit(P.g, P.cnt, P.theta, return_H=True)
+order = np.argsort(-th)
+Hinv = np.linalg.inv(H)
+pairs = [(order[r], order[s]) for r in range(P.M) for s in range(r + 1, P.M)]
+rows = []
+for x_, (i, j) in enumerate(pairs):  # cheap first pass for z to stratify
+    d = B.make_d(P.M, i, j)
+    rows.append(dict(a=i, b=j, z_fisher=(d @ th) / np.sqrt(d @ Hinv @ d)))
+sel = stratified(rows, a.npairs)
+w = np.where(np.tile([2.0, 1.0, 2.0, 1.0], P.g.P) > 0, np.tile([2.0, 1.0, 2.0, 1.0], P.g.P), 1.0)  # kinds b2a,t2a,a2b,t2b
+out = []
+for t in sel:
+    i, j = rows[t]["a"], rows[t]["b"]
+    d = B.make_d(P.M, i, j)
+    res = B.kstar(P.g, ty, P.cnt, d, th0=th)
+    if not np.isfinite(res["k_ver"]) or res["x"] is None:
+        continue
+    x = np.asarray(res["x"], float)
+    ty2 = B.Types(P.g, "flip").with_cost([2.0, 1.0, 2.0, 1.0])
+    r2 = B.kstar(P.g, ty2, P.cnt, d, th0=th)
+    out.append(dict(unit=a.unit, a=i, b=j, z_fisher=rows[t]["z_fisher"], k=res["k_ver"], cost2_upper=float((w * x).sum()),
+                    cost2_search=min(float(r2["k_ver"]), float((w * x).sum())), N=P.N))
+os.makedirs(f"{OUT}/sens", exist_ok=True)
+pd.DataFrame(out).to_parquet(f"{OUT}/sens/cost2_{a.unit.replace(':', '_')}.parquet")
+print(a.unit, len(out), "pairs; median cost2_upper/k", np.median([o["cost2_upper"] / o["k"] for o in out]), "median cost2_search/k", np.median([o["cost2_search"] / o["k"] for o in out]))

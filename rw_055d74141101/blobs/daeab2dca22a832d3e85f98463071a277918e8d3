@@ -1,0 +1,145 @@
+"""Positive control for the Q-based misfit test (all data written here are SYNTHETIC).
+
+Data are simulated from the fitted BT of a real graph with a known departure from BT, and go through the same rule as the real data:
+Delta(log Q) = mean over pairs with z_fisher in [1,8] of log Q - log Q_null (own same-graph null), jackknife interval over models, margin 0.15.
+usage: 14_positive_control.py GRAPH MECH SIZE [SIZE ...] [--reps 3] [--npairs 300] [--null 8] [--boot 100] [--seed 0]
+GRAPH: arena55k | mtbench_human.  MECH: none | overdisp | position | cyclic | pairdev   (see PREANALYSIS.md rev 3)
+Writes $BT_RESULTS/control/<GRAPH>_<MECH>_<SIZE>.parquet: one row per replicate x perturbation family.
+"""
+import argparse, importlib, os, sys, time
+import numpy as np, pandas as pd
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src")); sys.path.insert(0, os.path.dirname(__file__))
+import btlib as B, analysis as A
+from core01 import OUT, get
+T6 = importlib.import_module("06_tables")
+ZLO, ZHI = T6.ZLO, T6.ZHI
+BLOCK = 20  # Arena-55k: comparisons per resampling block (the real prompts are nearly all singletons)
+
+
+def simulate(P, d, mech, size, rng):
+    """one synthetic comparison data set on the design (pair of every comparison, clusters) of the real data d"""
+    M, th = P.M, P.theta
+    lo, hi = np.minimum(d["ci"], d["cj"]), np.maximum(d["ci"], d["cj"])
+    n = len(lo)
+    cl = rng.permutation(n) // BLOCK if d["name"] == "arena55k" else d["cluster"]
+    eta = th[lo] - th[hi]
+    if mech == "overdisp":
+        v = rng.normal(0, size, (int(cl.max()) + 1, M))
+        eta = eta + v[cl, lo] - v[cl, hi]
+    elif mech == "position":
+        pi = rng.uniform(0.2, 0.8, (M, M))  # share of the comparisons of pair (lo, hi) in which lo is listed first
+        first_lo = rng.random(n) < pi[lo, hi]
+        eta = eta + size * np.where(first_lo, 1.0, -1.0)
+    elif mech == "cyclic":
+        u, w = rng.normal(size=M), rng.normal(size=M)
+        E = np.outer(u, w) - np.outer(w, u)
+        iu = np.triu_indices(M, 1)
+        eta = eta + size * E[lo, hi] / E[iu].std()
+    elif mech == "pairdev":
+        D = np.triu(rng.normal(0, size, (M, M)), 1)
+        eta = eta + D[lo, hi]
+    elif mech != "none":
+        raise ValueError(mech)
+    p = B.sigmoid(eta)
+    t = np.minimum(P.tie_rate, 2 * np.minimum(p, 1 - p))
+    u = rng.random(n)
+    s = np.where(u < p - t / 2, 1.0, np.where(u < p - t / 2 + t, 0.5, 0.0))  # score of lo
+    return dict(name=d["name"] + "_sim", design="synthetic", names=d["names"], ci=lo, cj=hi, s=s, cluster=pd.factorize(cl)[0])
+
+
+def select(P, npairs):
+    """npairs pairs spread over z_fisher-rank among the pairs with z_fisher in [0.7, 10]"""
+    Hinv = P.fisher_cov(); order = np.argsort(-P.theta)
+    rows = []
+    for r in range(P.M):
+        for s_ in range(r + 1, P.M):
+            a, b = order[r], order[s_]
+            d = B.make_d(P.M, a, b)
+            z = (P.theta[a] - P.theta[b]) / np.sqrt(d @ Hinv @ d)
+            if 0.7 <= z <= 10:
+                rows.append((z, a, b))
+    rows.sort()
+    if len(rows) > npairs:
+        rows = [rows[i] for i in np.linspace(0, len(rows) - 1, npairs).astype(int)]
+    return [(a, b) for _, a, b in rows]
+
+
+def delta(real, null_df):
+    """Delta(log Q) per family with the jackknife interval over models; the rule of 06_tables.py"""
+    out = {}
+    for fam in ("delete", "flip"):
+        r = real[real.family == fam].copy(); nn = null_df[null_df.family == fam]
+        nn = nn.assign(dataset="x", Q=nn.k_ver * nn.gmax / nn.gap); r = r.assign(dataset="x", Q=r.k_ver * r.gmax / r.gap)
+        cv = T6.null_curves(nn)
+        if ("x", fam) not in cv or len(cv[("x", fam)]) == 0:
+            out[fam] = None; continue
+        r = T6.attach_null(r, cv)
+        x = r[(r.z_fisher >= ZLO) & (r.z_fisher <= ZHI) & np.isfinite(r.Q) & np.isfinite(r.Q_null) & (r.k_ver > 0)]
+        if len(x) < 5:
+            out[fam] = None; continue
+        v = np.log(x.Q.values) - np.log(x.Q_null.values)
+        ms = np.unique(np.r_[x.a.values, x.b.values])
+        jk = np.array([v[(x.a.values != m) & (x.b.values != m)].mean() for m in ms if ((x.a.values != m) & (x.b.values != m)).sum() > 0])
+        se = np.sqrt((len(jk) - 1) / len(jk) * ((jk - jk.mean()) ** 2).sum()) if len(jk) > 1 else np.nan
+        out[fam] = dict(delta=v.mean(), se_jk=se, lo=v.mean() - 1.96 * se, hi=v.mean() + 1.96 * se, n_pairs=len(x),
+                        Q_real_med=x.Q.median(), Q_null_med=x.Q_null.median())
+    return out
+
+
+def one(graph, d, mech, size, rep, a):
+    rng = np.random.default_rng([a.seed, rep, int(round(size * 1000)), ["none", "overdisp", "position", "cyclic", "pairdev"].index(mech),
+                                 0 if graph == "arena55k" else 1])
+    P0 = A.Prepared(d)
+    sim = simulate(P0, d, mech, size, rng)
+    P = A.Prepared(sim)
+    sel = select(P, a.npairs)
+    tb = P.bootstrap_theta(a.boot, np.random.default_rng(rng.integers(2**31)), by="cluster")
+    tbi = P.bootstrap_theta(a.boot, np.random.default_rng(rng.integers(2**31)), by="comparison")
+    Hinv = P.fisher_cov()
+    rr, rc = [], []
+    for aa, bb in sel:
+        dv = B.make_d(P.M, aa, bb); sef = np.sqrt(dv @ Hinv @ dv)
+        z = (P.theta[aa] - P.theta[bb]) / sef
+        if ZLO <= z <= ZHI:
+            rr.append((tb[:, aa] - tb[:, bb]).std(ddof=1) / sef); rc.append((tbi[:, aa] - tbi[:, bb]).std(ddof=1) / sef)
+    real, null = [], []
+    for fam in ("delete", "flip"):
+        for r in A.all_pairs(P, P.cnt, fam, th0=P.theta, pairs=sel):
+            r["family"] = fam; real.append(r)
+        for k in range(a.null):
+            cn = A.simulate_null(P, np.random.default_rng([a.seed, 7, rep, k, int(round(size * 1000))]))
+            th_n = B.fit(P.g, cn, theta0=P.theta)
+            for r in A.all_pairs(P, cn, fam, th0=th_n, pairs=sel):
+                r.update(family=fam, rep=k); null.append(r)
+    res = delta(pd.DataFrame(real), pd.DataFrame(null))
+    rows = []
+    for fam, r in res.items():
+        if r is None:
+            continue
+        rows.append(dict(graph=graph, mech=mech, size=size, rep=rep, perturbation=fam, synthetic=1, N=P.N, M=P.M, ncl=P.ncl, n_pairs_sel=len(sel),
+                         se_ratio_cluster_med=np.median(rr) if rr else np.nan, se_ratio_cmp_med=np.median(rc) if rc else np.nan, n_boot=a.boot, n_null=a.null, **r))
+    return rows
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("graph"); ap.add_argument("mech"); ap.add_argument("sizes", nargs="+", type=float)
+    ap.add_argument("--reps", type=int, default=3); ap.add_argument("--npairs", type=int, default=300)
+    ap.add_argument("--null", type=int, default=0, help="null replicates (default 8 on arena55k, 20 on the 6-model graph)"); ap.add_argument("--boot", type=int, default=200); ap.add_argument("--seed", type=int, default=0)
+    a = ap.parse_args()
+    os.makedirs(f"{OUT}/control", exist_ok=True)
+    a.null = a.null or (8 if a.graph == "arena55k" else 20)
+    d = get(a.graph)
+    for size in a.sizes:
+        fn = f"{OUT}/control/{a.graph}_{a.mech}_{size:g}.parquet"
+        if os.path.exists(fn):
+            print(fn, "exists, skipped"); continue
+        t0 = time.time(); rows = []
+        for rep in range(a.reps):
+            rows += one(a.graph, d, a.mech, size, rep, a)
+            print(a.graph, a.mech, size, "rep", rep, round(time.time() - t0), flush=True)
+        pd.DataFrame(rows).to_parquet(fn)
+
+
+if __name__ == "__main__":
+    main()

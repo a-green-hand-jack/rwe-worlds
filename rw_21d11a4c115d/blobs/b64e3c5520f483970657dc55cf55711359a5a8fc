@@ -1,0 +1,229 @@
+{
+  "bias_definition": "mean of (predicted - observed) over held-out cells, in standardised units of the training fold (code/bmk/protocol.py, track_bias)",
+  "bias_k": 3,
+  "claim": "C3",
+  "design": "fixed",
+  "draft": false,
+  "figure": "fig4_shift",
+  "generated": "2026-11-25",
+  "height_in": 3.41,
+  "inputs": {
+    "/hutian/w/paper-repo/results/bias.csv": "47d2e117a0ba",
+    "/hutian/w/paper-repo/results/curves.csv": "8d094a167049"
+  },
+  "panels": {
+    "helm_mmlu": {
+      "grouped": {
+        "bias_n": [
+          16,
+          16,
+          15,
+          16,
+          16
+        ],
+        "ks": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          12,
+          15,
+          20
+        ],
+        "n_families": 21,
+        "n_models": 79,
+        "n_targets": 17
+      },
+      "random": {
+        "bias_n": [],
+        "ks": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          12,
+          15,
+          20
+        ],
+        "n_families": 21,
+        "n_models": 79,
+        "n_targets": 17
+      }
+    },
+    "mteb_eng": {
+      "grouped": {
+        "bias_n": [
+          25,
+          25,
+          24,
+          25,
+          25
+        ],
+        "ks": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          12,
+          15,
+          20,
+          30
+        ],
+        "n_families": 75,
+        "n_models": 124,
+        "n_targets": 21
+      },
+      "random": {
+        "bias_n": [],
+        "ks": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          12,
+          15,
+          20,
+          30
+        ],
+        "n_families": 75,
+        "n_models": 124,
+        "n_targets": 21
+      },
+      "time": {
+        "bias_n": [
+          12,
+          11,
+          11,
+          11,
+          11
+        ],
+        "ks": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          12,
+          15,
+          20,
+          30
+        ],
+        "n_families": 41,
+        "n_models": 56,
+        "n_targets": 21
+      }
+    },
+    "mteb_multi": {
+      "grouped": {
+        "bias_n": [
+          24,
+          23,
+          23,
+          23,
+          24
+        ],
+        "ks": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          12,
+          15,
+          20,
+          30
+        ],
+        "n_families": 71,
+        "n_models": 117,
+        "n_targets": 74
+      },
+      "random": {
+        "bias_n": [],
+        "ks": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          12,
+          15,
+          20,
+          30
+        ],
+        "n_families": 71,
+        "n_models": 117,
+        "n_targets": 74
+      },
+      "time": {
+        "bias_n": [
+          11,
+          10,
+          11,
+          10,
+          11
+        ],
+        "ks": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          12,
+          15,
+          20,
+          30
+        ],
+        "n_families": 37,
+        "n_models": 53,
+        "n_targets": 74
+      }
+    }
+  },
+  "predictor": "fa",
+  "selector": "greedyA",
+  "width_in": 5.5
+}

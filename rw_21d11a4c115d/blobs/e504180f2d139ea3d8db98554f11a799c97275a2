@@ -1,0 +1,56 @@
+"""C0 data audit -> results/datasets.csv, results/spectra.csv, results/audit_notes.json.
+Run: python3 audit.py <parsed_dir> <data_out> <results>"""
+import sys, json, numpy as np, pandas as pd
+from scipy.stats import spearmanr
+sys.path.insert(0, __file__.rsplit('/', 1)[0])
+from bmk.fa import choose_rank
+parsed, dout, res = sys.argv[1:4]
+W = pd.read_parquet(f"{parsed}/mteb_sparse.parquet"); mi = pd.read_parquet(f"{parsed}/mteb_models.parquet")
+L = json.load(open(f"{parsed}/mteb_task_langs.json"))
+rows, spec, notes = [], [], {}
+def near_dup(X, thr):
+    M = X.shape[0]; d = np.sqrt(((X[:, None, :] - X[None]) ** 2).mean(2)); np.fill_diagonal(d, np.inf); return float((d.min(1) < thr).mean())
+for ds in ["mteb_eng", "mteb_multi", "helm_mmlu"]:
+    D = np.load(f"{dout}/{ds}.npz", allow_pickle=True); X = D["X"]; M, N = X.shape
+    Y = (X - X.mean(0)) / X.std(0)
+    ev = np.linalg.eigvalsh(np.corrcoef(Y.T))[::-1]; ev = ev / ev.sum()
+    ranks = [r for r in (1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25) if r <= N // 3]
+    r1, sc, rb = choose_rank(Y, ranks, seed=0); 
+    for i, e in enumerate(ev): spec.append((ds, i + 1, float(e)))
+    row = dict(dataset=ds, dense_pool_models=M, dense_pool_tasks=N, n_families=len(set(D["family"])), n_orgs=len(set(D["family_org"])),
+               r_eff=r1, r_argmax=rb, first_factor_share=float(ev[0]), second_factor_share=float(ev[1]),
+               participation_ratio=float(1 / (ev ** 2).sum()), near_dup_share_rms_lt_0p01=near_dup(X, 0.01) if ds != "helm_mmlu" else near_dup(X, 0.01),
+               near_dup_share_rms_lt_0p005=near_dup(X, 0.005))
+    notes[ds + "_rank_curve"] = {str(k): v for k, v in sc.items()}
+    if ds.startswith("mteb"):
+        tk = list(D["tasks"]); mset = list(D["models"])
+        if ds == "mteb_eng":
+            allt = [t for t, l in L.items() if l and all(x.startswith("eng") for x in l) and t in W.columns]
+        else:
+            allt = list(W.columns)
+        S = W[allt]; row.update(n_models=S.shape[0], n_tasks=S.shape[1], density=float(S.notna().values.mean()))
+        rest = [m for m in W.index if m not in set(mset)]
+        # mean standardised score of pool vs rest on the pool tasks (rest: models with >=10 pool tasks, mean over the ones they ran)
+        mu = W.loc[mset, tk].mean(); sd = W.loc[mset, tk].std()
+        Z = ((W[tk] - mu) / sd); zs = Z.mean(axis=1); cnt = W[tk].notna().sum(axis=1)
+        row.update(pool_mean_z=float(zs[mset].mean()), rest_mean_z=float(zs[[m for m in rest if cnt[m] >= 10]].mean()),
+                   rest_models_ge10_pool_tasks=int(sum(cnt[m] >= 10 for m in rest)),
+                   pool_median_params_M=float(np.nanmedian(D["n_params"]) / 1e6),
+                   rest_median_params_M=float(np.nanmedian(mi.loc[rest, "n_parameters"].astype(float)) / 1e6),
+                   pool_median_release=str(pd.to_datetime(np.median(D["release_ts"]), unit="s").date()),
+                   rest_median_release=str(pd.to_datetime(mi.loc[rest, "release_date"]).median().date()))
+        fc = pd.Series(D["first_commit_ts"]); 
+        top = pd.Series(mi.loc[mset, "first_commit"]).value_counts()
+        row.update(first_commit_largest_share=float(top.iloc[0] / M), first_commit_top3_share=float(top.iloc[:3].sum() / M),
+                   spearman_release_vs_firstcommit=float(spearmanr(D["release_ts"], D["first_commit_ts"])[0]))
+    else:
+        ne = D["n_eval"]; Pm = X; sdc = X.std(0)
+        floor = (Pm * (1 - Pm) / ne).mean(0) / sdc ** 2
+        row.update(n_models=M, n_tasks=N, density=1.0, binomial_noise_floor_std_units=float(floor.mean()),
+                   n_eval_min=int(ne.min()), n_eval_median=float(np.median(ne)), n_eval_max=int(ne.max()))
+        pd.DataFrame(dict(task=D["tasks"], n_eval=ne.mean(0), binomial_floor=floor)).to_csv(f"{res}/helm_mmlu_binomial_floor.csv", index=False)
+    rows.append(row)
+pd.DataFrame(rows).to_csv(f"{res}/datasets.csv", index=False)
+pd.DataFrame(spec, columns=["dataset", "component", "explained_variance_share"]).to_csv(f"{res}/spectra.csv", index=False)
+json.dump(notes, open(f"{res}/audit_notes.json", "w"), indent=1)
+print(pd.DataFrame(rows).T.to_string())

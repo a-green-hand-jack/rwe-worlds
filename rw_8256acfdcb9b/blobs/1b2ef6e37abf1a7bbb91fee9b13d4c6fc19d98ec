@@ -1,0 +1,259 @@
+@misc{lundberg2017,
+  title={A Unified Approach to Interpreting Model Predictions},
+  author={Scott Lundberg and Su-In Lee},
+  year={2017},
+  eprint={1705.07874},
+  archivePrefix={arXiv}
+}
+
+@misc{krishna2022,
+  title={The Disagreement Problem in Explainable Machine Learning: A Practitioner's Perspective},
+  author={Satyapriya Krishna and Tessa Han and Alex Gu and Steven Wu and Shahin Jabbari and Himabindu Lakkaraju},
+  year={2022},
+  eprint={2202.01602},
+  archivePrefix={arXiv}
+}
+
+@misc{yuan2022,
+  title={An empirical study of the effect of background data size on the stability of SHapley Additive exPlanations (SHAP) for deep learning models},
+  author={Han Yuan and Mingxuan Liu and Lican Kang and Chenkui Miao and Ying Wu},
+  year={2022},
+  eprint={2204.11351},
+  archivePrefix={arXiv}
+}
+
+@misc{musco2025,
+  title={Provably Accurate Shapley Value Estimation via Leverage Score Sampling},
+  author={Christopher Musco and R. Teal Witter},
+  year={2024},
+  eprint={2410.01917},
+  archivePrefix={arXiv}
+}
+
+@misc{chen2020,
+  title={True to the Model or True to the Data?},
+  author={Hugh Chen and Joseph D. Janizek and Scott Lundberg and Su-In Lee},
+  year={2020},
+  eprint={2006.16234},
+  archivePrefix={arXiv}
+}
+
+@misc{marx2020,
+  title={Predictive Multiplicity in Classification},
+  author={Charles T. Marx and Flavio du Pin Calmon and Berk Ustun},
+  year={2019},
+  eprint={1909.06677},
+  archivePrefix={arXiv}
+}
+
+@misc{ding2021,
+  title={Retiring Adult: New Datasets for Fair Machine Learning},
+  author={Frances Ding and Moritz Hardt and John Miller and Ludwig Schmidt},
+  year={2021},
+  eprint={2108.04884},
+  archivePrefix={arXiv}
+}
+
+@misc{gorishniy2021,
+  title={Revisiting Deep Learning Models for Tabular Data},
+  author={Yury Gorishniy and Ivan Rubachev and Valentin Khrulkov and Artem Babenko},
+  year={2021},
+  eprint={2106.11959},
+  archivePrefix={arXiv}
+}
+
+@misc{covert2021,
+  title={Improving KernelSHAP: Practical Shapley Value Estimation via Linear Regression},
+  author={Ian Covert and Su-In Lee},
+  year={2020},
+  eprint={2012.01536},
+  archivePrefix={arXiv}
+}
+
+@misc{mitchell2022,
+  title={Sampling Permutations for Shapley Value Estimation},
+  author={Rory Mitchell and Joshua Cooper and Eibe Frank and Geoffrey Holmes},
+  year={2021},
+  eprint={2104.12199},
+  archivePrefix={arXiv}
+}
+
+@misc{kumar2020,
+  title={Problems with Shapley-value-based explanations as feature importance measures},
+  author={I. Elizabeth Kumar and Suresh Venkatasubramanian and Carlos Scheidegger and Sorelle Friedler},
+  year={2020},
+  eprint={2002.11097},
+  archivePrefix={arXiv}
+}
+
+@misc{sundararajan2020,
+  title={The many Shapley values for model explanation},
+  author={Mukund Sundararajan and Amir Najmi},
+  year={2019},
+  eprint={1908.08474},
+  archivePrefix={arXiv}
+}
+
+@misc{fumagalli2023,
+  title={SHAP-IQ: Unified Approximation of any-order Shapley Interactions},
+  author={Fabian Fumagalli and Maximilian Muschalik and Patrick Kolpaczki and Eyke Hüllermeier and Barbara Hammer},
+  year={2023},
+  eprint={2303.01179},
+  archivePrefix={arXiv}
+}
+
+@misc{covert2020removal,
+  title={Explaining by Removing: A Unified Framework for Model Explanation},
+  author={Ian Covert and Scott Lundberg and Su-In Lee},
+  year={2020},
+  eprint={2011.14878},
+  archivePrefix={arXiv}
+}
+
+@misc{alvarez2018,
+  title={On the Robustness of Interpretability Methods},
+  author={David Alvarez-Melis and Tommi S. Jaakkola},
+  year={2018},
+  eprint={1806.08049},
+  archivePrefix={arXiv}
+}
+
+@misc{fisher2019,
+  title={All Models are Wrong, but Many are Useful: Learning a Variable's Importance by Studying an Entire Class of Prediction Models Simultaneously},
+  author={Aaron Fisher and Cynthia Rudin and Francesca Dominici},
+  year={2018},
+  eprint={1801.01489},
+  archivePrefix={arXiv}
+}
+
+@misc{neely2021,
+  title={Order in the Court: Explainable AI Methods Prone to Disagreement},
+  author={Michael Neely and Stefan F. Schouten and Maurits J. R. Bleeker and Ana Lucic},
+  year={2021},
+  eprint={2105.03287},
+  archivePrefix={arXiv}
+}
+
+@misc{rid2023,
+  title={The Rashomon Importance Distribution: Getting RID of Unstable, Single Model-based Variable Importance},
+  author={Jon Donnelly and Srikar Katta and Cynthia Rudin and Edward P. Browne},
+  year={2023},
+  eprint={2309.13775},
+  archivePrefix={arXiv}
+}
+@misc{huang2023,
+  title={The Inadequacy of Shapley Values for Explainability},
+  author={Xuanxiang Huang and Joao Marques-Silva},
+  year={2023},
+  eprint={2302.08160},
+  archivePrefix={arXiv}
+}
+
+@misc{shapleyvic2022,
+  title={Shapley variable importance cloud for machine learning models},
+  author={Yilin Ning and Mingxuan Liu and Nan Liu},
+  year={2022},
+  eprint={2212.08370},
+  archivePrefix={arXiv}
+}
+
+@article{nogueira2018,
+  title={On the Stability of Feature Selection Algorithms},
+  author={Nogueira, Sarah and Sechidis, Konstantinos and Brown, Gavin},
+  journal={Journal of Machine Learning Research}, volume={18}, number={174}, year={2018},
+  url={https://jmlr.org/papers/v18/17-514.html}
+}
+@article{webber2010,
+  title={A Similarity Measure for Indefinite Rankings},
+  author={Webber, William and Moffat, Alistair and Zobel, Justin},
+  journal={ACM Transactions on Information Systems}, volume={28}, number={4}, pages={1--38}, year={2010},
+  doi={10.1145/1852102.1852106}
+}
+@article{lundberg2020trees,
+  title={From local explanations to global understanding with explainable {AI} for trees},
+  author={Lundberg, Scott M. and Erion, Gabriel and Chen, Hugh and DeGrave, Alex and Prutkin, Jordan M. and Nair, Bala and Katz, Ronit and Himmelfarb, Jonathan and Bansal, Nisha and Lee, Su-In},
+  journal={Nature Machine Intelligence}, volume={2}, number={1}, pages={56--67}, year={2020},
+  doi={10.1038/s42256-019-0138-9}
+}
+@article{chen2023algorithms,
+  title={Algorithms to estimate {Shapley} value feature attributions},
+  author={Chen, Hugh and Covert, Ian C. and Lundberg, Scott M. and Lee, Su-In},
+  journal={Nature Machine Intelligence}, volume={5}, pages={590--601}, year={2023},
+  doi={10.1038/s42256-023-00657-x}
+}
+@inproceedings{ghorbani2019fragile,
+  title={Interpretation of Neural Networks Is Fragile},
+  author={Ghorbani, Amirata and Abid, Abubakar and Zou, James},
+  booktitle={Proceedings of the AAAI Conference on Artificial Intelligence}, volume={33}, number={01}, pages={3681--3688}, year={2019}, doi={10.1609/aaai.v33i01.33013681}
+}
+@article{visani2022lime,
+  title={Statistical stability indices for {LIME}: Obtaining reliable explanations for machine learning models},
+  author={Visani, Giorgio and Bagli, Enrico and Chesani, Federico and Poluzzi, Alessandro and Capuzzo, Davide},
+  journal={Journal of the Operational Research Society}, volume={73}, number={1}, pages={91--101}, year={2022}, doi={10.1080/01605682.2020.1865846}
+}
+@inproceedings{witter2025regadj,
+  title={Regression-adjusted Monte Carlo Estimators for Shapley Values and Probabilistic Values},
+  author={Witter, R. Teal and Liu, Yurong and Musco, Christopher},
+  booktitle={Advances in Neural Information Processing Systems 38}, pages={24027--24058}, year={2025}, doi={10.52202/085713-0715}
+}
+@article{dong2020cloud,
+  title={Exploring the cloud of variable importance for the set of all good models},
+  author={Dong, Jiayun and Rudin, Cynthia},
+  journal={Nature Machine Intelligence}, volume={2}, pages={810--824}, year={2020},
+  doi={10.1038/s42256-020-00264-0}
+}
+@misc{kolpaczki2021bandits,
+  title={Identifying Top-k Players in Cooperative Games via {Shapley} Bandits},
+  author={Kolpaczki, Patrick and Bengs, Viktor and H{\"u}llermeier, Eyke},
+  year={2021}, howpublished={LMU Munich open-access repository},
+  url={https://nbn-resolving.org/urn:nbn:de:bvb:19-epub-92527-0}
+}
+@incollection{kolpaczki2025antithetic,
+  title={Antithetic Sampling for Top-{K} {Shapley} Identification},
+  author={Kolpaczki, Patrick and Nielen, Tim and H{\"u}llermeier, Eyke},
+  booktitle={Explainable Artificial Intelligence}, series={Communications in Computer and Information Science},
+  pages={131--155}, year={2025}, doi={10.1007/978-3-032-08324-1_6}
+}
+
+@inproceedings{chen2016xgboost,
+  title={{XGBoost}: A Scalable Tree Boosting System},
+  author={Chen, Tianqi and Guestrin, Carlos},
+  booktitle={Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining},
+  pages={785--794}, year={2016}, doi={10.1145/2939672.2939785}
+}
+@inproceedings{ke2017lightgbm,
+  title={{LightGBM}: A Highly Efficient Gradient Boosting Decision Tree},
+  author={Ke, Guolin and Meng, Qi and Finley, Thomas and Wang, Taifeng and Chen, Wei and Ma, Weidong and Ye, Qiwei and Liu, Tie-Yan},
+  booktitle={Advances in Neural Information Processing Systems 30}, year={2017}
+}
+@article{pedregosa2011sklearn,
+  title={Scikit-learn: Machine Learning in {Python}},
+  author={Pedregosa, Fabian and Varoquaux, Ga{\"e}l and Gramfort, Alexandre and Michel, Vincent and Thirion, Bertrand and Grisel, Olivier and Blondel, Mathieu and Prettenhofer, Peter and Weiss, Ron and Dubourg, Vincent and Vanderplas, Jake and Passos, Alexandre and Cournapeau, David and Brucher, Matthieu and Perrot, Matthieu and Duchesnay, {\'E}douard},
+  journal={Journal of Machine Learning Research}, volume={12}, pages={2825--2830}, year={2011}
+}
+@misc{hofmann1994german,
+  title={Statlog ({German} Credit Data)},
+  author={Hofmann, Hans},
+  year={1994}, publisher={UCI Machine Learning Repository}, doi={10.24432/C5NC77}
+}
+@inproceedings{guvenir1997arrhythmia,
+  title={A Supervised Machine Learning Algorithm for Arrhythmia Analysis},
+  author={G{\"u}venir, H. Altay and Acar, Burak and Demir{\"o}z, G{\"u}l{\c{s}}en and {\c{C}}ekin, Ayhan},
+  booktitle={Computers in Cardiology 1997}, pages={433--436}, year={1997}, doi={10.1109/CIC.1997.647926}
+}
+@misc{guvenir1997arrhythmiaUCI,
+  title={Arrhythmia},
+  author={G{\"u}venir, H. Altay and Acar, Burak},
+  year={1997}, publisher={UCI Machine Learning Repository}, doi={10.24432/C5BS32}
+}
+@inproceedings{smith1988pima,
+  title={Using the {ADAP} Learning Algorithm to Forecast the Onset of Diabetes Mellitus},
+  author={Smith, Jack W. and Everhart, J. E. and Dickson, W. C. and Knowler, W. C. and Johannes, R. S.},
+  booktitle={Proceedings of the Annual Symposium on Computer Application in Medical Care}, pages={261--265}, year={1988}
+}
+@misc{gmsc2011,
+  title={Give Me Some Credit},
+  author={{Kaggle}},
+  year={2011}, howpublished={Kaggle competition},
+  url={https://www.kaggle.com/c/GiveMeSomeCredit}
+}

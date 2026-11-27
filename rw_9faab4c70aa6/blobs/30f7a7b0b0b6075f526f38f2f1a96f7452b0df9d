@@ -1,0 +1,18 @@
+{\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.26\linewidth}>{\raggedright\arraybackslash}p{0.31\linewidth}>{\raggedright\arraybackslash}p{0.37\linewidth}@{}}
+\toprule
+Quantity & Value & Note \\
+\midrule
+Model & Qwen2.5-1.5B-Instruct &  \\
+Item pool & 1\,500 MMLU-Pro items &  \\
+Configurations $K$ & 128 & 4 demo sets $\times$ 2 labels $\times$ 8 instructions $\times$ 2 cues \\
+Configuration accuracy & mean 0.274, range 0.205--0.303 &  \\
+True spread $\sigma_\theta$ & 0.014 (0.012--0.019) & split-half estimate, free of sampling noise; 95\% pool-bootstrap interval \\
+Item-level correlation & mean 0.66 (quartiles 0.52, 0.65, 0.80) & correctness of two configurations over the items, all pairs \\
+Letter-bias share & 0.17 & share of $\sigma_\theta^2$ removed by correcting each configuration's letter prior \\
+Variance share by factor & cue 0.40, label 0.05, instruction 0.04, demo set 0.01 & main effects on the variance of configuration accuracy \\
+Leakage $\Delta_{\mathrm{leak}}$ & 0.42 (0.22--0.62) & gain in accuracy on an item shown in its own prompt; 9 probe items, bootstrap interval \\
+Compute, matrix & 193\,536 (item, configuration) cells & 6.41 million tokens forwarded with prefix and item caching (89.9 million as stand-alone prompts) \\
+Compute, real tool & 24 draws, 4\,293 s each & 39\,189 calls of the language model, 103\,039 s summed wall time \\
+\bottomrule
+\end{tabular}}

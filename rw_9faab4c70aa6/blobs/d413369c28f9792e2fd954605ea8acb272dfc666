@@ -1,0 +1,18 @@
+"""Number of tokens the studied model (Qwen2.5-1.5B-Instruct) was run on for the matrix (1,512 rows x 128 configurations) (tokenizer only; no model call).
+`forwarded` = tokens of the prefix (once per group), the item (once per group x item) and the scored suffixes (16 per group x item), as run_group does with its KV cache;
+`uncached` = the same cells as 128 x 1,512 stand-alone prompts (what an API without prefix caching would have processed).
+Usage: python count_tokens.py OUT.json"""
+import sys, os, json
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+import pandas as pd
+from harness import AutoTokenizer, MODELS, HEAD, fmt_item, INSTR, CUES, TAIL
+from run_matrix import demo_text, SETS, LABELS, VARIANTS, DATA
+tok = AutoTokenizer.from_pretrained(MODELS["qwen2.5-1.5b"]); enc = lambda s: len(tok.encode(s, add_special_tokens=False))
+pool = pd.read_pickle(DATA + "/pool.pkl"); meta = json.load(open(DATA + "/pool_meta.json"))
+ev = pool; suf = [enc(INSTR[i] + TAIL + CUES[c]) for i, c in VARIANTS]
+# the workers scored all 1,512 rows (1,500 evaluation + 12 demonstration items)
+fwd = unc = 0
+for g in range(len(SETS) * len(LABELS)):
+    lab = LABELS[g % 2]; P = enc(HEAD + demo_text(pool, meta, SETS[g // 2], lab)); its = [enc(fmt_item(r.question, list(r.options), lab)) for r in ev.itertuples()]
+    fwd += P + sum(its) + len(its) * sum(suf); unc += sum(len(suf) * (P + t) + sum(suf) for t in its)
+out = dict(forwarded_tokens=fwd, uncached_tokens=unc, cells=len(pool) * 128); json.dump(out, open(sys.argv[1], "w"), indent=1); print(out)

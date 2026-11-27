@@ -1,0 +1,46 @@
+"""Per-cell error accounting for Table 3 / Fig. 3: squared error of S6+P5 and S0+P5 aggregated per (model, k, rule, task type)
+and per (k, rule, task). Also T1-predicted squared error and the model's own all-others floor on the same cells.
+usage: python 13_cells.py <data_dir> <work_dir> <split> <fold> <out_dir> [k list]"""
+import os, sys, pickle, numpy as np, pandas as pd
+sys.path.insert(0, os.path.dirname(__file__))
+from common import *
+from fa import design_risk
+from state import loo_predictions
+import select_rules as SR, infer_rules as IR
+
+data_dir, work, split, fold, out = sys.argv[1:6]; fold = int(fold)
+KS = [int(x) for x in sys.argv[6].split(",")] if len(sys.argv) > 6 else [3, 8, 20, 50]
+Y, mods, tasks, et = load_matrix(data_dir)
+ttype = tasks["type"].values
+types = sorted(set(ttype)); tid = np.array([types.index(t) for t in ttype])
+st = pickle.load(open(os.path.join(work, "state", f"{split}_{fold}.pkl"), "rb"))
+train, test, mu, sd = st["train"], st["test"], st["mu"], st["sd"]
+Z = (Y - mu) / sd; mask = ~np.isnan(Y); N = Y.shape[1]
+rows_t, rows_c = [], []
+for m in test:
+    obs = np.where(mask[m])[0]; z = Z[m]
+    floor_fit = st["fits"][st["best_rank"]["loo"]]
+    e_loo = np.zeros(N); e_loo[obs] = (loo_predictions(floor_fit, obs, z[obs]) - z[obs]) * sd[obs]
+    rng_m = np.random.default_rng(SEED * 37 + int(m))
+    for k in KS:
+        if len(obs) <= k: continue
+        fit = st["fits"][st["best_rank"][k]]
+        for rule in ("S6", "S0"):
+            sets = [SR.s6_greedy(fit, obs, k)] if rule == "S6" else [SR.s0_random(obs, k, rng_m) for _ in range(10)]
+            nd = len(sets)
+            sse = np.zeros(N); t1 = np.zeros(N); cnt = np.zeros(N)
+            for S in sets:
+                S = np.asarray(S); T = np.setdiff1d(obs, S)
+                pred = IR.p5_fa(fit, S, z[S]); dr = design_risk(fit, S)
+                sse[T] += ((pred[T] - z[T]) * sd[T]) ** 2 / nd; t1[T] += dr[T] * sd[T] ** 2 / nd; cnt[T] += 1.0 / nd
+            fl = np.where(cnt > 0, e_loo ** 2 * cnt, 0.0)
+            for ty in range(len(types)):
+                s = tid == ty
+                if cnt[s].sum() == 0: continue
+                rows_t.append(dict(split=split, fold=fold, model=int(m), k=k, rule=rule, type=types[ty], n=cnt[s].sum(), sse=sse[s].sum(), sse_t1=t1[s].sum(), sse_floor=fl[s].sum()))
+            for j in np.where(cnt > 0)[0]:
+                rows_c.append((split, fold, int(m), k, rule, int(j), cnt[j], sse[j], t1[j], fl[j]))
+os.makedirs(out, exist_ok=True)
+pd.DataFrame(rows_t).to_parquet(os.path.join(out, f"{split}_{fold}_types.parquet"))
+pd.DataFrame(rows_c, columns="split fold model k rule task n sse sse_t1 sse_floor".split()).groupby(["split", "k", "rule", "task"])[["n", "sse", "sse_t1", "sse_floor"]].sum().reset_index().to_parquet(os.path.join(out, f"{split}_{fold}_cells.parquet"))
+print(split, fold, "done", flush=True)

@@ -1,0 +1,11 @@
+import json,re
+sel=json.load(open('raw/cand2024.json'))
+A=["Efficient multi-prompt evaluation of LLMs","Observational Scaling Laws","Efficient Lifelong Model Evaluation","Agreement-on-the-Line","Elo Uncovered","Stratified Prediction-Powered","GSD-Front","MixEval","Adaptive Labeling for Efficient","SureMap","Overcoming Common Flaws","Diff-eRank","IDGen","Reference-Free Evaluation of Generative","Multivariate Stochastic Dominance"]
+B=["Pairwise Pseudo-likelihood","Semi-Random Matrix Completion","Connectivity Shapes","Transductive Active Learning","Amortized Bayesian Experimental Design","Data Acquisition via Experimental Design","Linear Time Approximation Algorithm for Column","Socially Fair Low-Rank","General bounds on the quality of Bayesian coresets","Deep Submodular Peripteral"]
+out=[]
+for grp,names in (("A",A),("B",B)):
+    for n in names:
+        m=[(u,x) for u,x in sel if n.lower() in x.lower()]
+        assert len(m)==1,(n,m)
+        u,x=m[0]; out.append(dict(group=grp,title=x,page=u,pdf=u.replace('/hash/','/file/').replace('-Abstract-Conference.html','-Paper-Conference.pdf')))
+json.dump(out,open('raw/sample.json','w'),indent=1); print(len(out))

@@ -1,0 +1,81 @@
+dataset,model,estimator,l1_reg,criterion,d,margin_bin,margin_lo,margin_hi,n_instances,min_evals,ci_lo,ci_hi,not_reached_in_grid,max_evals_tried,min_evals_tried,label
+german,lr,shap_kernel,False,pc_eps,20,Q1,0.0033052721565799,0.043004200217292,10,3251.0,3251.0,3251.0,False,819251,1651,reached
+german,lr,shap_kernel,False,pc_eps,20,Q2,0.0433701813071884,0.1013906064805414,10,3251.0,3251.0,3251.0,False,819251,1651,reached
+german,lr,shap_kernel,False,pc_eps,20,Q3,0.1080636519231541,0.1540694885114981,10,3251.0,3251.0,3251.0,False,819251,1651,reached
+german,lr,shap_kernel,False,pc_eps,20,Q4,0.1577457118722416,0.2851291648783699,10,3251.0,3251.0,3251.0,False,819251,1651,reached
+german,rf,shap_kernel,False,pc_eps,20,Q1,0.00114193092617,0.0242138385360209,10,6451.0,3251.0,6451.0,False,819251,1651,reached
+german,rf,shap_kernel,False,pc_eps,20,Q2,0.0331486876471293,0.0756060034867478,10,6451.0,3251.0,6451.0,False,819251,1651,reached
+german,rf,shap_kernel,False,pc_eps,20,Q3,0.0811740643311828,0.167993898530214,10,3251.0,3251.0,6451.0,False,819251,1651,reached
+german,rf,shap_kernel,False,pc_eps,20,Q4,0.1703050770222699,0.3789073178179238,10,6451.0,3251.0,6451.0,False,819251,1651,reached
+german,gbm,shap_kernel,False,pc_eps,20,Q1,0.0015642667822049,0.025068194667794,10,6451.0,3251.0,51251.0,False,819251,1651,reached
+german,gbm,shap_kernel,False,pc_eps,20,Q2,0.0291005436100095,0.0886668514427579,10,6451.0,3251.0,6451.0,False,819251,1651,reached
+german,gbm,shap_kernel,False,pc_eps,20,Q3,0.0891982270769626,0.17577594593061,10,6451.0,6451.0,6451.0,False,819251,1651,reached
+german,gbm,shap_kernel,False,pc_eps,20,Q4,0.1917742269683213,0.3919383817163819,10,3251.0,3251.0,6451.0,False,819251,1651,reached
+german,mlp,shap_kernel,False,pc_eps,20,Q1,0.0054317634009591,0.0289518564716484,10,3251.0,3251.0,6451.0,False,819251,1651,reached
+german,mlp,shap_kernel,False,pc_eps,20,Q2,0.0309306096001317,0.0448600189549334,10,6451.0,6451.0,12851.0,False,819251,1651,reached
+german,mlp,shap_kernel,False,pc_eps,20,Q3,0.0498615477402605,0.107901379872414,10,6451.0,3251.0,6451.0,False,819251,1651,reached
+german,mlp,shap_kernel,False,pc_eps,20,Q4,0.1172783919162329,0.4206422848181718,10,6451.0,3251.0,6451.0,False,819251,1651,reached
+acs_employment,lr,shap_kernel,False,pc_eps,16,Q1,0.0017311732340588,0.0473707289044793,15,3251.0,3251.0,3251.0,False,819251,1651,reached
+acs_employment,lr,shap_kernel,False,pc_eps,16,Q2,0.0483689371222033,0.0781158181469326,15,3251.0,1651.0,3251.0,False,819251,1651,reached
+acs_employment,lr,shap_kernel,False,pc_eps,16,Q3,0.0781158181469327,0.1463741991436041,15,3251.0,3251.0,3251.0,False,819251,1651,reached
+acs_employment,lr,shap_kernel,False,pc_eps,16,Q4,0.1508202023119146,0.3447913167063913,15,3251.0,3251.0,3251.0,False,819251,1651,reached
+acs_employment,rf,shap_kernel,False,pc_eps,16,Q1,0.0028621845150025,0.0350426549193842,15,6451.0,6451.0,6451.0,False,819251,1651,reached
+acs_employment,rf,shap_kernel,False,pc_eps,16,Q2,0.0365993426368913,0.0721772501871327,15,6451.0,6451.0,51251.0,False,819251,1651,reached
+acs_employment,rf,shap_kernel,False,pc_eps,16,Q3,0.0726480532940578,0.166357723311787,15,6451.0,3251.0,6451.0,False,819251,1651,reached
+acs_employment,rf,shap_kernel,False,pc_eps,16,Q4,0.1768769335678136,0.405217652290495,15,6451.0,3251.0,12851.0,False,819251,1651,reached
+acs_employment,gbm,shap_kernel,False,pc_eps,16,Q1,0.0003557563590643,0.0176585238818661,15,3251.0,3251.0,6451.0,False,819251,1651,reached
+acs_employment,gbm,shap_kernel,False,pc_eps,16,Q2,0.0285175839638212,0.0931786928503675,15,3251.0,3251.0,3251.0,False,819251,1651,reached
+acs_employment,gbm,shap_kernel,False,pc_eps,16,Q3,0.0964978182184906,0.1443843828121317,15,3251.0,3251.0,6451.0,False,819251,1651,reached
+acs_employment,gbm,shap_kernel,False,pc_eps,16,Q4,0.1444417588291142,0.4186585947840768,15,3251.0,3251.0,3251.0,False,819251,1651,reached
+acs_employment,mlp,shap_kernel,False,pc_eps,16,Q1,0.0020738341237967,0.0190333068832094,15,6451.0,3251.0,12851.0,False,819251,1651,reached
+acs_employment,mlp,shap_kernel,False,pc_eps,16,Q2,0.0198720763106013,0.0301048056363102,15,3251.0,3251.0,6451.0,False,819251,1651,reached
+acs_employment,mlp,shap_kernel,False,pc_eps,16,Q3,0.0312148476739766,0.0669616297651243,15,6451.0,3251.0,6451.0,False,819251,1651,reached
+acs_employment,mlp,shap_kernel,False,pc_eps,16,Q4,0.067022180627582,0.4253893496882026,15,3251.0,3251.0,6451.0,False,819251,1651,reached
+acs_income,lr,shap_kernel,False,pc_eps,10,Q1,0.0003978811307053,0.0419797895182516,25,2601.0,2601.0,2601.0,False,25601,2601,at smallest grid budget (true minimum may be lower)
+acs_income,lr,shap_kernel,False,pc_eps,10,Q2,0.0431429283155172,0.077423973543372,25,2601.0,2601.0,2601.0,False,25601,2601,at smallest grid budget (true minimum may be lower)
+acs_income,lr,shap_kernel,False,pc_eps,10,Q3,0.0780704848161639,0.1817615898954709,25,2601.0,2601.0,2601.0,False,25601,2601,at smallest grid budget (true minimum may be lower)
+acs_income,lr,shap_kernel,False,pc_eps,10,Q4,0.1817615898954709,0.4828381783683937,25,2601.0,2601.0,2601.0,False,25601,2601,at smallest grid budget (true minimum may be lower)
+acs_income,rf,shap_kernel,False,pc_eps,10,Q1,0.0033395137521433,0.0479790274353459,25,5151.0,2601.0,5151.0,False,25601,2601,reached
+acs_income,rf,shap_kernel,False,pc_eps,10,Q2,0.0509606850616576,0.10447681777618,25,5151.0,2601.0,5151.0,False,25601,2601,reached
+acs_income,rf,shap_kernel,False,pc_eps,10,Q3,0.1080305659554433,0.1954241873355304,25,5151.0,2601.0,7701.0,False,25601,2601,reached
+acs_income,rf,shap_kernel,False,pc_eps,10,Q4,0.1969689558903566,0.6151709823619199,25,2601.0,2601.0,5151.0,False,25601,2601,at smallest grid budget (true minimum may be lower)
+acs_income,gbm,shap_kernel,False,pc_eps,10,Q1,0.0028856293019217,0.0375616947042323,25,2601.0,2601.0,2601.0,False,25601,2601,at smallest grid budget (true minimum may be lower)
+acs_income,gbm,shap_kernel,False,pc_eps,10,Q2,0.0377201897654192,0.1038864717220479,25,2601.0,2601.0,2601.0,False,25601,2601,at smallest grid budget (true minimum may be lower)
+acs_income,gbm,shap_kernel,False,pc_eps,10,Q3,0.1059232093505125,0.1917957116521116,25,2601.0,2601.0,2601.0,False,25601,2601,at smallest grid budget (true minimum may be lower)
+acs_income,gbm,shap_kernel,False,pc_eps,10,Q4,0.2000761512731815,0.594474860465946,25,2601.0,2601.0,2601.0,False,25601,2601,at smallest grid budget (true minimum may be lower)
+acs_income,mlp,shap_kernel,False,pc_eps,10,Q1,0.0002131928149219,0.0311173562743867,25,2601.0,2601.0,2601.0,False,25601,2601,at smallest grid budget (true minimum may be lower)
+acs_income,mlp,shap_kernel,False,pc_eps,10,Q2,0.0312139659962777,0.0755918486901765,25,2601.0,2601.0,2601.0,False,25601,2601,at smallest grid budget (true minimum may be lower)
+acs_income,mlp,shap_kernel,False,pc_eps,10,Q3,0.0799783988130595,0.1833586357507614,25,2601.0,2601.0,2601.0,False,25601,2601,at smallest grid budget (true minimum may be lower)
+acs_income,mlp,shap_kernel,False,pc_eps,10,Q4,0.1972121154658958,0.4229203141136073,25,2601.0,2601.0,2601.0,False,25601,2601,at smallest grid budget (true minimum may be lower)
+pima,lr,shap_kernel,False,pc_eps,8,Q1,0.0017603776449183,0.0466340982731238,25,1301.0,1301.0,1301.0,False,6401,701,reached
+pima,lr,shap_kernel,False,pc_eps,8,Q2,0.0474100615285662,0.0875556811345595,25,1301.0,1301.0,1301.0,False,6401,701,reached
+pima,lr,shap_kernel,False,pc_eps,8,Q3,0.0893525101697055,0.1463352553405392,25,1301.0,1301.0,1301.0,False,6401,701,reached
+pima,lr,shap_kernel,False,pc_eps,8,Q4,0.1530136221025962,0.5147875512847719,25,1301.0,1301.0,1301.0,False,6401,701,reached
+pima,rf,shap_kernel,False,pc_eps,8,Q1,0.0008566547195261,0.0306798519036882,25,1951.0,1301.0,1951.0,False,6401,701,reached
+pima,rf,shap_kernel,False,pc_eps,8,Q2,0.0324282175425864,0.0892803105811706,25,1301.0,1301.0,1951.0,False,6401,701,reached
+pima,rf,shap_kernel,False,pc_eps,8,Q3,0.0894650193700682,0.1876792538267501,25,1301.0,1301.0,1951.0,False,6401,701,reached
+pima,rf,shap_kernel,False,pc_eps,8,Q4,0.1935865002256976,0.6839893028524882,25,1301.0,1301.0,1301.0,False,6401,701,reached
+pima,gbm,shap_kernel,False,pc_eps,8,Q1,0.0013795014467157,0.0444429886913057,25,1301.0,1301.0,1951.0,False,6401,701,reached
+pima,gbm,shap_kernel,False,pc_eps,8,Q2,0.0508005843622091,0.0849970356667467,25,1951.0,1301.0,3251.0,False,6401,701,reached
+pima,gbm,shap_kernel,False,pc_eps,8,Q3,0.0856641862844499,0.1847708477223004,25,1951.0,1301.0,1951.0,False,6401,701,reached
+pima,gbm,shap_kernel,False,pc_eps,8,Q4,0.1921677202275565,0.4427818287266396,25,1301.0,1301.0,1301.0,False,6401,701,reached
+pima,mlp,shap_kernel,False,pc_eps,8,Q1,0.0012815088659237,0.0361075553793394,25,1301.0,1301.0,3251.0,False,6401,701,reached
+pima,mlp,shap_kernel,False,pc_eps,8,Q2,0.0362543304605302,0.0901146975645117,25,1951.0,1301.0,3251.0,False,6401,701,reached
+pima,mlp,shap_kernel,False,pc_eps,8,Q3,0.0946547216927184,0.179496049140286,25,1951.0,1301.0,3251.0,False,6401,701,reached
+pima,mlp,shap_kernel,False,pc_eps,8,Q4,0.190098503228983,0.4803202614209791,25,1301.0,1301.0,1301.0,False,6401,701,reached
+gmsc,lr,shap_kernel,False,pc_eps,10,Q1,0.000914011501316,0.0225893557582866,25,2601.0,2601.0,2601.0,False,25601,2601,at smallest grid budget (true minimum may be lower)
+gmsc,lr,shap_kernel,False,pc_eps,10,Q2,0.0236544820502623,0.0694007421046479,25,2601.0,2601.0,2601.0,False,25601,2601,at smallest grid budget (true minimum may be lower)
+gmsc,lr,shap_kernel,False,pc_eps,10,Q3,0.076686738934125,0.175801117837454,25,2601.0,2601.0,2601.0,False,25601,2601,at smallest grid budget (true minimum may be lower)
+gmsc,lr,shap_kernel,False,pc_eps,10,Q4,0.1789341617815392,0.6574437877169395,25,2601.0,2601.0,2601.0,False,25601,2601,at smallest grid budget (true minimum may be lower)
+gmsc,rf,shap_kernel,False,pc_eps,10,Q1,0.0004001924995516,0.0186487579541541,25,5151.0,2601.0,7701.0,False,25601,2601,reached
+gmsc,rf,shap_kernel,False,pc_eps,10,Q2,0.0186947951857141,0.0552346210428683,25,2601.0,2601.0,5151.0,False,25601,2601,at smallest grid budget (true minimum may be lower)
+gmsc,rf,shap_kernel,False,pc_eps,10,Q3,0.0555346265493865,0.1099841277665583,25,7701.0,5151.0,7701.0,False,25601,2601,reached
+gmsc,rf,shap_kernel,False,pc_eps,10,Q4,0.1101993687233904,0.6417933205988886,25,5151.0,2601.0,7701.0,False,25601,2601,reached
+gmsc,gbm,shap_kernel,False,pc_eps,10,Q1,0.0001456573967428,0.0232239294400399,25,2601.0,2601.0,7701.0,False,25601,2601,at smallest grid budget (true minimum may be lower)
+gmsc,gbm,shap_kernel,False,pc_eps,10,Q2,0.0238421976869092,0.0644031988704149,25,2601.0,2601.0,5151.0,False,25601,2601,at smallest grid budget (true minimum may be lower)
+gmsc,gbm,shap_kernel,False,pc_eps,10,Q3,0.065295395145916,0.1603312819714363,25,2601.0,2601.0,5151.0,False,25601,2601,at smallest grid budget (true minimum may be lower)
+gmsc,gbm,shap_kernel,False,pc_eps,10,Q4,0.1647614893472603,0.4387406353775671,25,2601.0,2601.0,5151.0,False,25601,2601,at smallest grid budget (true minimum may be lower)
+gmsc,mlp,shap_kernel,False,pc_eps,10,Q1,2.8137731019443243e-05,0.0178805887171945,25,2601.0,2601.0,2601.0,False,25601,2601,at smallest grid budget (true minimum may be lower)
+gmsc,mlp,shap_kernel,False,pc_eps,10,Q2,0.018133927409915,0.0513689356076774,25,2601.0,2601.0,2601.0,False,25601,2601,at smallest grid budget (true minimum may be lower)
+gmsc,mlp,shap_kernel,False,pc_eps,10,Q3,0.0526053722316242,0.1137177454658232,25,2601.0,2601.0,2601.0,False,25601,2601,at smallest grid budget (true minimum may be lower)
+gmsc,mlp,shap_kernel,False,pc_eps,10,Q4,0.1219195265076532,0.5174393631909298,25,2601.0,2601.0,2601.0,False,25601,2601,at smallest grid budget (true minimum may be lower)

@@ -1,0 +1,49 @@
+"""Stage 1: stored runs -> results/tables/instance_level.parquet (+ cells.csv). usage: build_instance_level.py [OUT_DIR]"""
+import sys, os, json
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+import numpy as np, pandas as pd, shap
+from multiprocessing import Pool
+from shapreliab import tables as T, pipeline as P
+
+out = sys.argv[1] if len(sys.argv) > 1 else "results/tables"
+os.makedirs(out, exist_ok=True)
+
+
+def one(args):
+    import glob, re
+    ds, kind = args
+    rows = []
+    for f in sorted(glob.glob(os.path.join(P.cell_dir(ds, 0), f"inst_{kind}_*.npz"))):
+        if f.endswith(".tmp.npz"):
+            continue
+        rows += T.instance_rows(ds, kind, int(re.search(r"_(\d+)\.npz$", f).group(1)))
+    return rows
+
+
+if __name__ == "__main__":
+    jobs = [(ds, k) for ds in P.N_INST for k in P.KINDS]
+    with Pool(4) as p:
+        res = p.map(one, jobs, chunksize=1)
+    df = pd.DataFrame([r for rr in res for r in rr])
+    df["flat_group"] = df["tol_group_size"] > 1
+    df.to_parquet(os.path.join(out, "instance_level.parquet"), index=False)
+    # cells.csv
+    meta = {ds: json.load(open(os.path.join(P.cell_dir(ds, 0), "meta.json"))) for ds in P.N_INST}
+    key = ["dataset", "model", "estimator", "l1_reg", "budget_m"]
+    c = df.groupby(key).agg(n_instances=("instance_id", "nunique"), R=("R", "max"), evals_per_run=("evals_per_run", "first"),
+                            m_eff=("m_eff", "first")).reset_index()
+    c["d"] = c.dataset.map(lambda s: meta[s]["d"])
+    c["model_auc"] = [meta[a]["models"][b]["auc"] for a, b in zip(c.dataset, c.model)]
+    c["model_acc"] = [meta[a]["models"][b]["acc"] for a, b in zip(c.dataset, c.model)]
+    c["output_space"] = [meta[a]["models"][b]["output_space"] for a, b in zip(c.dataset, c.model)]
+    c["n_train"] = c.dataset.map(lambda s: meta[s]["n_train"])
+    c["n_test"] = c.dataset.map(lambda s: meta[s]["n_test"])
+    c["reference_class"] = "E1"
+    c["B_def"] = P.B_DEF
+    c["shap_version"] = shap.__version__
+    c["seed_base"] = 0
+    c["default_budget_m"] = c.d.map(lambda d: 2 * d + 2048)
+    c["is_default_budget"] = c.budget_m == c.default_budget_m
+    c["exact_enumeration_evals"] = [(1 << d) * P.B_DEF for d in c.d]
+    c.to_csv(os.path.join(out, "cells.csv"), index=False)
+    print(df.shape, c.shape)

@@ -1,0 +1,46 @@
+"""Predicted break-even n* = K/(K-1) d_eff sigma2_res / Delta for the cross-fitted spline calibrator (d_eff = 7,
+K = 5), from the population fit of the same spline class (5 knots) on each real pool, with a pool-bootstrap
+interval (B resamples of at most 50 000 records; sigma2_res = cross-fitted MSE of the spline fit, Delta = mean
+squared difference between the spline fit and the OLS line). Writes results/nstar_ci.json."""
+import json
+from common import *
+from pci import calibrators as C
+from pci.pops import _cv_predict
+
+B = 100
+SETS = ["galaxies", "forest", "alphafold", "gene_expression", "census_income", "census_healthcare",
+        "census_education", "plankton", "ballots"]
+STRESS_SETS = [("galaxies", "logit"), ("alphafold", "logit"), ("census_healthcare", "logit"), ("forest", "logit"),
+               ("census_income", "log")]
+
+
+def stats_of(f, y, seed):
+    mh = _cv_predict(f, y, C.make_spline(5), seed=seed)
+    lin = C.make_linear()(f, y)(f)
+    s2 = float(np.mean((y - mh) ** 2))
+    dl = float(np.mean((mh - lin) ** 2))
+    return s2, dl
+
+
+def nstar(s2, dl, d=7, K=5):
+    return K / (K - 1) * d * s2 / dl if dl > 0 else float("inf")
+
+
+out = {}
+pools = [load_pool(nm) for nm in SETS] + [load_pool(nm, transform=tr) for nm, tr in STRESS_SETS]
+for pop in pools:
+    y, f = pop.Y, pop.f
+    sub = np.random.default_rng(0).choice(len(y), min(len(y), 200_000), replace=False)
+    s2, dl = stats_of(f[sub], y[sub], 0)
+    ns = []
+    for b in range(B):
+        rng = np.random.default_rng(1000 + b)
+        ib = rng.integers(0, len(y), min(len(y), 50_000))
+        s2b, dlb = stats_of(f[ib], y[ib], b)
+        ns.append(nstar(s2b, dlb))
+    ns = np.array(ns)
+    out[pop.name] = dict(sigma2_res=s2, Delta=dl, d_eff=7, K=5, nstar=nstar(s2, dl),
+                         nstar_lo=float(np.quantile(ns, 0.025)), nstar_hi=float(np.quantile(ns, 0.975)),
+                         B=B, pool_size=len(y))
+    print(pop.name, {k: round(v, 4) if isinstance(v, float) else v for k, v in out[pop.name].items()}, flush=True)
+    json.dump(out, open(os.path.join(RESULTS, "nstar_ci.json"), "w"), indent=1)

@@ -1,0 +1,1 @@
+{"auc_ref": 0.8982849026550525, "n": 60, "K": 10, "filter": "|AUC - AUC_ref| <= 0.01", "variants": {"boot": {"tried": 10, "kept": 10}, "seed": {"tried": 10, "kept": 10}, "hp": {"tried": 11, "kept": 10}}}

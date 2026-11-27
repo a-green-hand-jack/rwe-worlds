@@ -1,0 +1,85 @@
+"""Fig B (claim M5, robustness): the probit check of H3 and the grid dependence of the m*(g) slope.
+(a-c) collapse: observed share of correct runs against x = g*sqrt(m)/sigma, one panel per estimator, with H3's beta=1 curve Phi(x);
+(d) probit slope beta (H3: 1) per estimator and budget range; (e) Tobit slope of log m* on log g under grid thinning (H3: -2).
+
+Reads: probit_collapse, probit_fit, mstar_robust (analysis). d >= 16 populations (German, ACS Employment), non-linear models (LR is additive: no run-to-run spread for shap).
+Usage: python figB_m5_robust.py DATA_DIR OUT_PREFIX [--sigma sigma_loo]
+"""
+import argparse
+import numpy as np, pandas as pd, matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
+from matplotlib.gridspec import GridSpec
+from scipy.stats import norm
+import figstyle as fs
+
+ap = argparse.ArgumentParser()
+ap.add_argument("data"); ap.add_argument("out"); ap.add_argument("--sigma", default="sigma_loo"); ap.add_argument("--range", default="m_eff>=256")
+a = ap.parse_args()
+fs.setup()
+col, p1 = fs.load(a.data, "probit_collapse")
+fit, p2 = fs.load(a.data, "probit_fit")
+rob, p3 = fs.load(a.data, "mstar_robust")
+fs.require(col, ["dataset", "model", "estimator", "sigma_def", "budget_range", "x_mid", "n_points", "n_instances", "observed_share", "observed_ci_lo", "observed_ci_hi", "theory_probability_beta1"], "probit_collapse")
+fs.require(fit, ["dataset", "model", "estimator", "sigma_def", "budget_range", "beta", "beta_ci_lo", "beta_ci_hi", "n_points", "n_instances"], "probit_fit")
+fs.require(rob, ["variant", "dataset", "model", "estimator", "criterion", "n_instances", "n_right_censored", "n_grid", "slope", "slope_ci_lo", "slope_ci_hi"], "mstar_robust")
+DS = ["german", "acs_employment"]; MODELS = ["rf", "gbm", "mlp"]
+EST = [("permutation_antithetic", "antithetic permutation"), ("shap_kernel", "shap Kernel"), ("kernel_paired", "paired Kernel")]
+sel = lambda t: t[t.dataset.isin(DS) & t.model.isin(MODELS)]
+col, fit, rob = sel(col), sel(fit), sel(rob)
+rob = rob[(rob.criterion == "pc_exact")]
+fig = plt.figure(figsize=(fs.WIDTH_IN, 4.5))
+gs = GridSpec(1, 6, figure=fig, wspace=1.4, left=0.1, right=0.98, top=0.86, bottom=0.62)
+rows = []
+mk = lambda ds: dict(mfc=None) if ds == "german" else dict(mfc="white", mew=0.8)
+xx = np.linspace(0, 8, 200)
+for i, (e, el) in enumerate(EST):
+    ax = fig.add_subplot(gs[0, 2 * i:2 * i + 2])
+    c = col[(col.estimator == e) & (col.sigma_def == a.sigma) & (col.budget_range == a.range)]
+    ax.plot(xx, norm.cdf(xx), color="0.3", lw=0.9, label="$\\Phi(x)$, $\\beta$=1")
+    for (ds, m), g in c.groupby(["dataset", "model"]):
+        st = fs.MODEL_STYLE[m]
+        ax.plot(np.minimum(g.x_mid, 8), g.observed_share, color=st["color"], marker=st["marker"], ms=3, ls="none", **({} if ds == "german" else dict(mfc="white", mew=0.8)))
+        rows += [dict(panel="collapse", estimator=e, dataset=ds, model=m, x_mid=r.x_mid, observed_share=r.observed_share, ci_lo=r.observed_ci_lo, ci_hi=r.observed_ci_hi, n_points=int(r.n_points), n_instances=int(r.n_instances), sigma_def=a.sigma, budget_range=a.range) for r in g.itertuples()]
+    ax.set_xlim(0, 4.2); ax.set_ylim(0, 1.03); ax.set_xlabel("$x=g\\sqrt{m}/\\sigma$")
+    ax.set_title(el, fontsize=fs.MIN_PT)
+    if i == 0: ax.set_ylabel("share of runs correct")
+    else: ax.set_yticklabels([])
+# (d) probit beta
+ax = fig.add_axes([0.285, 0.1, 0.27, 0.37])
+RANGES = [("all budgets", "all $m$"), ("m_eff>=256", "$m_{\\mathrm{eff}}\\geq256$"), ("m_eff>=1024", "$m_{\\mathrm{eff}}\\geq1024$")]
+yt, yl = [], []
+for i, (e, el) in enumerate(EST):
+    for r_i, (rg, rl) in enumerate(RANGES):
+        y = -(i * 4 + r_i)
+        g = fit[(fit.estimator == e) & (fit.sigma_def == a.sigma) & (fit.budget_range == rg)]
+        for k, q in enumerate(g.sort_values(["dataset", "model"]).itertuples()):
+            st = fs.MODEL_STYLE[q.model]; yy = y + (k - (len(g) - 1) / 2) * 0.11
+            hi = min(q.beta_ci_hi, 1.6)  # 20 = search bound (separation), not an estimate: drawn to the edge
+            ax.plot([q.beta_ci_lo, hi], [yy, yy], color=st["color"], lw=0.7)
+            ax.plot(q.beta, yy, color=st["color"], marker=st["marker"], ms=3, ls="none", **({} if q.dataset == "german" else dict(mfc="white", mew=0.8)))
+            rows.append(dict(panel="probit_beta", estimator=e, dataset=q.dataset, model=q.model, budget_range=rg, sigma_def=a.sigma, beta=q.beta, ci_lo=q.beta_ci_lo, ci_hi=q.beta_ci_hi, n_points=int(q.n_points), n_instances=int(q.n_instances)))
+        yt.append(y); yl.append(f"{el}, {rl}" if r_i == 0 else rl)
+ax.axvline(1, color="0.3", ls=":", lw=0.8); ax.set_yticks(yt); ax.set_yticklabels(yl, fontsize=fs.MIN_PT); ax.set_xlim(0, 1.6)
+ax.set_xlabel("probit slope $\\beta$ (H3: 1)"); ax.set_ylim(-10.7, 0.7)
+# (e) Tobit under grid thinning
+ax2 = fig.add_axes([0.59, 0.1, 0.22, 0.37])
+VAR = [("full", "full grid"), ("thin2_off0", "every 2nd $m$"), ("thin3_off0", "every 3rd $m$")]
+yt, yl = [], []
+for i, (e, el) in enumerate(EST):
+    for v_i, (v, vl) in enumerate(VAR):
+        y = -(i * 4 + v_i)
+        g = rob[(rob.estimator == e) & (rob.variant == v) & ((rob.l1_reg == "False") | (rob.l1_reg == "NA"))]
+        for k, q in enumerate(g.sort_values(["dataset", "model"]).itertuples()):
+            st = fs.MODEL_STYLE[q.model]; yy = y + (k - (len(g) - 1) / 2) * 0.11
+            ax2.plot([q.slope_ci_lo, q.slope_ci_hi], [yy, yy], color=st["color"], lw=0.7)
+            ax2.plot(q.slope, yy, color=st["color"], marker=st["marker"], ms=3, ls="none", **({} if q.dataset == "german" else dict(mfc="white", mew=0.8)))
+            rows.append(dict(panel="tobit_variant", estimator=e, variant=v, dataset=q.dataset, model=q.model, slope=q.slope, ci_lo=q.slope_ci_lo, ci_hi=q.slope_ci_hi, n_instances=int(q.n_instances), n_right_censored=int(q.n_right_censored), n_grid=int(q.n_grid)))
+        yt.append(y); yl.append(vl)
+ax2.axvline(-2, color="0.3", ls=":", lw=0.8); ax2.set_yticks(yt); ax2.set_yticklabels(yl); ax2.yaxis.tick_right(); ax2.spines["right"].set_visible(True); ax2.spines["left"].set_visible(False); ax2.set_ylim(-10.7, 0.7)
+ax2.set_xlim(-3.2, 0.2); ax2.set_xlabel("Tobit slope (H3: $-2$)")
+for x_, t_ in zip(fig.axes, "abcde"):
+    x_.text(-0.02 if t_ in "ad" else 0.0, 1.07 if t_ in "abc" else 1.04, f"({t_})", transform=x_.transAxes, fontsize=fs.LABEL_PT, fontweight="bold", ha="right" if t_ in "abcd" else "left")
+h = [Line2D([], [], color=fs.MODEL_STYLE[m]["color"], marker=fs.MODEL_STYLE[m]["marker"], ls="none") for m in MODELS]
+h += [Line2D([], [], color="0.3", marker="o", ls="none"), Line2D([], [], color="0.3", marker="o", mfc="white", ls="none")]
+fig.legend(h, [fs.MODEL_STYLE[m]["label"] for m in MODELS] + ["German Credit", "ACS Employment"], loc="upper center", ncol=5, frameon=False, bbox_to_anchor=(0.5, 1.0), columnspacing=0.9, handletextpad=0.3)
+fs.save(fig, a.out, pd.DataFrame(rows), [p1, p2, p3], note=f"(a-c) probit_collapse.csv, {a.sigma}, budget range {a.range}, each marker is one bin of x holding 3-110 (instance, budget) points of R=100 runs each (counts in the csv), x clipped at 8 (last bin of each cell is beyond the axis); (d) probit_fit.csv ({a.sigma}), beta with instance-bootstrap CI, CI upper bound 20 (separation: every point at large x correct) is not an estimate and is drawn to the axis edge; (e) mstar_robust.csv, Tobit slope of log m* on log g (strict P_c), 100 bootstrap resamples, under thinning of the budget grid (the every-2nd-from-2nd variant and the stable-crossing variant are in mstar_robust.csv, not drawn: the stable crossing equals the full grid to two decimals); German Credit (40 instances) and ACS Employment (60); non-linear models only; the paired Kernel slope is grid-dependent (full and every-2nd: -1.4..-1.8; every 3rd: -0.65..-1.1), antithetic permutation is not; the shap Kernel slope stays near -1 while its probit-implied slope is about -2 (unresolved, Outline rev 8); the Tobit fit remains the primary M5 estimate and assumes Gaussian residuals under heavy right-censoring")

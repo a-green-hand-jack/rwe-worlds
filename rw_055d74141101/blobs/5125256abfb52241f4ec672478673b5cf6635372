@@ -1,0 +1,86 @@
+"""Reference solvers for small problems: LP relaxation over the target fit theta*, and exhaustive search.
+
+For a target fit theta* with theta*_x = theta*_y, an alteration x yields exactly that fit iff
+    sum_t x_t u_t(theta*) (e_a - e_b) = lam*theta* - S(theta*; counts)     (score equations at theta*)
+with u_t = dw - dn*sigmoid(theta*_a - theta*_b).  For fixed theta* this is an LP in x (min sum x, 0<=x<=cap).
+V(theta*) = LP value; min over theta* of V is the continuous relaxation of the minimal alteration count
+(a lower bound for the integer problem if the outer minimisation is global; here a multi-start local search).
+"""
+import itertools
+import numpy as np
+from scipy.optimize import linprog, minimize
+import btlib as B
+
+
+def lp_value(g, ty, cnt, th, lam=B.LAM, want_x=False):
+    M = g.M
+    cap = ty.capacity(cnt)
+    n = cnt.sum(1)
+    w = cnt[:, 0] + 0.5 * cnt[:, 2]
+    p = B.sigmoid(th[g.pa] - th[g.pb])
+    r = w - n * p
+    S = np.bincount(g.pa, r, M) - np.bincount(g.pb, r, M) - lam * th
+    rhs = -S  # need sum x u (e_a-e_b) = -S  (S_new = S + sum x u e = 0)
+    u = ty.dw - ty.dn * p[ty.pair]
+    T = len(u)
+    A = np.zeros((M, T))
+    A[g.pa[ty.pair], np.arange(T)] = u
+    A[g.pb[ty.pair], np.arange(T)] -= u
+    res = linprog(np.ones(T), A_eq=A[:-1], b_eq=rhs[:-1], bounds=[(0, c if np.isfinite(c) else None) for c in cap],
+                  method="highs")
+    if res.status != 0:
+        return (np.inf, None) if want_x else np.inf
+    return (res.fun, res.x) if want_x else res.fun
+
+
+def relaxed_min(g, ty, cnt, x, y, th_init, restarts=6, rng=None):
+    """multi-start Nelder-Mead on theta* (sum 0, theta*_x = theta*_y). Returns min LP value found."""
+    M = g.M
+    rng = rng or np.random.default_rng(0)
+    free = [m for m in range(M) if m not in (x, y)]
+
+    def expand(z):
+        th = np.zeros(M)
+        th[free] = z[:-1] if False else z
+        # tie value of x,y chosen so that sum is zero
+        t = -th.sum() / 2.0
+        th[x] = th[y] = t
+        return th
+
+    def f(z):
+        return lp_value(g, ty, cnt, expand(z))
+
+    z0 = th_init[free]
+    best = (np.inf, None)
+    for r in range(restarts):
+        zi = z0 + (0 if r == 0 else rng.normal(0, 0.05 * r, len(z0)))
+        res = minimize(f, zi, method="Nelder-Mead", options=dict(xatol=1e-4, fatol=1e-4, maxiter=400 * len(z0), adaptive=True))
+        if res.fun < best[0]:
+            best = (res.fun, expand(res.x))
+    return best
+
+
+def exhaustive(g, ty, cnt, d, kmax):
+    """smallest k <= kmax such that some integer alteration of size k flips d.theta <= 0 (enumeration; tiny problems only)."""
+    cap = ty.capacity(cnt)
+    th0 = B.fit(g, cnt)
+    live = [t for t in range(len(cap)) if cap[t] > 0]
+    for k in range(1, kmax + 1):
+        # compositions of k over live types with caps
+        def rec(i, left, x):
+            if i == len(live) - 1:
+                if left <= cap[live[i]]:
+                    x[live[i]] = left
+                    yield x.copy()
+                    x[live[i]] = 0
+                return
+            for v in range(min(left, int(cap[live[i]])) + 1):
+                x[live[i]] = v
+                yield from rec(i + 1, left - v, x)
+            x[live[i]] = 0
+        x = np.zeros(len(cap))
+        for xv in rec(0, k, x):
+            gp, _ = B.gap_after(g, ty, cnt, xv, th0, d)
+            if gp <= 0:
+                return k, xv
+    return np.inf, None

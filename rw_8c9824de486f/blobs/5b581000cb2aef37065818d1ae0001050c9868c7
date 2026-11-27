@@ -1,0 +1,6 @@
+estimator,r
+parallel_analysis_pairwise,5
+gavish_donoho_threshold,56
+cv_inner_group_loo,16
+parallel_analysis_meanimputed,10
+parallel_analysis_em_completed,8

@@ -1,0 +1,47 @@
+"""Fig. 2: matrix structure: spectrum with noise references and the five rank estimates; CV error vs rank.
+
+usage: python3 -m figtab.make_fig2 RESULTS_DIR OUT.pdf     (repo root as cwd)
+Reads RESULTS_DIR/{fig2_spectrum.csv,fig2_rank_estimates.csv,fig2_cv_vs_rank.csv,fig2_summary.json,run_meta.json}.
+"""
+import sys, json, pathlib
+import numpy as np, pandas as pd
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from figtab import style, provenance, check_pdf
+
+res = pathlib.Path(sys.argv[1]); out = sys.argv[2]
+style.apply(); C = style.COLORS
+sp = pd.read_csv(res / "fig2_spectrum.csv"); re_ = pd.read_csv(res / "fig2_rank_estimates.csv")
+cv = pd.read_csv(res / "fig2_cv_vs_rank.csv")
+summ = json.load(open(res / "fig2_summary.json"))
+N = len(sp)
+
+fig, (a, b) = plt.subplots(1, 2, figsize=style.fig_size("text", 0.40), gridspec_kw={"width_ratios": [1.5, 1]})
+show = sp[(sp["index"] <= 120) & (sp.eigenvalue > 0)]
+a.plot(show["index"], show.eigenvalue, color=C["designed"], marker="o", ms=2, lw=0.9, label="eigenvalue (pairwise corr.)")
+a.plot(sp["index"][:120], sp.pa95[:120], color=C["random"], ls="--", label="parallel-analysis 95th pct.")
+a.axhline(summ["mp_edge"], color=C["floor"], lw=0.8, ls=":", label="noise edge")
+est = {"parallel_analysis_pairwise": ("PA", C["random"], "-"), "cv_inner_group_loo": ("CV", C["designed"], "-"),
+       "gavish_donoho_threshold": ("GD", C["floor"], "-"),
+       "parallel_analysis_meanimputed": ("PA, mean-imp.", "#888888", ":"), "parallel_analysis_em_completed": ("PA, EM-compl.", "#888888", "-.")}
+for _, row in re_.iterrows():
+    nm, col, ls = est[row.estimator]
+    a.axvline(row.r, color=col, ls=ls, lw=0.7, alpha=0.9, label=f"$r$={int(row.r)}: {nm}")
+a.set_yscale("log"); a.set_xscale("log"); a.set_xlim(0.9, 130)
+a.set_xticks([1, 3, 10, 30, 100]); a.set_xticklabels(["1", "3", "10", "30", "100"]); a.minorticks_off()
+from matplotlib.ticker import FixedLocator, FuncFormatter
+a.yaxis.set_major_locator(FixedLocator([0.1, 1, 10, 100])); a.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}"))
+a.set_xlabel("component index"); a.set_ylabel("eigenvalue")
+a.text(0.0, 1.0, "(a)", transform=a.transAxes, ha="right", va="bottom")
+
+b.fill_between(cv["rank"], cv.lo, cv.hi, color=C["designed"], alpha=0.25, lw=0)
+b.plot(cv["rank"], cv.rmse, color=C["designed"], marker="o")
+b.set_xlabel("factor rank"); b.set_ylabel("held-out RMSE (standardised)")
+b.text(0.0, 1.0, "(b)", transform=b.transAxes, ha="right", va="bottom")
+ha, la = a.get_legend_handles_labels()
+fig.legend(ha, la, loc="outside lower center", ncol=3, handlelength=1.8, columnspacing=1.0, labelspacing=0.25)
+fig.savefig(out)
+provenance.write(out, [res / f for f in ("fig2_spectrum.csv", "fig2_rank_estimates.csv", "fig2_cv_vs_rank.csv", "fig2_summary.json")],
+                 {"matrix": f"N={N} tasks", "script": "figtab/make_fig2.py"})
+print(check_pdf.check(out))

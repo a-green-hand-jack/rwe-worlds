@@ -1,0 +1,34 @@
+{
+  "N": 328,
+  "analysis_commit": "66252a8",
+  "bootstrap": "group bootstrap B=5000, 90% bounds",
+  "figure": "figtab/fig1_error_vs_k.pdf",
+  "inputs": [
+    {
+      "path": "results/ct_curves.csv",
+      "sha256": "27bb53a8af520ef897a78082d20f92e2740e8ddc528ea9fbabe78522dfaa9fcc"
+    },
+    {
+      "path": "results/ct_contrast.csv",
+      "sha256": "7a8fa6d36151ba95d90958d7fd55f61d299285e3006472c28fd172b13f7ce3b5"
+    },
+    {
+      "path": "results/ct_kstar.csv",
+      "sha256": "6d0b99469087ef97c84a3cb110b13097b41ce8c81fc05849f7fbd80b879c1f4c"
+    },
+    {
+      "path": "results/ct_run_meta.json",
+      "sha256": "d7f791d3f5e560b552e0522ecbac0f820d5bebb13b4a4ad906b9db2bdf5916b3"
+    },
+    {
+      "path": "results/ct_excess_curve_ct_G_fixed.csv",
+      "sha256": "06b7843be74549600270c33985ce1378e8f3ffe7cbacdafbc524a6a111f48ee6"
+    }
+  ],
+  "n_groups_in_subset": 51,
+  "n_heldout_models_in_split": 238,
+  "n_models_in_subset": 154,
+  "script": "figtab/make_fig1.py",
+  "split": "G (group-held-out), common target set (50 C/T splits)",
+  "subset": "fixed"
+}

@@ -1,0 +1,15 @@
+"""E5 interval constructions for binary Y (Wald-z, t, Wilson with effective n, bootstrap-t, truncation).
+Same arms as E3 plus bootstrap-t for the linear (PPI++-equivalent) and isotonic pooled estimators.
+usage: python exp5_constructions.py DATASET PROCS"""
+import sys
+from common import *
+
+name, procs = sys.argv[1], int(sys.argv[2])
+GRID = {"galaxies": ([25, 50, 200], 10000), "forest": ([25, 50, 200], 1000), "alphafold": ([25, 50, 200], 8000),
+        "census_healthcare": ([25, 50, 200], 10000), "ballots": ([25, 50, 200], 5000), "plankton": ([50, 100, 400], 10000),
+        "synth_rare": ([100, 200, 800], 8000)}
+ns, N = GRID[name]
+cfg = dict(T1_CFG, boot=["linear", "isotonic"], B=399, extra_ppi=False)
+pop = synth_binary(-4.0, 1.5, 0.5) if name == "synth_rare" else load_pool(name)
+cells = [dict(id=f"{name}_n{n}_N{N}", pop=pop, n=n, N=N, R=2000, cfg=cfg) for n in ns]
+run_grid("exp5", cells, procs)

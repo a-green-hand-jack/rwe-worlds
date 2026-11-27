@@ -1,0 +1,51 @@
+\section{Setting and method}
+\label{sec:method}
+
+\paragraph{Setting.}
+A benchmark has $N$ items.
+A \emph{target} model has an unknown binary vector $y\in\{0,1\}^N$ ($y_j=1$ if it answers item $j$ correctly) and a full-benchmark score $\mu=\frac1N\sum_j y_j$ that we want to know without running all items.
+We hold the results $Y\in\{0,1\}^{M\times N}$ of $M$ \emph{source} models on every item.
+We choose a sample $S$ of $n\ll N$ items using only $Y$, run the target on $S$ only, and output $\hat\mu$.
+Quality is the error of $\hat\mu$ against $\mu$ (RMSE, signed bias) and how well the $\hat\mu$ of several targets orders them.
+This is the estimation of a finite-population mean from $n$ of $N$ values, with a covariate known for all $N$ units, the columns of $Y$: the source models can reduce the \emph{variance} of $\hat\mu$, through the choice of $S$ and through the estimator, while the \emph{bias} is controlled by how $S$ is drawn.
+
+\paragraph{Target splits.}
+A predictor fitted on the sources is only supported where the targets resemble them, so we use three protocols that differ only in how models are divided into sources and targets.
+\textbf{Interpolation}: five random folds of the models; the targets are one fold and the sources the other four.
+\textbf{Lineage-held-out}: the same, over model families rather than models, so that no target has a family member among the sources.
+\textbf{Extrapolation}: the targets are the top 25\% of models by full score and the sources are the rest, so that every target scores above every source.
+Families are derived from model names by keyword (Appendix~\ref{app:families}).
+
+\paragraph{Designs.}
+A design draws $S$ of fixed size $n$ without replacement, with first-order inclusion probabilities $\pi_j$.
+\emph{Uniform} sampling has $\pi_j=n/N$; \emph{stratified} sampling orders items by source difficulty and draws one item at random from each of $n$ consecutive blocks of $N/n$ items.
+The \emph{PPS} design takes
+\[
+\pi_j \;=\; n\Big[(1-\varepsilon)\,\frac{w_j}{\sum_k w_k}+\frac{\varepsilon}{N}\Big],\qquad w_j=\sqrt{\hat p_j(1-\hat p_j)},
+\]
+where $\hat p_j$ is the fraction of sources answering item $j$ correctly (capped so that $\pi_j\le1$), drawn by systematic sampling in difficulty order.
+It favours items on which the sources disagree, and the floor $\varepsilon n/N>0$ keeps every item drawable, which makes a design-based estimator unbiased whatever the target is.
+The \emph{balanced} design selects greedily, from a random pool of $4n$ items, the $n$ whose mean reproduces the full scores of all sources; it is a greedy stand-in for the cube method~\citep{deville2004cube}, without its exact inclusion probabilities.
+\emph{Anchor} selection clusters the items by their source response vectors with $k$-means ($k=n$) and keeps the medoid of each cluster, weighted by cluster size~\citep{vivek2024anchor}; the clustering is Lloyd's algorithm~\citep{lloyd1982least}.
+\emph{Information-top} selects, once for all targets, the $n$ items of highest Fisher information under the two-dimensional latent-factor model below, fitted on the sources (information of item $j$: $\|a_j\|^2$ times the mean over source abilities of $p(1-p)$); \emph{CAT} is adaptive: with a one-dimensional two-parameter logistic model it asks each target, in turn, the unseen item of largest information at its current ability estimate.
+
+\paragraph{Predictors and estimators.}
+A predictor $\hat p_j$ gives the probability that the target answers item $j$ correctly, given its answers $y_S$ and the sources.
+We use three: a two-dimensional logistic latent-factor model, $\operatorname{logit}\hat p_j=\theta^\top a_j+c_j$, whose item parameters are fitted on the sources by penalised likelihood (a multidimensional extension of the two-parameter logistic model~\citep{birnbaum1968some,lord1980applications,baker2004irt}) and whose target ability $\theta$ is the posterior mode given the target's $n$ answers (\emph{IRT}; the item parameters are not refitted on the target); the $k$ sources nearest to the target by agreement on the sample (\emph{kNN}); and kernel ridge regression from sample responses to the full response vector (\emph{ridge}).
+\emph{Calreg} is an estimator in itself: least squares across the sources of the full score on the Hájek sample score, evaluated at the target's sample score and clipped to $[0,1]$ (shared-subset designs only).
+Four estimators combine a predictor with the sample.
+The \emph{mean} estimator is the Hájek mean~\citep{hajek1971comment} $\sum_{j\in S}y_j/\pi_j\big/\sum_{j\in S}1/\pi_j$, a ratio form of the Horvitz--Thompson estimator~\citep{horvitz1952generalization}, and ignores the predictor.
+The \emph{model} estimator is $\frac1N\sum_{j=1}^N\hat p_j$.
+The \emph{plug-in} estimator is $\frac nN\bar y_H+\big(1-\frac nN\big)\bar p_{\bar S}$, the Hájek mean $\bar y_H$ weighted by the sampled share plus the mean prediction $\bar p_{\bar S}$ over the unsampled items.
+The \emph{difference} estimator corrects the model estimator by the residuals on the sample,
+\[
+\hat\mu_\lambda \;=\; \frac1N\sum_{j=1}^N \hat p_j \;+\; \lambda\,\frac{\sum_{j\in S}(y_j-\hat p_j)/\pi_j}{\sum_{j\in S}1/\pi_j},\qquad \lambda\in[0,1],
+\]
+where for $j\in S$ the prediction $\hat p_j$ is cross-fitted~\citep{chernozhukov2018double} (the target-specific part of the predictor is refitted on four fifths of the sample and evaluated on the fifth left out) so that it does not see its own label.
+For a fixed predictor and $\lambda=1$ this is the generalized-regression estimator of model-assisted survey sampling~\citep{sarndal1992model}, and with a weight $\lambda$ it is the power-tuned estimator of prediction-powered inference~\citep{angelopoulos2023ppiplus}: it is design-unbiased when the predictor and $\lambda$ are fixed beforehand, and $\lambda=0$ is the model estimator.
+Since $\hat p$ is fitted on the target's own sample and $\lambda$ and $\varepsilon$ are tuned, these guarantees hold only approximately; we measure the resulting bias (Section~\ref{sec:results}).
+Hyperparameters ($\varepsilon$, $\lambda$, $k$, the ridge penalty) are chosen for each benchmark, outer fold, $n$ and design by the RMSE of the inner targets on an inner split of the sources that mimics the outer split (a random fifth of the sources for interpolation, a family fold of the sources for lineage, the top 25\% of the sources for extrapolation); the targets are never used for choosing them.
+
+\paragraph{Ordering.}
+Two models run on the same items are compared through the paired difference of their sample means, whose variance depends on how often they disagree.
+Given the disagreement rate, a sample-only reference gives the probability that $n$ items order two models of true gap $\delta$ correctly from their own answers alone; a method that borrows from the sources can beat it, so it is a reference and not a bound.

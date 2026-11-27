@@ -1,0 +1,31 @@
+# Accepted-paper sample (NeurIPS 2023–2024 main track)
+
+Purpose: ground the budget in `VENUE.md` §6–§7 in what accepted work close to this study looks like.
+
+**Selection.** I listed the NeurIPS 2023 and 2024 proceedings indexes (`https://proceedings.neurips.cc/paper_files/paper/<year>`), filtered titles by keywords (ranking, Elo, Bradley, LLM-as-judge, evaluation, influence, data removal, preference) and chose 13 main-track papers on evaluation methodology, pairwise ranking, LLM-judge or preference evaluation, and influence or data-removal analysis. Datasets-and-Benchmarks track papers were left out (different track). The choice is mine, by title, not random, and not exhaustive. Only 2023–2024 papers were taken, so none can cite the paper the objective forbids; none of them is that paper.
+
+**Measurement.** `accepted_sample/scripts/analyze.py` (pages, captions before the first "References" heading), `links.py` (distinct `cite.*` hyperref links before and after the reference heading), `struct.py` (abstract and introduction word counts, headings, first-figure page). They read PDFs in a directory outside this repository (`/hutian/venue_data/pdfs`, downloaded from the proceedings; not committed). Results: `accepted_sample/sample.csv`. Figure and table counts are captioned items in the main text (a multi-panel figure is one). Spot check of caption lists against six PDFs: no disagreement. Word counts include text extracted from figures for the main-text length; abstract and introduction counts come from regex-delimited text and are accurate to a few percent. `main_text_pages_camera_ready` is 10 for those whose reference list starts at the top of page 11, and "9-10" where it starts partway down page 10 or 11 after a few lines.
+
+**Caveat.** These are camera-ready versions (10 content pages in 2023 and 2024), whereas the submission for 2026 is 9 pages.
+
+## Summary of the sample (13 papers)
+
+| quantity | median | range | mean |
+|---|---|---|---|
+| captioned figures in main text | 4 | 1–8 | 4.1 |
+| captioned tables in main text | 0 | 0–4 | 0.8 |
+| figures + tables | 4 | 1–8 | 4.9 |
+| distinct works cited in main text | 47 | 24–116 | 56 |
+| bibliography entries | 50 | 37–120 | 62 |
+| abstract words | 210 | 76–275 | 195 |
+| introduction words | 743 | 579–1289 | 830 |
+| main-text words (PDF extraction) | 6,230 | 4,759–6,686 | 6,112 |
+
+## How the closest papers are written
+
+- *Elo Uncovered* (pairwise Elo for LLM evaluation, empirical, synthetic plus Arena-type data): intro of 715 words with ~25 distinct citations in its first two paragraphs; states the gap ("no comprehensive examination of the compatibility of Elo scores and LLMs"), the approach (two axioms, reliability and transitivity), the findings in words (sensitive to order and hyper-parameters, more so for close models) and an "Implications" paragraph. Five figures and two tables, first figure on page 2. Related work as its own section, "Empirical Guidelines" section, "Conclusion and Limitations".
+- *Prediction-Powered Ranking of LLMs* (statistical framework on Arena votes): 1,289-word intro, four figures all in the experiments, no table, the Discussion and Limitations section is separate.
+- *Most Influential Subset Selection* (data removal and influence, theory plus experiments): 579-word intro with a four-bullet contributions list and a "Concurrent work" paragraph; four figures; 76 distinct works cited in the main text.
+- *Preference Learning Algorithms Do Not Learn Preference Rankings* (a surprising-measurement paper): abstract leads with a "Surprisingly, … less than 60 %" threshold; a named Limitations section.
+
+All quoted phrases are from the proceedings PDFs of those papers.

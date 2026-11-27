@@ -1,0 +1,17 @@
+split,epsilon_name,epsilon,k_hat,k_hat_lo,k_hat_hi,k_emp,k_emp_lo,k_emp_hi,grid_steps_hat_minus_emp,k_emp_in_hat_ci,n_train_side_models,note
+G,delta_floor,1.2010932147862732,3,3.0,3.0,3,3.0,5.0,0.0,True,40563,grid values; 9999 = not reached on the grid
+G,2delta_floor,2.4021864295725464,2,1.0,2.0,2,1.0,2.0,0.0,True,40563,grid values; 9999 = not reached on the grid
+G,eps_0.25,0.25,9999,13.0,9999.0,9999,13.0,9999.0,,True,40563,grid values; 9999 = not reached on the grid
+G,eps_0.5,0.5,13,13.0,13.0,13,13.0,13.0,0.0,True,40563,grid values; 9999 = not reached on the grid
+G,eps_1.0,1.0,5,5.0,5.0,5,5.0,5.0,0.0,True,40563,grid values; 9999 = not reached on the grid
+G,eps_1.5,1.5,2,2.0,2.0,2,2.0,2.0,0.0,True,40563,grid values; 9999 = not reached on the grid
+G,eps_2.0,2.0,2,2.0,2.0,2,2.0,2.0,0.0,True,40563,grid values; 9999 = not reached on the grid
+G,eps_3.0,3.0,1,1.0,1.0,1,1.0,1.0,0.0,True,40563,grid values; 9999 = not reached on the grid
+S,delta_floor,1.2001669540017534,2,2.0,2.0,13,8.0,13.0,-4.0,False,3380,grid values; 9999 = not reached on the grid
+S,2delta_floor,2.400333908003507,1,1.0,1.0,2,2.0,3.0,-1.0,False,3380,grid values; 9999 = not reached on the grid
+S,eps_0.25,0.25,13,13.0,13.0,9999,9999.0,9999.0,,False,3380,grid values; 9999 = not reached on the grid
+S,eps_0.5,0.5,8,8.0,13.0,13,13.0,9999.0,-1.0,True,3380,grid values; 9999 = not reached on the grid
+S,eps_1.0,1.0,3,3.0,3.0,13,8.0,13.0,-3.0,False,3380,grid values; 9999 = not reached on the grid
+S,eps_1.5,1.5,2,1.0,2.0,8,8.0,8.0,-3.0,False,3380,grid values; 9999 = not reached on the grid
+S,eps_2.0,2.0,1,1.0,1.0,3,3.0,3.0,-2.0,False,3380,grid values; 9999 = not reached on the grid
+S,eps_3.0,3.0,1,1.0,1.0,2,2.0,2.0,-1.0,False,3380,grid values; 9999 = not reached on the grid

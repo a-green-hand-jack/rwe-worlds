@@ -1,0 +1,10 @@
+{
+ "figure": "fig1_concept",
+ "width_in": 5.5,
+ "height_in": 3.9000000000000004,
+ "inputs": {
+  "results/tables/runs_example.parquet": "43df894ee33b02c439ff79af6c376820f2a1fcd3ed69caa0d3dec4edc488b1df"
+ },
+ "note": "german rf; k=3; margin normalised by max|phi|; instance 27: exact margin 0.0077, runs with exact set 86/100; instance 36: exact margin 0.0812, runs with exact set 100/100; selection rule and estimator/budget: runs_example_README.txt (shap KernelExplainer, l1_reg=auto, m=2088); features with the largest exact |phi| drawn",
+ "scope": "Intervals resample instances of one trained model per dataset x model (one seed, B=50 random background rows); variance from retraining and from the background is not in them (floors b and c measure those separately)."
+}

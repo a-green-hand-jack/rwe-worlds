@@ -1,0 +1,8 @@
+{
+ "table": "tabA2_h1",
+ "inputs": {
+  "results/tables/h1_contrast.csv": "824f8506ed3d4183f78da3815592086ce163b4a4a549c718e42924f5be41f5b8",
+  "results/tables/cells.csv": "3266aaca4ea1f015193d53732614c8a75bfce1c998cbbf0b28dfb88aeb155ed3"
+ },
+ "note": "shap_kernel, l1_reg=False, k=3; contrast = mean per-instance Pearson (x100) minus 100 x share of instances with P_c^eps >= 0.9 (eps = 0.05; strict: eps = 0), points, instance-bootstrap 95% CI; dagger = contrast >= 10 points with the CI excluding 0 (pre-fixed H1 rule); small m = smallest m >= 3d present for all four models; reference m as in figstyle.ref_budget"
+}

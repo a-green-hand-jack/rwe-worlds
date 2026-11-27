@@ -1,0 +1,226 @@
+variant,holdout,predictor,group,held_out_r2,ci_lo,ci_hi,n_cells
+pre-registered,mechanism,combined score,pooled,0.3191778974210915,-0.13005056659830963,0.7292247069956989,2178
+pre-registered,mechanism,combined score,a,0.9320150813790092,,,363
+pre-registered,mechanism,combined score,b,-0.16085130601679754,,,363
+pre-registered,mechanism,combined score,c,0.5145565223831742,,,363
+pre-registered,mechanism,combined score,d,-0.04706062485783025,,,363
+pre-registered,mechanism,combined score,e,-0.46736427669619696,,,363
+pre-registered,mechanism,combined score,f,0.8388118309646594,,,363
+pre-registered,mechanism,best degree benchmark (n p(1-p)/d),pooled,0.2855251532160632,0.13789256828571106,0.427059011134436,2178
+pre-registered,mechanism,best degree benchmark (n p(1-p)/d),a,0.40785395154360493,,,363
+pre-registered,mechanism,best degree benchmark (n p(1-p)/d),b,0.1944783705937907,,,363
+pre-registered,mechanism,best degree benchmark (n p(1-p)/d),c,0.4996114100284391,,,363
+pre-registered,mechanism,best degree benchmark (n p(1-p)/d),d,0.12731942365505422,,,363
+pre-registered,mechanism,best degree benchmark (n p(1-p)/d),e,0.00989718519595606,,,363
+pre-registered,mechanism,best degree benchmark (n p(1-p)/d),f,0.4462183540814353,,,363
+pre-registered,mechanism,variance only (L),pooled,0.25336078897411374,-0.25040589935631874,0.7065842078302031,2178
+pre-registered,mechanism,variance only (L),a,0.9399285654809645,,,363
+pre-registered,mechanism,variance only (L),b,-0.40160707251496897,,,363
+pre-registered,mechanism,variance only (L),c,0.45700004605215616,,,363
+pre-registered,mechanism,variance only (L),d,-0.1585820566624505,,,363
+pre-registered,mechanism,variance only (L),e,-0.5437383792917843,,,363
+pre-registered,mechanism,variance only (L),f,0.8444533734475425,,,363
+pre-registered,mechanism,"controls only (log n, log sigma^2)",pooled,0.010577045306645272,-0.06188257255333962,0.07807817198889422,2178
+pre-registered,mechanism,"controls only (log n, log sigma^2)",a,0.08120461232232667,,,363
+pre-registered,mechanism,"controls only (log n, log sigma^2)",b,-0.11924260170906398,,,363
+pre-registered,mechanism,"controls only (log n, log sigma^2)",c,0.11243542593018152,,,363
+pre-registered,mechanism,"controls only (log n, log sigma^2)",d,-0.06503932534886259,,,363
+pre-registered,mechanism,"controls only (log n, log sigma^2)",e,-0.10020362454848963,,,363
+pre-registered,mechanism,"controls only (log n, log sigma^2)",f,0.10534119745441073,,,363
+pre-registered,mechanism,constant only (training-group mean),pooled,-0.04860079358198677,-0.06903568750192424,-0.021528519823408532,2178
+pre-registered,mechanism,constant only (training-group mean),a,-0.08507658666423246,,,363
+pre-registered,mechanism,constant only (training-group mean),b,-0.007426059871955548,,,363
+pre-registered,mechanism,constant only (training-group mean),c,-0.0008442951958542722,,,363
+pre-registered,mechanism,constant only (training-group mean),d,-0.06638364657849083,,,363
+pre-registered,mechanism,constant only (training-group mean),e,-0.051147328158550165,,,363
+pre-registered,mechanism,constant only (training-group mean),f,-0.0460186029207148,,,363
+pre-registered,family,combined score,pooled,0.340737114740679,0.10587506529141866,0.46965971911682736,2178
+pre-registered,family,combined score,BA,0.15266760929293954,,,288
+pre-registered,family,combined score,DCSBM,0.3708357609258962,,,162
+pre-registered,family,combined score,ER,0.4006979261117316,,,252
+pre-registered,family,combined score,SBM,0.4279011115806707,,,882
+pre-registered,family,combined score,Stanford3,-0.18419295007464065,,,216
+pre-registered,family,combined score,WS,0.5576912443273898,,,162
+pre-registered,family,combined score,ego-Facebook,0.5480316426530647,,,216
+pre-registered,family,best degree benchmark (n p(1-p)/d),pooled,0.3501677316873213,0.19082108970076306,0.4511065969525053,2178
+pre-registered,family,best degree benchmark (n p(1-p)/d),BA,0.3790570521057949,,,288
+pre-registered,family,best degree benchmark (n p(1-p)/d),DCSBM,0.5375539883200235,,,162
+pre-registered,family,best degree benchmark (n p(1-p)/d),ER,0.49151740165018876,,,252
+pre-registered,family,best degree benchmark (n p(1-p)/d),SBM,0.4042447141640204,,,882
+pre-registered,family,best degree benchmark (n p(1-p)/d),Stanford3,0.2563199282029679,,,216
+pre-registered,family,best degree benchmark (n p(1-p)/d),WS,0.6030855934163828,,,162
+pre-registered,family,best degree benchmark (n p(1-p)/d),ego-Facebook,0.006952756132211135,,,216
+pre-registered,family,variance only (L),pooled,0.24849992151450728,-0.0026509468259189955,0.396606427082103,2178
+pre-registered,family,variance only (L),BA,0.05386074720395151,,,288
+pre-registered,family,variance only (L),DCSBM,0.1688935676938801,,,162
+pre-registered,family,variance only (L),ER,0.3293774352836635,,,252
+pre-registered,family,variance only (L),SBM,0.32896860465036293,,,882
+pre-registered,family,variance only (L),Stanford3,-0.306907926175638,,,216
+pre-registered,family,variance only (L),WS,0.5265324481477658,,,162
+pre-registered,family,variance only (L),ego-Facebook,0.5138347001256094,,,216
+pre-registered,family,"controls only (log n, log sigma^2)",pooled,0.0727361794664716,-0.01114772229669137,0.14890025611613253,2178
+pre-registered,family,"controls only (log n, log sigma^2)",BA,0.09256334933791666,,,288
+pre-registered,family,"controls only (log n, log sigma^2)",DCSBM,0.00333658388868574,,,162
+pre-registered,family,"controls only (log n, log sigma^2)",ER,0.06040159637475295,,,252
+pre-registered,family,"controls only (log n, log sigma^2)",SBM,0.07792200590833587,,,882
+pre-registered,family,"controls only (log n, log sigma^2)",Stanford3,0.274814531321531,,,216
+pre-registered,family,"controls only (log n, log sigma^2)",WS,0.06336653012732385,,,162
+pre-registered,family,"controls only (log n, log sigma^2)",ego-Facebook,-0.0928666524284163,,,216
+pre-registered,family,constant only (training-group mean),pooled,-0.02755409462952385,-0.052622610430241,-0.01378105823967707,2178
+pre-registered,family,constant only (training-group mean),BA,-0.0009162373656419476,,,288
+pre-registered,family,constant only (training-group mean),DCSBM,-0.009708338825635154,,,162
+pre-registered,family,constant only (training-group mean),ER,-0.04085124117751682,,,252
+pre-registered,family,constant only (training-group mean),SBM,-0.01500613916311333,,,882
+pre-registered,family,constant only (training-group mean),Stanford3,-0.06811778566548776,,,216
+pre-registered,family,constant only (training-group mean),WS,-0.022972966715439025,,,162
+pre-registered,family,constant only (training-group mean),ego-Facebook,-0.0579152795796094,,,216
+exploratory: noise-adjusted S,mechanism,combined score,pooled,0.433429673987923,0.05038659688047416,0.7736325018462017,2178
+exploratory: noise-adjusted S,mechanism,combined score,a,0.9425373216620397,,,363
+exploratory: noise-adjusted S,mechanism,combined score,b,0.2872347326946869,,,363
+exploratory: noise-adjusted S,mechanism,combined score,c,0.5816437967865848,,,363
+exploratory: noise-adjusted S,mechanism,combined score,d,0.11132218103333058,,,363
+exploratory: noise-adjusted S,mechanism,combined score,e,-0.33318457395778767,,,363
+exploratory: noise-adjusted S,mechanism,combined score,f,0.8499991824773332,,,363
+exploratory: noise-adjusted S,mechanism,best degree benchmark (n p(1-p)/d),pooled,0.2855251532160632,0.13789256828571106,0.427059011134436,2178
+exploratory: noise-adjusted S,mechanism,best degree benchmark (n p(1-p)/d),a,0.40785395154360493,,,363
+exploratory: noise-adjusted S,mechanism,best degree benchmark (n p(1-p)/d),b,0.1944783705937907,,,363
+exploratory: noise-adjusted S,mechanism,best degree benchmark (n p(1-p)/d),c,0.4996114100284391,,,363
+exploratory: noise-adjusted S,mechanism,best degree benchmark (n p(1-p)/d),d,0.12731942365505422,,,363
+exploratory: noise-adjusted S,mechanism,best degree benchmark (n p(1-p)/d),e,0.00989718519595606,,,363
+exploratory: noise-adjusted S,mechanism,best degree benchmark (n p(1-p)/d),f,0.4462183540814353,,,363
+exploratory: noise-adjusted S,mechanism,variance only (L),pooled,0.25336078897411374,-0.25040589935631874,0.7065842078302031,2178
+exploratory: noise-adjusted S,mechanism,variance only (L),a,0.9399285654809645,,,363
+exploratory: noise-adjusted S,mechanism,variance only (L),b,-0.40160707251496897,,,363
+exploratory: noise-adjusted S,mechanism,variance only (L),c,0.45700004605215616,,,363
+exploratory: noise-adjusted S,mechanism,variance only (L),d,-0.1585820566624505,,,363
+exploratory: noise-adjusted S,mechanism,variance only (L),e,-0.5437383792917843,,,363
+exploratory: noise-adjusted S,mechanism,variance only (L),f,0.8444533734475425,,,363
+exploratory: noise-adjusted S,mechanism,"controls only (log n, log sigma^2)",pooled,0.010577045306645272,-0.06188257255333962,0.07807817198889422,2178
+exploratory: noise-adjusted S,mechanism,"controls only (log n, log sigma^2)",a,0.08120461232232667,,,363
+exploratory: noise-adjusted S,mechanism,"controls only (log n, log sigma^2)",b,-0.11924260170906398,,,363
+exploratory: noise-adjusted S,mechanism,"controls only (log n, log sigma^2)",c,0.11243542593018152,,,363
+exploratory: noise-adjusted S,mechanism,"controls only (log n, log sigma^2)",d,-0.06503932534886259,,,363
+exploratory: noise-adjusted S,mechanism,"controls only (log n, log sigma^2)",e,-0.10020362454848963,,,363
+exploratory: noise-adjusted S,mechanism,"controls only (log n, log sigma^2)",f,0.10534119745441073,,,363
+exploratory: noise-adjusted S,mechanism,constant only (training-group mean),pooled,-0.04860079358198677,-0.06903568750192424,-0.021528519823408532,2178
+exploratory: noise-adjusted S,mechanism,constant only (training-group mean),a,-0.08507658666423246,,,363
+exploratory: noise-adjusted S,mechanism,constant only (training-group mean),b,-0.007426059871955548,,,363
+exploratory: noise-adjusted S,mechanism,constant only (training-group mean),c,-0.0008442951958542722,,,363
+exploratory: noise-adjusted S,mechanism,constant only (training-group mean),d,-0.06638364657849083,,,363
+exploratory: noise-adjusted S,mechanism,constant only (training-group mean),e,-0.051147328158550165,,,363
+exploratory: noise-adjusted S,mechanism,constant only (training-group mean),f,-0.0460186029207148,,,363
+exploratory: noise-adjusted S,family,combined score,pooled,0.4439295874072493,0.26923549461520635,0.5495741686267289,2178
+exploratory: noise-adjusted S,family,combined score,BA,0.2989435471325914,,,288
+exploratory: noise-adjusted S,family,combined score,DCSBM,0.42783660672079016,,,162
+exploratory: noise-adjusted S,family,combined score,ER,0.4603395970469164,,,252
+exploratory: noise-adjusted S,family,combined score,SBM,0.49962679631900997,,,882
+exploratory: noise-adjusted S,family,combined score,Stanford3,0.07248556669001371,,,216
+exploratory: noise-adjusted S,family,combined score,WS,0.5985080289737061,,,162
+exploratory: noise-adjusted S,family,combined score,ego-Facebook,0.6457842040361943,,,216
+exploratory: noise-adjusted S,family,best degree benchmark (n p(1-p)/d),pooled,0.3501677316873213,0.19082108970076306,0.4511065969525053,2178
+exploratory: noise-adjusted S,family,best degree benchmark (n p(1-p)/d),BA,0.3790570521057949,,,288
+exploratory: noise-adjusted S,family,best degree benchmark (n p(1-p)/d),DCSBM,0.5375539883200235,,,162
+exploratory: noise-adjusted S,family,best degree benchmark (n p(1-p)/d),ER,0.49151740165018876,,,252
+exploratory: noise-adjusted S,family,best degree benchmark (n p(1-p)/d),SBM,0.4042447141640204,,,882
+exploratory: noise-adjusted S,family,best degree benchmark (n p(1-p)/d),Stanford3,0.2563199282029679,,,216
+exploratory: noise-adjusted S,family,best degree benchmark (n p(1-p)/d),WS,0.6030855934163828,,,162
+exploratory: noise-adjusted S,family,best degree benchmark (n p(1-p)/d),ego-Facebook,0.006952756132211135,,,216
+exploratory: noise-adjusted S,family,variance only (L),pooled,0.24849992151450728,-0.0026509468259189955,0.396606427082103,2178
+exploratory: noise-adjusted S,family,variance only (L),BA,0.05386074720395151,,,288
+exploratory: noise-adjusted S,family,variance only (L),DCSBM,0.1688935676938801,,,162
+exploratory: noise-adjusted S,family,variance only (L),ER,0.3293774352836635,,,252
+exploratory: noise-adjusted S,family,variance only (L),SBM,0.32896860465036293,,,882
+exploratory: noise-adjusted S,family,variance only (L),Stanford3,-0.306907926175638,,,216
+exploratory: noise-adjusted S,family,variance only (L),WS,0.5265324481477658,,,162
+exploratory: noise-adjusted S,family,variance only (L),ego-Facebook,0.5138347001256094,,,216
+exploratory: noise-adjusted S,family,"controls only (log n, log sigma^2)",pooled,0.0727361794664716,-0.01114772229669137,0.14890025611613253,2178
+exploratory: noise-adjusted S,family,"controls only (log n, log sigma^2)",BA,0.09256334933791666,,,288
+exploratory: noise-adjusted S,family,"controls only (log n, log sigma^2)",DCSBM,0.00333658388868574,,,162
+exploratory: noise-adjusted S,family,"controls only (log n, log sigma^2)",ER,0.06040159637475295,,,252
+exploratory: noise-adjusted S,family,"controls only (log n, log sigma^2)",SBM,0.07792200590833587,,,882
+exploratory: noise-adjusted S,family,"controls only (log n, log sigma^2)",Stanford3,0.274814531321531,,,216
+exploratory: noise-adjusted S,family,"controls only (log n, log sigma^2)",WS,0.06336653012732385,,,162
+exploratory: noise-adjusted S,family,"controls only (log n, log sigma^2)",ego-Facebook,-0.0928666524284163,,,216
+exploratory: noise-adjusted S,family,constant only (training-group mean),pooled,-0.02755409462952385,-0.052622610430241,-0.01378105823967707,2178
+exploratory: noise-adjusted S,family,constant only (training-group mean),BA,-0.0009162373656419476,,,288
+exploratory: noise-adjusted S,family,constant only (training-group mean),DCSBM,-0.009708338825635154,,,162
+exploratory: noise-adjusted S,family,constant only (training-group mean),ER,-0.04085124117751682,,,252
+exploratory: noise-adjusted S,family,constant only (training-group mean),SBM,-0.01500613916311333,,,882
+exploratory: noise-adjusted S,family,constant only (training-group mean),Stanford3,-0.06811778566548776,,,216
+exploratory: noise-adjusted S,family,constant only (training-group mean),WS,-0.022972966715439025,,,162
+exploratory: noise-adjusted S,family,constant only (training-group mean),ego-Facebook,-0.0579152795796094,,,216
+exploratory: noise-free S (ceiling),mechanism,combined score,pooled,0.32447714300148023,-0.12073667439027694,0.7329115477233714,2178
+exploratory: noise-free S (ceiling),mechanism,combined score,a,0.9336076390852175,,,363
+exploratory: noise-free S (ceiling),mechanism,combined score,b,-0.13760923052712792,,,363
+exploratory: noise-free S (ceiling),mechanism,combined score,c,0.5155102051869749,,,363
+exploratory: noise-free S (ceiling),mechanism,combined score,d,-0.04178519275806769,,,363
+exploratory: noise-free S (ceiling),mechanism,combined score,e,-0.46065839948508636,,,363
+exploratory: noise-free S (ceiling),mechanism,combined score,f,0.8403908507048362,,,363
+exploratory: noise-free S (ceiling),mechanism,best degree benchmark (n p(1-p)/d),pooled,0.2855251532160632,0.13789256828571106,0.427059011134436,2178
+exploratory: noise-free S (ceiling),mechanism,best degree benchmark (n p(1-p)/d),a,0.40785395154360493,,,363
+exploratory: noise-free S (ceiling),mechanism,best degree benchmark (n p(1-p)/d),b,0.1944783705937907,,,363
+exploratory: noise-free S (ceiling),mechanism,best degree benchmark (n p(1-p)/d),c,0.4996114100284391,,,363
+exploratory: noise-free S (ceiling),mechanism,best degree benchmark (n p(1-p)/d),d,0.12731942365505422,,,363
+exploratory: noise-free S (ceiling),mechanism,best degree benchmark (n p(1-p)/d),e,0.00989718519595606,,,363
+exploratory: noise-free S (ceiling),mechanism,best degree benchmark (n p(1-p)/d),f,0.4462183540814353,,,363
+exploratory: noise-free S (ceiling),mechanism,variance only (L),pooled,0.25336078897411374,-0.25040589935631874,0.7065842078302031,2178
+exploratory: noise-free S (ceiling),mechanism,variance only (L),a,0.9399285654809645,,,363
+exploratory: noise-free S (ceiling),mechanism,variance only (L),b,-0.40160707251496897,,,363
+exploratory: noise-free S (ceiling),mechanism,variance only (L),c,0.45700004605215616,,,363
+exploratory: noise-free S (ceiling),mechanism,variance only (L),d,-0.1585820566624505,,,363
+exploratory: noise-free S (ceiling),mechanism,variance only (L),e,-0.5437383792917843,,,363
+exploratory: noise-free S (ceiling),mechanism,variance only (L),f,0.8444533734475425,,,363
+exploratory: noise-free S (ceiling),mechanism,"controls only (log n, log sigma^2)",pooled,0.010577045306645272,-0.06188257255333962,0.07807817198889422,2178
+exploratory: noise-free S (ceiling),mechanism,"controls only (log n, log sigma^2)",a,0.08120461232232667,,,363
+exploratory: noise-free S (ceiling),mechanism,"controls only (log n, log sigma^2)",b,-0.11924260170906398,,,363
+exploratory: noise-free S (ceiling),mechanism,"controls only (log n, log sigma^2)",c,0.11243542593018152,,,363
+exploratory: noise-free S (ceiling),mechanism,"controls only (log n, log sigma^2)",d,-0.06503932534886259,,,363
+exploratory: noise-free S (ceiling),mechanism,"controls only (log n, log sigma^2)",e,-0.10020362454848963,,,363
+exploratory: noise-free S (ceiling),mechanism,"controls only (log n, log sigma^2)",f,0.10534119745441073,,,363
+exploratory: noise-free S (ceiling),mechanism,constant only (training-group mean),pooled,-0.04860079358198677,-0.06903568750192424,-0.021528519823408532,2178
+exploratory: noise-free S (ceiling),mechanism,constant only (training-group mean),a,-0.08507658666423246,,,363
+exploratory: noise-free S (ceiling),mechanism,constant only (training-group mean),b,-0.007426059871955548,,,363
+exploratory: noise-free S (ceiling),mechanism,constant only (training-group mean),c,-0.0008442951958542722,,,363
+exploratory: noise-free S (ceiling),mechanism,constant only (training-group mean),d,-0.06638364657849083,,,363
+exploratory: noise-free S (ceiling),mechanism,constant only (training-group mean),e,-0.051147328158550165,,,363
+exploratory: noise-free S (ceiling),mechanism,constant only (training-group mean),f,-0.0460186029207148,,,363
+exploratory: noise-free S (ceiling),family,combined score,pooled,0.3472860401085567,0.11183338204746418,0.47338440610611343,2178
+exploratory: noise-free S (ceiling),family,combined score,BA,0.1543440227263645,,,288
+exploratory: noise-free S (ceiling),family,combined score,DCSBM,0.3754382328853929,,,162
+exploratory: noise-free S (ceiling),family,combined score,ER,0.40424417356884346,,,252
+exploratory: noise-free S (ceiling),family,combined score,SBM,0.43660664197317656,,,882
+exploratory: noise-free S (ceiling),family,combined score,Stanford3,-0.17242155325134179,,,216
+exploratory: noise-free S (ceiling),family,combined score,WS,0.5594479165172741,,,162
+exploratory: noise-free S (ceiling),family,combined score,ego-Facebook,0.5517386806017847,,,216
+exploratory: noise-free S (ceiling),family,best degree benchmark (n p(1-p)/d),pooled,0.3501677316873213,0.19082108970076306,0.4511065969525053,2178
+exploratory: noise-free S (ceiling),family,best degree benchmark (n p(1-p)/d),BA,0.3790570521057949,,,288
+exploratory: noise-free S (ceiling),family,best degree benchmark (n p(1-p)/d),DCSBM,0.5375539883200235,,,162
+exploratory: noise-free S (ceiling),family,best degree benchmark (n p(1-p)/d),ER,0.49151740165018876,,,252
+exploratory: noise-free S (ceiling),family,best degree benchmark (n p(1-p)/d),SBM,0.4042447141640204,,,882
+exploratory: noise-free S (ceiling),family,best degree benchmark (n p(1-p)/d),Stanford3,0.2563199282029679,,,216
+exploratory: noise-free S (ceiling),family,best degree benchmark (n p(1-p)/d),WS,0.6030855934163828,,,162
+exploratory: noise-free S (ceiling),family,best degree benchmark (n p(1-p)/d),ego-Facebook,0.006952756132211135,,,216
+exploratory: noise-free S (ceiling),family,variance only (L),pooled,0.24849992151450728,-0.0026509468259189955,0.396606427082103,2178
+exploratory: noise-free S (ceiling),family,variance only (L),BA,0.05386074720395151,,,288
+exploratory: noise-free S (ceiling),family,variance only (L),DCSBM,0.1688935676938801,,,162
+exploratory: noise-free S (ceiling),family,variance only (L),ER,0.3293774352836635,,,252
+exploratory: noise-free S (ceiling),family,variance only (L),SBM,0.32896860465036293,,,882
+exploratory: noise-free S (ceiling),family,variance only (L),Stanford3,-0.306907926175638,,,216
+exploratory: noise-free S (ceiling),family,variance only (L),WS,0.5265324481477658,,,162
+exploratory: noise-free S (ceiling),family,variance only (L),ego-Facebook,0.5138347001256094,,,216
+exploratory: noise-free S (ceiling),family,"controls only (log n, log sigma^2)",pooled,0.0727361794664716,-0.01114772229669137,0.14890025611613253,2178
+exploratory: noise-free S (ceiling),family,"controls only (log n, log sigma^2)",BA,0.09256334933791666,,,288
+exploratory: noise-free S (ceiling),family,"controls only (log n, log sigma^2)",DCSBM,0.00333658388868574,,,162
+exploratory: noise-free S (ceiling),family,"controls only (log n, log sigma^2)",ER,0.06040159637475295,,,252
+exploratory: noise-free S (ceiling),family,"controls only (log n, log sigma^2)",SBM,0.07792200590833587,,,882
+exploratory: noise-free S (ceiling),family,"controls only (log n, log sigma^2)",Stanford3,0.274814531321531,,,216
+exploratory: noise-free S (ceiling),family,"controls only (log n, log sigma^2)",WS,0.06336653012732385,,,162
+exploratory: noise-free S (ceiling),family,"controls only (log n, log sigma^2)",ego-Facebook,-0.0928666524284163,,,216
+exploratory: noise-free S (ceiling),family,constant only (training-group mean),pooled,-0.02755409462952385,-0.052622610430241,-0.01378105823967707,2178
+exploratory: noise-free S (ceiling),family,constant only (training-group mean),BA,-0.0009162373656419476,,,288
+exploratory: noise-free S (ceiling),family,constant only (training-group mean),DCSBM,-0.009708338825635154,,,162
+exploratory: noise-free S (ceiling),family,constant only (training-group mean),ER,-0.04085124117751682,,,252
+exploratory: noise-free S (ceiling),family,constant only (training-group mean),SBM,-0.01500613916311333,,,882
+exploratory: noise-free S (ceiling),family,constant only (training-group mean),Stanford3,-0.06811778566548776,,,216
+exploratory: noise-free S (ceiling),family,constant only (training-group mean),WS,-0.022972966715439025,,,162
+exploratory: noise-free S (ceiling),family,constant only (training-group mean),ego-Facebook,-0.0579152795796094,,,216

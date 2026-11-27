@@ -1,0 +1,86 @@
+"""Shared loading, splits, standardisation and the per-fold state (fits, ranks, margins). Rules: prereg/PREREG.md."""
+import os, sys, numpy as np, pandas as pd
+sys.path.insert(0, os.path.dirname(__file__))
+from fa import fit_fa, _estep
+
+SEED = 20261126
+RANKS = [1, 2, 3, 4, 6, 8, 12, 16, 24]
+K_GRID = [1, 2, 3, 5, 8, 12, 20, 32, 50, 80, 109]
+if os.environ.get('MC_KGRID'):      # other matrices (transfer check): k grid and rank grid from the environment
+    K_GRID = [int(x) for x in os.environ['MC_KGRID'].split(',')]
+if os.environ.get('MC_RANKS'):
+    RANKS = [int(x) for x in os.environ['MC_RANKS'].split(',')]
+D_RANDOM = 50          # random-k draws per (model, k)
+
+def load_matrix(data_dir):
+    d = pd.read_parquet(os.path.join(data_dir, "matrix_long.parquet"))
+    mods = pd.read_csv(os.path.join(data_dir, "models.csv")); tasks = pd.read_csv(os.path.join(data_dir, "tasks.csv"))
+    models = list(mods.model); tnames = list(tasks.task)
+    mi = {m: i for i, m in enumerate(models)}; ti = {t: i for i, t in enumerate(tnames)}
+    Y = np.full((len(models), len(tnames)), np.nan)
+    Y[d.model.map(mi).values, d.task.map(ti).values] = d.score.values
+    et = np.full_like(Y, np.nan); et[d.model.map(mi).values, d.task.map(ti).values] = d.eval_time.values
+    return Y, mods, tasks, et
+
+def group_folds(groups, n_folds, seed):
+    """assign groups to folds greedily by size (largest first, to the currently smallest fold; ties broken by seeded order)."""
+    rng = np.random.default_rng(seed)
+    g = pd.Series(groups); sizes = g.value_counts()
+    order = sorted(sizes.index, key=lambda x: (-sizes[x], rng.random()))
+    load = np.zeros(n_folds); fold_of = {}
+    for o in order:
+        f = int(np.argmin(load + 1e-6 * rng.random(n_folds))); fold_of[o] = f; load[f] += sizes[o]
+    return np.array([fold_of[x] for x in groups])
+
+def make_splits(mods, seed=SEED):
+    """returns dict split_name -> list of (fold_id, train_idx, test_idx)"""
+    M = len(mods); groups = mods.org.values
+    out = {}
+    fo = group_folds(groups, 10, seed)
+    out["G"] = [(f, np.where(fo != f)[0], np.where(fo == f)[0]) for f in range(10)]
+    dt = pd.to_datetime(mods.release_date, errors="coerce")
+    q = dt.quantile(0.70)
+    tr = np.where(dt.notna() & (dt <= q))[0]; te = np.where(dt.notna() & (dt > q))[0]
+    out["T"] = [(0, tr, te)]
+    # sensitivity only (not a headline protocol): hold out random models, so other models of the same organisation stay in training
+    perm = np.random.default_rng(seed + 7).permutation(M); fr = np.arange(M)[np.argsort(perm)] % 10
+    out["R"] = [(f, np.where(fr != f)[0], np.where(fr == f)[0]) for f in range(10)]
+    return out
+
+def strength_split(Y, frac_train=0.75, iters=50):
+    """additive fit y_mj = mu_j + a_m by alternating LS on all observed cells; used only to assign the split."""
+    mask = ~np.isnan(Y); a = np.zeros(Y.shape[0]); mu = np.nanmean(Y, 0)
+    for _ in range(iters):
+        mu = np.nansum(Y - a[:, None], 0) / mask.sum(0)
+        a = np.nansum(Y - mu[None], 1) / mask.sum(1)
+    order = np.argsort(a); n_tr = int(round(frac_train * len(a)))
+    return a, order[:n_tr], order[n_tr:]
+
+def standardise(Ytr):
+    mu = np.nanmean(Ytr, 0); sd = np.nanstd(Ytr, 0); sd = np.where(sd < 1e-6, 1.0, sd)
+    return mu, sd
+
+def inner_group_folds(groups_tr, n_inner=5, seed=SEED):
+    return group_folds(groups_tr, n_inner, seed + 1)
+
+def rows_reveal_sets(mask_row, k, rng, n_draws):
+    obs = np.where(mask_row)[0]
+    kk = min(k, len(obs) - 1)
+    return [rng.choice(obs, kk, replace=False) for _ in range(n_draws)]
+
+
+N_CT_SPLITS = 50
+
+def make_ct_splits(task_types, n_splits=N_CT_SPLITS, seed=SEED):
+    """common-target-set protocol: per replicate, split the benchmarks into a selectable pool C and a never-selectable target set T,
+    |T| ~ N/3, stratified by task type (round(n_type/3) per type, at least 1 for types with >= 3 tasks). Same splits for every
+    model, rule and fold. Returns a bool array (n_splits, N): True = in T."""
+    types = np.asarray(task_types); N = len(types); rng = np.random.default_rng(seed + 99)
+    out = np.zeros((n_splits, N), bool)
+    for s in range(n_splits):
+        for t in sorted(set(types)):
+            idx = np.where(types == t)[0]
+            n_t = int(round(len(idx) / 3)) if len(idx) >= 3 else 0
+            if len(idx) >= 3: n_t = max(n_t, 1)
+            out[s, rng.choice(idx, n_t, replace=False)] = True
+    return out

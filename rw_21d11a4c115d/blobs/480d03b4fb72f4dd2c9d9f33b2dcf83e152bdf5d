@@ -1,0 +1,252 @@
+"""Aggregate results_raw/*.pkl (main runs), results_raw/robust/*.pkl (variants), results_raw/sweep_*.pkl (history sweep) into the tidy CSVs of results/.
+Family-clustered bootstrap, B=2000, seed 0; all statistics of one result share the same resamples.
+python3 aggregate.py <results_raw> <results> <data_out>"""
+import sys, os, glob, json, pickle, numpy as np, pandas as pd
+rawd, resd, dout = sys.argv[1:4]
+B = 2000
+dsinfo = pd.read_csv(f"{resd}/datasets.csv").set_index("dataset")
+LEVELS = (0.8, 0.9, 0.95)
+
+class Boot:
+    """Family-clustered bootstrap over the tested models: all statistics of one result share the same resamples."""
+    def __init__(self, fam, seed=0):
+        u, self.fi = np.unique(fam, return_inverse=True); self.F = len(u)
+        self.n_f = np.bincount(self.fi, minlength=self.F).astype(float)
+        self.cnt = np.random.default_rng(seed).multinomial(self.F, np.ones(self.F) / self.F, size=B).astype(float)
+        self.den = self.cnt @ self.n_f
+    def mean(self, e):
+        s = np.bincount(self.fi, weights=e, minlength=self.F)
+        return s.sum() / self.n_f.sum(), (self.cnt @ s) / self.den
+def ci(b): return float(np.percentile(b, 2.5)), float(np.percentile(b, 97.5))
+
+def with_best_simple(R, ds, split):
+    """Add predictor 'best_simple': per outer fold, the errors of the predictor chosen on that fold's TRAINING rows (best_simple.py)."""
+    f = f"{rawd}/best_simple_{ds}_{split}.json"
+    if not os.path.exists(f) or R['design'] != 'fixed': return False
+    ch = json.load(open(f)); M = len(R['models']); added = False
+    for (sel, pr, k) in list(R['err']):
+        if pr != 'fa': continue
+        arr = np.zeros(M); ok = True
+        for fi, (tr, te) in enumerate(R['folds']):
+            key = (sel, ch[str(fi)]['best'], k)
+            if key not in R['err']: ok = False; break
+            arr[te] = R['err'][key][te]
+        if ok: R['err'][(sel, 'best_simple', k)] = arr; added = True
+    return added
+
+def kstar_from(Cc, kg, lev):
+    for k in kg:
+        if Cc[k] >= lev: return k
+    return None
+
+GAP_COLS = ['dataset', 'split', 'design', 'predictor', 'selector', 'comparison', 'k', 'gap', 'ci_lo', 'ci_hi', 'rel_gap_to_random', 'p_boot', 'holm_p', 'ci_halfwidth']
+CURVE_COLS = ['dataset', 'split', 'design', 'selector', 'predictor', 'k', 'metric', 'mean', 'ci_lo', 'ci_hi', 'n_families', 'n_models', 'n_targets', 'n_draws', 'draw_sd']
+REF_COLS = ['dataset', 'split', 'reference', 'metric', 'value', 'ci_lo', 'ci_hi']
+CL_COLS = ['dataset', 'split', 'selector', 'predictor', 'k', 'C_lobo', 'C_lobo_lo', 'C_lobo_hi', 'C_insample']
+K_COLS = ['dataset', 'split', 'selector', 'predictor', 'level', 'reference', 'kstar', 'censored', 'grid_max', 'r_eff', 'participation_ratio', 'h1_outcome',
+          'kstar_ci_lo', 'kstar_ci_hi', 'share_censored_boot', 'k_plateau10']
+new = lambda: dict(curves=[], refs=[], closure=[], kstar=[], gap=[])
+
+def process(R, ds, split, design, ncol, out, main=True):
+    N = ncol; M = len(R['models'])
+    te = np.sort(np.concatenate([b for _, b in R['folds']])); fam = (R['family_org'] if split == 'grouped_org' else R['family'])[te]; bt = Boot(fam)   # cluster by the unit that was held out
+    nT = int(round(0.3 * N)); kg = R['k_grid']; nf = len(set(fam)); nm = len(te)
+    if main: with_best_simple(R, ds, split)
+    mse = {key: bt.mean(v[te]) for key, v in R['err'].items()}
+    refs = {key: bt.mean(v[te]) for key, v in R['refs'].items()}
+    nd = R['n_draws']; draws = {key: v * M / nm for key, v in R['draws'].items()}
+    lob = None
+    if refs:
+        for nm_, (p, b) in refs.items():
+            lo, hi = ci(np.sqrt(b)); out['refs'].append((ds, split, nm_, 'std_rmse', np.sqrt(p), lo, hi))
+        cands = [n for n in refs if n.startswith('lobo_')]; lob = min(cands, key=lambda n: refs[n][0])
+        p, b = refs[lob]; lo, hi = ci(np.sqrt(b)); out['refs'].append((ds, split, 'lobo', 'std_rmse', np.sqrt(p), lo, hi))
+        out['refs'].append((ds, split, 'lobo_source', lob, np.nan, np.nan, np.nan))
+        if ds == 'helm_mmlu':
+            fl = pd.read_csv(f"{resd}/helm_mmlu_binomial_floor.csv").binomial_floor.mean()
+            out['refs'].append((ds, split, 'binomial', 'std_rmse', np.sqrt(fl), np.nan, np.nan))
+    cm = mse.get(('random', 'colmean', kg[0])) or mse.get(('greedyA', 'colmean', kg[0]))
+    for (sel, pr, k), (p, b) in sorted(mse.items()):
+        lo, hi = ci(np.sqrt(b)); ntar = nT if design == 'fixed' else N - k
+        dsd = float(np.std(np.sqrt(draws[(pr, k)]), ddof=1)) if sel == 'random' and (pr, k) in draws else np.nan
+        out['curves'].append((ds, split, design, sel, pr, k, 'std_rmse', np.sqrt(p), lo, hi, nf, nm, ntar, nd if sel in ('random', 'oracle') else 1, dsd))
+        if cm is not None:
+            sk = 1 - b / cm[1]; out['curves'].append((ds, split, design, sel, pr, k, 'skill_vs_colmean', 1 - p / cm[0], *ci(sk), nf, nm, ntar, nd if sel == 'random' else 1, np.nan))
+    if design == 'fixed' and refs:
+        cmp_, cmb = refs['colmean']; lp, lb = refs[lob]; ip, ib = refs['insample']
+        for (sel, pr, k), (p, b) in sorted(mse.items()):
+            if pr == 'colmean': continue
+            cl = (cmp_ - p) / (cmp_ - lp); clb = (cmb - b) / (cmb - lb); ci_ = (cmp_ - p) / (cmp_ - ip)
+            out['closure'].append((ds, split, sel, pr, k, cl, *ci(clb), ci_))
+        # k* per selector x predictor (+ best_simple, + headline = min of PPCA/FA and best simple), family-bootstrap CIs. Censored (the level is never
+        # reached on the grid) is coded grid_max+1 inside the bootstrap summaries; its bootstrap share is reported.
+        reff = dsinfo.loc[ds, 'r_eff']; gmax = kg[-1]; big = gmax + 1
+        for sel in ('greedyA', 'random'):
+            prs = [pr for pr in ('fa', 'best_simple', 'ridge', 'onefactor', 'knn', 'lw') if (sel, pr, kg[0]) in mse]
+            for refn in ('lobo', 'insample'):
+                rp, rb = (refs[lob] if refn == 'lobo' else refs['insample'])
+                for lev in LEVELS:
+                    res = {}
+                    for pr in prs:
+                        Cp = {k: (cmp_ - mse[(sel, pr, k)][0]) / (cmp_ - rp) for k in kg}
+                        Cb = np.array([(cmb - mse[(sel, pr, k)][1]) / (cmb - rb) for k in kg])
+                        kb = np.array([next((kg[i] for i in range(len(kg)) if Cb[i, j] >= lev), big) for j in range(B)])
+                        res[pr] = (kstar_from(Cp, kg, lev), kb)
+                    if 'fa' in res and 'best_simple' in res:
+                        kp = [k for k in (res['fa'][0], res['best_simple'][0]) if k is not None]
+                        res['headline'] = (min(kp) if kp else None, np.minimum(res['fa'][1], res['best_simple'][1]))
+                        res['fa_minus_best_simple'] = ((res['fa'][0] or big) - (res['best_simple'][0] or big), res['fa'][1] - res['best_simple'][1])
+                    for pr, (kp, kb) in res.items():
+                        cens = kp is None; diff = pr == 'fa_minus_best_simple'
+                        o_ = '' if diff else ('dominated by general factor' if (not cens and kp < reff) else 'knee near r_eff' if (not cens and kp <= 2 * reff) else 'above window')
+                        lo, hi = np.percentile(kb, [2.5, 97.5]); kpl = np.nan
+                        if not diff and pr in prs:
+                            er = {k: np.sqrt(mse[(sel, pr, k)][0]) for k in kg}; mn = min(er.values()); kpl = next(k for k in kg if er[k] <= 1.1 * mn)
+                        out['kstar'].append((ds, split, sel, pr, lev, refn, kp if diff else (kp if kp is not None else np.nan), bool(cens) and not diff, gmax, reff,
+                                             dsinfo.loc[ds, 'participation_ratio'], o_, float(lo), float(hi), np.nan if diff else float((kb >= big).mean()), kpl))
+    if 'random' in {s for s, _, _ in mse}:
+        grid = [k for k in kg if k <= min(10, N // 2)]
+        sels = sorted({s for s, _, _ in mse} - {'random', 'oracle'}) + (['oracle'] if ('oracle', 'fa', kg[0]) in mse else [])
+        rows = []
+        for pr in sorted({p_ for _, p_, _ in mse} - {'colmean'}):
+            for sel in sels:
+                if (sel, pr, kg[0]) not in mse: continue
+                gk, gb, rk = [], [], []
+                for k in grid + [x for x in kg if x not in grid]:
+                    ps, bs = mse[(sel, pr, k)]; pr_, br_ = mse[('random', pr, k)]
+                    g = np.sqrt(ps) - np.sqrt(pr_); gbk = np.sqrt(bs) - np.sqrt(br_)
+                    prim = 'primary' if (sel == 'greedyA' and pr == 'fa' and split == 'grouped' and design == 'fixed' and main) else 'exploratory'
+                    if sel == 'oracle': prim = 'oracle_test_leaking'
+                    lo, hi = ci(gbk)
+                    rows.append((ds, split, design, pr, sel, prim, str(k), g, lo, hi, g / np.sqrt(pr_), float(2 * min((gbk >= 0).mean(), (gbk <= 0).mean())), np.nan, (hi - lo) / 2))
+                    if k in grid: gk.append(g); gb.append(gbk); rk.append(np.sqrt(pr_))
+                g = float(np.mean(gk)); gbm = np.mean(gb, axis=0); rr = float(np.mean(rk)); lo, hi = ci(gbm)
+                rows.append((ds, split, design, pr, sel, prim, 'grid_avg', g, lo, hi, g / rr, float(2 * min((gbm >= 0).mean(), (gbm <= 0).mean())), np.nan, (hi - lo) / 2))
+        gdf = pd.DataFrame(rows, columns=GAP_COLS)      # Holm across selectors within (dataset, split, design, predictor), grid_avg rows, oracle excluded
+        m_ = (gdf.k == 'grid_avg') & (gdf.selector != 'oracle')
+        for pr, g in gdf[m_].groupby('predictor'):
+            order = g.p_boot.sort_values().index; n = len(order); run_max = 0
+            for i, ix in enumerate(order):
+                run_max = max(run_max, min(1.0, (n - i) * g.p_boot[ix])); gdf.loc[ix, 'holm_p'] = run_max
+        out['gap'] += [tuple(r) for r in gdf.itertuples(index=False)]
+    return dict(mse=mse, refs=refs, lob=lob, kg=kg, N=N, nf=nf, nm=nm)
+
+cols = lambda r, c: pd.DataFrame(r, columns=c)
+# ------------------------------------------------------------------ main runs
+main = new(); summaries = {}
+for f in sorted(glob.glob(f"{rawd}/*.pkl")):
+    if 'bias' in os.path.basename(f) or os.path.basename(f).startswith('sweep_'): continue
+    R = pickle.load(open(f, 'rb')); ds, split, design = R['dataset'], R['split'], R['design']
+    ncol = np.load(f"{dout}/{ds}.npz", allow_pickle=True)['X'].shape[1]
+    summaries[(ds, split, design)] = process(R, ds, split, design, ncol, main)
+cols(main['curves'], CURVE_COLS).to_csv(f"{resd}/curves.csv", index=False)
+cols(main['refs'], REF_COLS).to_csv(f"{resd}/refs.csv", index=False)
+cols(main['closure'], CL_COLS).to_csv(f"{resd}/closure.csv", index=False)
+kdf = cols(main['kstar'], K_COLS); kdf.to_csv(f"{resd}/kstar.csv", index=False)
+cols(main['gap'], GAP_COLS).to_csv(f"{resd}/gap.csv", index=False)
+# H1 verdict: judged on the headline k* (min of PPCA/FA and best simple predictor), level 0.9, LOBO reference, greedy A-optimal selection
+h = kdf[(kdf.predictor == 'headline') & (kdf.level == 0.9) & (kdf.reference == 'lobo') & (kdf.selector == 'greedyA')].copy()
+h['kstar_fa_only'] = [float(kdf[(kdf.dataset == r.dataset) & (kdf.split == r.split) & (kdf.selector == 'greedyA') & (kdf.predictor == 'fa') & (kdf.level == 0.9) &
+                                (kdf.reference == 'lobo')].kstar.iloc[0]) for r in h.itertuples()]
+h.to_csv(f"{resd}/h1.csv", index=False)
+
+# ------------------------------------------------------------------ extra metrics and bias (runs with --bias / --extra)
+rows_b, rows_x = [], []
+for f in sorted(glob.glob(f"{rawd}/*bias*.pkl")):
+    R = pickle.load(open(f, 'rb')); ds, split = R['dataset'], R['split']; Dz = np.load(f"{dout}/{ds}.npz", allow_pickle=True); X = Dz['X']
+    te = np.sort(np.concatenate([b for _, b in R['folds']])); fam = R['family'][te]; bt = Boot(fam)
+    Z = (X - X.mean(0)) / X.std(0); strength = Z.mean(1)[te]
+    rt = Dz['release_ts'][te] if ds.startswith('mteb') else None
+    dec = pd.qcut(strength, 5, labels=False, duplicates='drop')
+    for (sel, pr, k), v in R['bias'].items():
+        if pr != 'fa' or k not in (1, 3, 5, 10): continue
+        for lab, st in (('strength_quintile', dec),) + ((('time_tercile', pd.qcut(rt, 3, labels=False)),) if rt is not None else ()):
+            for q in sorted(set(st)):
+                m = st == q; bq = Boot(fam[m]); p, b = bq.mean(v[te][m]); rows_b.append((ds, split, sel, pr, k, f'{lab}={q}', p, *ci(b), int(m.sum())))
+    for (sel, pr, k), ex in R.get('extra', {}).items():
+        p, b = bt.mean(ex['raw_se'][te]); pa, pb = bt.mean(ex['raw_ae'][te])
+        row = [ds, split, sel, pr, k, np.sqrt(p), *ci(np.sqrt(b)), pa, *ci(pb)]
+        if pr != 'colmean':
+            q, qb = bt.mean(ex['pair_acc'][te]); sp = np.array([v for _, v in ex['spear']]); nfold = len(R['folds']); spf = np.nanmean(sp.reshape(nfold, -1), axis=1)
+            fb = np.random.default_rng(0).integers(0, nfold, size=(B, nfold)); sb = np.nanmean(spf[fb], axis=1)
+            row += [q, *ci(qb), float(np.nanmean(spf)), *ci(sb)]
+        else: row += [np.nan] * 6
+        rows_x.append(tuple(row))
+if rows_b: cols(rows_b, ['dataset', 'split', 'selector', 'predictor', 'k', 'stratum', 'signed_bias', 'ci_lo', 'ci_hi', 'n']).to_csv(f"{resd}/bias.csv", index=False)
+if rows_x: cols(rows_x, ['dataset', 'split', 'selector', 'predictor', 'k', 'raw_rmse', 'raw_rmse_lo', 'raw_rmse_hi', 'raw_mae', 'raw_mae_lo', 'raw_mae_hi',
+                         'pairwise_winner_acc', 'pairwise_acc_lo', 'pairwise_acc_hi', 'spearman_per_benchmark', 'spearman_lo', 'spearman_hi']).to_csv(f"{resd}/metrics_extra.csv", index=False)
+
+# ------------------------------------------------------------------ robustness variants (grouped fixed, light) + predictor comparison
+rob_rows, pred_rows = [], []
+def grid_avg(sm, sel, pr, grid):
+    kk = [k for k in grid if (sel, pr, k) in sm['mse']]
+    return float(np.mean([np.sqrt(sm['mse'][(sel, pr, k)][0]) for k in kk])), np.mean([np.sqrt(sm['mse'][(sel, pr, k)][1]) for k in kk], axis=0)
+def summarise(sm, ds, split, variant):
+    """Grid-averaged RMSE of random / greedyA with PPCA(FA), the paired gap, k* (0.9, LOBO, greedyA+FA) and closure at k=3."""
+    kg = sm['kg']; N = sm['N']; grid = [k for k in kg if k <= min(10, N // 2)]
+    r_p, r_b = grid_avg(sm, 'random', 'fa', grid); g_p, g_b = grid_avg(sm, 'greedyA', 'fa', grid)
+    cmp_, cmb = sm['refs']['colmean']; lp, lb = sm['refs'][sm['lob']]
+    C = lambda k: (cmp_ - sm['mse'][('greedyA', 'fa', k)][0]) / (cmp_ - lp)
+    ks = next((k for k in kg if C(k) >= 0.9), np.nan)
+    return (ds, variant, split, sm['nf'], sm['nm'], r_p, g_p, g_p - r_p, *ci(g_b - r_b), (g_p - r_p) / r_p, np.sqrt(lp), np.sqrt(cmp_), C(3) if 3 in kg else np.nan, ks)
+ROB_COLS = ['dataset', 'variant', 'split', 'n_families', 'n_models', 'grid_avg_rmse_random_fa', 'grid_avg_rmse_greedyA_fa', 'gap_greedy_minus_random', 'gap_lo', 'gap_hi',
+            'rel_gap', 'lobo_rmse', 'colmean_rmse', 'closure_k3_greedyA_fa', 'kstar_0.9_lobo_greedyA_fa']
+chosen = pd.read_csv(f"{resd}/transform.csv").set_index('dataset').chosen.to_dict() if os.path.exists(f"{resd}/transform.csv") else {}
+for (ds, split, design), sm in summaries.items():
+    if design == 'fixed' and split in ('grouped', 'random', 'time'):
+        rob_rows.append(summarise(sm, ds, split, f'main ({chosen.get(ds, "identity")} transform)'))
+for f in sorted(glob.glob(f"{rawd}/robust/*.pkl")):
+    base = os.path.basename(f)[:-4]
+    if 'bias' in base: continue
+    variant = base.split('__')[-1]; R = pickle.load(open(f, 'rb')); ds, split, design = R['dataset'], R['split'], R['design']
+    ncol = np.load(f"{dout}/{ds}.npz", allow_pickle=True)['X'].shape[1]
+    sm = process(R, ds, split, design, ncol, new(), main=False); tfm = R.get('transform', 'identity')
+    if variant == 'softimpute':
+        grid = [k for k in sm['kg'] if k <= min(10, ncol // 2)]
+        for pr in ('colmean', 'fa', 'softimpute'):
+            for sel in ('random', 'greedyA'):
+                p, b = grid_avg(sm, sel, pr, grid); pred_rows.append((ds, split, 'paired run, same draws (50 draws)', sel, pr, p, *ci(b)))
+        continue
+    label = {'main': f'family = organisation (grouped_org), {tfm} transform', 'dedup0.3': f'near-neighbour removal (rms<0.3), {tfm} transform'}.get(variant, f'{variant} transform (not the chosen one)')
+    rob_rows.append(summarise(sm, ds, split, label))
+if rob_rows: cols(rob_rows, ROB_COLS).to_csv(f"{resd}/robustness.csv", index=False)
+for (ds, split, design), sm in summaries.items():
+    if design != 'fixed' or split not in ('grouped', 'random', 'time'): continue
+    grid = [k for k in sm['kg'] if k <= min(10, sm['N'] // 2)]
+    for sel in ('random', 'greedyA'):
+        for pr in ('colmean', 'onefactor', 'ridge', 'knn', 'lw', 'fa', 'best_simple'):
+            if (sel, pr, grid[0]) not in sm['mse']: continue
+            p, b = grid_avg(sm, sel, pr, grid); pred_rows.append((ds, split, 'main run, same draws for every predictor (200 draws)', sel, pr, p, *ci(b)))
+if pred_rows: cols(pred_rows, ['dataset', 'split', 'source', 'selector', 'predictor', 'grid_avg_rmse', 'ci_lo', 'ci_hi']).to_csv(f"{resd}/predictors.csv", index=False)
+
+# ------------------------------------------------------------------ history sweep (C6)
+sw_rows, tm_rows = [], []
+for f in sorted(glob.glob(f"{rawd}/sweep_*.pkl")):
+    R = pickle.load(open(f, 'rb')); ds = R['dataset']; te = np.sort(np.concatenate([b for _, b in R['folds']])); bt = Boot(R['family'][te])
+    kg = R['k_grid']; cmp_, cmb = bt.mean(R['refs']['colmean'][te]); lp, lb = bt.mean(R['refs']['lobo'][te]); full = ('size', 1.0, 1.0); ga = {}
+    for cfg in R['configs']:
+        for sel in ('greedyA', 'random'):
+            arr = [bt.mean(R['err'][(cfg, sel, 'fa', k)][te]) for k in kg]
+            ga[(cfg, sel)] = (np.mean([np.sqrt(a[0]) for a in arr]), np.mean([np.sqrt(a[1]) for a in arr], axis=0), arr)
+    for cfg in R['configs']:
+        for sel in ('greedyA', 'random'):
+            p, b, arr = ga[(cfg, sel)]; fp, fb, _ = ga[(full, sel)]
+            ks = kstar_from({k: (cmp_ - a[0]) / (cmp_ - lp) for k, a in zip(kg, arr)}, kg, 0.9)
+            Cb = np.array([(cmb - a[1]) / (cmb - lb) for a in arr]); kb = np.array([next((kg[i] for i in range(len(kg)) if Cb[i, j] >= 0.9), kg[-1] + 1) for j in range(B)])
+            sw_rows.append((ds, cfg[0], cfg[1], cfg[2], sel, float(p), *ci(b), float(p / fp), *ci(b / fb), ks if ks else np.nan, *np.percentile(kb, [2.5, 97.5]),
+                            len(set(R['family'][te])), R['n_rep']))
+    tm = pd.DataFrame(R['timing'][1:], columns=R['timing'][0]); tm['dataset'] = ds; tm_rows.append(tm)
+if sw_rows:
+    hs = cols(sw_rows, ['dataset', 'pattern', 'history_fraction', 'cell_density', 'selector', 'grid_avg_rmse', 'ci_lo', 'ci_hi', 'ratio_to_full_history', 'ratio_lo', 'ratio_hi',
+                   'kstar_0.9_lobo', 'kstar_lo', 'kstar_hi', 'n_families_tested', 'n_repeats'])
+    hs['within10_point'] = hs.ratio_to_full_history <= 1.10; hs['within10_ci_upper'] = hs.ratio_hi <= 1.10      # Brief: error within 10% of the full-history error
+    hs.to_csv(f"{resd}/history_sweep.csv", index=False)
+    sm_ = []      # smallest history fraction / densest-to-sparsest cell density still within 10% (point estimate; interval-upper version alongside)
+    for (d_, pat, sel_), g in hs.groupby(['dataset', 'pattern', 'selector']):
+        ax = 'history_fraction' if pat == 'size' else 'cell_density'; g = g.sort_values(ax)
+        ok_p = g[g.within10_point]; ok_c = g[g.within10_ci_upper]
+        sm_.append((d_, pat, sel_, ax, float(ok_p[ax].min()) if len(ok_p) else np.nan, float(ok_c[ax].min()) if len(ok_c) else np.nan, float(g[ax].min())))
+    cols(sm_, ['dataset', 'pattern', 'selector', 'axis', 'smallest_within10_point', 'smallest_within10_ci_upper', 'smallest_tried']).to_csv(f"{resd}/history_smallest.csv", index=False)
+    pd.concat(tm_rows).groupby(['dataset', 'kind', 'frac', 'dens']).agg(n_models=('n_models', 'mean'), observed_density=('density', 'mean'), rank=('rank', 'mean'),
+        fit_seconds=('fit_seconds', 'mean'), greedy_seconds=('greedy_seconds', 'mean')).reset_index().to_csv(f"{resd}/selection_cost.csv", index=False)
+print('written', len(main['curves']), len(main['closure']), len(main['kstar']), len(main['gap']), len(rows_b), len(rows_x), len(rob_rows), len(pred_rows), len(sw_rows))

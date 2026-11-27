@@ -1,0 +1,55 @@
+"""Decisions drawn from reported scores (claim C4).
+
+tuned_vs_untuned : declare "tuning helped" from  report(c_hat) - score(default)  on the same search set S.
+                   rules: naive (paired one-sided z-test on S), split-report (z-test on held-out items for the
+                   split-selected config), maxt (simultaneous one-sided lower bound for the paired gain of the selected
+                   config over the default).  Truth: theta(c_hat) - theta(default).
+a_vs_b           : two tuned systems A, B (config subsets, possibly different sizes = different search budgets), each
+                   searched on the same S (or on its own S'), naive reported scores compared.  Truth: theta(c_A)-theta(c_B).
+"""
+import numpy as np
+from scipy.stats import norm
+from core import SEARCHERS
+from protocols import maxt_quantile
+
+
+def _z_paired(d):
+    n = len(d); s = d.std(ddof=1)
+    return d.mean() / (s / np.sqrt(n)) if s > 0 else (np.inf if d.mean() > 0 else 0.0)
+
+
+def tuned_vs_untuned(world, n, default, rng, cand=None, searcher="random", alpha=0.05, split=0.5, search_kw=None):
+    search = SEARCHERS[searcher]; kw = dict(search_kw or {}); cand = np.arange(world.K) if cand is None else cand
+    Y = world.Y; S = world.draw_S(n, rng)
+    c, _, info = search(world, S, cand, rng, **kw)
+    true_gain = world.truth(S, c) - world.truth(S, default)
+    d = Y[S, c].astype(float) - Y[S, default]
+    rep_gain = d.mean(); z = _z_paired(d)
+    out = dict(true_gain=true_gain, report_gain=rep_gain, naive_decl=bool(z > norm.ppf(1 - alpha)))
+    # simultaneous bound for the paired gain of any selected config over the default
+    D = (Y[S][:, cand].astype(float) - Y[S, default][:, None])
+    q = maxt_quantile(D, rng, alpha)
+    se = d.std(ddof=1) / np.sqrt(n) if d.std(ddof=1) > 0 else 1e-9
+    out["maxt_decl"] = bool(rep_gain - q * se > 0)
+    # split-report: search on (1-split)n, test the gain on held-out
+    m = int(round(split * n)); perm = rng.permutation(S); te, tr = perm[:m], perm[m:]
+    cs, _, _ = search(world, tr, cand, rng, **kw)
+    ds = Y[te, cs].astype(float) - Y[te, default]
+    out["split_decl"] = bool(_z_paired(ds) > norm.ppf(1 - alpha)); out["split_true_gain"] = world.truth(S, cs) - world.truth(S, default)
+    return out
+
+
+def a_vs_b(world, n, candA, candB, rng, searcher="random", same_S=True, alpha=0.05, search_kw_A=None, search_kw_B=None):
+    search = SEARCHERS[searcher]; Y = world.Y
+    SA = world.draw_S(n, rng); SB = SA if same_S else world.draw_S(n, rng)
+    cA, _, _ = search(world, SA, candA, rng, **(search_kw_A or {})); cB, _, _ = search(world, SB, candB, rng, **(search_kw_B or {}))
+    U = np.union1d(SA, SB)
+    tA, tB = world.truth(U, cA), world.truth(U, cB)
+    rA, rB = Y[SA, cA].mean(), Y[SB, cB].mean()
+    if same_S:
+        d = Y[SA, cA].astype(float) - Y[SA, cB]; z = _z_paired(d)
+    else:
+        z = (rA - rB) / np.sqrt(rA * (1 - rA) / n + rB * (1 - rB) / n + 1e-12)
+    # honest comparison: each system tuned on S, reported on a fresh split of size n (same fresh items for both)
+    return dict(true_diff=tA - tB, report_diff=rA - rB, z=z, A_wins_reported=bool(rA > rB), A_sig=bool(z > norm.ppf(1 - alpha)),
+                B_sig=bool(z < -norm.ppf(1 - alpha)))

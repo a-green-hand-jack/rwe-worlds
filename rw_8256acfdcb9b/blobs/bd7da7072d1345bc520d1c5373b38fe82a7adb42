@@ -1,0 +1,83 @@
+"""Floor b as a function of the background (Outline rev 6): pairwise top-k agreement of K independent backgrounds, each explained exactly,
+for background specs B20, B200 and kmeans50 (B50 is the floor b of floors.py, restricted to the same instances and first K draws).
+usage: floor_b_by_background.py DATASET MODEL [N_INST] [K] [SPECS comma list]
+SPECS = B50 only adds (or replaces) the B50 rows of an existing bB file from floors_<model>.npz, without recomputing the other backgrounds
+(used when the floors job ended after the bB file was written).
+Backgrounds: B20/B200 uniform draws of training rows (RandomState(2000+j) / (3000+j)); kmeans50: 50 k-means medoids (KMeans(50, n_init=1, random_state=j)
+in the model's preprocessing space) weighted by cluster size. Trees: interventional TreeSHAP (exact); weights are realised by repeating each medoid
+round(1000 w) times. LR and MLP: exact value tables with weights.
+Writes results/floors/bB_<dataset>_<model>.csv (per instance and k: n_pairs, n_agree)."""
+import sys, os, pickle, time, json
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+import numpy as np, pandas as pd
+from sklearn.cluster import KMeans
+from shapreliab import models, exact, pipeline as P, analyze as A, metrics as M
+
+ds, kind = sys.argv[1], sys.argv[2]
+n_use = int(sys.argv[3]) if len(sys.argv) > 3 and sys.argv[3] != "all" else None
+K = int(sys.argv[4]) if len(sys.argv) > 4 else 10
+specs = (sys.argv[5] if len(sys.argv) > 5 else "B20,B200,kmeans50").split(",")
+only_b50 = specs == ["B50"]
+if only_b50:
+    specs = []
+out = P.cell_dir(ds, 0)
+sp = np.load(os.path.join(out, "split.npz"))
+ref = pickle.load(open(os.path.join(out, f"model_{kind}.pkl"), "rb"))
+meta = json.load(open(os.path.join(out, "meta.json")))
+Xtr = sp["Xtr"]
+Xi = sp["X"][:n_use] if n_use else sp["X"]
+n, d = len(Xi), Xtr.shape[1]
+_prep = None
+
+
+def background(spec, j):
+    global _prep
+    if spec.startswith("B"):
+        return Xtr[np.random.RandomState({"B20": 2000, "B200": 3000}[spec] + j).choice(len(Xtr), int(spec[1:]), replace=False)], None
+    if _prep is None:
+        _prep = models._prep(d, meta["cat_idx"]).fit(Xtr)
+        _prep.Z = _prep.transform(Xtr)
+    Z = _prep.Z
+    km = KMeans(50, n_init=1, random_state=j).fit(Z)
+    idx = np.array([np.argmin(((Z - c) ** 2).sum(1)) for c in km.cluster_centers_])
+    return Xtr[idx], np.bincount(km.labels_, minlength=50) / len(Xtr)
+
+
+def phis(bg, w):
+    if kind in ("rf", "gbm"):
+        import shap
+        data = bg if w is None else np.repeat(bg, np.maximum(1, np.round(w * 1000)).astype(int), axis=0)
+        te = shap.TreeExplainer(ref.m, data=data, feature_perturbation="interventional")
+        sv = np.asarray(te.shap_values(Xi, check_additivity=False))
+        return sv[:, :, 1] if sv.ndim == 3 else sv
+    tab = exact.lr_value_table if kind == "lr" else (lambda f, x, b, w=None: exact.mlp_value_table(ref, x, b, w=w))
+    return np.array([exact.exact_shapley(tab(ref.f, x, bg, w=w)) for x in Xi])
+
+
+rows = []
+t0 = time.time()
+res = {}
+for spec in specs:
+    res[spec] = np.stack([phis(*background(spec, j)) for j in range(K)], 1)
+    print(spec, "done", time.time() - t0, flush=True)
+fn = os.path.join(out, f"floors_{kind}.npz")
+if os.path.exists(fn):
+    b50 = np.load(fn)["b"]
+    if b50.shape[0] >= n and b50.shape[1] >= K:
+        res["B50"] = b50[:n, :K]
+for spec, arr in res.items():
+    for i in range(n):
+        for k in A.KS:
+            if k >= d:
+                continue
+            s = (M.topk_mask(arr[i], k) * (1 << np.arange(d))).sum(1)
+            _, c = np.unique(s, return_counts=True)
+            rows.append(dict(dataset=ds, model=kind, background=spec, instance_id=i, k=k, n_models=K, n_pairs=K * (K - 1) // 2, n_agree=int((c * (c - 1) // 2).sum())))
+os.makedirs("results/floors", exist_ok=True)
+fnb = f"results/floors/bB_{ds}_{kind}.csv"
+new = pd.DataFrame(rows)
+if only_b50:
+    old = pd.read_csv(fnb)
+    new = pd.concat([old[old.background != "B50"], new], ignore_index=True)
+new.to_csv(fnb, index=False)
+print("done", time.time() - t0)

@@ -1,0 +1,96 @@
+"""Shared look of every exhibit: page geometry, type size, colours, markers.
+
+Geometry comes from `geometry.json` (filled from venue-repo's answer); the
+defaults below are a stand-in until then and are reported by `make_all.sh`.
+"""
+import json
+import os
+from pathlib import Path
+
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
+ROOT = Path(os.environ.get("FIGTAB_OUT", Path(__file__).resolve().parent.parent)).resolve()   # figures/ and tables/ are written under this directory
+GEOM_FILE = Path(__file__).resolve().parent / "geometry.json"
+GEOM = {"col_width_in": 3.25, "full_width_in": 6.75, "text_width_in": 6.75, "min_font_pt": 7.0, "source": "default"}
+if GEOM_FILE.exists():
+    GEOM.update(json.loads(GEOM_FILE.read_text()))
+
+COL_W = GEOM["col_width_in"]
+FULL_W = GEOM["full_width_in"]
+FONT = GEOM["min_font_pt"]
+
+# Okabe-Ito: distinguishable under the common colour-vision deficiencies.
+OI = {"black": "#000000", "orange": "#E69F00", "sky": "#56B4E9", "green": "#009E73",
+      "yellow": "#F0E442", "blue": "#0072B2", "verm": "#D55E00", "purple": "#CC79A7"}
+
+# One identity per method, fixed across figures: (label, colour, marker, linestyle).
+METHODS = {
+    "labels_z":       ("Labels only (z)",         "#555555", "s", (0, (1, 1))),
+    "labels_wilson":  ("Labels only (Wilson)",    "#555555", "D", (0, (1, 1))),
+    "labels_cp":      ("Labels only (C-P)",       "#999999", "v", (0, (1, 1))),
+    "ppi":            ("PPI",                     OI["sky"], "^", "-"),
+    "ppipp":          ("PPI++",                   OI["blue"], "o", "-"),
+    "ppipp_unclip":   ("PPI++ unclipped $\\hat\\lambda$", OI["blue"], "v", "--"),
+    "pooled_linear":  ("Pooled linear",           OI["blue"], "x", "--"),
+    "strat_ppi":      ("Strat. PPI",              OI["purple"], "P", "-"),
+    "calib_iso":      ("Calibrated (isotonic)",   OI["verm"], "s", "-"),
+    "calib_spline":   ("Calibrated (spline)",     OI["orange"], "D", "-"),
+    "calib_bins":     ("Calibrated (bins)",       OI["yellow"], "v", "-"),
+    "select":         ("Selected + safeguard",    OI["green"], "p", "-"),
+    "select_x":       ("Selected, $f$ and $X$",        OI["green"], "P", "-"),
+    "selectmin_x":    ("Selected +X (plain min)", OI["green"], "p", "--"),
+    "labels_t":       ("Labels only (t)",         "#555555", "s", (0, (1, 1))),
+    "ppipp_on_iso":   ("PPI++ on isotonic",       OI["purple"], "<", "--"),
+    "ppipp_on_spline":("PPI++ on spline",         OI["purple"], "<", "--"),
+    "selectmin":      ("Selected (plain min)",    OI["green"], "p", "--"),
+    "calib_x":        ("Calibrated, with $X$",      OI["orange"], "D", "-"),
+    "floor_x":        ("Floor with $X$",       "#000000", "_", "-"),
+    "oracle_m":       ("Oracle m(f)",             "#888888", "*", "-"),
+    "oracle_lin":     ("Oracle linear",           "#888888", "x", "--"),
+    "ppipp_on_calib": ("PPI++ on calibrated",     OI["purple"], "<", "--"),
+    "vec_ppipp_x":    ("Vector PPI++ (+X)",       OI["green"], ">", "-"),
+    "ols_adj":        ("OLS-adjusted (+X)",       "#117733", "h", "--"),
+    "gbm_aipw":       ("GBM-AIPW (+X)",           OI["black"], "*", "-"),
+    "floor":          ("Floor (estimated)",       "#000000", "_", "-"),
+}
+
+
+def method_style(m):
+    if m in METHODS:
+        return METHODS[m]
+    raise KeyError(f"method '{m}' has no entry in figtab/style.py METHODS; add it (label, colour, marker, linestyle)")
+
+
+def apply():
+    plt.rcParams.update({
+        # usetex with the Times packages gives Type 1 fonts (Nimbus Roman, as the venue body). matplotlib's default
+        # serif/sans/mono preambles need cm-super (absent here), so each family is pinned to a psnfss font.
+        "text.usetex": True, "font.family": "serif", "font.serif": ["Times"],
+        "font.sans-serif": ["Helvetica"], "font.monospace": ["Courier"],
+        "text.latex.preamble": r"\usepackage{amsmath}\usepackage{amssymb}",
+        "font.size": FONT, "axes.labelsize": FONT, "axes.titlesize": FONT,
+        "xtick.labelsize": FONT, "ytick.labelsize": FONT, "legend.fontsize": FONT,
+        "axes.linewidth": 0.6, "xtick.major.width": 0.6, "ytick.major.width": 0.6,
+        "lines.linewidth": 1.1, "lines.markersize": 4.0,
+        "axes.spines.top": False, "axes.spines.right": False,
+        "axes.grid": True, "grid.color": "#dddddd", "grid.linewidth": 0.4,
+        "legend.frameon": False, "figure.dpi": 150,
+        "pdf.fonttype": 3,                                # usetex text is embedded as Type 1 by matplotlib; this setting only concerns non-TeX text
+        "savefig.bbox": "tight", "savefig.pad_inches": 0.02,
+    })
+
+
+def outdir(kind):
+    d = ROOT / kind
+    d.mkdir(exist_ok=True)
+    return d
+
+
+def save(fig, name):
+    p = outdir("figures") / f"{name}.pdf"
+    fig.savefig(p, metadata={"CreationDate": None, "Creator": "figtab (matplotlib)", "Producer": "matplotlib pdf backend"})   # no timestamp: unchanged data gives an identical file
+    plt.close(fig)
+    print("wrote", p)
+    return p

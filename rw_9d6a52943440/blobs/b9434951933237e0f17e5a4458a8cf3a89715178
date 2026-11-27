@@ -1,0 +1,5 @@
+extrap    nb=13  ref(unc)=0.847  ref(centred)=0.823  obs=0.854
+extrap10  nb= 7  ref(unc)=0.815  ref(centred)=0.800  obs=0.820
+extrap50  nb=13  ref(unc)=0.900  ref(centred)=0.861  obs=0.975
+interp    nb=13  ref(unc)=0.806  ref(centred)=0.802  obs=0.700
+lineage   nb=12  ref(unc)=0.819  ref(centred)=0.815  obs=0.727

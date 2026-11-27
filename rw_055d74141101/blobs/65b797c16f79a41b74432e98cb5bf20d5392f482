@@ -1,0 +1,46 @@
+"""Table 5: search-method comparison on the same conclusions, budget and cost unit (search_quality.csv, scope all_datasets).
+tab5.tex = compact version for the main text; tab5_full.tex = every scope and method (appendix)."""
+import os
+from common import args, load, write_table, tex_escape as E, fmt
+from style import short_name
+a = args("tab5"); os.makedirs(a.out, exist_ok=True); prov = {"inputs": {}}
+df = load(a.data, "search_quality.csv", ["scope", "perturbation", "method", "k_ratio_to_best", "k_ratio_lo", "k_ratio_hi", "flipped_at_half_k", "flipped_at_k", "n_conclusions"], prov)
+NAME = {"random": "random, equal budget", "residual": "delete-largest-residual", "oneshot": "one-shot influence top-$k$", "iterated": "iterated linearisation + refit",
+        "both": "iterated + Frank--Wolfe (best of two)", "first_order": r"first-order prediction $k_{\mathrm{lin}}/k^*$",
+        "iterated_vs_exact": "iterated vs exhaustive minimum", "frank_wolfe_vs_exact": "Frank--Wolfe vs exhaustive minimum", "lp_candidate_vs_exact": "LP relaxation (lower-bound candidate) / exhaustive minimum",
+        "restarts_vs_standard": "randomised restarts vs standard search", "planted_vs_known": "search on planted instances / known undo path"}
+def ratio(r, nd=3):
+    if r is None or r.k_ratio_to_best != r.k_ratio_to_best: return "--"
+    return f"{fmt(r.k_ratio_to_best, nd)}" + ("" if r.k_ratio_lo != r.k_ratio_lo or (r.k_ratio_lo == r.k_ratio_hi) else f" [{fmt(r.k_ratio_lo, nd)}, {fmt(r.k_ratio_hi, nd)}]")
+def share(v): return "--" if v is None or v != v else fmt(float(v))
+def pick(scope, fam, m):
+    g = df[(df.scope == scope) & (df.perturbation == fam) & (df.method == m)]
+    return next(iter(g.itertuples()), None)
+# compact: pooled over all data sets
+meth = ["random", "residual", "oneshot", "iterated", "first_order"]
+rows = []
+for m in meth:
+    cells = []
+    for fam in ("delete", "flip"):
+        r = pick("all_datasets", fam, m)
+        cells += [ratio(r, 3) if r is not None and m != "first_order" else (ratio(r, 3) if r is not None else "--"), share(getattr(r, "flipped_at_half_k", None)), share(getattr(r, "flipped_at_k", None))] if r is not None else ["--"] * 3
+    rows.append([NAME[m]] + cells)
+ex = {fam: pick("tiny_exact_mtbench_subproblems", fam, "iterated_vs_exact") for fam in ("delete", "flip")}
+rows.append([r"\midrule"])
+rows.append([f"iterated/exhaustive ({int(ex['delete'].n_conclusions)} / {int(ex['flip'].n_conclusions)})"] +
+            [ratio(ex["delete"]), "--", share(ex["delete"].flipped_at_k), ratio(ex["flip"]), "--", share(ex["flip"].flipped_at_k)])
+nd, nf = [int(pick("all_datasets", f, "iterated").n_conclusions) for f in ("delete", "flip")]
+hdr1 = [r"method", r"$k^*/k_{\mathrm{best}}$", r"@$0.5k^*$", r"@$k^*$", r"$k^*/k_{\mathrm{best}}$", r"@$0.5k^*$", r"@$k^*$"]
+prov.update(scope="all_datasets: " + f"{nd} deletion and {nf} flip conclusions (Arena-55k, Arena single-turn, MT-Bench human and GPT-4)", columns="median ratio of the smallest verified k to the best found [95% CI]; share of conclusions reversed at 0.5k* and k*")
+write_table(a.out, "tab5", hdr1, rows, "p{1.5in}rrrrrr", prov, tabcolsep=2.5,
+            group=r"& \multicolumn{3}{c}{deletion} & \multicolumn{3}{c}{outcome flip} \\ \cmidrule(lr){2-4}\cmidrule(lr){5-7}")
+# full
+rows = []
+for scope in dict.fromkeys(df.scope):
+    rows.append([rf"\multicolumn{{7}}{{l}}{{\textit{{{E(short_name(scope, True)) if scope.startswith(('arena', 'mtbench')) else E(scope.replace('_', ' '))}}}}}"])
+    for fam in ("delete", "flip", "both"):
+        for m in dict.fromkeys(df[(df.scope == scope) & (df.perturbation == fam)].method):
+            r = pick(scope, fam, m)
+            un = "--" if "share_unreachable" not in df or r.share_unreachable != r.share_unreachable else fmt(float(r.share_unreachable))
+            rows.append([f"{fam}: " + NAME.get(m, E(m)), ratio(r), share(r.flipped_at_half_k), share(r.flipped_at_k), share(getattr(r, "flipped_at_2k", None)), un, str(int(r.n_conclusions))])
+write_table(a.out, "tab5_full", ["family: method", "$k/k_{\\mathrm{ref}}$ [95\\% CI]", "@$0.5k^*$", "@$k^*$", "@$2k^*$", "unreach.", "n"], rows, "p{1.95in}rrrrrr", {**prov, "scope": "all scopes"}, tabcolsep=3, longtable=True)

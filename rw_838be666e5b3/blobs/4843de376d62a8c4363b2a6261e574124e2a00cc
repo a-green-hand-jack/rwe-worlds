@@ -1,0 +1,52 @@
+"""Fig 6 (C8, E9): width of PPI++ with the tuning unclipped over the package PPI++ (`ppi-python` 0.2.3 clips it to
+[0, 1]) against the slope b of Y on f. Left: paired width ratio, the synthetic sweep with the exact formula (population-optimal
+tuning) and the real datasets; right: coverage of both intervals on the synthetic sweep. Inputs `clip_sweep.csv`, `clip_real.csv`."""
+import numpy as np
+import matplotlib.pyplot as plt
+import style, schema, captions
+from common import CFG, nice
+
+style.apply()
+sw, rl = schema.load("clip_sweep.csv"), schema.load("clip_real.csv")
+for nm, d in (("clip_sweep.csv", sw), ("clip_real.csv", rl)):
+    schema.check_ci(d, nm, "width_ratio_unclip_over_pkg", "ratio_lo", "ratio_hi")
+base = sw[(sw.sigma == CFG["clip_sigma"]) & (sw.N == CFG["clip_N"])]          # one noise level and N for the main sweep; the other cells are listed in the note
+other = sw.drop(base.index)
+ns = sorted(base.n.unique())
+if len(ns) > 5:
+    raise SystemExit(f"clip_sweep.csv base sweep has {len(ns)} values of n; the figure distinguishes at most 5")
+COL = dict(zip(ns, [style.OI["purple"], style.OI["blue"], style.OI["sky"], style.OI["green"], style.OI["orange"]]))
+MK = dict(zip(ns, ["o", "s", "^", "v", "D"]))
+fig, (a, c) = plt.subplots(1, 2, figsize=(style.FULL_W, 2.55), gridspec_kw={"wspace": 0.27})
+for n in ns:
+    s = base[base.n == n].sort_values("b")
+    a.plot(s.b, s.pred_width_ratio_unclip_over_pkg, color=COL[n], lw=0.8, zorder=1)
+    a.errorbar(s.b, s.width_ratio_unclip_over_pkg, yerr=[s.width_ratio_unclip_over_pkg - s.ratio_lo, s.ratio_hi - s.width_ratio_unclip_over_pkg],
+               fmt=MK[n], color=COL[n], ms=3.0, lw=0.5, capsize=0, label=f"$n={int(n)}$", zorder=2)
+    off = (ns.index(n) - (len(ns) - 1) / 2) * 0.022
+    c.errorbar(s.b + off, s.coverage_pkg, yerr=[s.coverage_pkg - s.cov_lo_pkg, s.cov_hi_pkg - s.coverage_pkg], fmt=MK[n], color=COL[n], ms=2.8, lw=0.4)
+    c.errorbar(s.b + off, s.coverage_unclip, yerr=[s.coverage_unclip - s.cov_lo_unclip, s.cov_hi_unclip - s.coverage_unclip], fmt=MK[n], mfc="white", color=COL[n], ms=3.0, lw=0.4)
+real = rl[rl.exp == "exp3"]
+real = real[[CFG["headline_n"].get(d) == n for d, n in zip(real.dataset, real.n)]]       # each set at its reference n
+a.errorbar(real.b, real.width_ratio_unclip_over_pkg, yerr=[real.width_ratio_unclip_over_pkg - real.ratio_lo, real.ratio_hi - real.width_ratio_unclip_over_pkg],
+           fmt="D", mfc="white", color="k", ms=3.6, lw=0.5, capsize=0, label="real sets (own $n$)", zorder=3)
+for k, r in enumerate(sorted((r for r in real.itertuples() if r.b > 1.1), key=lambda r: r.b)):      # labels alternate left / right so they do not overlap
+    a.annotate(f"{nice(r.dataset)}", (r.b, r.width_ratio_unclip_over_pkg), xytext=(-5 if k % 2 == 0 else 5, -14), textcoords="offset points",
+               fontsize=style.FONT, ha="right" if k % 2 == 0 else "left", arrowprops={"arrowstyle": "-", "lw": 0.4})
+a.axhline(1, color="k", lw=0.6)
+a.set_xlabel("slope $b$ of $Y$ on $f$"); a.set_ylabel("width, unclipped / package PPI++")
+h, l = a.get_legend_handles_labels()
+a.legend(h + [plt.Line2D([], [], color="k", lw=0.8)], l + ["formula (optimal tuning)"], ncol=1, fontsize=style.FONT, loc="lower left", handletextpad=0.3, borderpad=0.2, labelspacing=0.25)
+c.axhline(CFG["nominal"], color="k", lw=0.6, ls="--")
+c.set_xlabel("slope $b$ of $Y$ on $f$"); c.set_ylabel("coverage (Wilson 95\\% CI)")
+c.legend([plt.Line2D([], [], marker="o", color="k", ls="", ms=2.8), plt.Line2D([], [], marker="o", mfc="white", color="k", ls="", ms=3.0)],
+         ["package PPI++", "unclipped"], fontsize=style.FONT, loc="lower right", handletextpad=0.3, borderpad=0.2, labelspacing=0.25)
+style.save(fig, "fig_clip")
+dev = (base.width_ratio_unclip_over_pkg - base.pred_width_ratio_unclip_over_pkg).abs()
+extra = (f"Synthetic cells drawn: {len(base)} (sigma = {CFG['clip_sigma']:g}, N = {CFG['clip_N']}); not drawn, in clip_sweep.csv: {len(other)} cells (other sigma, other N at n = 300). "
+         f"Largest gap between the measured ratio and the formula in the cells drawn: {dev.max():.3f} (n = {int(base.loc[dev.idxmax(), 'n'])}, b = {base.loc[dev.idxmax(), 'b']:g}). "
+         f"Real sets drawn at their reference n (config headline_n); clip_real.csv has {len(rl)} rows over {rl.dataset.nunique()} datasets. "
+         "Real sets with b above 1.1: " + "; ".join(f"{nice(r.dataset)} b = {r.b:.2f}, n = {int(r.n)}, ratio {r.width_ratio_unclip_over_pkg:.3f} [{r.ratio_lo:.3f}, {r.ratio_hi:.3f}], coverage package {100*r.coverage_pkg:.1f}% unclipped {100*r.coverage_unclip:.1f}%" for r in real.itertuples() if r.b > 1.1) + ".")
+captions.write("figures", "fig_clip", "C8: with the package's clip of the tuning removed, the PPI++ interval is shorter when the slope b is above 1; the size follows the formula for n large enough that the estimated tuning is stable.",
+    "left: paired width ratio of PPI++ with the tuning unclipped to the package PPI++ (`ppi-python` 0.2.3, tuning clipped to [0, 1]) against the slope b of Y on f; markers = measured on the synthetic sweep (95% CI of the paired ratio), line = the exact formula for the population-optimal tuning (no estimation of it), colour = n; hollow diamonds = the real datasets, each at its reference n. Right: coverage of the package (filled) and unclipped (hollow) intervals, same sweep, Wilson 95% CIs, markers offset sideways by n; dashed = nominal.",
+    "below 1 = the unclipped interval is shorter. Where the line and the markers part (small n, b near 1) the estimated tuning's noise matters and the unclipped interval is not shorter (at n = 30, b = 1 it is wider); at b <= 1 the clip is inactive in the population, so the formula gives 1, except b < 0 where it pins at 0. Coverage of the two intervals is read against the dashed line. The statement concerns one implementation, not the PPI++ method.", sw, extra)

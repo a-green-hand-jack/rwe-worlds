@@ -1,0 +1,37 @@
+\section{Error decomposition and the shape of the curve}
+\label{sec:theory}
+
+This section gives what the factor model implies for the error of a run set, so that the measured error in Section~\ref{sec:experiments} can be attributed. Throughout, $\psi_j$, $v_j$ and $\Sigma_{\mathrm{post}}$ are as in Section~\ref{sec:method}, and parameters are first taken as known.
+
+\begin{proposition}[Risk of a run set]\label{prop:t1}
+If a new model follows the factor model and benchmark $j\notin S$ is predicted by the posterior mean given $y_S$, its expected squared error is
+\begin{equation}
+\mathbb{E}\,(y_j-\hat y_j)^2=\psi_j+v_j^{\top}\Sigma_{\mathrm{post}}(S)\,v_j .
+\end{equation}
+\end{proposition}
+\noindent\emph{Proof.} $y_j-\hat y_j=v_j^{\top}(z-\hat z)+\varepsilon_j$, where $z-\hat z\sim\mathcal N(0,\Sigma_{\mathrm{post}}(S))$ is independent of $\varepsilon_j$ for $j\notin S$. \qed
+
+Averaging over a target set $T$ gives $\overline\psi_T+D_T(S)$ with $D_T(S)=|T|^{-1}F_T(S)$, the design term that S6 minimises. The term depends on the run set only through $\sum_{j\in S}\psi_j^{-1}v_jv_j^{\top}$ and is non-increasing as benchmarks are added. Let $F_T^{\mathrm{pred}}(S)=\overline\psi_T+D_T(S)$ be the prediction of the mean squared error for the fitted parameters, and let $\mathrm{MSE}_T(S)$ and $\mathrm{MSE}_T(C)$ be the measured error with run set $S$ and with all of the pool revealed. The measured error then splits exactly into four terms,
+\begin{equation}
+\mathrm{MSE}_T(S)=\underbrace{F_T^{\mathrm{pred}}(C)}_{\text{noise}}+\underbrace{\mathrm{MSE}_T(C)-F_T^{\mathrm{pred}}(C)}_{\text{floor misfit}}+\underbrace{F_T^{\mathrm{pred}}(S)-F_T^{\mathrm{pred}}(C)}_{\text{design}}+\underbrace{\mathrm{rest}(S)}_{\text{remainder}},
+\label{eq:decomp}
+\end{equation}
+where $\mathrm{rest}(S)$ is whatever is left, the remainder. The term called noise is the predicted error with the whole pool revealed, the noise variance $\overline\psi_T$ plus the small design term of $C$. With the parameters estimated from $M$ models rather than known, the extra error from estimating $V$ and $\psi$ is of order $1/M$ per model; the remainder in (\ref{eq:decomp}) holds that error and whatever else the other three terms do not account for; the data do not separate the two, and Section~\ref{sec:experiments} gives the size of the estimation term from data simulated from the model.
+
+\paragraph{Shape of the curve.}
+Let $\tilde V_S$ be the rows $v_j/\sqrt{\psi_j}$, $j\in S$. Since $\Sigma_{\mathrm{post}}(S)=(I+\tilde V_S^{\top}\tilde V_S)^{-1}\preceq\bigl(1+\lambda_{\min}(\tilde V_S^{\top}\tilde V_S)\bigr)^{-1}I$,
+\begin{equation}
+D_T(S)\le\frac{\overline{\|v\|^2}_T}{1+\lambda_{\min}(\tilde V_S^{\top}\tilde V_S)} .
+\end{equation}
+where $\overline{\|v\|^2}_T$ is the mean over $T$ of the squared norm $\|v_j\|^2$ of the loading vector. The bound separates two regimes. If $S$ cannot span the $r$ factors, $\lambda_{\min}=0$ and $D_T$ falls only along the directions the run set covers, so a few well-chosen benchmarks help most. Once $S$ spans them, the bound falls as $1/(1+ck)$ whenever $\lambda_{\min}$ grows as fast as $ck$, which holds for a random run set when the loadings are spread out. With separated factors the transition is a knee near the number of factors; with a slowly decaying spectrum it is a gradual closure. Both regimes are tested on synthetic data in Section~\ref{sec:experiments}.
+
+The needed run-set size follows from the excess over the floor in RMSE, which is the quantity of Section~\ref{sec:protocol}. With $F_T^{\mathrm{pred}}(S)$ as above, the model predicts
+\begin{equation}
+\text{excess}(k)=\sqrt{F_T^{\mathrm{pred}}(S_k)}-\sqrt{F_T^{\mathrm{pred}}(C)},
+\end{equation}
+and $k^*_{\mathrm{pred}}(\epsilon)$ is the smallest $k$ at which this is at most $\epsilon$. It uses the training spectrum and noise alone, not the measured floor, and we test it against the measured $k^*(\epsilon)$.
+
+\begin{proposition}[Adaptive and batch selection coincide]\label{prop:t3}
+For known $V,\psi$ and Gaussian noise, with squared loss and a fixed number of benchmarks, an adaptive policy reaches the same expected posterior variance as the best fixed run set of the same size.
+\end{proposition}
+\noindent\emph{Proof.} $\Sigma_{\mathrm{post}}(S)$ is a function of $S$ alone, so the value of any adaptive policy is an average of $F_T(S)$ over the sets it ends with, which no policy takes below $\min_{|S|=k}F_T(S)$. \qed

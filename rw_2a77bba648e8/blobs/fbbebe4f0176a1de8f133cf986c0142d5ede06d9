@@ -1,0 +1,14 @@
+\section{Related work}
+\label{sec:related}
+
+\paragraph{Regression estimators of the global effect.}
+\citet{chin2019regression} proposed the estimator we study: build covariates from functions of the assignment vector, fit the outcome on them, predict at global treatment and global control, and difference. It rests on a correct response model and uses resampling for inference. \citet{han2023model} generate and select graph-based covariates and give block-bootstrap intervals.
+
+\paragraph{Exposure-mapping estimators.}
+Horvitz--Thompson and H\'ajek estimators with a specified exposure mapping \citep{aronow2017estimating,eckles2017design}, usually paired with graph-cluster randomization \citep{ugander2013graph,karrer2021network}, are the design-based baselines. \citet{thiyageswaran2024data} choose the exposure threshold from the data; \citet{shirani2024causal} fit a message-passing model. \citet{gao2023causal} study regression fits whose estimands are contrasts between exposure conditions; the global effect, and the extrapolation it needs, is a different target.
+
+\paragraph{Misspecified or unknown interference.}
+Difference in means is consistent for a marginalised estimand under unknown interference \citep{savje2021average}; misspecified exposure mappings separate the estimand from the assumption \citep{leung2022causal,savje2023causal}; \citet{yu2022estimating} estimate the total effect without the network. Honest confidence intervals that widen by a bound on the bias \citep{armstrong2020simple} are the form of the interval we test in Section~\ref{sec:coverage}. Analyses within groups \citep{hudgens2008toward,liu2014large}, with local dependence \citep{leung2020treatment}, on observational data \citep{forastiere2021identification} and under random-graph models \citep{sussman2017elements,li2022random,hu2022average} are background we do not compare with.
+
+\paragraph{Designs.}
+Cluster-based, correlated and staggered-rollout designs \citep{ugander2013graph,ugander2023randomized,candogan2023correlated,cortez2022staggered,chen2023optimized} change the exposures the regression sees; we cross the estimator with Bernoulli and graph-cluster assignment. \citet{johari2022experimental} analyse the bias of difference in means in two-sided marketplace experiments. Limited overlap \citep{crump2009dealing,damour2021overlap} is the analogue of our extrapolation framing.

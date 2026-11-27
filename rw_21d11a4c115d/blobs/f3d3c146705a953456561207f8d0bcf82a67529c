@@ -1,0 +1,93 @@
+{
+  "band": "greedy A with the factor model only; family-clustered bootstrap 95%",
+  "claim": "C2 (sparse matrix, review M1)",
+  "figure": "fig8_sparse",
+  "generated": "2026-11-25",
+  "height_in": 3.3,
+  "inputs": {
+    "sparse_closure.csv": "365ed05eb2a6",
+    "sparse_gap.csv": "fea767902778",
+    "sparse_run_info.csv": "a77c138348c0",
+    "sparse_subsets.csv": "ef1973c1e6e2"
+  },
+  "note": "identity transform; grid k=1-6,8,10,12,15,20; models with <30 observed cells not tested; closure may exceed 1",
+  "panels": {
+    "all_d30": {
+      "density": 0.3000235692399991,
+      "ks": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        8,
+        10,
+        12,
+        15,
+        20
+      ],
+      "n_models": 331,
+      "n_tasks": 705,
+      "n_tested": 331
+    },
+    "eng_d30": {
+      "density": 0.3001531549928528,
+      "ks": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        8,
+        10,
+        12,
+        15,
+        20
+      ],
+      "n_models": 332,
+      "n_tasks": 295,
+      "n_tested": 332
+    },
+    "eng_d50": {
+      "density": 0.5017384667571235,
+      "ks": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        8,
+        10,
+        12,
+        15,
+        20
+      ],
+      "n_models": 268,
+      "n_tasks": 176,
+      "n_tested": 267
+    },
+    "eng_d70": {
+      "density": 0.7029124290054154,
+      "ks": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        8,
+        10,
+        12,
+        15,
+        20
+      ],
+      "n_models": 226,
+      "n_tasks": 134,
+      "n_tested": 215
+    }
+  },
+  "width_in": 5.5
+}

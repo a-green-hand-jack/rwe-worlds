@@ -1,0 +1,74 @@
+"""Per-instance decision-level metrics from the stored runs (one row per dataset, model, estimator, budget, instance)."""
+import glob, os, re, json
+import numpy as np
+import pandas as pd
+from . import metrics as M, pipeline as P
+
+KS = (1, 3, 5)
+EPS = (0.0, 0.02, 0.05, 0.1)
+EST_RE = re.compile(r"^(shap_noreg|shap_auto|shap_nf10|unb|perm)_(\d+)$")
+
+
+def _sig(est, k):
+    """integer signature (bitmask) of the top-k set of each row of est (R,d)."""
+    m = M.topk_mask(est, k)
+    return (m * (1 << np.arange(m.shape[1]))).sum(1)
+
+
+def agreement(est, k):
+    """A: probability that two independent runs give the same top-k set (unbiased U-statistic over R runs)."""
+    s = _sig(est, k)
+    R = len(s)
+    _, c = np.unique(s, return_counts=True)
+    return float((c * (c - 1)).sum() / (R * (R - 1)))
+
+
+def sign_ok(est, ref, thr=0.1):
+    rel = np.abs(ref) >= thr * np.abs(ref).max()
+    return (np.sign(est[:, rel]) == np.sign(ref[rel])).all(1)
+
+
+def rows_for_instance(d_, kind, i, ds, seed):
+    r = np.load(os.path.join(P.cell_dir(ds, seed), f"inst_{kind}_{i:04d}.npz"))
+    ref = r["phi"]
+    d = len(ref)
+    out = []
+    for key in r.files:
+        mt = EST_RE.match(key)
+        if not mt:
+            continue
+        est = r[key]
+        R = est.shape[0]
+        m_nom = int(mt.group(2))
+        m_eff = 2 * (d - 1) * max(1, m_nom // (2 * (d - 1))) if mt.group(1) == "perm" else m_nom
+        row = dict(dataset=ds, model=kind, seed=seed, inst=i, estimator=mt.group(1), m=m_nom, m_eff=m_eff, R=R, d=d)
+        for k in KS:
+            if k >= d:
+                continue
+            row[f"pc_k{k}"] = float(M.correct_exact(est, ref, k).mean())
+            for e in EPS:
+                ok, nx = M.correct_tol(est, ref, k, e)
+                row[f"pct_k{k}_e{e}"] = float(ok.mean())
+                if e == 0.05:
+                    row[f"extra_k{k}"] = nx
+            row[f"A_k{k}"] = agreement(est, k)
+            row[f"margin_k{k}"] = M.margin(ref, k)
+        row["sign_ok"] = float(sign_ok(est, ref).mean())
+        # aggregate agreement with the exact vector, mean over runs
+        row["corr"] = float(np.mean([np.corrcoef(e_, ref)[0, 1] for e_ in est]))
+        rl2 = np.linalg.norm(est - ref, axis=1) / np.linalg.norm(ref)
+        row["rel_l2"] = float(np.mean(rl2))
+        row["rel_l2_med"] = float(np.median(rl2))
+        row["bias_l2"] = float(np.linalg.norm(est.mean(0) - ref) / np.linalg.norm(ref))
+        row["top1_exact"] = int(np.argmax(np.abs(ref)))
+        out.append(row)
+    return out
+
+
+def cell_frame(ds, kind, seed=0):
+    files = sorted(glob.glob(os.path.join(P.cell_dir(ds, seed), f"inst_{kind}_*.npz")))
+    rows = []
+    for f in files:
+        i = int(re.search(r"_(\d+)\.npz$", f).group(1))
+        rows += rows_for_instance(None, kind, i, ds, seed)
+    return pd.DataFrame(rows)

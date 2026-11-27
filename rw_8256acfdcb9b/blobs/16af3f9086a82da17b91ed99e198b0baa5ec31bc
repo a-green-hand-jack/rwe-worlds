@@ -1,0 +1,25 @@
+"""Merge (and floors_<model>__<part>.npz of the cell directory) results/floors/<ds>_<model>__<part>.csv/json (floors.py with PARTS) into <ds>_<model>.csv/json."""
+import sys, glob, json
+import os, numpy as np, pandas as pd
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+from shapreliab import pipeline as P
+ds, kind = sys.argv[1], sys.argv[2]
+fs = sorted(glob.glob(f"results/floors/{ds}_{kind}__*.csv"))
+pd.concat([pd.read_csv(f) for f in fs]).to_csv(f"results/floors/{ds}_{kind}.csv", index=False)
+js = [json.load(open(f[:-4] + ".json")) for f in fs]
+out = dict(js[0]); out["variants"] = {}
+for j in js:
+    out["variants"].update(j["variants"])
+json.dump(out, open(f"results/floors/{ds}_{kind}.json", "w"))
+print("merged", fs)
+cd = P.cell_dir(ds, 0)
+arrs = {}
+for f in sorted(glob.glob(os.path.join(cd, f"floors_{kind}__*.npz"))):
+    z = np.load(f)
+    arrs.update({k: z[k] for k in z.files})
+np.savez_compressed(os.path.join(cd, f"floors_{kind}.npz"), **arrs)
+print("npz keys", sorted(arrs))
+os.makedirs("results/floors/parts", exist_ok=True)
+for f in fs:
+    for ext in (".csv", ".json"):
+        os.replace(f[:-4] + ext, os.path.join("results/floors/parts", os.path.basename(f)[:-4] + ext))

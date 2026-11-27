@@ -1,0 +1,23 @@
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{p{1.55in}rr}
+\toprule
+check & deletion: $\Delta$ [95\% CI] (core) & flip: $\Delta$ [95\% CI] (core) \\
+\midrule
+Arena-55k, ties dropped (1036 pairs) & -0.024 [-0.033, -0.016] (-0.011) & -0.016 [-0.027, -0.006] (0.056) \\
+MT-Bench GPT-4, turn 1 (7 pairs) & 0.07 [0.031, 0.1] & -0.013 [-0.039, 0.0071] \\
+MT-Bench GPT-4, turn 2 (6 pairs) & 0.11 [0.047, 0.18] & -0.011 [-0.032, 0.013] \\
+MT-Bench human, turn 1 (7 pairs) & 0.0016 [-0.023, 0.028] (-0.0047) & 0.0091 [-0.008, 0.029] (-0.00024) \\
+MT-Bench human, turn 2 (5 pairs) & -0.018 [-0.045, 0.016] (-0.0047) & 0.0026 [-0.0073, 0.012] (-0.00024) \\
+\midrule
+\multicolumn{3}{l}{\textit{median cost-2 $k^*$ / unit-cost $k^*$, flips (lower bound 1)}} \\
+Arena-55k, re-priced (41 pairs) & -- & 2 [2, 2] \\
+Arena-55k, searched with costs (41 pairs) & -- & 2 [2, 2] \\
+MT-Bench GPT-4, re-priced (15 pairs) & -- & 2 [2, 2] \\
+MT-Bench GPT-4, searched with costs (15 pairs) & -- & 2 [1.9, 2] \\
+MT-Bench human, re-priced (15 pairs) & -- & 2 [2, 2] \\
+MT-Bench human, searched with costs (15 pairs) & -- & 1.9 [1.9, 2] \\
+NBA 2005, re-priced (41 pairs) & -- & 2 [2, 2] by construction \\
+NBA 2005, searched with costs (41 pairs) & -- & 2 [2, 2] by construction \\
+\bottomrule
+\end{tabular}

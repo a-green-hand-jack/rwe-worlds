@@ -1,0 +1,65 @@
+"""Fig 1 (C1): left = protocol schematic, right = reported vs fresh-item accuracy of the selected configuration and the gap against n.
+Reads gap_vs_n_real (experiment-repo): random search with B in {5, 20, 100} evaluated configurations of K = 128, MMLU-Pro pool,
+columns n, searcher, B, reported, fresh, gap(+_lo/_hi), gap_vs_pool, noise_floor, default_fresh, mean_fresh, oracle_fresh, flag, ci_kind.
+usage: python figures/src/fig1.py RESULTS_DIR OUT.pdf"""
+import sys
+import numpy as np
+import matplotlib.pyplot as plt
+sys.path.insert(0, __file__.rsplit("/", 1)[0])
+import figstyle as fs
+import fig1_schematic as sch
+
+MARK = {5: "o", 20: "s", 100: "^"}
+LS = {5: ":", 20: "--", 100: "-"}
+
+
+def main(rd, out):
+    d = fs.load(rd, "gap_vs_n_real")
+    assert (d["ci_kind"] == "pool-bootstrap").all() and (d["arm"] == "real").all()
+    r = d[d.searcher == "random"].sort_values(["B", "n"])
+    ns = [int(x) for x in sorted(r.n.unique())]; Bs = [int(b) for b in sorted(r.B.unique())]; Bmax = max(Bs)
+    print("Fig 1 data:", r.pool.iloc[0], "|", r.model.iloc[0], "| truth =", r.truth.iloc[0], "| searcher = random, B =", Bs, "of K =", int(r.K.iloc[0]),
+          "| n =", ns, "| draws/cell =", int(r.draws0.iloc[0]), "| n_boot =", int(r.n_boot.iloc[0]), "| interval:", r.ci_kind.iloc[0],
+          "| flagged n:", [int(x) for x in sorted(r[r.flag.notna() & (r.flag != "")].n.unique())])
+    fs.apply(); c = fs.C
+    W, H = fs.VENUE["text_width_in"], fs.VENUE["max_height_in"]; pw = fs.VENUE["panel_width_in"]
+    fig = plt.figure(figsize=(W, H))
+    axs = fig.add_axes([0, 0, pw / W, 1]); sch.draw(axs)
+    left = (pw + 0.50) / W; width = 1 - left - 0.085
+    a1 = fig.add_axes([left, 0.54, width, 0.44]); a2 = fig.add_axes([left, 0.20, width, 0.25], sharex=a1)
+    top = r[r.B == Bmax]
+    a1.axhline(top.oracle_fresh.mean(), color=c["noise"], lw=0.7, ls="-")
+    a1.axhline(top.mean_fresh.mean(), color=c["noise"], lw=0.9, ls=":")
+    a1.axhline(top.default_fresh.mean(), color=c["ink"], lw=0.8, ls="--")
+    a1.fill_between(top.n, top.reported, top.fresh, color=c["reported"], alpha=0.12, lw=0)
+    a1.plot(top.n, top.reported, "-o", color=c["reported"], ms=3)
+    a1.plot(top.n, top.fresh, "-s", color=c["fresh"], ms=3)
+    a1.set_xscale("log"); a1.set_ylim(0.245, 0.415); a1.set_yticks([0.25, 0.30, 0.35, 0.40]); a1.set_yticklabels([".25", ".30", ".35", ".40"])
+    a1.set_ylabel("accuracy"); plt.setp(a1.get_xticklabels(), visible=False)
+    a1.text(100, 0.37, "reported on $S$", color=c["reported"], fontsize=7, ha="left", va="center")
+    a1.text(31, top.oracle_fresh.mean() + 0.003, "best configuration", color="#555555", fontsize=7, ha="left", va="bottom")
+    a1.text(45, 0.2925, "fresh items, selected", color=c["fresh"], fontsize=7, ha="left", va="center")
+    for y, t, col, dy in ((top.mean_fresh.mean(), "mean", "#555555", 0.0035), (top.default_fresh.mean(), "default", c["ink"], -0.0035)):
+        a1.text(1.02, y + dy, t, transform=a1.get_yaxis_transform(), color=col, fontsize=7, ha="left", va="center", clip_on=False)
+    a1.text(0.99, 0.97, f"$B$={Bmax}", transform=a1.transAxes, fontsize=7, ha="right", va="top")
+    nf = r[r.B == Bmax].sort_values("n").noise_floor.values
+    a2.fill_between(ns, -1.96 * nf, 1.96 * nf, color=c["noise"], alpha=0.28, lw=0)
+    a2.axhline(0, color=c["ink"], lw=0.6)
+    for B in Bs:
+        g = r[r.B == B]
+        a2.fill_between(g.n, g.gap_lo, g.gap_hi, color=c["reported"], alpha=0.25, lw=0)
+        a2.plot(g.n, g.gap, LS[B], color=c["reported"], lw=1.1)
+        mf = ["white" if n == 400 else c["reported"] for n in g.n]
+        for n, y, f in zip(g.n, g.gap, mf):
+            a2.plot(n, y, MARK[B], color=c["reported"], ms=3, mfc=f, mew=0.8)
+    a2.set_xscale("log"); a2.set_xticks(ns); a2.set_xticklabels([str(x) for x in ns]); a2.minorticks_off(); a2.set_xlim(26, 480)
+    a2.set_xlabel("search-set size $n$"); a2.set_ylabel("gap"); a2.set_ylim(-0.026, 0.165)
+    a2.set_yticks([0, 0.05, 0.10]); a2.set_yticklabels(["0", ".05", ".10"])
+    a2.text(30, -0.0235, "fresh-item noise $\\pm$1.96 SE", fontsize=7, ha="left", va="bottom", color="#555555")
+    h = [plt.Line2D([], [], color=c["reported"], ls=LS[B], marker=MARK[B], ms=3, label=f"$B$={B}") for B in Bs]
+    a2.legend(handles=h, frameon=False, ncol=3, loc="upper right", handlelength=1.6, columnspacing=0.7, handletextpad=0.4, borderaxespad=0.0)
+    fig.savefig(out, bbox_inches=None, pad_inches=0)
+
+
+if __name__ == "__main__":
+    main(*sys.argv[1:3])

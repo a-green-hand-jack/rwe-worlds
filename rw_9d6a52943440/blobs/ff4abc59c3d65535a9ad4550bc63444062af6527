@@ -1,0 +1,31 @@
+# Figures and tables: script map
+
+Every figure and table of the paper is produced by a script in `figures/scripts/` from the result files in `code/results/` (written by the code in `code/`). The scripts never recompute a statistic: ratios, intervals, biases and ordering accuracies come from `code/results/*.csv` (the file names below); the scripts only select rows, pool across benchmarks by the rule stated in each script's docstring, and format. No number is typed by hand.
+
+**Run everything:** `sh figures/scripts/make_all.sh [CODE_DIR]` from the root of the delivered paper (`CODE_DIR` defaults to `code/`; it must contain `results/`). It writes `figures/*.pdf` and `tables/*.tex`; about 40 s on one CPU. Needs Python 3 with numpy, pandas and matplotlib (versions: `code/requirements.txt`). Shared style (venue text width 5.5 in; tick and legend text at least 7 pt, titles at least 8 pt; Type 42 fonts; one fixed style per method class): `figures/scripts/style.py`; which methods are shown and how they are named: `figures/scripts/common.py`.
+
+| Output | Shows | Script | Reads (`code/results/`) |
+|---|---|---|---|
+| `figures/fig1_protocol.pdf` (Fig. 1, main) | protocol | `fig1_protocol.py` | none (schematic) |
+| `figures/fig2_ratio_vs_n.pdf` (Fig. 2, main) | RMSE ratio vs n | `fig2_ratio_vs_n.py` | `ratio_by_n.csv.gz` |
+| `figures/fig3_bias_by_score.pdf` (Fig. 3, main) | bias vs target position | `fig3_bias_by_score.py` | `bias_bands.csv` |
+| `figures/fig4_ceiling.pdf` (Fig. 4, main) | observed vs predicted ratio | `fig4_ceiling.py` | `ceiling.csv`, `per_bench.csv.gz`, `targets.csv` |
+| `figures/fig5_ablation.pdf`, `fig5_ablation_all_splits.pdf` (Fig. 5, appendix) | design x estimator heat map | `fig5_ablation.py` | `primary.csv` |
+| `figures/fig6_msrc.pdf` (Fig. 6, appendix) | error vs number of source models | `fig6_msrc.py` | `msrc.csv` |
+| `figures/fig7_ordering.pdf`, `fig7_ordering_all_splits.pdf` (Fig. 7, appendix) | order accuracy vs score gap | `fig7_ordering.py` | `pairwise.csv.gz`, `pairwise_bands.csv`, `targets.csv` |
+| `tables/table1_primary.tex` (Table 1, main) | primary endpoint | `tables_results.py` | `primary.csv`, `selected.csv`, `targets.csv` |
+| `tables/table2_audit.tex` (Table 2, appendix) | data audit | `table2_audit.py` | `audit.csv` |
+| `tables/table3_biasvar.tex`, `table3_biasvar_all.tex` (Table 3, appendix) | squared bias and variance | `tables_results.py` | `per_bench.csv.gz` |
+| `tables/table4_ordering.tex`, `table4_ordering_all.tex` (Table 4, appendix) | ranking quality | `tables_results.py` | `ordering.csv.gz`, `targets.csv` |
+| `tables/table5_lobo.tex` (Table 5, appendix) | leave-one-benchmark-out representatives | `tables_results.py` | `selected.csv`, `primary.csv` |
+| `tables/table6_twopct.tex` (Table 6, appendix) | secondary endpoint n/N = 2% | `tables_results.py` | `twopct/ratio_by_n.csv.gz`, `twopct/targets.csv`, `twopct/selected.csv` |
+| `tables/table7_suite.tex` (Table 7, appendix) | primary endpoint by suite | `tables_results.py` | `primary_suite.csv` |
+| `tables/table8_robust.tex` (Table 8, appendix) | robustness to the tuning split and the anchor k-means | `table8_robust.py` | `primary.csv`, `inner50/primary.csv`, `inner50/paired_vs_main.csv`, `kmstrong.csv` |
+| `tables/table9_primary_all.tex` (Table 9, appendix); `table9_primary_allbench.tex` (not in the paper) | every method | `tables_results.py` | `primary.csv` |
+| `tables/table10_recal.tex` (Table 10, appendix) | target-recalibrated estimators, weak-prior check, fall-back rate | `table10_recal.py` | `primary_suite_extra.csv`, `selected_extra.csv`, `recal_fallback_n100.csv`, `targets.csv` |
+| `tables/table11_public.tex` (Table 11, appendix) | published anchor code on our splits; IRT-setting check | `table11_public.py` | `public_baselines.csv`, `dsweep.csv` |
+
+
+Placed heights at 5.5 in wide (no rescaling; figures are saved at exactly 396 pt wide, except Fig. 4, which is saved at 356.4 pt = 0.9 of the text width and must be placed at 0.9\textwidth): Fig. 1 115 pt, Fig. 2 166 pt, Fig. 3 191 pt, Fig. 4 209 pt; text is at least 7 pt in all of them (7.5 pt in Fig. 1).
+
+Captions and table notes, each with the claim it carries and the computation it shows: `tables/captions.md`.

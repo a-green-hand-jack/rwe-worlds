@@ -1,0 +1,79 @@
+"""Dataset-level fragility analysis: bootstrap SE, per-pair k*, null simulation, random baselines."""
+import numpy as np
+import pandas as pd
+import scipy.sparse as sp
+import btlib as B
+
+
+class Prepared:
+    """A comparison data set aggregated on its pair graph."""
+
+    def __init__(self, d, min_models_n=0):
+        self.name, self.design, self.names = d["name"], d["design"], d["names"]
+        self.M = len(self.names)
+        g, cnt, inv, sa = B.Graph.from_comparisons(self.M, d["ci"], d["cj"], d["s"])
+        self.g, self.cnt, self.N = g, cnt, int(cnt.sum())
+        otype = np.where(sa == 1.0, 0, np.where(sa == 0.0, 1, 2))
+        self.cell = inv * 3 + otype  # type index of every comparison
+        self.cluster = pd.factorize(d["cluster"])[0]  # compact ids: empty clusters would shrink the resampled size
+        self.ncl = int(self.cluster.max()) + 1
+        self.Cmat = sp.csr_matrix((np.ones(len(self.cell)), (self.cluster, self.cell)), shape=(self.ncl, 3 * g.P))
+        self.theta, self.H = B.fit(g, cnt, return_H=True)
+        self.tie_rate = cnt[:, 2].sum() / cnt.sum()
+
+    def counts_from_weights(self, Wb):
+        """cluster-multiplicity matrix (B x ncl) -> counts (B, P, 3)"""
+        return (sp.csr_matrix(Wb) @ self.Cmat).toarray().reshape(Wb.shape[0], self.g.P, 3)
+
+    def bootstrap_theta(self, nboot, rng, by="cluster"):
+        n = self.ncl if by == "cluster" else len(self.cell)
+        out = np.empty((nboot, self.M))
+        for b in range(nboot):
+            if by == "cluster":
+                w = rng.multinomial(self.ncl, np.full(self.ncl, 1.0 / self.ncl))
+                cb = (self.Cmat.T @ w).reshape(self.g.P, 3)
+            else:
+                cb = rng.multinomial(self.N, (self.cnt / self.N).ravel()).reshape(self.g.P, 3).astype(float)
+            out[b] = B.fit(self.g, cb, theta0=self.theta)
+        return out
+
+    def fisher_cov(self):
+        return np.linalg.inv(self.H)
+
+
+def simulate_null(P, rng, tie="global"):
+    """Parametric-bootstrap data: same graph and n_ij, scores from the fitted BT, mean score preserved exactly.
+
+    P(a wins)=p-t/2, P(b wins)=1-p-t/2, P(tie)=t with t=min(tie_rate, 2 min(p,1-p)); p = fitted mean score.
+    """
+    g = P.g
+    p = B.sigmoid(P.theta[g.pa] - P.theta[g.pb])
+    n = P.cnt.sum(1).astype(int)
+    t0 = P.tie_rate if tie == "global" else P.cnt[:, 2] / np.maximum(P.cnt.sum(1), 1)
+    t = np.minimum(t0, 2 * np.minimum(p, 1 - p))
+    probs = np.stack([p - t / 2, 1 - p - t / 2, t], 1)
+    probs = np.clip(probs, 0, None)
+    probs /= probs.sum(1, keepdims=True)
+    out = np.empty((g.P, 3))
+    for i in range(g.P):
+        out[i] = rng.multinomial(n[i], probs[i])
+    return out
+
+
+def all_pairs(P, cnt, family, th0=None, top=None, pairs=None):
+    """k* (verified upper bound), first-order k, and gap for the conclusion 'a above b', for every ordered pair a>b."""
+    g, M = P.g, P.M
+    ty = B.Types(g, family)
+    th, H = B.fit(g, cnt, th0, return_H=True)
+    order = np.argsort(-th)
+    Hinv = np.linalg.inv(H)
+    rows = []
+    if pairs is None:
+        pairs = [(order[r], order[s]) for r in range(M) for s in range(r + 1, M)]
+    for a, b in pairs:
+        d = B.make_d(M, a, b)
+        res = B.kstar(g, ty, cnt, d, th0=th)
+        dv = d @ Hinv @ d
+        rows.append(dict(a=a, b=b, gap=res["gap0"], z_fisher=res["gap0"] / np.sqrt(dv), k_ver=res["k_ver"],
+                         k_lin=res["k_lin"], gmax=res["gmax"], se_fisher=np.sqrt(dv)))
+    return rows

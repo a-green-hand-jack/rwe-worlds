@@ -1,0 +1,441 @@
+"""One simulation configuration = graph family/size/degree x design x p x baseline x edge noise.
+For every graph draw and assignment draw all 19 outcome columns (mechanism x share) are generated
+and all Tier-G / Tier-O(known) estimators are evaluated.
+
+Every Tier-G estimator is a linear functional tau_hat = w' y of the outcome vector (given the
+assignment), so we store the signal part w'y0 and the noise part w'eps (eps ~ N(0,I) one draw per
+assignment, common to all columns and estimators) and recombine any noise level m afterwards:
+  tau_hat(m) = sig + m * sd_j * nz,   with sd_j the SD of the noise-free outcome (pilot) of column j.
+The exact conditional noise variance is (m sd_j)^2 ||w||^2 (stored as wn2)."""
+import time
+import zlib
+
+import numpy as np
+import scipy.sparse as sp
+from scipy.stats import binom
+
+from . import graphs, mech
+from .mech import COLS, J, Exposure, corner, diffusion, exact_tau, make_base
+
+ENAMES = ["dm", "hajek75", "hajek100", "chin", "quad", "spline", "count", "hop2", "inter", "or_known", "b2", "bz", "ht75", "ht100"]  # ht75, ht100: unnormalised Horvitz-Thompson form of hajek75/100 (added for the cluster designs; the other columns are unchanged); b2: f^2 coefficient of `quad`; bz: z coefficient of `chin` (added after the first runs)
+EI = {e: i for i, e in enumerate(ENAMES)}
+NOISE_M = 0.5            # noise level (multiple of the SD of the noise-free outcome) of the in-run SE/CI/fit
+LADDER = ["chin", "quad", "spline", "count", "hop2"]
+SPEC_OTHERS = ["quad", "spline", "count", "hop2"]   # specifications compared with `chin` in the disagreement score S (all nested in chin)
+
+
+def seed_of(*parts):
+    return zlib.crc32("|".join(map(str, parts)).encode()) & 0x7FFFFFFF
+
+
+def pinv_sym(G, rcond=1e-12):
+    w, V = np.linalg.eigh(G)
+    keep = w > rcond * max(w.max(), 1e-300)
+    return (V[:, keep] / w[keep]) @ V[:, keep].T
+
+
+def phi(spec, E, kn=None, dbar=1.0):
+    z, f = E.z, E.f
+    if spec == "chin":
+        return np.stack([z, f], 1)
+    if spec == "quad":
+        return np.stack([z, f, f * f], 1)
+    if spec == "spline":
+        cols = [z, f] + [np.maximum(f - k, 0) for k in kn]
+        return np.stack(cols, 1)
+    if spec == "count":
+        return np.stack([z, f, E.c / dbar], 1)
+    if spec == "hop2":
+        return np.stack([z, f, E.f2], 1)
+    if spec == "inter":
+        return np.stack([z, f, z * f], 1)
+    raise ValueError(spec)
+
+
+def ols_w(X, dx):
+    """weights w with tau_hat = w'y = dx' beta_hat (OLS with intercept); returns w and X centred, G"""
+    Xc = X - X.mean(0)
+    G = Xc.T @ Xc
+    u = pinv_sym(G) @ dx
+    return Xc @ u, Xc, G
+
+
+MIN_CLUSTERS = 4
+
+
+class DegenerateDesign(Exception):
+    """graph-cluster randomisation needs at least MIN_CLUSTERS clusters (K=1 has no valid assignment, K=2-3
+    gives 2-6 distinct assignments and a singular feature matrix); the run is skipped and recorded"""
+    def __init__(self, K, gi):
+        super().__init__(f"Louvain gave K={K} clusters on graph draw {gi}")
+        self.K, self.gi = int(K), int(gi)
+
+
+class Design:
+    """assignment mechanism on a graph: Bernoulli(p) or graph-cluster randomisation"""
+    def __init__(self, kind, p, labels=None):
+        self.kind, self.p, self.labels = kind, p, labels
+        self.K = None if labels is None else labels.max() + 1
+
+    def draw(self, rng, n):
+        if self.kind == "bern":
+            return (rng.random(n) < self.p).astype(float)
+        while True:
+            zc = (rng.random(self.K) < self.p).astype(float)
+            if 0 < zc.sum() < self.K:
+                return zc[self.labels]
+
+
+def ht_weights(c, z, deg, pi_t, pi_c, q):
+    """unnormalised Horvitz-Thompson weights of the same exposure conditions: (1/n) (I_t / pi_t - I_c / pi_c)"""
+    kt = np.ceil(q * deg - 1e-9)
+    kc = np.floor((1 - q) * deg + 1e-9)
+    It = (z == 1) & (c >= kt)
+    Ic = (z == 0) & (c <= kc)
+    return (np.where(It, 1.0 / pi_t, 0.0) - np.where(Ic, 1.0 / pi_c, 0.0)) / len(z)
+
+
+def hajek_weights(c, z, deg, pi_t, pi_c, q):
+    kt = np.ceil(q * deg - 1e-9)
+    kc = np.floor((1 - q) * deg + 1e-9)
+    It = (z == 1) & (c >= kt)
+    Ic = (z == 0) & (c <= kc)
+    if It.sum() == 0 or Ic.sum() == 0:
+        return None
+    wt = np.where(It, 1.0 / pi_t, 0.0)
+    wc = np.where(Ic, 1.0 / pi_c, 0.0)
+    return wt / wt.sum() - wc / wc.sum()
+
+
+def exposure_probs(design, gobs, q, rng, M=1000):
+    """P(exposed) per unit for the Hajek estimators: closed form for Bernoulli, Monte Carlo else"""
+    deg = gobs.deg
+    kt = np.ceil(q * deg - 1e-9)
+    kc = np.floor((1 - q) * deg + 1e-9)
+    if design.kind == "bern":
+        p = design.p
+        pi_t = p * binom.sf(kt - 1, deg, p)
+        pi_c = (1 - p) * binom.cdf(kc, deg, p)
+    else:
+        zc = (rng.random((design.K, M)) < design.p).astype(float)
+        Z = zc[design.labels]
+        C = gobs.A @ Z
+        It = (Z == 1) & (C >= kt[:, None])
+        Ic = (Z == 0) & (C <= kc[:, None])
+        pi_t, pi_c = It.mean(1), Ic.mean(1)
+    floor = 1e-4
+    return np.maximum(pi_t, floor), np.maximum(pi_c, floor)
+
+
+def boot_se(X, Y, dx, counts, dm_z=None):
+    """bootstrap SE of dx'beta for every column of Y; counts: B x n resample multiplicities.
+    X: n x p features (no intercept). Returns B-sample SD per column. If dm_z is given, X is
+    ignored and the estimator is the difference in group means."""
+    B = counts.shape[0]
+    if dm_z is not None:
+        z = dm_z
+        wt = counts * z
+        wc = counts * (1 - z)
+        mt = (wt @ Y) / np.maximum(wt.sum(1), 1e-12)[:, None]
+        mc = (wc @ Y) / np.maximum(wc.sum(1), 1e-12)[:, None]
+        return (mt - mc).std(0, ddof=1)
+    n = X.shape[0]
+    X1 = np.concatenate([np.ones((n, 1)), X], 1)
+    q = X1.shape[1]
+    XX = (X1[:, :, None] * X1[:, None, :]).reshape(n, q * q)
+    G = (counts @ XX).reshape(B, q, q)
+    R = np.stack([(counts * X1[:, k]) @ Y for k in range(q)], 1)  # B x q x M
+    try:
+        beta = np.linalg.solve(G, R)
+    except np.linalg.LinAlgError:  # a resample with a rank-deficient feature matrix: minimum-norm solution
+        beta = np.linalg.pinv(G) @ R
+    tau = np.tensordot(dx, beta[:, 1:, :], axes=([0], [1]))
+    return tau.std(0, ddof=1)
+
+
+def fit_profile(y, z, grids, dx_fn):
+    """nonlinear-least-squares floor: profile the one shape parameter over `grids` (list of
+    (feature vector, corner contrast)), 2-feature OLS [z, phi_k]; return tau_hat at min SSE"""
+    best, bt = np.inf, np.nan
+    yc = y - y.mean()
+    zc = z - z.mean()
+    for phik, dxk in grids:
+        pc = phik - phik.mean()
+        X = np.stack([zc, pc], 1)
+        G = X.T @ X
+        b = pinv_sym(G) @ (X.T @ yc)
+        r = yc - X @ b
+        sse = r @ r
+        if sse < best:
+            best, bt = sse, b[0] * 1.0 + b[1] * dxk
+    return bt
+
+
+def spline_curvature(spec, Y, f, kn):
+    """largest absolute second derivative, per column of Y, of the fitted piecewise-linear spline in the exposure f over the observed
+    support [min f, max f]: at each knot the slope change divided by the mean length of the two adjacent pieces. 0 without knots."""
+    X, dx, Xc, G = spec
+    if len(kn) == 0:
+        return np.zeros(Y.shape[1])
+    beta = pinv_sym(G) @ (Xc.T @ (Y - Y.mean(0)))
+    x = np.concatenate([[f.min()], kn, [f.max()]])
+    loc = 0.5 * (x[2:] - x[:-2])
+    ok = loc > 1e-9
+    if not ok.any():
+        return np.zeros(Y.shape[1])
+    jump = np.abs(beta[2:2 + len(kn)]) / np.where(ok, loc, 1.0)[:, None]
+    return np.where(ok[:, None], jump, 0.0).max(0)
+
+
+NOISE_EXTRA = (0.25, 1.0)     # further noise levels at which the in-run HC0 SE and the curvature are stored (P6 by noise level)
+
+
+def cubic_curvature(z, f, Y):
+    """M-hat of the P6 interval: for each column of Y, a global cubic polynomial in f is fitted separately in each z arm (equivalently: z, f, f^2, f^3 and
+    all their interactions with z); returns the larger over the two arms of max |d^2/df^2| over the observed [min f, max f] (linear in f, so attained at an end point)"""
+    out = np.zeros((2, Y.shape[1]))
+    lo, hi = f.min(), f.max()
+    for a, arm in enumerate((z == 0, z == 1)):
+        fa = f[arm] - 0.5
+        if arm.sum() < 5 or fa.max() - fa.min() < 1e-9:
+            continue
+        V = np.stack([np.ones_like(fa), fa, fa ** 2, fa ** 3], 1)
+        sc = np.sqrt((V ** 2).mean(0))
+        beta = (np.linalg.pinv(V / sc, rcond=1e-10) / sc[:, None]) @ Y[arm]
+        out[a] = np.maximum(np.abs(2 * beta[2] + 6 * beta[3] * (lo - 0.5)), np.abs(2 * beta[2] + 6 * beta[3] * (hi - 0.5)))
+    return out.max(0)
+
+
+def make_graph(cfg, gi, rng):
+    fam, n, d = cfg["family"], cfg.get("n", 0), cfg.get("d", 0)
+    if fam == "SBM":
+        return graphs.sbm(n, d, rng, mix=cfg.get("mix", 0.3))
+    if fam == "DCSBM":
+        return graphs.dcsbm(n, d, rng, mix=cfg.get("mix", 0.3))
+    if fam == "ER":
+        return graphs.er(n, d, rng)
+    if fam == "BA":
+        return graphs.ba(n, d, rng)
+    if fam == "WS":
+        return graphs.ws(n, d, rng)
+    if fam == "HK":
+        return graphs.hk(n, d, rng)
+    if fam == "LN":
+        return graphs.lognormal_config(n, d, rng)
+    if fam in ("Stanford3", "ego-Facebook"):
+        full = graphs.stanford3() if fam == "Stanford3" else graphs.ego_facebook()
+        return graphs.thin(full, d, np.random.default_rng(seed_of(cfg.get("seed", 0), fam, d, "thin")))
+    raise ValueError(fam)
+
+
+def run_config(cfg, progress=None):
+    """cfg: dict(family, n, d, G (graph draws), R (assignments per graph), p, design, res,
+    clustering, base, q_edge, B (bootstrap), seed_tag, real (graph object builder name)).
+    Returns dict of arrays + metadata."""
+    t0 = time.time()
+    fam, n, d = cfg["family"], cfg.get("n", 0), cfg.get("d", 0)
+    Gn, R, p = cfg["G"], cfg["R"], cfg["p"]
+    design_kind = cfg.get("design", "bern")
+    Bboot = cfg.get("B", 0)
+    base_kind = cfg.get("base", "iid")
+    q_edge = cfg.get("q_edge", 0.0)
+    tag = cfg.get("tag", "")
+    NR = Gn * R
+    shp = (NR, len(ENAMES), J)
+    sig = np.full(shp, np.nan, np.float32)
+    nz = np.full(shp, np.nan, np.float32)
+    wn2 = np.full(shp, np.nan, np.float32)
+    or_fit = np.full((NR, J), np.nan, np.float32)
+    se_hc = np.full((NR, J), np.nan, np.float32)
+    se_bt = np.full((NR, 2, J), np.nan, np.float32)
+    expo = np.full((NR, 4), np.nan, np.float32)   # mean f, max f, min f, fraction treated
+    # added for the sensitivity interval and the noise-adjusted disagreement score (no random numbers are used: every other array is unchanged)
+    dn2 = np.full((NR, len(SPEC_OTHERS)), np.nan, np.float32)   # ||w_e - w_chin||^2 for e in SPEC_OTHERS
+    s2hat = np.full((NR, J), np.nan, np.float32)                # chin residual variance RSS/(n-3) of the outcome at noise level NOISE_M
+    mhat = np.full((NR, J), np.nan, np.float32)                 # largest second derivative of the fitted spline over the observed exposure support
+    mhat3 = np.full((NR, J), np.nan, np.float32)                # cubic curvature M-hat (rev. 10 of the Brief), noise level NOISE_M
+    mhat3_0 = np.full((NR, J), np.nan, np.float32)              # the same fitted to the treatment part alone (no unit baseline, no noise: the sigma = 0 run) of the same assignment
+    mhat3_x = np.full((NR, len(NOISE_EXTRA), J), np.nan, np.float32)   # at the other noise levels
+    se_hc_x = np.full((NR, len(NOISE_EXTRA), J), np.nan, np.float32)
+    gmeta, tau_all, sd_all = [], np.zeros((Gn, J)), np.zeros((Gn, J))
+    oc_fit = [j for j, (m, s) in enumerate(COLS) if m in "cde"]
+    rho_grid = np.arange(0, 0.86, 0.1)
+    kap_grid = [0.5, 1, 2, 3, 4, 6, 8]
+    thr_grid = np.linspace(0.1, 0.9, 9)
+
+    for gi in range(Gn):
+        rng = np.random.default_rng(seed_of(cfg.get("seed", 0), fam, n, d, gi, tag, "graph"))
+        g = make_graph(cfg, gi, rng)
+        gobs = graphs.drop_edges(g, q_edge, rng) if q_edge > 0 else g
+        n_ = g.n
+        # ---- design
+        labels, mod = None, np.nan
+        if design_kind == "cluster":
+            if cfg.get("clustering", "louvain") == "truth":
+                labels = g.blocks
+                mod = graphs.modularity_of(gobs, labels)
+            else:
+                labels, mod = graphs.louvain(gobs, cfg.get("res", 1.0), rng)
+        if labels is not None and labels.max() + 1 < MIN_CLUSTERS:
+            raise DegenerateDesign(labels.max() + 1, gi)
+        design = Design(design_kind, p, labels)
+        if base_kind == "comm" and g.blocks is None:
+            g.meta["louvain"] = labels if labels is not None else graphs.louvain(gobs, 1.0, rng)[0]
+        base = make_base(g, base_kind, rng) * cfg.get("base_sd", 1.0)
+        tau = exact_tau(g)
+        tau_all[gi] = tau
+        deg, dbar = gobs.deg, gobs.dbar
+        # ---- constants of the feature graph
+        E1, E0 = corner(gobs, 1), corner(gobs, 0)
+        pi = {q: exposure_probs(design, gobs, q, rng) for q in (0.75, 1.0)}
+        ones, zeros = np.ones(n_), np.zeros(n_)
+        D_t1, D_t0 = diffusion(g, ones), diffusion(g, zeros)
+
+        def draw_assignment(rng_):
+            z = design.draw(rng_, n_)
+            Et = Exposure(g, z)
+            Eo = Et if gobs is g else Exposure(gobs, z)
+            Dt = diffusion(g, z)
+            Do = Dt if gobs is g else diffusion(gobs, z)
+            return z, Et, Eo, Dt, Do
+
+        # ---- pilot for the SD of the noise-free outcome of each column
+        prng = np.random.default_rng(seed_of(cfg.get("seed", 0), fam, n, d, gi, tag, "pilot"))
+        pil = []
+        for _ in range(30):
+            z, Et, Eo, Dt, Do = draw_assignment(prng)
+            pil.append(mech.outcomes(g, z, Et, Dt, base))
+        sd = np.concatenate(pil).std(0)
+        sd_all[gi] = sd
+        arng = np.random.default_rng(seed_of(cfg.get("seed", 0), fam, n, d, gi, tag, "assign"))
+        for r in range(R):
+            row = gi * R + r
+            z, Et, Eo, Dt, Do = draw_assignment(arng)
+            eps = arng.standard_normal(n_)
+            Y0 = mech.outcomes(g, z, Et, Dt, base)
+            Ym = Y0 + NOISE_M * sd[None, :] * eps[:, None]
+            f = Eo.f
+            expo[row] = (f.mean(), f.max(), f.min(), z.mean())
+            kn = [k for k in np.quantile(f, [0.25, 0.5, 0.75]) if 1e-9 < k < 1 - 1e-9]
+            kn = sorted(set(np.round(kn, 9)))
+            # ---- DM
+            wdm = z / z.sum() - (1 - z) / (1 - z).sum()
+            ws_ = {"dm": wdm}
+            for q, name in ((0.75, "hajek75"), (1.0, "hajek100")):
+                w = hajek_weights(Eo.c, z, deg, pi[q][0], pi[q][1], q)
+                if w is not None:
+                    ws_[name] = w
+                ws_["ht" + name[5:]] = ht_weights(Eo.c, z, deg, pi[q][0], pi[q][1], q)
+            # ---- regression specs
+            Xs = {}
+            for sname in ("chin", "quad", "spline", "count", "hop2", "inter"):
+                X = phi(sname, Eo, kn, dbar)
+                dx = (phi(sname, E1, kn, dbar) - phi(sname, E0, kn, dbar)).mean(0)
+                w, Xc, G = ols_w(X, dx)
+                ws_[sname] = w
+                Xs[sname] = (X, dx, Xc, G)
+                if sname == "chin":
+                    ws_["bz"] = Xc @ pinv_sym(G)[:, 0]       # direct-effect coefficient as a linear functional
+                if sname == "quad":
+                    uq = pinv_sym(G)[:, 2]            # coefficient of f^2 as a linear functional
+                    ws_["b2"] = Xc @ uq
+            for en, w in ws_.items():
+                e = EI[en]
+                sig[row, e] = w @ Y0
+                nz[row, e] = w @ eps
+                wn2[row, e] = w @ w
+            for k, en in enumerate(SPEC_OTHERS):
+                d_ = ws_[en] - ws_["chin"]
+                dn2[row, k] = d_ @ d_
+            # ---- oracle with known form, per column
+            Xo_cache = {}
+            for j, (m, s) in enumerate(COLS):
+                if m in ("0", "a"):
+                    w = ws_["chin"]
+                elif m == "f":
+                    w = ws_["inter"]
+                else:
+                    if m == "b":
+                        X = np.stack([z, Eo.c / dbar], 1)
+                        dx = np.array([1.0, 1.0 * (deg / dbar).mean()])
+                    elif m == "c":
+                        X = np.stack([z, mech.g_sat(f)], 1)
+                        dx = np.array([1.0, 1.0])
+                    elif m == "d":
+                        X = np.stack([z, mech.thr(f)], 1)
+                        dx = np.array([1.0, 1.0])
+                    elif m == "g":
+                        X = np.stack([z, mech.g_conv(f)], 1)
+                        dx = np.array([1.0, 1.0])
+                    elif m == "h":
+                        X = np.stack([z, mech.g_sig(f)], 1)
+                        dx = np.array([1.0, 1.0])
+                    else:  # e: K-step diffusion feature with the true rho
+                        Z = Do @ (s ** np.arange(mech.KSTEP + 1))
+                        X = np.stack([z, Z], 1)
+                        dx = np.array([1.0, (D_t1 @ (s ** np.arange(mech.KSTEP + 1))).mean()])
+                    key = (m, s)
+                    w, _, _ = ols_w(X, dx)
+                e = EI["or_known"]
+                sig[row, e, j] = w @ Y0[:, j]
+                nz[row, e, j] = w @ eps
+                wn2[row, e, j] = w @ w
+            # ---- fitted-parameter oracle (NLS floor) at noise level NOISE_M
+            grid_c = [(mech.g_sat(f, k), 1.0) for k in kap_grid]
+            grid_d = [(mech.thr(f, th), 1.0) for th in thr_grid]
+            pw = {rho: rho ** np.arange(mech.KSTEP + 1) for rho in rho_grid}
+            grid_e = [(Do @ pw[rho], (D_t1 @ pw[rho]).mean()) for rho in rho_grid]
+            for j in oc_fit:
+                m = COLS[j][0]
+                grid = grid_c if m == "c" else grid_d if m == "d" else grid_e
+                # tau_hat = b_z + b_phi * dxk with dxk the corner contrast of the feature
+                or_fit[row, j] = fit_profile(Ym[:, j], z, [(ph, dxk) for ph, dxk in grid], None)
+            # ---- in-run SE: HC0 and bootstrap (chin) at NOISE_M
+            X, dx, Xc, G = Xs["chin"]
+            w = ws_["chin"]
+            Gi = pinv_sym(G)
+            beta = Gi @ (Xc.T @ (Ym - Ym.mean(0)))
+            res = (Ym - Ym.mean(0)) - Xc @ beta
+            se_hc[row] = np.sqrt((w[:, None] ** 2 * res ** 2).sum(0))
+            s2hat[row] = (res ** 2).sum(0) / (n_ - 3)
+            mhat[row] = spline_curvature(Xs["spline"], Ym, f, kn)
+            mhat3[row] = cubic_curvature(z, f, Ym)
+            mhat3_0[row] = cubic_curvature(z, f, Y0 - base[:, None])
+            for im, mx in enumerate(NOISE_EXTRA):   # same eps, other noise level
+                Yx = Y0 + mx * sd[None, :] * eps[:, None]
+                bx = Gi @ (Xc.T @ (Yx - Yx.mean(0)))
+                rx = (Yx - Yx.mean(0)) - Xc @ bx
+                se_hc_x[row, im] = np.sqrt((w[:, None] ** 2 * rx ** 2).sum(0))
+                mhat3_x[row, im] = cubic_curvature(z, f, Yx)
+            if Bboot and r < cfg.get("Rb", 60):
+                if design_kind == "bern":
+                    cnt = arng.multinomial(n_, np.full(n_, 1.0 / n_), size=Bboot).astype(float)
+                else:
+                    cc = arng.multinomial(design.K, np.full(design.K, 1.0 / design.K), size=Bboot)
+                    cnt = cc[:, design.labels].astype(float)
+                se_bt[row, 0] = boot_se(X, Ym, dx, cnt)
+                se_bt[row, 1] = boot_se(None, Ym, None, cnt, dm_z=z)
+        gmeta.append(dict(gi=gi, n=int(n_), dbar=float(g.dbar), dmax=float(g.deg.max()), mod=float(mod),
+                          nclus=0 if labels is None else int(labels.max() + 1),
+                          clustering=float(_clustering(g)), obs_dbar=float(gobs.dbar)))
+        if progress:
+            progress(gi, time.time() - t0)
+    return dict(sig=sig, nz=nz, wn2=wn2, dn2=dn2, s2hat=s2hat, mhat=mhat, mhat3=mhat3, mhat3_0=mhat3_0, mhat3_x=mhat3_x, se_hc_x=se_hc_x, or_fit=or_fit, se_hc=se_hc, se_bt=se_bt, expo=expo,
+                tau=tau_all, sd=sd_all, gmeta=gmeta, cfg=cfg, cols=list(COLS), seconds=time.time() - t0)
+
+
+def _clustering(g):
+    """average local clustering coefficient (sampled for large graphs)"""
+    rng = np.random.default_rng(0)
+    idx = rng.choice(g.n, min(g.n, 300), replace=False)
+    A = g.A
+    out = []
+    for i in idx:
+        nb = A.indices[A.indptr[i]:A.indptr[i + 1]]
+        k = len(nb)
+        if k < 2:
+            out.append(0.0)
+            continue
+        sub = A[nb][:, nb]
+        out.append(sub.sum() / (k * (k - 1)))
+    return float(np.mean(out))

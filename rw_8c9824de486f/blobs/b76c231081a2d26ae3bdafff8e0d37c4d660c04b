@@ -1,0 +1,8 @@
+step,models,tasks,cells,missing_rate
+"R1-R5 cells (text tasks, one revision/model, split, dataset revision, subsets)",412,904,57730,
+iter 0: tasks with >= 50 models,334,350,48282,
+iter 0: models with >= 30 tasks,244,350,46907,
+iter 1: tasks with >= 50 models,244,328,45857,
+iter 1: models with >= 30 tasks,238,328,45775,
+iter 2: tasks with >= 50 models,238,328,45775,
+iter 2: models with >= 30 tasks,238,328,45775,

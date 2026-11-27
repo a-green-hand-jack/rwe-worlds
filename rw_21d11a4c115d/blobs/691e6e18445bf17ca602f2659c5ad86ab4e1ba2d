@@ -1,0 +1,26 @@
+"""Step 0c: HELM tables -> npz/csv.  MMLU subjects (v1.13.0) and Lite core scenarios (v1.13.0).
+Run: python3 parse_helm.py <helm_dir> <out_dir>"""
+import json, sys, os, numpy as np, pandas as pd
+src, out = sys.argv[1:3]
+os.makedirs(out, exist_ok=True)
+d = json.load(open(f"{src}/mmlu_benchmark_output_releases_v1.13.0_groups_mmlu_subjects.json"))
+T = {t["title"]: t for t in d}
+def table(t, suffix, skip=("Mean win rate", "MMLU All Subjects")):
+    hdr = [h["value"] for h in t["header"]]
+    cols = [i for i, h in enumerate(hdr) if h.endswith(" - " + suffix) and not any(h.startswith(s) for s in skip)]
+    names = [hdr[i][: -len(" - " + suffix)] for i in cols]
+    models = [r[0]["value"] for r in t["rows"]]
+    X = np.array([[r[i].get("value") if r[i].get("value") is not None else np.nan for i in cols] for r in t["rows"]], float)
+    return models, names, X
+models, subj, acc = table(T["Accuracy"], "EM")
+m2, s2, ne = table(T["General information"], "# eval")
+assert models == m2 and subj == s2
+print("MMLU", acc.shape, "missing", int(np.isnan(acc).sum()), "n_eval range", np.nanmin(ne), np.nanmax(ne))
+np.savez(f"{out}/helm_mmlu.npz", X=acc, n_eval=ne, models=np.array(models), tasks=np.array(subj))
+d = json.load(open(f"{src}/lite_benchmark_output_releases_v1.13.0_groups_core_scenarios.json"))
+t = [t for t in d if t["title"] == "Accuracy"][0]
+hdr = [h["value"] for h in t["header"]]
+rows = [[(c.get("value") if isinstance(c, dict) else c) for c in r] for r in t["rows"]]
+df = pd.DataFrame(rows, columns=hdr).drop(columns=["Mean win rate"])
+df.to_csv(f"{out}/helm_lite_accuracy.csv", index=False)
+print("Lite", df.shape, "missing", int(df.iloc[:, 1:].isna().sum().sum()))

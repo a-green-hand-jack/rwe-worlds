@@ -1,0 +1,59 @@
+"""Is the 'strongest models are predicted too low' result (bias.csv, strata of the model's mean standardised score over ALL benchmarks) an artefact of the stratification?
+Conditioning on a quantity that contains the targets makes any shrinking predictor look biased (regression to the mean), even under a correctly specified model.
+(A) real data, greedy A + factor model, k=3, the same folds/partitions/fits as the main runs: signed error (predicted minus observed, original standardised units) by quintile of
+    (i) the full-row mean standardised score (as in bias.csv; reproduces it), (ii) the mean of the model's observed scores on S (known when predicting; under a correct
+    Gaussian model the error given x_S has mean zero), (iii) the mean over the candidate columns C.  Units = (model, column partition); family-clustered bootstrap B=2000, seed 0.
+(B) the same pipeline on data simulated from the factor model fitted to each pool (so the model is correct): bias by quintile of the full-row mean.
+python3 bias_check.py <results_raw> <data_out> <results>"""
+import sys, os, pickle, numpy as np, pandas as pd
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from bmk.protocol import fit_fold, make_transform
+from bmk.fa import fit_fa, cov_of, condition
+from bmk.select_predict import sel_greedy_A
+rawd, dout, resd = sys.argv[1:4]; B = 2000; K = 3
+def boot_bias(vals, fam, strat, nq=5):
+    u, fi = np.unique(fam, return_inverse=True); F = len(u); cnt = np.random.default_rng(0).multinomial(F, np.ones(F) / F, size=B).astype(float); out = []
+    cut = np.quantile(strat, np.linspace(0, 1, nq + 1)); q = np.clip(np.searchsorted(cut, strat, side='right') - 1, 0, nq - 1)
+    for j in range(nq):
+        m = q == j; s = np.bincount(fi[m], weights=vals[m], minlength=F); n = np.bincount(fi[m], minlength=F).astype(float)
+        den = cnt @ n; b = (cnt @ s)[den > 0] / den[den > 0]; out.append((j, s.sum() / n.sum(), *np.percentile(b, [2.5, 97.5]), int(m.sum())))
+    return out
+rows = []
+for ds in ('mteb_eng', 'mteb_multi', 'helm_mmlu'):
+    for split in ('grouped', 'time'):
+        f = f"{rawd}/{ds}__{split}__fixed.pkl"
+        if not os.path.exists(f): continue
+        R = pickle.load(open(f, 'rb')); X = np.load(f"{dout}/{ds}.npz", allow_pickle=True)['X']; M, N = X.shape; tf = R.get('transform') or 'identity'
+        Zpool = (X - X.mean(0)) / X.std(0); strength = Zpool.mean(1)
+        unit = []   # (model, family, signed error, strength, S-mean, C-mean)
+        for fi, (tr, te) in enumerate(R['folds']):
+            fwd, inv = make_transform(X[tr], tf); Z = fwd(X); F = fit_fold(Z, tr, None or [1], 0, r_fixed=R['info'][fi]['r_eff'])
+            Yte = (Z[te] - F['mu']) / F['sd']; mo = X[tr].mean(0); so = X[tr].std(0) + 1e-9; Yo = (X[te] - mo) / so
+            for p in range(R['n_part']):
+                perm = np.random.default_rng([R['seed'], fi, p]).permutation(N); nT = int(round(0.3 * N)); T = list(np.sort(perm[:nT])); C = list(np.sort(perm[nT:]))
+                S = sel_greedy_A(dict(W=F['W'], D=F['D'], C=C, T=T), K)
+                pv = condition(cov_of(F['W'], F['D']), S, T, Yte[:, S]); full = np.zeros((len(te), N)); full[:, T] = pv * F['sd'][T] + F['mu'][T]
+                pr = ((inv(full)[:, T] - mo[T]) / so[T]) if tf == 'logit' else (full[:, T] - mo[T]) / so[T]
+                err = (pr - Yo[:, T]).mean(1)
+                for a, i in enumerate(te): unit.append((i, R['family'][i], err[a], strength[i], Yo[a, S].mean(), Yo[a, C].mean()))
+        U = pd.DataFrame(unit, columns=['i', 'fam', 'err', 'strength_full_row', 'mean_on_S', 'mean_on_C'])
+        for name in ('strength_full_row', 'mean_on_S', 'mean_on_C'):
+            for q, b, lo, hi, n in boot_bias(U.err.values, U.fam.values, U[name].values): rows.append((ds, split, 'real', name, q, b, lo, hi, n))
+print('real done', flush=True)
+# (B) simulation from the fitted pool model
+for di, ds in enumerate(('mteb_eng', 'mteb_multi', 'helm_mmlu')):
+    R = pickle.load(open(f"{rawd}/{ds}__grouped__fixed.pkl", 'rb')); X = np.load(f"{dout}/{ds}.npz", allow_pickle=True)['X']; M, N = X.shape; tf = R.get('transform') or 'identity'
+    Z = make_transform(X, tf)[0](X); Y = (Z - Z.mean(0)) / Z.std(0); r = int(np.median([i['r_eff'] for i in R['info']])); W0, D0 = fit_fa(Y, r)
+    rng = np.random.default_rng(777 + di); allv = []
+    for rep in range(30):
+        gen = lambda m: rng.standard_normal((m, r)) @ W0.T + rng.standard_normal((m, N)) * np.sqrt(D0)
+        Ytr, Yte = gen(int(0.9 * M)), gen(3000); mu = Ytr.mean(0); sd = Ytr.std(0); Ytr = (Ytr - mu) / sd; Yte = (Yte - mu) / sd
+        W, D = fit_fa(Ytr, r); perm = rng.permutation(N); nT = int(round(0.3 * N)); T = list(np.sort(perm[:nT])); C = list(np.sort(perm[nT:]))
+        S = sel_greedy_A(dict(W=W, D=D, C=C, T=T), K); err = (condition(cov_of(W, D), S, T, Yte[:, S]) - Yte[:, T]).mean(1)
+        st = Yte.mean(1); cut = np.quantile(st, np.linspace(0, 1, 6)); q = np.clip(np.searchsorted(cut, st, side='right') - 1, 0, 4)
+        allv.append([err[q == j].mean() for j in range(5)])
+    allv = np.array(allv)
+    for j in range(5): rows.append((ds, 'simulated from fitted model', 'sim', 'strength_full_row', j, float(allv[:, j].mean()), *np.percentile(allv[:, j], [2.5, 97.5]), 3000 // 5))
+df = pd.DataFrame(rows, columns=['dataset', 'split', 'source', 'stratified_by', 'quintile', 'signed_bias', 'ci_lo', 'ci_hi', 'n_units'])
+df.to_csv(f"{resd}/bias_check.csv", index=False); pd.set_option('display.width', 200); print(df.round(3).to_string())

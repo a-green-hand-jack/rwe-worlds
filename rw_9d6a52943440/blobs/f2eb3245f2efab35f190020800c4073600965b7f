@@ -1,0 +1,101 @@
+\section{Results}
+\label{sec:results}
+
+All results are for $n=100$ unless a figure varies $n$; ratios are RMSE relative to uniform sampling with the sample mean, so a value below $1$ is better than uniform.
+Table~\ref{tab:primary} gives the primary endpoint.
+
+\subsection{Which methods beat uniform sampling, and where?}
+\label{sec:res-compare}
+
+\begin{table}[t]
+\centering\footnotesize
+\caption{Primary endpoint: RMSE relative to uniform~$\times$~mean at $n=100$ items, geometric mean over benchmarks with a 95\% bootstrap interval over target families (non-thin benchmarks). Rows 1--7: one representative per method class and rows 8--10: the best methods by this endpoint, all chosen after seeing the results. Second block: for each class, the cell with the smallest ratio on the other benchmarks of the same split, applied to the held-out benchmark (leave-one-benchmark-out), which does not use the outcomes of the benchmark it is scored on. Last block: the baseline is stratified~$\times$~mean. The last rows count benchmarks, targets and target families. Benchmarks are not independent; the intervals reflect target-family sampling only.}
+\label{tab:primary}
+\input{../tables/table1_primary}
+\end{table}
+
+Three method classes behave differently as the targets move away from the sources (Table~\ref{tab:primary}, Figure~\ref{fig:ratio}).
+\emph{Model-based predictors} (IRT model, kNN, ridge) halve the error of uniform sampling at $n\le25$ when targets are interpolated ($0.55$ and $0.65$ for the IRT model at $n=10$ and $25$), but the advantage shrinks as $n$ grows (IRT model $0.78$, kNN $1.12$, ridge $0.73$ at $n=100$).
+For targets above every source, our IRT model and kNN are worse than uniform on every design (IRT model $1.96$ $[1.82,2.04]$ on a uniform design, kNN $2.42$), rising to about $3.8$ for the IRT model at $n=400$; ridge on a balanced design is the exception ($0.88$).
+\emph{Anchor and information-selected subsets} are not clearly better than uniform at $n=100$ in interpolation or lineage ($0.95$ $[0.89,1.00]$ and $1.03$ $[0.93,1.09]$ for anchors with IRT plug-in) and lose heavily in extrapolation ($1.83$).
+A stronger $k$-means (ten initialisations and $300$ iterations instead of one and at most $25$) moves the anchor ratios by at most $0.10$ (Table~\ref{tab:robust}).
+The published anchors chosen by correctness and Anchor Points (Appendix~\ref{app:public}) are also worse than uniform ($2.49$ and $1.51$ in extrapolation, $1.14$ and $1.38$ in interpolation, against $1.91$ and $1.07$ for our anchors with the sample mean).
+The published IRT-embedding anchors and p-IRT, on six benchmarks and one fold, are not: $0.94$ and $0.88$ in extrapolation, $0.82$ and $0.69$ in interpolation, against $1.99$ and $1.09$ for our anchors with the sample mean and $2.10$ and $0.79$ with the IRT plug-in.
+Ten dimensions, an ability prior a hundred times wider or a longer fit do not bring our IRT plug-in on the anchor design below $1.9$; we did not find which difference matters.
+\emph{Methods that keep a probability design or correct for the residual} (stratified or balanced sampling, calibrated regression, the difference estimator) are below $1$ in every split, except calibrated regression on a uniform design in extrapolation ($1.04$).
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{../figures/fig2_ratio_vs_n}
+\caption{RMSE relative to uniform sampling (below 1 is better) against the number of items $n$, one panel per target split; log-log axes. Lines: geometric mean over non-thin benchmarks (13; 12 for lineage); bands: 95\% family-bootstrap interval. One representative per method class plus the three best methods by the primary endpoint (chosen after the results).}
+\label{fig:ratio}
+\end{figure}
+
+How much of the gain comes from the sources?
+Stratified sampling, which uses only the sources' item difficulties, already gives $0.81$, $0.85$ and $0.83$ (interpolation, extrapolation, lineage), so it is the reference to beat.
+Against it, the classes chosen without the outcomes (Table~\ref{tab:primary}, second block; Table~\ref{tab:lobo}) keep a gain of $0.80$--$0.88$ in interpolation and lineage, except anchors ($0.89$--$0.94$).
+In extrapolation only the design-based class is clearly below stratified sampling ($0.91$ $[0.89,0.93]$, balanced $\times$ calibrated regression); the model-based ($1.00$ $[0.95,1.02]$) and difference-corrected classes ($1.03$ $[0.99,1.05]$) are not, and anchors and information selection are worse ($1.20$, $1.23$).
+The gain needs the pairing of a source-informed design with a source-calibrated regression: the plain mean on the same balanced sample is $0.95$ $[0.93,0.97]$ of stratified sampling, and calibrated regression on a stratified or uniform sample is worse than their plain mean ($1.17$ and $1.23$).
+Naming this class is a second step on the same targets: $0.91$ is the best of five representatives.
+So the sources buy about a fifth of the error of a stratified sample when targets resemble them, and in extrapolation at most a tenth, which a balanced design with calibrated regression already delivers.
+
+Four checks, each in the appendix, qualify this without changing it.
+The gain is concentrated in the seven leaderboard benchmarks (balanced $\times$ difference IRT $0.71$ and $0.75$ of stratified sampling in interpolation and lineage, against $0.92$ and $1.00$ on the six HELM benchmarks, which have about $80$ overlapping models each; Table~\ref{tab:suite}).
+With the top 10\% of models as targets the best difference cell reaches $0.70$ of uniform's error (on the seven non-thin benchmarks) and with the top 50\% $0.95$ (Figure~\ref{fig:ceiling}).
+At a budget of $2\%$ of each benchmark's items (Table~\ref{tab:twopct}) the sources buy more: the classes chosen without the outcomes are $0.63$--$0.73$ of stratified sampling in interpolation and $0.88$--$0.99$ in extrapolation.
+With few source models the gain disappears (Figure~\ref{fig:msrc}): at $10$ sources balanced $\times$ difference IRT is $1.10$ and $1.04$ of uniform in interpolation and extrapolation, at $30$ it is $0.80$ and $0.86$.
+
+\subsection{Where does the bias of model-based predictors sit?}
+\label{sec:res-bias}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{../figures/fig3_bias_by_score}
+\caption{Signed error (predicted minus true full score, in points) against the target's position in standard deviations of the source models' full scores above (+) or below ($-$) their mean, $n=100$. Each line is the mean error over the non-thin benchmarks with targets in the bin, targets pooled across benchmarks (benchmarks with more targets weigh more); the band is its 95\% family-bootstrap interval. Bins with fewer than five benchmarks or 30 targets are not drawn. Extrapolation targets lie above every source by construction, so that panel has no bins below $+1$.}
+\label{fig:bias}
+\end{figure}
+
+Figure~\ref{fig:bias} shows that our predictors fitted on the sources compress their estimates toward the source mean: the IRT model, calibrated regression and the anchor plug-in overestimate weak targets and underestimate strong ones, and in extrapolation the IRT model on a uniform design is $5.1$, $6.3$ and $9.7$ points too low in the bins one to two, two to three and above three standard deviations above the sources, and the anchor plug-in $4.9$, $7.4$ and $12.4$.
+The sample-mean designs stay within about $0.7$ points of zero, as design-unbiased estimators should; the difference estimator reduces it to $0.8$, $2.0$ and $3.2$ points (uniform $\times$ difference IRT) but not to zero: the intervals exclude zero.
+The variance, computed per target over subset draws, tells the same story (Table~\ref{tab:biasvar}, appendix): in extrapolation the IRT model has $0.27$ of the variance of uniform sampling but $4.56$ of its mean squared error ($4.29$ of it squared bias), whereas the difference estimator on a balanced design has $0.42$ of the variance and $0.69$ of the mean squared error.
+Rerunning with $100$ subset draws per fold instead of $10$ changes no entry of that table by more than $0.14$ (interpolation and extrapolation, four designs).
+A weaker prior on the target's ability, tried after seeing this, lowers the IRT model's extrapolation ratio only from $1.96$ to $1.66$ and its squared bias from $4.29$ to $3.04$ (Appendix~\ref{app:recal}).
+
+The weight $\lambda$ of the correction is chosen on an inner split of the sources that mimics the outer split.
+In interpolation this helps ($0.65$ $[0.63,0.67]$ tuned against $0.74$ $[0.73,0.76]$ for $\lambda=1$ on a balanced design); in extrapolation it does not: tuned and fixed $\lambda=1$ are equal on a uniform design ($0.85$ and $0.85$) and tuning is slightly worse on a balanced design ($0.82$ against $0.78$).
+The inner targets lie only just above the remaining sources; a larger gap, tried after seeing this result as a diagnosis, lowers the error of the logistic and kNN difference estimators by $4$--$6\%$ and raises that of ridge by $9\%$ (Table~\ref{tab:robust}), so we do not recommend it.
+
+\subsection{Does a win come from the design, the estimator, or both?}
+\label{sec:res-ablation}
+
+Figure~\ref{fig:ablation} (appendix) crosses six designs with the estimators.
+Within each estimator column the designs that keep every item drawable and spread the sample over difficulty (stratified, PPS, balanced) are best and close to one another, and information-top selection is among the worst in every column, so a gain attributed to ``smart'' item selection depends on the estimator and the rule.
+On a uniform design the difference estimator is better than the model-only IRT estimator by a factor of two in extrapolation ($0.85$ against $1.96$) and by about $10\%$ in interpolation ($0.70$ against $0.78$).
+With the mean estimator, balanced selection improves on stratified sampling ($0.73$ against $0.81$ in interpolation, $0.81$ against $0.85$ in extrapolation).
+The adaptive IRT-CAT design is competitive in interpolation and lineage ($0.68$ and $0.67$ with the difference estimator) and not in extrapolation ($1.04$ $[0.91,1.10]$).
+A target-recalibrated estimator, a weighted regression of the target's sampled answers on each item's source difficulty whose fitted values are averaged over all items, lifts a uniform design from $1.00$ to $0.89$ of uniform $\times$ mean in extrapolation, which stratification alone gives ($0.85$); on stratified and balanced designs it is within $0.03$ of the plain mean ($1.03$ $[1.02,1.05]$ of stratified $\times$ mean on a stratified one; Appendix~\ref{app:recal}, Table~\ref{tab:recal}), so it adds nothing to what the design already gives.
+
+\subsection{How much can the sources help at most?}
+\label{sec:res-ceiling}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.9\textwidth]{../figures/fig4_ceiling}
+\caption{Observed RMSE ratio of uniform~$\times$~difference IRT to uniform~$\times$~mean at $n=100$ against the prediction $\sqrt{1-q}$, one point per benchmark and split, where $q$ is the fraction of Bernoulli variance of the target's unsampled items explained by the predictor; left: the sources' item means (no target answers), right: a 2D IRT model fitted with the target's $n$ answers. The prediction is a reference, not a bound. Blue: the three main splits; orange: extrapolation by the top 10\% and 50\% of models; hollow: thin cells.}
+\label{fig:ceiling}
+\end{figure}
+
+With a fixed predictor the difference estimator replaces the variance of the item outcomes by that of their residuals, so a predictor that explains a fraction $q$ of the variance of the unsampled outcomes should reach a ratio of $\sqrt{1-q}$ to uniform sampling when $n\ll N$.
+Figure~\ref{fig:ceiling} compares this prediction with the observed ratio.
+With the source-only predictor (left panel) the prediction is $0.93$, $0.94$ and $1.05$ (geometric mean over the 13 benchmarks) in interpolation, lineage and extrapolation, and the observed ratios $0.70$, $0.73$ and $0.85$ are below it in all three, because the difference estimator also uses the target's own answers, through the ability estimate and the residual correction.
+With the IRT predictor fitted on the target's $n$ answers (right panel) the prediction is $0.81$, $0.82$ and $0.85$; the observed ratio is below it in interpolation ($0.70$) and lineage ($0.73$) and equals it in extrapolation ($0.85$).
+The agreement in extrapolation is a coincidence, since the reference ignores the bias that remains there; with the top $50\%$ of models as targets the observed ratio is $0.97$ against $0.90$.
+We read $\sqrt{1-q}$ as a reference for the variance a predictor can remove when targets resemble the sources, not as a bound.
+
+\subsection{Does a smaller error mean a better ordering?}
+\label{sec:res-order}
+
+Score error and ordering do not move together (Figure~\ref{fig:order} and Table~\ref{tab:ordering}, appendix).
+In interpolation the source-aided methods order models better than plain sampling (Spearman $0.93$--$0.94$ against $0.90$, top-decile precision $0.76$--$0.78$ against $0.74$), mostly at gaps of one to six points.
+In extrapolation the RMSE gain of about $20\%$ does not carry over: Spearman is $0.77$ for uniform sampling and at most $0.78$ for any method, top-decile precision $0.55$ against $0.57$, and the model-based predictors drop to $0.47$ (IRT model) and $0.53$ (anchor plug-in), consistent with the compression of Figure~\ref{fig:bias}.
+There, pairs one to two points apart are ordered with accuracy $0.53$--$0.63$ by every method, and gaps of four to eight points with $0.86$--$0.89$ by the sample-mean, calibrated-regression and difference-corrected methods on the uniform, stratified, PPS and balanced designs, against $0.59$--$0.79$ by the other model-based predictors and plug-ins ($0.88$ for the ridge ones on the balanced design): a gap of a few points between top models cannot be resolved from $100$ items.

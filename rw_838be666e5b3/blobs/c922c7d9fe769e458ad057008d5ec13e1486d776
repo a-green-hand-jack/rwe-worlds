@@ -1,0 +1,105 @@
+# Methods behind `results/*.csv`
+
+All numbers are computed by `analysis/build_results.py` from the stored Monte-Carlo cells (`results/exp*/*.npz`, one
+cell = one (population, n, N) with R repeated samples; raw cells are published as a release asset, not in git) and
+from the population fits `results/floors.json` / `results/nstar_ci.json`.
+
+## Target and notation
+Target: the population mean E[Y]. A sample has n labeled records (Y, Z) and N unlabeled records (Z); M = n + N.
+Tier T1: Z = f (the supplied prediction). Tier T2: Z = (f, X). Labels are MCAR with known propensity n/M (a simple
+random subset of the M records). Pool-based cells treat the pool as the population (truth = pool mean) and draw
+n + N records iid **with replacement** (`sampling = with_replacement`); synthetic populations are drawn iid
+(`synthetic_iid`). Per-cell seed = 20261126 + crc32(cell id) mod 10^6; replicate r uses `SeedSequence([seed, r])`.
+
+## Method ids (`method`)
+| id | what it is |
+|---|---|
+| `labels_z`, `labels_t` | labels only: sample mean ± z (or t_{n-1}) × s/√n |
+| `labels_wilson`, `labels_cp` | labels only, binary Y: Wilson, Clopper–Pearson (`construction` = `wilson`, `cp`) |
+| `ppi` | PPI, λ = 1 (`ppi-python==0.2.3`, `ppi_mean_ci`, its own CLT interval) |
+| `ppipp` | PPI++ with tuned λ (`ppi-python==0.2.3`); the baseline of every ratio |
+| `strat_ppi` | pooled estimator with g = stratum means over 5 quantile bins of f, cross-fitted (post-stratified PPI, run post hoc) |
+| `ppipp_unclip` | PPI++ with the *same* estimated λ̂ but **not clipped to [0, 1]** (`ppi-python` 0.2.3 clips; the optimal scalar tuning b·N/M exceeds 1 when the slope of Y on f is above 1: gene_expression b = 1.15, census_income b = 1.38). Computed by `experiments/exp_unclipped.py` on exactly the draws of the stored E3/E4 cells (same seed; the re-computed clipped PPI++ equals the stored one to 1e-9, checked on 50 replicates per cell). A **stricter baseline**: `ratio_vs_unclip` (+`ratio_unclip_lo/hi`) in `cells.csv` is any row's width ratio to it. `headline.csv` also gives `ratio_vs_best_ppipp` = max(ratio to the package PPI++, ratio to the unclipped one) = the ratio to the narrower of the two, and `classification_vs_best` (rule applied to max of the CI limits; same `valid`); `breakeven.csv` has the bracket against the narrower of the two as `meas_win_*_best`, `meas_censor_best`, `pred_within_factor3_best` (validity as before: coverage not below the package PPI++, so brackets at n ≤ 100 inherit that definition). It is not uniformly stronger (clipping shrinks λ̂ at small n: alphafold n = 30, unclipped is 7% wider). |
+| `ppipp_on_iso`, `ppipp_on_spline` | `ppi-python` PPI++ run with Yhat := ĝ(f), ĝ = cross-fitted isotonic / spline (nearest published-plus-calibration comparator) |
+| `pooled_linear` | pooled cross-fitted estimator with g = OLS line of Y on f; algebraically PPI++ with λ = b̂N/M up to cross-fitting (E2 checks this) |
+| `calib_spline` | **instrument**: pooled cross-fitted estimator, g = cubic B-spline of f (5 quantile knots, df = 7) |
+| `calib_iso` | same with g = isotonic regression of Y on f |
+| `select` | headline T1 arm: among linear / spline / isotonic keep the linear g unless another lowers the cross-fitted mean squared residual by more than 1 standard error of the paired difference (1-SE safeguard); selection is inside the replicate loop on the same folds as the SE. `selectmin` = plain argmin of the residual variance (no safeguard) |
+| `ols_adj` (T2) | pooled cross-fitted estimator, g = OLS on (1, f, X): the OLS-adjusted mean / vector PPI++ (strongest linear baseline with X) |
+| `vec_ppipp_x` (T2) | `ppi-python` PPI++ run with Yhat := cross-fitted OLS-on-(f, X) |
+| `gbm_aipw` (T2) | pooled cross-fitted estimator, g = histogram gradient boosting on (f, X) (100 iterations, ≤ 8 leaves, learning rate 0.1, min leaf size min(20, n_train/10)) |
+| `calib_x` (T2) | g = OLS on [cubic B-spline of f (df = 7), X linear] |
+| `select_x` (T2) | headline T2 arm: 1-SE safeguard from `ols_adj` among `ols_adj`, `calib_x`, `gbm_aipw`; `selectmin_x` = no safeguard |
+| `floor`, `floor_x` | **not an interval.** Predicted width ratio √(V*/V_PPI++) of an estimator at the estimated floor V* = σ²_res/n + V_g/M (σ²_res = E Var(Y\|Z), V_g = Var E[Y\|Z]), V_PPI++ = Var(Y)/n·(1 − ρ²N/M); σ²_res, V_g from cross-fitted fits on the whole pool (best of isotonic / spline / 10 bins by MSE for T1; gradient boosting for T2), true m for synthetic populations. A floor within a model class, an optimistic-or-not-quite estimate (a noisy fit inflates σ²_res, so ratios slightly above 1 occur). |
+| `oracle_m`, `oracle_lin` | synthetic only: pooled estimator with the true E[Y\|f] / the true best line as a known g (checks the variance formula) |
+
+Pooled cross-fitted estimator: K = 5 folds on the labeled records; ĝ^(−k) fitted on four folds; on a labeled record
+i the out-of-fold ĝ(Z_i), on an unlabeled record the fold average of ĝ; estimate
+θ̂ = (1/M)[Σ_unl ĝ + Σ_lab ĝ(Z_i)] + (1/n)Σ_lab h_i, h_i = Y_i − ĝ^(−k(i))(Z_i);
+SE² = s²_Y/M + (1/n − 1/M)·s²_h (s²_h = variance of h pooled over folds; the per-fold-centred variant is in
+`se_variants.csv`). Valid whenever ĝ converges in L2 to some fixed limit; a poor ĝ costs width, not coverage.
+
+## Floor estimate and its checks (`floors.json`, `floors_strong.json`, `headline.csv`)
+- `floor_ratio` (Outline "ratio at the floor") divides √V* by PPI++'s *asymptotic* standard deviation (λ at its optimum, no learning cost). The measured PPI++ interval is wider than that (clipped λ, in-sample λ̂), so an arm can lie below `floor_ratio` without beating the floor.
+  `floor_ratio_measured` = 2z√V*/(measured mean PPI++ width of the same cell) puts both in the same units. `floor_ratio_strong[_measured]` use the best of a wider set of cross-fitted classes
+  (splines with 8/16/32 knots, isotonic, 10/30 stratum means, gradient boosting on f; `experiments/floors_strong.py`); σ²_res falls by < 0.2% on every set (gene_expression 1.3543 → 1.3518), so the estimated floor is stable within these classes. Still a within-class estimate, not a bound.
+- `decomp.csv` (`experiments/gene_decomp.py`, 3000 draws per cell, N = 10000): on the same draws, PPI++ (package), PPI++ with the population-optimal λ (infeasible), in-sample OLS regression estimator, cross-fitted linear/spline pooled estimators, PPI++ on cross-fitted linear g, and PPI++ on a recentred predictor (a constant shift of f; shows the package's λ̂ is shift-invariant). `ratio_vs_ppipp` = mean Wald width to PPI++'s; `sd_est` = empirical SD of the estimate (the in-sample arms' SE is anti-conservative at n ≤ 100, so compare `sd_est`).
+  gene_expression, galaxies, forest, census_income at shift 0; forest and galaxies also with f + 0.34 sd(Y) (no change, as expected).
+
+## The λ clip (E9: `clip_sweep.csv`, `clip_real.csv`) and the strongest valid baseline (`headline.csv`)
+- Pooled parametrisation (M = n + N): PPI++ with tuning λ is the control variate g = c·f with c = λM/N. For a fixed λ its variance is exact: V(λ) = [Var Y − 2λ Cov(Y,f) + λ² Var f]/n + λ² Var f/N, minimised at the optimal tuning λ\* = b·N/M with b = Cov(Y,f)/Var f (the population OLS slope; Δ, the non-affine part of E[Y|f], is common to all λ and cancels from differences). `ppi-python` 0.2.3 restricts λ̂ to [0,1], i.e. c to [0, M/N]; the packaged oracle has c = clip(b, 0, M/N). Exact excess of the clipped tuning over the optimum: V(clip(λ\*)) − V(λ\*) = (1/n − 1/M)(b − c)² Var f (`excess`; `excess_closed_form` is the same by the closed form; they agree to 1e-8). `pred_width_ratio_unclip_over_pkg` = √(V(λ\*)/V(clip(λ\*))) (the width ratio of the unclipped to the clipped *oracle*; no estimation of λ).
+- `clip_sweep.csv` (`experiments/exp9_clip.py`; 61 cells; 8000 replicates for n = 30 and 100, 4000 otherwise): synthetic f ~ N(0,1), Y = b·f + σ·ε, truth E[Y] = 0, so E[Y|f] is affine and Δ = 0; b ∈ {−0.5, 0, 0.8, 1.0, 1.2, 1.5, 2.0}, σ = 0.6, n ∈ {30, 100, 300, 1000, 3000} at N = 10 000, N ∈ {300, 1200} at n = 300 (N/n = 1 and 4), and σ ∈ {0.3, 1.5} at n ∈ {100, 1000} for b ∈ {1.2, 1.5, 2}. b < 0 pins the package's λ at 0 (it returns the classical interval). Arms on the same draws: package PPI++ (`_pkg`), unclipped PPI++ with the same λ̂ formula (`_unclip`), and the same two with λ fixed at its optimum (`_oracle` columns: clip(λ\*) vs λ\*; no estimation of λ). `width_ratio_unclip_over_pkg` = paired ratio of mean Wald widths (CI ± 1.96 paired-bootstrap SE, 300 resamples); `label_saving_unclip_vs_pkg` = 1 − ratio²; `frac_lamhat_gt1` = share of replicates with λ̂ > 1 (clipped by the package); `sd_est_*` = empirical SD of the estimate, `se_over_sd_*` = mean SE / that SD; `sd_ratio_formula` = √(V(λ\*)/V(clip λ\*)).
+- `clip_real.csv`: the same columns on the real pools for every E3 and E4 cell with unclipped replicates (`unclip/`); b, λ\*, V, `excess` from the pool's population moments (the pool is the population), the paired widths from the stored draws; the formula's ratio is the oracle one, the measured ratio includes the estimation of λ (compare the two columns).
+- `headline.csv`, strongest valid baseline (Outline rev. 9; the rule was fixed after the rev. 8 results were seen): `baseline_used` = the narrower of the package PPI++ and the unclipped PPI++ among those whose coverage is valid in the cell (Wilson upper limit ≥ 0.95, the same rule as for every arm), `baseline_valid` = 1 if the baseline used passed it (if neither does, the narrower of the two is used and `baseline_valid` = 0), `baseline_package_valid`, `baseline_unclipped_valid`; `ratio_vs_valid_baseline` with `ratio_valid_lo/hi` = the arm's paired width ratio to it, `classification_vs_valid_baseline` = the pre-fixed margin on that ratio (arm `valid` as before). The columns against the package (`ratio`, `classification`), the unclipped (`ratio_vs_unclip`, `classification_vs_unclip`) and the narrower regardless of validity (`ratio_vs_best_ppipp`) are kept. T2 rows are paired with the unclipped PPI++ of the T1 cell of the same id (same seed and draws; checked where λ̂ ≤ 1 that the two PPI++ intervals coincide). `is_reference_n`: the reference n of each set fixed before the runs (`experiments/exp3_real.py`): 500, forest 200.
+- `breakeven_curves.csv` / `breakeven_summary.csv`: one row per break-even curve (`calib_spline`, one per dataset × group, the unit C3 is scored on) and the counts per group: `bracketed` (crossing between two grid points; scored against the factor-3 tolerance: `bracketed_within_factor3`), `censored_left`, `censored_right` (only consistency of the prediction with the censoring can be checked: `censored_consistent_with_prediction`), for the package baseline and (real reference grid) the narrower of the two PPI++ variants (`best`).
+- `ladder.csv` has the step `clip` (unclipped PPI++, ratio to the package) between `ppipp` and `calib_T1`.
+
+## Intervals (`construction`)
+`wald` (z = 1.96), `t` (t_{n−1}), `wilson` (Wilson/score with effective n = p̂(1−p̂)/SE², binary Y), `wald_trunc` (Wald clipped to
+[0, 1], binary Y), `boot_t` (studentised bootstrap, B = 399, for `pooled_linear` and `calib_iso`, g held at its cross-fitted
+values; labeled pairs and unlabeled g resampled separately), `cp` (Clopper–Pearson).
+The `ppi` / `ppipp` / `ppipp_on_*` / `vec_ppipp_x` estimate and SE are the package's own CLT interval (centre, half-width / 1.96); `wilson`
+and `t` for these rows are built from that estimate and SE.
+
+## Columns of `cells.csv`
+- `coverage`, `cov_lo`, `cov_hi`: fraction of the `reps` intervals containing `truth`, with Wilson 95% interval. Non-finite or
+  zero-width intervals count as misses (their share is `frac_degenerate`).
+- `width_mean`, `width_se`: mean width and MC standard error over replicates in which the interval and the PPI++ interval are finite and of positive width.
+- `ratio_vs_ppipp` (+`ratio_lo`, `ratio_hi`): ratio of mean widths over the same replicates, PPI++ in the same construction
+  (`ratio_ref` = `ppipp|<construction>`; for `labels_*`, `boot_t`, `cp`: PPI++ Wald). Interval = ratio ± 1.96 × paired-bootstrap SE (300 resamples of replicates).
+- `bias`, `bias_se`: mean(estimate − truth), MC SE.
+- `valid` (the pre-fixed win rule): 1 iff (i) Wilson upper limit of coverage ≥ 0.95 **and** (ii) coverage is not below that of PPI++
+  in the same construction beyond MC error (paired difference of coverage indicators on the same draws, 1.96 paired SE). `valid_reason` says which fails.
+  `valid_vs_ppipp` = clause (ii) alone. A cell where PPI++ itself undercovers (small n) therefore has `valid = 0` for most arms; `valid_vs_ppipp` then tells whether an arm is worse than PPI++.
+- `pick_frac`: share of replicates in which `select*` chose each candidate.
+- `pred_ratio_vs_ppipp`: predicted ratio from population quantities (labels_z, ppi, floor rows).
+- `group`: sub-design (`quad_n_sweep`, `shapes`, `N_sweep`, `reference_grid`, `stress_monotone_transform`, `N_over_n`, `constructions`,
+  `side_information`, `shift`, `selected_labeling`, `rare`).
+- `sampling`: `with_replacement`; `labeled_only_resample` (ballots: the 1027 labeled records are the pool; the unlabeled split has no Y); `shift`
+  (plankton: labeled from 2013, unlabeled from 2014, truth = mean of the 2014 `Y_unlabeled`); `selected_labeling` (non-MCAR labeling,
+  labeled records drawn with probability ∝ exp(standardised selector) from the pool, unlabeled uniformly); `synthetic_iid`.
+- `commit`: code version (git SHA, `+dirty` if the working tree differed) that produced the cell.
+
+## Other files
+- `prop_check.csv`: measured Var(estimate) − V* (bootstrap interval over replicates) against the closed-form prediction (E1 and the E3 real cells);
+  PPI++/`oracle_lin`: (1/n − 1/M)Δ, Δ = E(m(f) − a* − b*f)²; `pooled_linear` (cross-fitted): (1/n − 1/M)[Δ + (σ²_res + Δ)·2/n_train]; `calib_spline`: (1/n − 1/M)σ²_res·7/n_train,
+  n_train = 4n/5, valid for a correctly specified calibrator; NA where no closed form exists. `eta2` = V_g/Var(Y), `rho2` = corr(Y, f)²;
+  `excess_ratio` = measured / predicted excess variance (with the bootstrap interval); `meas_excess_paired` (synthetic cells) = mean[(est − truth)²] − mean[(est_oracle_m − truth)²] on the same draws, where `oracle_m` is the pooled estimator with the true E[Y|f] as a known g (variance exactly V*), with ±1.96 paired SE and `excess_ratio_paired` = that / predicted; `se_calibration` = √(mean SE²)/sd(estimate). Excess width = width − 2·1.96·√V*.
+- `breakeven.csv`: width ratio vs n for the calibrated arms; `pred_nstar` = K/(K−1)·d_eff·σ²_res/Δ with d_eff = 7, K = 5, from the population fit of the 5-knot spline class
+  (real pools, pool-bootstrap interval in `pred_nstar_lo/hi`) or the true m (synthetic, no interval); `meas_nstar` = first n at which the ratio crosses below 1 (log-n interpolation of the ratio, no validity requirement), NA if it never does on the grid.
+  The reported measurement is the grid bracket: `meas_win_at` = first grid n at which the ratio's upper limit is below 1 **and** the arm is not worse than PPI++ in coverage (`valid_vs_ppipp`), `meas_win_below` = the previous grid n;
+  `meas_censor` = `bracket`, `left` (wins already at the grid minimum), `right` (never wins on the grid). `pred_within_factor3` = 1 if `pred_nstar` lies in [`meas_win_below`/3, 3·`meas_win_at`]
+  (left: ≤ 3·`meas_win_at`; right: ≥ grid maximum/3). `pred_nstar_net` (post hoc) = `pred_nstar` × (1 − 2c/(d_eff K/(K−1))), c = learning cost of in-sample PPI++ in units of (1/n − 1/M)·2σ²_res/n, estimated from the synthetic affine E1 cells (n ≤ 200; Δ = 0, so the whole excess is learning cost) and transported unchanged to the other populations;
+  the leading-order formula compares the calibrator's learning cost with Δ only, whereas PPI++ pays its own.
+- `diagnostic.csv`: the analyst's headroom diagnostic computed per replicate from cross-fitted residual variances of the linear (v_lin) and spline (v_spl) arms:
+  σ̂² = v_spl/(1 + 7/n_train), Δ̂ = v_lin/(1 + 2/n_train) − σ̂², cost = 7σ̂²/n_train, `headroom_hat` = Δ̂ − cost;
+  `delta_hat`, `learning_cost`, `headroom_hat` are medians over replicates (the mean is dominated by outlier replicates for heavy-tailed predictors) and `*_lo/hi` are the 2.5/97.5% quantiles (the spread an analyst would see); `pred_gain` = 1 − √(1 − (1/n − 1/M)·headroom_hat/SE²_PPI++); `realised_gain` = 1 − width ratio of `calib_spline` to `ppipp`, with bootstrap quantiles.
+- `ladder.csv`: derived from `cells.csv` (reference-grid, stress, side-information cells): `se_ratio` = Wald width ratio of the step to PPI++; `constr_ratio` = width(Wilson for binary, t otherwise)/width(Wald) of the same step; `total_ratio` = product (approximate, not paired).
+- `se_variants.csv`: fold-pooled vs per-fold-centred residual variance in the cross-fitted SE.
+- `exp2_equiv.csv` (E2), `ballots_native.csv` (native ballots split, no truth), `data_sha256.txt` (data versions).
+
+## Finite-population check of the disjoint-draw cells (`finite_pop_check.csv`)
+`exp3_disjoint` draws the labeled and unlabeled records without replacement and disjoint from a finite pool (galaxies 16 743, gene_expression 61 150, census_income 380 091 records). `finite_pop_check.py` compares, per cell, the SD of the PPI++ estimate over replicates with that of the iid-with-replacement cell of the same id (same n, N, seed): `sd_ratio_disjoint_over_iid`, against the approximation `pred_sd_ratio` = sqrt([σ²_res(1 − n/P)/n + V_g(1 − M/P)/M] / [σ²_res/n + V_g/M]) (P pool size, M = n + N; σ²_res, V_g from `floors.json`; an approximation, not an exact finite-population formula). `se_over_sd_*` is mean SE over that SD; `coverage_*` the Wald coverage of PPI++. Result: the SD shrinks as M/P grows and the SE (which assumes iid draws) then over-covers; galaxies n = 3000 observed 0.828 vs predicted 0.831 (SE/SD 1.21, coverage 0.984 vs 0.950 iid), n = 1000 0.917 vs 0.939, n = 500 0.942 vs 0.968; gene_expression n = 3000 0.929 vs 0.910. Replicate counts are 2000 (n ≥ 300), so the SD ratios carry about ±0.02 of Monte Carlo error; the pattern, not each cell, is the test. census_income (pool ≫ M) has no effect to predict.
+
+## Sensitivity of the validity rule (`validity_sensitivity.csv`, `analysis/validity_sensitivity.py`)
+Strict rule (all delivered tables): an interval is valid if the Wilson upper limit of its coverage is ≥ 0.95 and, for arms other than PPI++, its coverage is not below PPI++'s beyond Monte-Carlo error (paired test). Loose rule: the Wilson test is replaced by coverage ≥ 0.94 (point estimate); the paired test is kept. It is applied to the arm, to both PPI++ baselines (the strongest-valid-baseline choice) and to the 113-cell regime map. No new runs; one row per headline cell with both rules. The script takes the threshold as an argument (0.93, 0.935, 0.945 also run).

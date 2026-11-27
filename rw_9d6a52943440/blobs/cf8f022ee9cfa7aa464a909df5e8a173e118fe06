@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# does a larger-gap nested split fix the shrunken lambda in extrapolation?
+# Outer split = top 25 % (extrap), inner split holds out the top 50 % of the sources; n = 100; uniform/strat/pps/balanced.
+cd "$(dirname "$0")/.."
+for b in commonsense gsm math med_qa mmlu legalbench arc_challenge gpqa ifeval musr openllm_math bbh mmlu_pro; do
+  ht-resource run local-compute --cwd "$PWD" --cpus 1 --memory 6000 --note "inner50-$b-extrap" -- \
+    python3 -I -u scripts/02_run.py "$b" extrap --draws 10 --d 2 --ngrid 100 --designs uniform,strat,pps,balanced \
+    --no-cat --inner-frac 0.5 --tag _inner50 --out results/raw_inner50 > /dev/null
+done

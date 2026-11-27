@@ -1,0 +1,263 @@
+"""Populations: real pools (the pool is the population) and synthetic generators with known truth."""
+import os
+import numpy as np
+
+DATA_DIR = os.environ.get("PCI_DATA", "/hutian/work/data")
+
+
+class Pool:
+    """Pool of records treated as the population; samples are iid draws with replacement
+    (or disjoint draws without replacement, `replace=False`, needs n + N <= pool size)."""
+
+    def __init__(self, name, Y, f, X=None, replace=True):
+        self.name, self.Y, self.f, self.X = name, np.asarray(Y, float), np.asarray(f, float), X
+        self.truth = float(self.Y.mean())
+        self.replace = replace
+
+    def draw(self, rng, n, N):
+        P = len(self.Y)
+        if self.replace:
+            idx = rng.integers(0, P, size=n + N)
+        else:
+            idx = rng.choice(P, size=n + N, replace=False)
+        il, iu = idx[:n], idx[n:]
+        return dict(y=self.Y[il], fl=self.f[il], fu=self.f[iu],
+                    Xl=None if self.X is None else self.X[il],
+                    Xu=None if self.X is None else self.X[iu])
+
+    def arrays(self):
+        return self.Y, self.f, self.X
+
+
+STRESS = {  # scale-misspecified predictors: a monotone transform of the supplied Yhat (stress test, not a real predictor)
+    "logit": lambda f: np.log(np.clip(f, 1e-3, 1 - 1e-3) / (1 - np.clip(f, 1e-3, 1 - 1e-3))),
+    "log": lambda f: np.log(np.maximum(f, 1000.0)),
+}
+
+
+def load_pool(name, replace=True, transform=None):
+    d = np.load(os.path.join(DATA_DIR, name + ".npz"))
+    X = None
+    if name.startswith("census"):
+        X = np.asarray(d["X"], float)
+    if name == "alphafold":
+        X = np.column_stack([d["phosphorylated"], d["ubiquitinated"], d["acetylated"]]).astype(float)
+    f = d["Yhat"] if transform is None else STRESS[transform](np.asarray(d["Yhat"], float))
+    return Pool(name if transform is None else f"{name}_{transform}", d["Y"], f, X, replace)
+
+
+class Synth:
+    """Generator with known truth. `m(f, X)` is the true E[Y | Z]; floors are computed by Monte
+    Carlo on a big sample (and compared with closed forms where they exist)."""
+
+    def __init__(self, name, gen, m, truth, binary=False):
+        self.name, self._gen, self.m, self.truth, self.binary = name, gen, m, truth, binary
+
+    def draw(self, rng, n, N):
+        y, f, X = self._gen(rng, n + N)
+        return dict(y=y[:n], fl=f[:n], fu=f[n:], Xl=None if X is None else X[:n],
+                    Xu=None if X is None else X[n:])
+
+    def arrays(self, size=2_000_000, seed=12345):
+        y, f, X = self._gen(np.random.default_rng(seed), size)
+        return y, f, X
+
+    def lin_coef(self):
+        """Population best-linear (a*, b*) of Y on f (from a 2e6 draw), cached."""
+        if not hasattr(self, "_lin"):
+            y, f, _ = self.arrays()
+            b = np.cov(y, f)[0, 1] / f.var()
+            self._lin = (float(y.mean() - b * f.mean()), float(b))
+        return self._lin
+
+
+def synth_quad(alpha=0.8, c=0.5, sigma=0.6, offset=0.0):
+    """f ~ N(0,1), Y = offset + alpha f + c (f^2 - 1) + sigma eps. Delta = 2 c^2 in closed form."""
+    def gen(rng, m):
+        f = rng.normal(size=m)
+        y = offset + alpha * f + c * (f * f - 1) + sigma * rng.normal(size=m)
+        return y, f, None
+    return Synth(f"quad_c{c}_a{alpha}_s{sigma}", gen, lambda f, X: offset + alpha * f + c * (f * f - 1), offset)
+
+
+def synth_shape(kind, sigma=0.6):
+    """Calibration shapes for f ~ N(0,1): 'tanh' (monotone saturating), 'sin' (non-monotone)."""
+    fn = {"tanh": lambda f: 1.5 * np.tanh(2 * f), "sin": lambda f: np.sin(1.5 * f)}[kind]
+    def gen(rng, m):
+        f = rng.normal(size=m)
+        return fn(f) + sigma * rng.normal(size=m), f, None
+    return Synth(f"{kind}_s{sigma}", gen, lambda f, X: fn(f), 0.0)
+
+
+def synth_binary(prev_logit=-1.0, slope=1.5, kappa=0.5, noise_f=0.0):
+    """Y ~ Bernoulli(expit(a + b u)); f = expit(kappa (a + b u) + noise): kappa < 1 is an
+    under-confident score (E[Y|f] convex-concave, not affine in f). Rare-event: a << 0."""
+    from scipy.special import expit
+    def gen(rng, m):
+        u = rng.normal(size=m)
+        eta = prev_logit + slope * u
+        y = (rng.random(m) < expit(eta)).astype(float)
+        f = expit(kappa * eta + noise_f * rng.normal(size=m))
+        return y, f, None
+    # truth computed by quadrature over u
+    ug, w = np.polynomial.hermite_e.hermegauss(200)
+    truth = float((w * expit(prev_logit + slope * ug)).sum() / w.sum())
+    if noise_f == 0.0:
+        m = lambda f, X: expit((np.log(f / (1 - f))) / kappa)
+    else:
+        m = None
+    return Synth(f"bin_a{prev_logit}_b{slope}_k{kappa}_nf{noise_f}", gen, m, truth, binary=True)
+
+
+def synth_x(tau1=0.6, tau2=0.0, sigma=0.7, noise_f=0.5):
+    """T2: latent u; f = u + noise_f*e; X1, X2 ~ N(0,1) independent of f.
+    Y = u + tau1 X1 + tau2 (X2^2 - 1) + sigma eps, so X adds linear (tau1) / non-linear (tau2) info."""
+    def gen(rng, m):
+        u = rng.normal(size=m)
+        f = u + noise_f * rng.normal(size=m)
+        X = rng.normal(size=(m, 2))
+        y = u + tau1 * X[:, 0] + tau2 * (X[:, 1] ** 2 - 1) + sigma * rng.normal(size=m)
+        return y, f, X
+    # E[Y|f] = f/(1+noise_f^2)
+    k = 1.0 / (1 + noise_f ** 2)
+    return Synth(f"X_t1{tau1}_t2{tau2}_nf{noise_f}", gen,
+                 lambda f, X: k * f + tau1 * X[:, 0] + tau2 * (X[:, 1] ** 2 - 1), 0.0)
+
+
+# --------------------------------------------------------------------------- floor statistics
+def _cv_predict(Z, y, fit, K=5, seed=0):
+    r = np.random.default_rng(seed)
+    folds = r.permutation(len(y)) % K
+    out = np.empty(len(y))
+    for k in range(K):
+        te = folds == k
+        out[te] = fit(Z[~te], y[~te])(Z[te])
+    return out
+
+
+def floor_stats(pop, tiers=("T1",), seed=0):
+    """Population quantities: Var(Y), rho, and per tier the residual variance sigma2_res = E Var(Y|Z),
+    V_g = Var m(Z), Delta = E(m - best linear in Z)^2, the variance of the best-linear residual,
+    all from the *population* (pool or large synthetic sample). For pools m is estimated by
+    5-fold cross-fitted fits on the whole pool (a floor within a model class); synthetic
+    populations use the true m."""
+    from . import calibrators as C
+    y, f, X = pop.arrays()
+    out = dict(var_y=float(y.var()), rho=float(np.corrcoef(y, f)[0, 1]), var_f=float(f.var()), cov_yf=float(np.cov(y, f)[0, 1]),
+               mean_y=float(y.mean()))
+    lin1 = C.make_linear()(f, y)(f)
+    out["T1_lin_resvar"] = float(np.mean((y - lin1) ** 2))
+    cands = {}
+    if isinstance(pop, Synth) and pop.m is not None:
+        cands["true"] = pop.m(f, X)
+    else:
+        sub = slice(None)
+        if len(y) > 200_000:
+            sub = np.random.default_rng(seed).choice(len(y), 200_000, replace=False)
+        ys, fs = y[sub], f[sub]
+        for nm, fit in (("isotonic", C.make_isotonic()), ("spline", C.make_spline(8)), ("bins", C.make_bins(10))):
+            mh = _cv_predict(fs, ys, fit, seed=seed)
+            cands[nm] = (mh, sub)
+    res = {}
+    for nm, v in cands.items():
+        if isinstance(v, tuple):
+            mh, sub = v
+            ys, fs = y[sub], f[sub]
+        else:
+            mh, ys, fs = v, y, f
+        lin = C.make_linear()(fs, ys)(fs)
+        res[nm] = dict(sigma2_res=float(np.mean((ys - mh) ** 2)), V_g=float(mh.var()),
+                       Delta=float(np.mean((mh - lin) ** 2)))
+    if len(res) > 1:   # for pools, the floor model is the class with smallest cross-fitted MSE
+        best = min(res, key=lambda k: res[k]["sigma2_res"])
+    else:
+        best = next(iter(res))
+    out["T1"] = dict(res[best], model=best, all=res)
+    if "T2" in tiers and X is not None:
+        Z = np.column_stack([f, X])
+        sub = slice(None)
+        if len(y) > 200_000:
+            sub = np.random.default_rng(seed).choice(len(y), 200_000, replace=False)
+        if isinstance(pop, Synth) and pop.m is not None:
+            m2 = pop.m(f, X)
+            Zs, ys = Z, y
+        else:
+            Zs, ys = Z[sub], y[sub]
+            m2 = _cv_predict(Zs, ys, C.make_gbm(200, 16), seed=seed)
+        lin = C.make_linear()(Zs, ys)(Zs)
+        out["T2"] = dict(sigma2_res=float(np.mean((ys - m2) ** 2)), V_g=float(m2.var()),
+                         Delta=float(np.mean((m2 - lin) ** 2)), lin_resvar=float(np.mean((ys - lin) ** 2)),
+                         model="gbm" if not isinstance(pop, Synth) else "true")
+    return out
+
+
+def predicted_variances(fs, n, N, tier="T1"):
+    """Exact/plug-in predicted variance of each estimator class (units of Var(estimate))."""
+    M = n + N
+    vy, rho = fs["var_y"], fs["rho"]
+    out = dict(classical=vy / n)
+    # PPI (lambda = 1): Var(Y - f)/n + Var(f)/N
+    var_y_minus_f = vy + fs["var_f"] - 2 * fs["cov_yf"]
+    out["ppi"] = var_y_minus_f / n + fs["var_f"] / N
+    out["ppi++"] = vy / n * (1 - rho ** 2 / (1 + n / N))
+    t = fs["T1"]
+    out["floor_T1"] = t["sigma2_res"] / n + t["V_g"] / M
+    out["gap_ppi++"] = (1 / n - 1 / M) * t["Delta"]
+    if "T2" in fs:
+        t2 = fs["T2"]
+        out["floor_T2"] = t2["sigma2_res"] / n + t2["V_g"] / M
+        out["linX"] = vy / M + (1 / n - 1 / M) * t2["lin_resvar"]
+    return out
+
+
+class ShiftPool:
+    """Labeled records from one population (e.g. plankton 2013) and unlabeled records from another
+    (2014). The target is the mean of the *unlabeled* population."""
+
+    def __init__(self, name, Yl, fl, Yu, fu):
+        self.name = name
+        self.Yl, self.fl, self.Yu, self.fu = map(lambda a: np.asarray(a, float), (Yl, fl, Yu, fu))
+        self.truth = float(self.Yu.mean())
+        self.X = None
+
+    def draw(self, rng, n, N):
+        il = rng.integers(0, len(self.Yl), n)
+        iu = rng.integers(0, len(self.fu), N)
+        return dict(y=self.Yl[il], fl=self.fl[il], fu=self.fu[iu], Xl=None, Xu=None)
+
+
+class SelectPool:
+    """Labeling not MCAR: labeled records are drawn (iid) with probability proportional to
+    exp(beta * standardised selector); unlabeled records are drawn uniformly from the pool.
+    selector in {'f', 'Y', ('X', j)}. Truth = pool mean. 'f' and 'X' selection are MAR given Z
+    (T1: f only is then misspecified; T2 contains X); 'Y' selection is MNAR."""
+
+    def __init__(self, pool, selector, beta):
+        self.pool, self.selector, self.beta = pool, selector, beta
+        s = {"f": pool.f, "Y": pool.Y}.get(selector) if isinstance(selector, str) else pool.X[:, selector[1]]
+        s = (s - s.mean()) / s.std()
+        w = np.exp(beta * s)
+        self.cum = np.cumsum(w) / w.sum()
+        self.name = f"{pool.name}_sel-{selector if isinstance(selector, str) else 'X%d' % selector[1]}_b{beta}"
+        self.truth = pool.truth
+        self.X = pool.X
+
+    def draw(self, rng, n, N):
+        p = self.pool
+        il = np.minimum(np.searchsorted(self.cum, rng.random(n)), len(p.Y) - 1)
+        iu = rng.integers(0, len(p.Y), N)
+        return dict(y=p.Y[il], fl=p.f[il], fu=p.f[iu], Xl=None if p.X is None else p.X[il],
+                    Xu=None if p.X is None else p.X[iu])
+
+
+class RarePool(Pool):
+    """Binary pool with the positives subsampled to prevalence `prev` (all negatives kept)."""
+
+    def __init__(self, pool, prev, seed=0):
+        rng = np.random.default_rng(seed)
+        neg = np.where(pool.Y == 0)[0]
+        pos = np.where(pool.Y == 1)[0]
+        k = int(round(prev / (1 - prev) * len(neg)))
+        keep = np.sort(np.r_[neg, rng.choice(pos, size=min(k, len(pos)), replace=False)])
+        X = None if pool.X is None else pool.X[keep]
+        super().__init__(f"{pool.name}_prev{prev}", pool.Y[keep], pool.f[keep], X, pool.replace)

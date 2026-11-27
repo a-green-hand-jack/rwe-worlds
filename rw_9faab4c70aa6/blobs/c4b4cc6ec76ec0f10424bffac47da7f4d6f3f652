@@ -1,0 +1,55 @@
+"""C2 statistic as pre-specified (Outline 2.2, amended): does a search-log predictor track the measured gap over cells?
+Usage: python summarise_c2.py RESULTS_DIR   (reads gap_vs_n_real.parquet, gap_drivers_real.parquet; writes c2_statistic_real.parquet)
+For each set of cells x predictor (pred_refined, pred_kappa) x cell set (all cells; cells without finite-population overlap):
+  slope, intercept   OLS of the measured gap on the predicted gap over cells (calibration slope; intercept free), 95% cell-bootstrap CI (cells resampled, 10,000)
+  slope0             slope through the origin (sensitivity)
+  mae, tol, tol_term MAE |pred - gap| and tolerance max(0.005, 1.5 x median between-pool SE of the cell gaps, 25% of the mean gap); the term that attains the maximum
+  holds_point, holds_interval   share of cells with gap <= pred; with gap_lo <= pred (the measured gap not credibly above the predictor); 'holds' as an upper end needs >= 0.90
+  verdict            tracks (slope CI contains 1, MAE <= tol, tolerance set by 0.005 or 25%, slope CI excludes 0); consistent_not_discriminating (MAE <= tol and slope CI contains 1 but the tolerance is set by the SE term or the slope CI contains 0);
+                     not_tracking otherwise (slope CI excludes 1 or MAE > tol)
+tol_se: the same tolerance with the between-pool SE from gap_se_between_upper (the SE with its own sampling error added); tol_term_upper names its term."""
+import sys, os
+import numpy as np, pandas as pd
+
+res = sys.argv[1]
+a = pd.read_parquet(f"{res}/gap_vs_n_real.parquet"); a = a[a.pred_kappa.notna()].copy(); a["flagged"] = a.n >= 400
+b = pd.read_parquet(f"{res}/gap_drivers_real.parquet").copy(); b["flagged"] = b.n >= 240
+sets = {"gap_vs_n (random B=20,100 + exhaustive, n 30-400)": a, "gap_drivers (21 cells: K x spread x n 60-240)": b}
+rng = np.random.default_rng([29, 1]); R = 10000
+
+
+def ols(x, y):
+    xm, ym = x.mean(), y.mean(); sxx = ((x - xm) ** 2).sum()
+    if sxx == 0: return np.nan, np.nan
+    s = ((x - xm) * (y - ym)).sum() / sxx; return s, ym - s * xm
+
+
+def stat(df, pred):
+    x, y = df[pred].values, df.gap.values; n = len(df)
+    slope, icpt = ols(x, y); slope0 = (x * y).sum() / (x * x).sum()
+    bs = []
+    for _ in range(R):
+        i = rng.integers(0, n, n); s, _ = ols(x[i], y[i])
+        if np.isfinite(s): bs.append(s)
+    lo, hi = np.quantile(bs, [0.025, 0.975])
+    mae = np.abs(x - y).mean(); mg = y.mean()
+    se = np.nanmedian(df.gap_se_between.values); seu = np.nanmedian(df.gap_se_between_upper.values)
+    def tol(se_):
+        t = {"0.005": 0.005, "1.5xSE": 1.5 * se_, "25%": 0.25 * mg}; k = max(t, key=t.get); return t[k], k
+    t, k = tol(se); tu, ku = tol(seu)
+    inside1 = lo <= 1 <= hi; excl0 = not (lo <= 0 <= hi)
+    ok = inside1 and mae <= t
+    verdict = ("tracks" if (excl0 and k != "1.5xSE") else "consistent_not_discriminating") if ok else "not_tracking"
+    return dict(cells=n, slope=slope, slope_lo=lo, slope_hi=hi, intercept=icpt, slope0=slope0, mae=mae, mean_gap=mg, median_se_between=se, median_se_between_upper=seu,
+                tol=t, tol_term=k, tol_upper=tu, tol_term_upper=ku, holds_point=float((y <= x).mean()), holds_interval=float((df.gap_lo.values <= x).mean()),
+                median_pred_over_gap=float(np.median(x / y)), slope_ci_contains_1=inside1, slope_ci_excludes_0=excl0, verdict=k and verdict)
+
+
+rows = []
+for name, df in sets.items():
+    for cellset, d in (("all cells", df), ("excluding flagged (S overlaps the pool)", df[~df.flagged])):
+        for pred in ("pred_refined", "pred_kappa"):
+            rows.append(dict(cell_set=name, cells_used=cellset, predictor=pred, ci_kind="cell-bootstrap (10,000 resamples of cells)", **stat(d, pred)))
+out = pd.DataFrame(rows); out.to_parquet(f"{res}/c2_statistic_real.parquet", index=False)
+pd.set_option("display.width", 250); pd.set_option("display.max_columns", 40)
+print(out.drop(columns=["ci_kind"]).round(4).to_string())

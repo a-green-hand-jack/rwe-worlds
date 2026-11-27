@@ -1,0 +1,8 @@
+{
+ "script": "analysis/cluster_quality.py",
+ "code_commit": "1b5328ec14a261e28463578a5171e44729fa0bcb",
+ "seed": 20261125,
+ "n_draws": "3000 per run (synthetic graphs: 10 graph draws x 300 assignments; real graphs: 1 graph x 3000 assignments); bootstrap and coverage on a subset",
+ "date": "2026-11-26",
+ "description": "cluster designs: number and sizes of clusters, modularity, conductance, status (degenerate designs are listed)"
+}

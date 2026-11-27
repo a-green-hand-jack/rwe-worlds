@@ -1,0 +1,21 @@
+"""Population floor statistics (Var(Y), rho, sigma2_res, V_g, Delta; T1 and T2) for every real pool
+and synthetic population used; writes results/floors.json."""
+import json, sys
+from common import *
+
+out = {}
+for nm in ["galaxies", "forest", "alphafold", "gene_expression", "census_income", "census_healthcare",
+           "census_education", "plankton", "ballots"]:
+    p = load_pool(nm)
+    out[nm] = floor_stats(p, tiers=("T1", "T2"))
+    print(nm, out[nm]["T1"]["model"], {k: round(v, 5) for k, v in out[nm]["T1"].items() if isinstance(v, float)}, flush=True)
+    json.dump(out, open(os.path.join(RESULTS, "floors.json"), "w"), indent=1)
+syn = [synth_quad(0.8, c, 0.6) for c in (0.0, 0.05, 0.1, 0.2, 0.5)] + [synth_shape("tanh"), synth_shape("sin"),
+       synth_binary(-1.0, 1.5, 0.5), synth_binary(-4.5, 1.5, 0.5)]
+for s in syn:
+    out["synth:" + s.name] = floor_stats(s)
+    print(s.name, {k: round(v, 5) for k, v in out["synth:" + s.name]["T1"].items() if isinstance(v, float)}, flush=True)
+    json.dump(out, open(os.path.join(RESULTS, "floors.json"), "w"), indent=1)
+for s in [synth_x(0.6, 0.0), synth_x(0.0, 0.6), synth_x(0.6, 0.6), synth_x(0.0, 0.0)]:
+    out["synth:" + s.name] = floor_stats(s, tiers=("T1", "T2"))
+    json.dump(out, open(os.path.join(RESULTS, "floors.json"), "w"), indent=1)

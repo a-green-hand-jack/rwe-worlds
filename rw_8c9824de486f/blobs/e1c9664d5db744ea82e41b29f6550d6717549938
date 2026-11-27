@@ -1,0 +1,15 @@
+"""Summary of the fixed-rank sensitivity (PREREG Deviation 4j): for each fixed rank (4, 8, 12; 20 of the 50 shared splits, G), for the main inner-CV-rank run on the same 20 splits (`ctx` stage B re-aggregated: ct_extras) and on all 50,
+the floor RMSE, S6+P5 RMSE / excess over the floor at k in KS, and k*(epsilon) on the fixed k_max subset with its bootstrap interval. usage: python 41_rank_sens_summary.py <results_dir>"""
+import os, sys, pandas as pd
+R = sys.argv[1]; KS = [1, 5, 20, 50, 80]; rows = []
+for lab, d in [("4", "sens_rank/rank4"), ("8", "sens_rank/rank8"), ("12", "sens_rank/rank12"), ("inner-CV (20 splits)", "ct_extras"), ("inner-CV", ".")]:
+    c = pd.read_csv(os.path.join(R, d, "ct_curves.csv")); ks = pd.read_csv(os.path.join(R, d, "ct_kstar.csv"))
+    c = c[(c.split == "G") & (c.subset == "fixed") & (c.method == "S6+P5")]; ks = ks[(ks.split == "G") & (ks.subset == "fixed")]
+    r = dict(rank=lab, n_splits=float(c.n_splits_mean.iloc[0]), floor_rmse=float(c.floor_raw.iloc[0]))
+    for k in KS:
+        x = c[c.k == k].iloc[0]; r[f"rmse_k{k}"] = x.rmse_raw; r[f"excess_k{k}"] = x.excess_raw; r[f"excess_k{k}_lo"] = x.excess_lo; r[f"excess_k{k}_hi"] = x.excess_hi
+    for e in ["frac_0.25", "delta_floor", "eps_1.0", "eps_2.0"]:
+        x = ks[ks.epsilon_name == e].iloc[0]; r[f"kstar_{e}"] = x.k_emp; r[f"kstar_{e}_lo"] = x.k_emp_lo; r[f"kstar_{e}_hi"] = x.k_emp_hi
+    rows.append(r)
+pd.DataFrame(rows).round(3).to_csv(os.path.join(R, "sens_rank", "summary_by_rank.csv"), index=False)
+print(pd.DataFrame(rows).round(2).T.to_string())

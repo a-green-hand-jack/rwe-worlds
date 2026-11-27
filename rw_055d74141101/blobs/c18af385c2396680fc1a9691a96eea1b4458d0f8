@@ -1,0 +1,34 @@
+"""results/scaling_slopes.csv: equal-N scaling of the fragility per count, from fragility_vs_N.csv (05_scaling.py).
+Per data set and family: slope s of log(k*/N_sub) on log N_sub (k* ~ N^(1+s)) over the subsample sizes whose median rests on >= 10 pairs.
+Interval: 2,000 Monte Carlo draws of every point's log value, normal with sd = (log hi - log lo)/3.92 of the point's own interval (floor 0.03),
+then the OLS slope; coarse (5 subsamples per size, integer k*), so read as an interval of the slope, not as a model-based one."""
+import os, sys
+import numpy as np, pandas as pd
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src")); sys.path.insert(0, os.path.dirname(__file__))
+import importlib
+T6 = importlib.import_module("06_tables")
+
+
+def main():
+    f = pd.read_csv(f"{T6.REPO}/fragility_vs_N.csv")
+    f = f[(f.stat == "kN") & (f.n_pairs >= 10) & (f.value > 0)]
+    rg = np.random.default_rng(0)
+    rows = []
+    for (ds, fam), x in f.groupby(["dataset", "perturbation"]):
+        if len(x) < 3:
+            continue
+        lx = np.log(x.n_sub.to_numpy(float)); ly = np.log(x.value.to_numpy())
+        sd = np.maximum((np.log(np.maximum(x.hi, 1e-12)) - np.log(np.maximum(x.lo, 1e-12))) / 3.92, 0.03)
+        sl = lambda y: np.polyfit(lx, y, 1)[0]
+        draws = [sl(ly + rg.normal(0, sd)) for _ in range(2000)]
+        s = sl(ly)
+        rows.append(dict(dataset=ds, design=x.design.iloc[0], perturbation=fam, synthetic=0, n_points=len(x), n_sub_min=int(x.n_sub.min()), n_sub_max=int(x.n_sub.max()),
+                         slope_log_kN=s, lo=np.percentile(draws, 2.5), hi=np.percentile(draws, 97.5), exponent_k_vs_N=1 + s,
+                         exponent_lo=1 + np.percentile(draws, 2.5), exponent_hi=1 + np.percentile(draws, 97.5)))
+    o = pd.DataFrame(rows)
+    o.to_csv(f"{T6.REPO}/scaling_slopes.csv", index=False, float_format="%.4g")
+    print(o.to_string())
+
+
+if __name__ == "__main__":
+    main()

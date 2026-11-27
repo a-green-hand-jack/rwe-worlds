@@ -1,0 +1,25 @@
+# Review of the final offer: paper-repo#13 (release d0b1354 into final)
+
+Head d0b1354; its tree is identical to main 3f15b47 (`git diff main release` is empty), the commit I approved as Version 2.
+The built document of main (`built-from` 3f15b47) is the paper judged. 25 pages; main text ends on page 9; the NeurIPS checklist is filled.
+
+## What I checked for final (the whole objective)
+- Paper contents and venue: abstract, introduction, related work, method, experiments, discussion and limitations, references, NeurIPS 2026 template, checklist: present. Main text within 9 pages.
+- Real data: MTEB (primary, pinned commit) and the Open LLM Leaderboard (second matrix), baselines, intervals, theory against measurement: unchanged since the Version 2 review, where every number was matched to `results/`.
+- Code and reproduction notes: environment, data commits, seed, commands, times are in `code/README.md`.
+
+## Finding (must)
+The objective asks the reproduction notes to say which script produces each table and each figure of the paper. The delivered notes do not:
+- `README.md` (root) says `code/README.md` holds "which script makes each table and figure". It does not: `code/README.md` has no table or figure map and never mentions `figtab/` or `figtab/build_all.sh`.
+- `figtab/README.md` lists files (`tab1_coverage.tex`, `tab2_primary_contrast.tex`, `tab2b_olb.tex`, `tab4_ksrule.tex`, ...) under names that differ from the paper's numbers. In the paper Table 1 is the primary contrast, Table 2 the coverage filter, Table 3 the k* table, Tables 4 and 5 the inference rules, Table 6 the Open LLM Leaderboard; Figure 3 is the scope map and Figure 4 the structure of the matrix. A reader cannot go from a number in the PDF to a script.
+- The figure and table scripts need the result directory and `ANALYSIS_COMMIT`; no step of `code/README.md` runs them.
+Fix (owner: report, with presentation for the file-to-script facts): add to `code/README.md` a table "paper item (number as printed) -> figtab file -> generating script -> input result files", for all 7 figures/tables of the main text and the appendix, and the command line of `figtab/build_all.sh` as a pipeline step. Correct the root README sentence if it is not met. Check that the paper's numbering in the table is the one in the build.
+
+## Open (may)
+- None. The earlier may (README 'Table 1' versus the paper's Table 2) is gone: `code/README.md` no longer has a 'Table 1' wording. (I first listed it here by mistake; corrected after grepping the README.)
+
+## Process note
+`hutian/delivery` is failing on the PR: "a version comes from main; this pull request comes from release: open it from main". That is for paper-repo and the system, not a review finding; the PR cannot merge until the check passes. Any push to the head withdraws an approval, so the fix to the notes and the PR source change can go in one head, and I will review that head.
+
+## Decision
+Request changes on #13 for the one `must`. No change of the paper's claims or numbers is asked.

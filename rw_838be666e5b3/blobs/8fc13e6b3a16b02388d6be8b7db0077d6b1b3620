@@ -1,0 +1,27 @@
+"""Finite-population check of the exp3_disjoint cells (galaxies' disjoint-draw overcoverage).
+Observed: SD of the PPI++ estimate over replicates in the disjoint cell relative to the iid-with-replacement cell of the same id (same N, n, seed).
+Predicted: sqrt of  [s2*(1-n/P)/n + Vg*(1-M/P)/M] / [s2/n + Vg/M]  with s2 = sigma2_res, Vg = V_g of the population fit (floors.json),
+P the pool size, M = n+N: the labelled residual part is a without-replacement sample of n of P, the g part one of M of P (an approximation, not an exact formula).
+usage: python analysis/finite_pop_check.py   -> results/finite_pop_check.csv"""
+import glob, json, os
+import numpy as np, pandas as pd
+
+R = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "results")
+POOL = {"galaxies": 16743, "gene_expression": 61150, "census_income": 380091}   # results/data_sha256.txt
+fl = json.load(open(os.path.join(R, "floors.json")))
+rows = []
+for f in sorted(glob.glob(os.path.join(R, "exp3_disjoint", "*.npz"))):
+    d = np.load(f, allow_pickle=True); e = np.load(os.path.join(R, "exp3", os.path.basename(f)), allow_pickle=True)
+    meta = json.loads(str(d["_meta"])); ds, n, N, t = meta["pop"], meta["n"], meta["N"], meta["truth"]
+    ds = ds.replace("_log", "")
+    def stat(z):
+        est, se = z["ppi++|est"], z["ppi++|se"]
+        return est.std(ddof=1), se.mean(), float(np.mean(np.abs(est - t) <= 1.96 * se))
+    sd_d, se_d, cov_d = stat(d); sd_i, se_i, cov_i = stat(e)
+    P, M = POOL[ds], n + N; s2, Vg = fl[ds]["T1"]["sigma2_res"], fl[ds]["T1"]["V_g"]
+    pred = np.sqrt((s2 * (1 - n / P) / n + Vg * (1 - M / P) / M) / (s2 / n + Vg / M))
+    rows.append(dict(dataset=ds, n=n, N=N, pool=P, reps_disjoint=len(d["ppi++|est"]), reps_iid=len(e["ppi++|est"]),
+                     sd_ratio_disjoint_over_iid=sd_d / sd_i, pred_sd_ratio=pred, se_over_sd_disjoint=se_d / sd_d, se_over_sd_iid=se_i / sd_i,
+                     coverage_disjoint=cov_d, coverage_iid=cov_i))
+out = pd.DataFrame(rows); out.to_csv(os.path.join(R, "finite_pop_check.csv"), index=False)
+print(out.round(3).to_string())

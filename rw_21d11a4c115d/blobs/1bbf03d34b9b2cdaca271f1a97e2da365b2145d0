@@ -1,0 +1,65 @@
+"""Fig. 5 (claim C4): closed-form reducible risk against the empirical one, by tier.
+
+(a) predicted vs empirical reducible risk (log-log, line of equality); (b) relative gap |pred-emp|/emp against k with the
+pre-registered tolerances; (c) predicted minus empirical against k (a constant offset is a flat line).
+Points whose empirical reducible risk is within noise of zero (`excluded`) are not drawn and are counted in the sidecar.
+Colour = data set, marker = tier. Synthetic fitted-parameter runs at other history sizes M are grey squares with
+a lighter shade for larger M.
+"""
+import argparse, os, re
+import numpy as np, pandas as pd
+import style, venue
+from matplotlib.lines import Line2D
+import matplotlib.pyplot as plt
+
+p = argparse.ArgumentParser()
+p.add_argument("--results", required=True); p.add_argument("--out", default="out")
+p.add_argument("--draft", action="store_true")
+a = p.parse_args()
+v = venue.get(a.draft)
+size = style.setup(v["TEXT_WIDTH_IN"], v["MIN_FONT_PT"], aspect=0.42)
+th = pd.read_csv(os.path.join(a.results, "theory.csv"))
+TIER_MK = {"true": "o", "fitted": "s", "bootstrap": "^", "real": "D"}
+TIER_LAB = {"true": "synthetic, true params.", "fitted": "synthetic, fitted params.",
+            "bootstrap": "bootstrap from real fit", "real": "real data"}
+SYN_M = {"synthetic_N60_r4": 110, "synthetic_N60_r4_M60": 60, "synthetic_N60_r4_M250": 250, "synthetic_N60_r4_M600": 600, "synthetic_N60_r4_M2000": 2000}
+SHADE = {60: "0.1", 110: "0.25", 250: "0.4", 600: "0.55", 2000: "0.7"}
+
+
+def colour(ds, tier):
+    if ds in SYN_M and tier == "fitted":
+        return SHADE[SYN_M[ds]]
+    return style.DATASET_COLORS["synthetic_N60_r4" if ds in SYN_M else ds]
+
+
+fig, (ax, bx, cx) = plt.subplots(1, 3, figsize=size)
+excl = {}
+for (ds, tier), d in th.groupby(["dataset", "tier"]):
+    col, mk = colour(ds, tier), TIER_MK[tier]
+    excl[f"{ds}/{tier}"] = int(d.excluded.sum())
+    d = d[~d.excluded].sort_values("k")
+    kw = dict(color=col, marker=mk, ms=3.4, mfc=col if tier in ("true", "bootstrap") else "white", mew=0.9)
+    ax.errorbar(d.predicted_reducible, d.empirical_reducible, yerr=[d.empirical_reducible - d.ci_lo, d.ci_hi - d.empirical_reducible],
+                elinewidth=0.4, capsize=0, ls="none", **kw)
+    bx.plot(d.k, (d.predicted_reducible - d.empirical_reducible).abs() / d.empirical_reducible, lw=0.8, **kw)
+    cx.plot(d.k, d.predicted_reducible - d.empirical_reducible, lw=0.8, **kw)
+lim = [th.predicted_reducible.min() * 0.8, th.empirical_reducible.max() * 1.25]
+ax.plot(lim, lim, color="0.3", lw=0.8); ax.set_xlim(lim); ax.set_ylim(lim)
+ax.set_xscale("log"); ax.set_yscale("log"); style.plain_log(ax, "x"); style.plain_log(ax, "y")
+ax.set_xlabel("predicted"); ax.set_ylabel("empirical reducible risk"); ax.set_title("(a) reducible risk", loc="left")
+for y, ls in ((0.10, ":"), (0.15, "--")):
+    bx.axhline(y, color="0.35", lw=0.8, ls=ls)
+cx.axhline(0, color="0.3", lw=0.8)
+for x_ in (bx, cx):
+    x_.set_xscale("log"); style.plain_log(x_, "x"); x_.set_xticks([1, 2, 5, 10, 20]); x_.set_xlabel("benchmarks run, $k$")
+bx.set_ylabel("relative gap"); bx.set_title("(b) gap relative to empirical", loc="left")
+cx.set_ylabel("predicted $-$ empirical"); cx.set_title("(c) absolute gap", loc="left")
+h_ds = [Line2D([], [], color=c, lw=2, label=style.DATASET_SHORT[k]) for k, c in style.DATASET_COLORS.items() if k in set(th.dataset) and not k.startswith("synthetic")]
+h_ds.append(Line2D([], [], color="0.4", lw=2, label="synthetic (grey shade: $M$)"))
+h_t = [Line2D([], [], color="0.3", marker=TIER_MK[t], ls="none", ms=3.4, mfc="0.3" if t in ("true", "bootstrap") else "white", label=TIER_LAB[t]) for t in TIER_MK if t in set(th.tier)]
+h_tol = [Line2D([], [], color="0.35", ls=":", label="tolerance 10% (synth.)"), Line2D([], [], color="0.35", ls="--", label="tolerance 15% (real)")]
+fig.legend(handles=h_ds + h_t + h_tol, loc="outside lower center", ncol=3, columnspacing=1.0, handletextpad=0.4)
+print(style.save(fig, "fig5_theory", a.out, dict(claim="C4", inputs={"theory.csv": style.sha(os.path.join(a.results, "theory.csv"))},
+      excluded_points_not_drawn=excl,
+      intervals="bars in (a): synthetic and bootstrap tiers 2.5-97.5 percentile over 8 replicates; real tier family bootstrap (2000)",
+      synthetic_history_size_M=SYN_M, tiers_present=sorted(set(th.tier)))))

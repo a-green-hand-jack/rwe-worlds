@@ -1,0 +1,22 @@
+"""Tidy result file for the synthetic gap grid (syn_gap.py): gap vs n, K, sigma_theta, phi, with the search-log predictor.
+One row per (sigma_theta, phi, K, n); mean over worlds; interval = t-interval over the worlds (the Monte-Carlo error inside a world
+is gap_sd/sqrt(R=150) and is far smaller).  Usage: python summarise_syn.py syn_gap.jsonl OUT.parquet"""
+import sys, json
+import numpy as np, pandas as pd
+from scipy import stats
+
+d = pd.DataFrame([json.loads(l) for l in open(sys.argv[1])])
+rows = []
+for (s, p, K, n), g in d.groupby(["sigma_theta", "phi", "K", "n"]):
+    w = len(g); t = stats.t.ppf(0.975, w - 1) if w > 1 else np.nan
+    se_g = g.gap.std(ddof=1) / np.sqrt(w); se_p = g.pred.std(ddof=1) / np.sqrt(w)
+    rows.append(dict(arm="synthetic", sigma_theta=s, phi=p, K_nominal=K, n=n, searcher="random(B=K)", worlds=w, reps_per_world=150,
+                     gap=g.gap.mean(), gap_lo=g.gap.mean() - t * se_g, gap_hi=g.gap.mean() + t * se_g,
+                     predicted=g.pred.mean(), pred_lo=g.pred.mean() - t * se_p, pred_hi=g.pred.mean() + t * se_p,
+                     gap_sd_within=g.gap_sd.mean(), theta_sd_realised=g.theta_sd_realised.mean(),
+                     ratio_pred_gap=g.pred.mean() / g.gap.mean() if g.gap.mean() > 0 else np.nan,
+                     ci_kind="world-spread-t", truth="exact theta of the world", pool="synthetic-N30000"))
+r = pd.DataFrame(rows); r.to_parquet(sys.argv[2], index=False)
+print(len(r), "rows"); m = r[(r.K_nominal >= 8)]
+print("predicted/gap over K>=8, gap>0.005:", m[m.gap > 0.005].ratio_pred_gap.describe().round(3).to_dict())
+print(r[(r.n == 100) & (r.phi == 0.5)][["sigma_theta", "K_nominal", "gap", "predicted"]].round(4).to_string())

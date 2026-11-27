@@ -1,0 +1,31 @@
+"""Table 4 (appendix): sensitivity checks. Block 1: Delta = mean log(Q_real/Q_null) over z in [1,8] under the changed analysis, with the core
+value of the same data set beside it (ties dropped, MT-Bench by turn). Block 2: median cost-2 k*/k* for flips that cost 2 when they turn a win into a loss.
+Values and intervals are the supplied columns."""
+import os, re
+from common import args, load, write_table, tex_escape as E, fmt
+from style import short_name
+a = args("tab4"); os.makedirs(a.out, exist_ok=True); prov = {"inputs": {}}
+df = load(a.data, "sensitivity.csv", ["check", "dataset", "perturbation", "statistic", "value", "lo", "hi", "baseline_value", "n_pairs"], prov)
+def iv(v, lo, hi, nd=2): return f"{fmt(v, nd)} [{fmt(lo, nd)}, {fmt(hi, nd)}]"
+def nm(ds):
+    base, _, tag = ds.partition("@")
+    lab = short_name(base)
+    return lab + {"noties": ", ties dropped", "t1": ", turn 1", "t2": ", turn 2"}.get(tag, "")
+rows = []
+d1 = df[df.statistic == "delta_logQ_real_minus_null"]
+for ds, g in d1.groupby("dataset", sort=False):
+    cell = {}
+    for r in g.itertuples():
+        core = "" if r.baseline_value != r.baseline_value else f" ({fmt(r.baseline_value, 2)})"
+        cell[r.perturbation] = iv(r.value, r.lo, r.hi) + core
+    rows.append([E(nm(ds)) + f" ({int(g.n_pairs.iloc[0])} pairs)", cell.get("delete", "--"), cell.get("flip", "--")])
+rows.append([r"\midrule"])
+rows.append([r"\multicolumn{3}{l}{\textit{median cost-2 $k^*$ / unit-cost $k^*$, flips (lower bound 1)}}"])
+d2 = df[df.statistic.str.startswith("median cost-2")]
+for ds, g in d2.groupby("dataset", sort=False):
+    for r in g.itertuples():
+        how = "re-priced" if "re-priced unit-cost" in r.statistic else "searched with costs"
+        by_con = " by construction" if "by construction" in r.statistic else ""
+        rows.append([E(short_name(ds, True)) + f", {how} ({int(r.n_pairs)} pairs)", "--", iv(r.value, r.lo, r.hi) + by_con])
+prov["note"] = "value [95% CI] (core value of the same data set); delete column is empty for the cost-2 rows (a cost applies to flips only)"
+write_table(a.out, "tab4", ["check", r"deletion: $\Delta$ [95\% CI] (core)", r"flip: $\Delta$ [95\% CI] (core)"], rows, "p{1.55in}rr", prov, tabcolsep=3)

@@ -1,0 +1,21 @@
+# Review of paper-repo#7 (main into final) at 1069b15: approve
+
+Read from the system-built `document/main/document.pdf` (built-from 1069b15, 26 pages, main text on 9, no unresolved references, no Type 3 fonts).
+
+## M1 (sparse leaderboard matrix): answered
+The paper now runs the protocol on MTEB matrices with their real missing cells (21-70 % observed, English and all tasks; Section 6.6, Table 3, Appendix C.2, Fig. 9, Table 11) and says in Section 7 which conditions remain open (no density below 21 %, identity transform only, models with fewer than 30 cells untested).
+Checked against `results/sparse_*.csv` and `code/bmk/sparse.py` at 1069b15:
+- Table 3 gap, CI, relative gap (FA / pw), closure at k=3 (greedy and random) and k*(0.9) with intervals and censoring all match the CSVs.
+- "interval excludes zero in all cells but one (pw, k=20, 21 %)" holds for FA and pw.
+- The protocol (training-only fits, same candidates and targets for both selectors, LOBO analogue as the better of two predictors, closure above 1 possible) is what the code does, and the text says so.
+
+## Earlier `may` findings
+Abstract states that the 10 % margin is met on one pool of three; closure and A-optimal are defined in the abstract; the pre-specification record is named (released code, Appendix D); the checklist agrees with the paper (limitations, 2-22 CPU minutes).
+
+## Remaining observations (none holds the version)
+- The factor model with random selection at All tasks 50 % has closure -0.08 and a gap interval of [-.629, -.092]; the paper reports it and uses pw as the headline, but an evaluator should read the FA numbers on that row as unstable.
+- Dense-pool results remain on selected pools and on embedding / MMLU data; the paper says so in the abstract, Section 6.1 and Section 7.
+- The pre-specified hypotheses are reported as they fell: H1 fails, H2 on one pool of three, H4 fails; k* is given with intervals and a bias warning.
+
+## Decision
+Approve #7 at 1069b15.

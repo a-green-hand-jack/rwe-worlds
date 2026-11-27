@@ -1,0 +1,469 @@
+"""The two-part diagnostic and its acceptance rule (ANALYSIS_PLAN section 6), from the Tier-G run files.
+    python analysis/make_diag.py RAWDIR OUTDIR
+writes diag_rows.parquet (part i rows), diag_cells.parquet (part ii cells), diagnostic.csv, diagnostic_groups.csv,
+acceptance.csv, within_cell.csv, calibration.csv, each with a .meta.json.
+Definitions fixed in ANALYSIS_PLAN.md rev. 1 (before the main runs were read)."""
+import glob
+import json
+import os
+import subprocess
+import sys
+import datetime
+
+import numpy as np
+import pandas as pd
+from scipy.optimize import nnls
+from scipy.stats import spearmanr
+
+sys.path.insert(0, os.path.dirname(__file__))
+import agg  # noqa: E402
+from gate import mech  # noqa: E402
+from gate.sim import EI, NOISE_M  # noqa: E402
+
+LADDER = ["chin", "count", "hop2", "inter"]            # specifications scored in part (i)
+OTHERS = ["quad", "spline", "count", "hop2"]            # specs entering S (inter is a different functional family: excluded)
+MECHS = list("abcdef")
+FAM_D_RUN = lambda cfg: (cfg["family"] in ("BA", "Stanford3", "ego-Facebook") or cfg.get("base", "iid") in ("deg", "comm")
+                         or cfg.get("design", "bern") == "cluster")
+
+
+def spec_S(run, j, m):
+    base = run.err("chin", j, m)
+    D = np.stack([run.err(e, j, m) - base for e in OTHERS])
+    return np.sqrt((D ** 2).mean(0)), D.std(0)
+
+
+def run_info(run):
+    cfg, gm = run.cfg, run.o["gmeta"]
+    return dict(run_id=run.id, family=cfg["family"], d=float(np.mean([x["dbar"] for x in gm])), p=cfg["p"],
+                n=float(np.mean([x["n"] for x in gm])), design=cfg.get("design", "bern"), base=cfg.get("base", "iid"),
+                q_edge=cfg.get("q_edge", 0.0), Drun=bool(FAM_D_RUN(cfg)), has_boot=cfg.get("B", 0) > 0)
+
+
+def part1_rows(run):
+    """per (graph draw, column, m, spec): log realised variance of the normalised error over assignments, log L_spec.
+    The assignments of each graph draw are split in two fixed halves (first R//2 / the rest): the first half defines the cell's
+    misfit share `sel_share` (graph-draw mean of the misfit variance / of the total variance) that selects D*, and every quantity
+    that is tested (realised variance, components, departure ratio, L) comes from the second half only, so the selecting share is
+    not the one tested."""
+    info = run_info(run)
+    G, R = run.G, run.R
+    h = R // 2
+    sel, tst = slice(0, h), slice(h, R)
+    n_g = np.array([x["n"] for x in run.o["gmeta"]], float)
+    rows = []
+    for spec in LADDER:
+        e = EI[spec]
+        L = (n_g * run.o["wn2"][:, e, 0].astype(float).reshape(G, R)[:, tst].mean(1))
+        for j, (mname, s) in enumerate(run.cols):
+            for m in agg.MLEVELS:
+                x = run.err(spec, j, m)[:, tst]
+                v = x.var(axis=1, ddof=1)
+                sig = m * run.sd[:, j]
+                vc = run.var_components(spec, j, m, tst)
+                vs = run.var_components(spec, j, m, sel)
+                sel_share = float(vs["vm"].mean() / vs["vt"].mean())
+                sig_eff2 = run.cfg.get("base_sd", 1.0) ** 2 * (run.cfg.get("base", "iid") != "none") + sig ** 2
+                for g in range(G):
+                    rows.append(dict(info, graph_draw=g, j=j, mechanism=mname, s=s, sigma=m, spec=spec, logvar=np.log(v[g]),
+                                     logL=np.log(L[g]), logn=np.log(n_g[g]), logsig2=2 * np.log(sig[g]), D=info["Drun"] or spec != "chin",
+                                     vt=vc["vt"][g], vb=vc["vb"][g], vm=vc["vm"][g], vn=vc["vn"][g], vx=vc["vx"][g], sel_share=sel_share,
+                                     misfit_share=vc["vm"][g] / vc["vt"][g], dep_ratio=vc["vt"][g] / (sig_eff2[g] * L[g] / n_g[g] / run.tau[g, j] ** 2)))
+    return rows
+
+
+def part2_cells(run, m=NOISE_M, seed=0):
+    """per (column j >= 1) cell at noise level m: bias, S on one random half of the draws and bias on the other half; curvature x distance"""
+    info = run_info(run)
+    G, R = run.G, run.R
+    o = run.o
+    rng = np.random.default_rng(agg.sim.seed_of(seed, run.id, "half"))
+    N = G * R
+    perm = rng.permutation(N)
+    h1, h2 = perm[: N // 2], perm[N // 2:]
+    fm = o["expo"][:, 0].astype(float)
+    dt, dc = 1 - fm, fm
+    out = []
+    S0, _ = spec_S(run, 0, m)
+    S2_null = float((S0 ** 2).mean())          # null simulation: correct specification (column 0 = no interference), noise only
+    sd0 = run.sd[:, 0].mean()
+    for j, (mname, s) in enumerate(run.cols):
+        x = run.err("chin", j, m).ravel()
+        S, Sp = spec_S(run, j, m)
+        S, Sp = S.ravel(), Sp.ravel()
+        Ssig, _ = spec_S(run, j, 0.0)            # signal only (no noise): ceiling of what spec disagreement can carry
+        Ssig = Ssig.ravel()
+        noise_part = S2_null * (run.sd[:, j].mean() / sd0) ** 2   # expected noise part of S^2, scaled to this column's noise level
+        e = EI["b2"]
+        tau = np.repeat(run.tau[:, j], R)
+        sdj = np.repeat(run.sd[:, j], R)
+        curv = 2 * (o["sig"][:, e, j].astype(float) + m * sdj * o["nz"][:, e, j].astype(float)) / tau
+        cd = (dt ** 2 + dc ** 2) / 2
+        st = agg.metrics(x.reshape(G, R), seed=j)
+        row = dict(info, cell_id=f"{run.id}|{mname}|{s}|{m}", j=j, mechanism=mname, s=s, sigma=m,
+                   bias=st["bias"], rmse=st["rmse"], sd=st["sd"],
+                   bias_h2=np.nanmean(x[h2]), S_h1=S[h1].mean(), Sp_h1=Sp[h1].mean(), Ssig_h1=Ssig[h1].mean(),
+                   Sadj_h1=float(np.sqrt(max((S[h1] ** 2).mean() - noise_part, 0.0))),
+                   C_h1=abs(curv[h1].mean()) * cd[h1].mean(), curv_h1=curv[h1].mean(), dist_t=dt.mean(), dist_c=dc.mean(),
+                   logn=np.log(info["n"]))
+        if "dn2" in o:       # noise part from the parametric-bootstrap null on the reporting fit (ANALYSIS_PLAN addendum 4); needs the rerun arrays
+            tj2 = np.repeat(run.tau[:, j], R) ** 2
+            noise_pb = float((o["s2hat"][:, j].astype(float) * o["dn2"].astype(float).mean(1) / tj2)[h1].mean())
+            row.update(noise_pb_h1=noise_pb, Sadjpb_h1=float(np.sqrt(max((S[h1] ** 2).mean() - noise_pb, 0.0))))
+        out.append(row)
+    return out
+
+
+def within_cell(run, m=NOISE_M):
+    """Spearman of draw-level S, S', and bootstrap SE with |centred error|, per column"""
+    if not run.cfg.get("B", 0):
+        return []
+    G, R, Rb = run.G, run.R, run.cfg["Rb"]
+    idx = np.where((np.arange(G * R) % R) < Rb)[0]
+    rows = []
+    o = run.o
+    for j, (mname, s) in enumerate(run.cols):
+        x = run.err("chin", j, m).ravel()
+        xc = np.abs(x - np.nanmean(x))
+        S, Sp = spec_S(run, j, m)
+        tj = np.repeat(run.tau[:, j], R)
+        se = o["se_bt"][:, 0, j] / tj
+        rows.append(dict(run_id=run.id, mechanism=mname, s=s,
+                         rho_S=spearmanr(S.ravel()[idx], xc[idx])[0], rho_Sp=spearmanr(Sp.ravel()[idx], xc[idx])[0],
+                         rho_se=spearmanr(se[idx], xc[idx])[0],
+                         rho_hc=spearmanr(o["se_hc"][:, j][idx] / tj[idx], xc[idx])[0]))
+    return rows
+
+
+# ------------------------------------------------------------------ models
+def ols(X, y):
+    beta, *_ = np.linalg.lstsq(X, y, rcond=None)
+    return beta
+
+
+def r2(y, yh, ybar=None):
+    ybar = y.mean() if ybar is None else ybar
+    return 1 - ((y - yh) ** 2).sum() / ((y - ybar) ** 2).sum()
+
+
+def group_boot(groups, fn, B=2000, seed=0):
+    """bootstrap over groups: fn(list of groups) -> value"""
+    rng = np.random.default_rng(seed)
+    u = list(groups)
+    vals = [fn([u[i] for i in rng.integers(0, len(u), len(u))]) for _ in range(B)]
+    return np.nanpercentile(vals, [2.5, 97.5])
+
+
+def part1_eval(df, kind="family", feats=None):
+    """held-out (leave-one-group-out) R2 of log realised variance: L-model vs benchmarks"""
+    ctrl = ["logn", "logsig2"]
+    bm = {"mean_degree": np.log(df["d"].values), "p(1-p)": np.log(df["p"].values * (1 - df["p"].values)),
+          "n p(1-p)/d": np.log(df["n"].values * df["p"].values * (1 - df["p"].values) / df["d"].values)}
+    Xs = {"L": df["logL"].values[:, None]}
+    for k, v in bm.items():
+        Xs[k] = v[:, None]
+    y = df["logvar"].values
+    C = np.column_stack([np.ones(len(df))] + [df[c].values for c in ctrl])
+    grp = df[kind].values
+    pred = {k: np.zeros(len(df)) for k in Xs}
+    for g in np.unique(grp):
+        te = grp == g
+        for k, X in Xs.items():
+            Z = np.column_stack([C, X])
+            b = ols(Z[~te], y[~te])
+            pred[k][te] = Z[te] @ b
+    return y, pred, grp
+
+
+def gain_stats(y, pred, grp, main="L", B=2000, seed=0):
+    names = [k for k in pred if k != main]
+    ybar = y.mean()
+    def pooled(gl):
+        mask = np.concatenate([np.where(grp == g)[0] for g in gl])
+        r_main = r2(y[mask], pred[main][mask], ybar)
+        r_b = {k: r2(y[mask], pred[k][mask], ybar) for k in names}
+        best = max(r_b, key=r_b.get)
+        return r_main - r_b[best]
+    groups = list(np.unique(grp))
+    best_name = max(names, key=lambda k: r2(y, pred[k], ybar))
+    gain = r2(y, pred[main], ybar) - r2(y, pred[best_name], ybar)
+    lo, hi = group_boot(groups, pooled, B, seed)
+    per = {}
+    for g in groups:
+        mk = grp == g
+        per[g] = (((y[mk] - pred[best_name][mk]) ** 2).sum() - ((y[mk] - pred[main][mk]) ** 2).sum()) / ((y[mk] - ybar) ** 2).sum()
+    drop = {g: (r2(y[grp != g], pred[main][grp != g], ybar) - r2(y[grp != g], pred[best_name][grp != g], ybar)) for g in groups}
+    return dict(gain=gain, lo=lo, hi=hi, best=best_name, r2_main=r2(y, pred[main], ybar),
+                r2_bench={k: r2(y, pred[k], ybar) for k in names}, per_group=per, drop_one=drop)
+
+
+def combined_eval(c, kind, bench_extra=None, bfeats=("S_h1", "C_h1")):
+    """leave-one-`kind`-out held-out predictions of log RMSE for the combined score and each benchmark.
+    c: cell table (part ii) merged with part (i) variance-model inputs (logL_cell, logsig2)"""
+    y = np.log(c["rmse"].values)
+    C = np.column_stack([np.ones(len(c)), c["logn"].values, c["logsig2"].values])
+    bench = {"mean_degree": np.log(c["d"].values), "p(1-p)": np.log(c["p"].values * (1 - c["p"].values)),
+             "n p(1-p)/d": np.log(c["n"].values * c["p"].values * (1 - c["p"].values) / c["d"].values)}
+    if bench_extra:
+        bench.update(bench_extra)
+    grp = c[kind].values
+    pred = {"combined": np.zeros(len(c)), "variance only (L)": np.zeros(len(c))}
+    for k in bench:
+        pred[k] = np.zeros(len(c))
+    logv = np.log(c["var_cell"].values)
+    for g in np.unique(grp):
+        te = grp == g
+        tr = ~te
+        ZL = np.column_stack([C, c["logL"].values])
+        bL = ols(ZL[tr], np.log(c["var_cell"].values[tr]))
+        vh = np.exp(ZL @ bL)
+        feats = np.column_stack([c[f].values for f in bfeats])
+        bb, _ = nnls(feats[tr], np.abs(c["bias_h2"].values[tr]))
+        bh = feats @ bb
+        pred["combined"][te] = 0.5 * np.log(vh[te] + bh[te] ** 2)
+        pred["variance only (L)"][te] = 0.5 * np.log(vh[te])
+        for k, v in bench.items():
+            Z = np.column_stack([C, v])
+            b = ols(Z[tr], y[tr])
+            pred[k][te] = Z[te] @ b
+    return y, pred, grp
+
+
+def constant_preds(c, kind):
+    """held-out predictions of log RMSE that use no cell feature: the mean over the training groups ('constant only') and the OLS on the two
+    controls of the combined score (log n, log sigma^2: 'controls only'). Same leave-one-`kind`-out folds as combined_eval."""
+    y = np.log(c["rmse"].values)
+    C = np.column_stack([np.ones(len(c)), c["logn"].values, c["logsig2"].values])
+    grp = c[kind].values
+    pc, pk = np.zeros(len(c)), np.zeros(len(c))
+    for g in np.unique(grp):
+        te = grp == g
+        pc[te] = y[~te].mean()
+        pk[te] = C[te] @ ols(C[~te], y[~te])
+    return pc, pk
+
+
+def absolute_table(c, variant, kind, y, pred, grp, const, B=2000):
+    """absolute held-out R2 of log RMSE (denominator: variance about the grand mean of the evaluated cells) for the combined score, the best
+    degree benchmark, the variance-only model, the controls and the constant; pooled and per held-out group, with a group-bootstrap interval"""
+    pc, pk = const
+    names = [k for k in pred if k not in ("combined", "variance only (L)")]
+    ybar = y.mean()
+    best = max(names, key=lambda k: r2(y, pred[k], ybar))
+    P = {"combined score": pred["combined"], f"best degree benchmark ({best})": pred[best], "variance only (L)": pred["variance only (L)"],
+         "controls only (log n, log sigma^2)": pk, "constant only (training-group mean)": pc}
+    groups = list(np.unique(grp))
+    rows = []
+    for k, v in P.items():
+        def pooled(gl, v=v):
+            mask = np.concatenate([np.where(grp == g)[0] for g in gl])
+            return r2(y[mask], v[mask], ybar)
+        lo, hi = group_boot(groups, pooled, B)
+        rows.append(dict(variant=variant, holdout=kind[:-2], predictor=k, group="pooled", held_out_r2=r2(y, v, ybar), ci_lo=lo, ci_hi=hi, n_cells=len(y)))
+        for g in groups:
+            mk = grp == g
+            rows.append(dict(variant=variant, holdout=kind[:-2], predictor=k, group=g, held_out_r2=r2(y[mk], v[mk], ybar), ci_lo=np.nan, ci_hi=np.nan, n_cells=int(mk.sum())))
+    return rows
+
+
+def main(outdir, pbfile, *rawdirs):
+    os.makedirs(outdir, exist_ok=True)
+    files = sorted(f for d in rawdirs for f in glob.glob(os.path.join(d, "*.pkl")))
+    P1, P2, W = [], [], []
+    for f in files:
+        run = agg.Run(f)
+        P1 += part1_rows(run)
+        P2 += part2_cells(run)
+        W += within_cell(run)
+        print("diag", run.id, flush=True)
+    d1 = pd.DataFrame(P1)
+    d2 = pd.DataFrame(P2)
+    wc = pd.DataFrame(W)
+    d1.to_parquet(os.path.join(outdir, "diag_rows.parquet"))
+    d2.to_parquet(os.path.join(outdir, "diag_cells.parquet"))
+    analyse(d1, d2, wc, outdir, len(files), pb=pd.read_csv(pbfile) if pbfile != "-" else None)
+
+
+def analyse(d1, d2, wc, outdir, nruns, B=2000, pb=None):
+    acc = []
+    groups_out = []
+    PRE = "pre-registered"
+    # --- null-corrected within-cell excess: the column '0' of the same run is the null simulation (correct spec)
+    null = wc[wc.mechanism == "0"].set_index("run_id")
+    wcm = wc[wc.mechanism != "0"].copy()
+    for k in ("rho_S", "rho_Sp", "rho_se", "rho_hc"):
+        wcm[k + "_excess"] = wcm[k].values - null.loc[wcm.run_id, k].values
+    wcm.to_csv(os.path.join(outdir, "within_cell.csv"), index=False)
+    # --- part (i): variance, on D and on the tie set, held out by family
+    res = {}
+    for name, sub in (("D", d1[d1.D]), ("tie", d1[~d1.D]), ("all", d1), ("D*, cell misfit share >= 0.2 (selected on the other half of the assignments)", d1[d1.D & (d1.sel_share >= 0.2)]),
+                      ("D minus D*", d1[d1.D & (d1.sel_share < 0.2)])):
+        if len(sub) == 0 or sub["family"].nunique() < 2:
+            acc.append(dict(variant=PRE, criterion=f"part (i) variance: {name} rows", value=np.nan, threshold=0.05, ci_lo=np.nan, ci_hi=np.nan, met=False,
+                            note=f"too thin to decide: {len(sub)} rows, {sub['family'].nunique() if len(sub) else 0} families", counted=name.startswith("D*")))
+            continue
+        y, pred, grp = part1_eval(sub, "family")
+        st = gain_stats(y, pred, grp, "L", B)
+        res[name] = st
+        acc.append(dict(variant=PRE, criterion=f"part (i) variance: held-out R2 gain of L over best degree benchmark, {name} rows, leave-one-family-out",
+                        value=st["gain"], threshold=0.05, ci_lo=st["lo"], ci_hi=st["hi"], met=bool(st["gain"] >= 0.05 and st["lo"] > 0), counted=name.startswith("D*"),
+                        note=f"best benchmark {st['best']}; R2 L={st['r2_main']:.3f}; benchmarks " + "; ".join(f"{k}={v:.3f}" for k, v in st['r2_bench'].items())))
+        if not name.startswith("D*"):
+            acc[-1]["note"] += "; algebraic check on baseline + noise or contrast set, NOT counted in the verdict"
+        acc[-1]["note"] += f"; median departure ratio realised/(sigma_eff^2 L/n) = {sub['dep_ratio'].median():.3f}; {len(sub)} rows, {sub['family'].nunique()} families"
+        for g, v in st["per_group"].items():
+            groups_out.append(dict(variant=PRE, group=g, kind=f"family (part i, {name})", r2_gain=v, lo=np.nan, hi=np.nan))
+    comp = d1[d1.spec == "chin"].copy()
+    comp["noise_share"], comp["base_share"], comp["misfit_share_"], comp["cross_share"] = comp.vn / comp.vt, comp.vb / comp.vt, comp.vm / comp.vt, comp.vx / comp.vt
+    comp.groupby(["family", "design", "base", "mechanism", "sigma"])[["noise_share", "base_share", "misfit_share_", "cross_share", "dep_ratio"]].median().reset_index().to_csv(
+        os.path.join(outdir, "variance_components.csv"), index=False)
+    # --- combined score and part (ii), s>0 cells at m = 0.5
+    c = d2[d2.s > 0].copy()
+    # variance model inputs per cell: L (graph-draw mean), noise var, cell-level realised variance
+    a = d1[(d1.spec == "chin") & (np.isclose(d1.sigma, NOISE_M))].groupby(["run_id", "j"]).agg(
+        logL=("logL", "mean"), logsig2=("logsig2", "mean"), lv=("logvar", lambda v: np.log(np.exp(v).mean()))).reset_index()
+    c = c.merge(a, on=["run_id", "j"])
+    c["var_cell"] = np.exp(c["lv"])
+    c["family_g"] = c["family"]
+    c["mechanism_g"] = c["mechanism"]
+    out_cells = []
+    absrows = []
+    VARIANTS = [("pre-registered", ("S_h1", "C_h1")), ("exploratory: noise-adjusted S", ("Sadj_h1", "C_h1")),
+                ("exploratory: noise-free S (ceiling)", ("Ssig_h1", "C_h1"))]
+    for vname, bf in VARIANTS:
+        for kind in ("mechanism_g", "family_g"):
+            y, pred, grp = combined_eval(c, kind, bfeats=bf)
+            const = constant_preds(c, kind)
+            absrows += absolute_table(c, vname, kind, y, pred, grp, const, B)
+            ybar = y.mean()
+            names = [k for k in pred if k != "combined" and k != "variance only (L)"]
+            best = max(names, key=lambda k: r2(y, pred[k], ybar))
+            gain = r2(y, pred["combined"], ybar) - r2(y, pred[best], ybar)
+            groups = list(np.unique(grp))
+            def pooled(gl):
+                mask = np.concatenate([np.where(grp == g)[0] for g in gl])
+                rb = max(r2(y[mask], pred[k][mask], ybar) for k in names)
+                return r2(y[mask], pred["combined"][mask], ybar) - rb
+            lo, hi = group_boot(groups, pooled, B)
+            per = {}
+            for g in groups:
+                mk = grp == g
+                per[g] = (((y[mk] - pred[best][mk]) ** 2).sum() - ((y[mk] - pred["combined"][mk]) ** 2).sum()) / ((y[mk] - ybar) ** 2).sum()
+                groups_out.append(dict(variant=vname, group=g, kind="mechanism" if kind == "mechanism_g" else "family", r2_gain=per[g], lo=np.nan, hi=np.nan))
+            drop = {g: pooled([h for h in groups if h != g]) for g in groups}
+            npos = sum(v > 0 for v in per.values())
+            acc.append(dict(criterion=f"combined score: pooled held-out R2 gain over best benchmark, leave-one-{kind[:-2]}-out", variant=vname,
+                            value=gain, threshold=0.05, ci_lo=lo, ci_hi=hi, met=bool(gain >= 0.05 and lo > 0),
+                            note=f"best benchmark {best}; R2 combined={r2(y, pred['combined'], ybar):.3f}; benchmarks " + "; ".join(f"{k}={r2(y, pred[k], ybar):.3f}" for k in names)))
+            acc.append(dict(criterion=f"combined score: held-out groups with positive gain (leave-one-{kind[:-2]}-out)", variant=vname, value=npos,
+                            threshold=4 if kind == "mechanism_g" else np.ceil(len(groups) / 2 + 1e-9), ci_lo=np.nan, ci_hi=np.nan,
+                            met=bool(npos >= (4 if kind == "mechanism_g" else len(groups) / 2)), note=f"of {len(groups)} groups"))
+            acc.append(dict(criterion=f"combined score: lowest pooled gain after deleting any single group (leave-one-{kind[:-2]}-out)", variant=vname,
+                            value=min(drop.values()), threshold=0.05, ci_lo=np.nan, ci_hi=np.nan, met=bool(min(drop.values()) >= 0.05), note=""))
+            if kind == "mechanism_g" and vname == "pre-registered":
+                c["pred_logrmse_combined"] = pred["combined"]
+                c["pred_logrmse_best_benchmark"] = pred[best]
+                c["group_mech"] = c["mechanism"]
+                c["realised_logrmse"] = y
+                c["group_family"] = c["family"]
+                c["best_benchmark_mech"] = best
+                c["pred_logrmse_constant"], c["pred_logrmse_controls"] = const
+            elif vname == "pre-registered":
+                c["pred_logrmse_combined_lofo"] = pred["combined"]
+                c["pred_logrmse_best_benchmark_lofo"] = pred[best]
+                c["pred_logrmse_constant_lofo"], c["pred_logrmse_controls_lofo"] = const
+
+    # --- part (ii): |bias| across cells, random-half predictors, held out by mechanism
+    yb = np.log(np.abs(c["bias"].values) + 0.01)
+    base = np.column_stack([np.ones(len(c)), c["logn"].values])
+    feats = {"S_bar": np.log(c["S_h1"].values + 0.01), "S_prime": np.log(c["Sp_h1"].values + 0.01),
+             "corner x curvature": np.log(c["C_h1"].values + 0.01), "S_bar + corner x curv": None,
+             "S_adj (exploratory)": np.log(c["Sadj_h1"].values + 0.01), "S_sig (noise-free ceiling)": np.log(c["Ssig_h1"].values + 0.01)}
+    bmk = {"mean_degree": np.log(c["d"].values), "p(1-p)": np.log(c["p"].values * (1 - c["p"].values)),
+           "n p(1-p)/d": np.log(c["n"].values * c["p"].values * (1 - c["p"].values) / c["d"].values)}
+    grp = c["mechanism"].values
+    P = {}
+    def cv(Z):
+        pr = np.zeros(len(c))
+        for g in np.unique(grp):
+            te = grp == g
+            pr[te] = Z[te] @ ols(Z[~te], yb[~te])
+        return pr
+    for k, v in feats.items():
+        Z = np.column_stack([base, v]) if v is not None else np.column_stack([base, feats["S_bar"], feats["corner x curvature"]])
+        P[k] = cv(Z)
+    for k, v in bmk.items():
+        P[k] = cv(np.column_stack([base, v]))
+    ybar = yb.mean()
+    r2b = {k: r2(yb, v, ybar) for k, v in P.items()}
+    bestb = max(bmk, key=lambda k: r2b[k])
+    for k in ("S_bar", "S_prime", "corner x curvature", "S_bar + corner x curv", "S_adj (exploratory)", "S_sig (noise-free ceiling)"):
+        gains = r2b[k] - r2b[bestb]
+        groups = list(np.unique(grp))
+        def pooled(gl, k=k):
+            mask = np.concatenate([np.where(grp == g)[0] for g in gl])
+            return r2(yb[mask], P[k][mask], ybar) - max(r2(yb[mask], P[b][mask], ybar) for b in bmk)
+        lo, hi = group_boot(groups, pooled, B)
+        acc.append(dict(variant="pre-registered" if "(" not in k and k != "S_prime" else "exploratory", criterion=f"part (ii) bias: held-out R2 of log|bias| for {k} minus best degree benchmark ({bestb}), leave-one-mechanism-out",
+                        value=gains, threshold=0.05, ci_lo=lo, ci_hi=hi, met=bool(gains >= 0.05 and lo > 0),
+                        note=f"R2 {k}={r2b[k]:.3f}; " + "; ".join(f"{b}={r2b[b]:.3f}" for b in bmk)))
+    # --- reference: exact theory (needs the mechanism; not data-computable, not a competitor in the acceptance rule)
+    if pb is not None:
+        pbm = pb[["run_id", "mechanism", "s", "pred_bias", "exact"]].copy()
+        cc = c.assign(_i=np.arange(len(c))).merge(pbm, on=["run_id", "mechanism", "s"], how="inner")
+        cc = cc[cc.exact]
+        if len(cc) > 10:
+            ii = cc["_i"].values
+            ybs = yb[ii]
+            gg = grp[ii]
+            def cv_sub(Z):
+                pr = np.zeros(len(cc))
+                for g in np.unique(gg):
+                    te = gg == g
+                    pr[te] = Z[te] @ ols(Z[~te], ybs[~te])
+                return pr
+            b0 = base[ii]
+            refp = {"exact theory (not data-computable)": np.log(np.abs(cc["pred_bias"].values) + 0.01)}
+            for k in ("S_bar", "S_adj (exploratory)", "corner x curvature"):
+                refp[k] = feats[k][ii]
+            for k, v in bmk.items():
+                refp[k] = v[ii]
+            rr = {k: r2(ybs, cv_sub(np.column_stack([b0, v])), ybs.mean()) for k, v in refp.items()}
+            prc = np.zeros(len(cc))
+            for g in np.unique(gg):
+                prc[gg == g] = ybs[gg != g].mean()
+            rr["constant (held-out training mean)"] = r2(ybs, prc, ybs.mean())
+            pd.DataFrame([dict(predictor=k, held_out_r2_log_abs_bias=v, n_cells=len(cc)) for k, v in rr.items()]).to_csv(
+                os.path.join(outdir, "bias_reference.csv"), index=False)
+    # --- within-cell excess over the null simulation
+    for k in ("rho_S", "rho_Sp", "rho_se", "rho_hc"):
+        v = wcm[k + "_excess"].values
+        v = v[~np.isnan(v)]
+        if len(v) == 0:
+            continue
+        mg = wcm.loc[wcm[k + "_excess"].notna(), "mechanism"].values
+        def med(gl, v=v, mg=mg):
+            return np.median(np.concatenate([v[mg == g] for g in gl]))
+        lo, hi = group_boot(list(np.unique(mg)), med, B)
+        acc.append(dict(variant=PRE if k != "rho_Sp" else "exploratory", criterion=f"within-cell: median Spearman excess over null simulation, {k[4:]} (centred |error|)", value=float(np.median(v)),
+                        threshold=0.0, ci_lo=lo, ci_hi=hi, met=bool(lo > 0), note=f"{len(v)} cells"))
+    ex_S = wcm["rho_S_excess"].median()
+    ex_se = wcm["rho_se_excess"].median()
+    acc.append(dict(variant=PRE, criterion="within-cell: median excess of S exceeds that of the bootstrap SE", value=float(ex_S - ex_se), threshold=0.0,
+                    ci_lo=np.nan, ci_hi=np.nan, met=bool(ex_S > ex_se), note="point comparison"))
+    pd.DataFrame(acc).to_csv(os.path.join(outdir, "acceptance.csv"), index=False)
+    pd.DataFrame(groups_out).to_csv(os.path.join(outdir, "diagnostic_groups.csv"), index=False)
+    pd.DataFrame(absrows).to_csv(os.path.join(outdir, "diagnostic_absolute.csv"), index=False)
+    keep = [x for x in ("cell_id", "group_mech", "group_family", "pred_logrmse_combined", "pred_logrmse_best_benchmark", "realised_logrmse",
+                        "pred_logrmse_combined_lofo", "pred_logrmse_best_benchmark_lofo", "pred_logrmse_constant", "pred_logrmse_controls", "pred_logrmse_constant_lofo", "pred_logrmse_controls_lofo", "best_benchmark_mech", "bias", "rmse", "S_h1", "C_h1", "bias_h2", "logL")
+            if x in c.columns]
+    c[keep].to_csv(os.path.join(outdir, "diagnostic.csv"), index=False)
+    commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, cwd=os.path.dirname(os.path.abspath(__file__))).stdout.strip()
+    meta = dict(script="analysis/make_diag.py", code_commit=commit, n_runs=nruns, date=str(datetime.date.today()), n_cells=int(len(c)),
+                n_part1_rows=int(len(d1)), seed=20261125, bootstrap_B=B)
+    for nm in ("diagnostic", "diagnostic_groups", "diagnostic_absolute", "acceptance", "within_cell", "variance_components", "bias_reference"):
+        json.dump(meta, open(os.path.join(outdir, nm + ".meta.json"), "w"), indent=1)
+
+
+if __name__ == "__main__":
+    main(*sys.argv[1:])

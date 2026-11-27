@@ -1,0 +1,34 @@
+# Prior work and how the study relates to it
+
+Only sources I consulted (abstract/listing level unless stated). Positioning is the idea's; the text is `paper-repo`'s.
+
+## Leaderboards and their statistics
+- Chiang et al. 2024, *Chatbot Arena* (ICML; arXiv 2403.04132): platform, BT fit with bootstrap CIs. We take their aggregation convention (BT-MLE, ties = half win) as the main estimator and show what the CIs do not cover.
+- Zheng et al. 2023, *Judging LLM-as-a-Judge* (NeurIPS D&B; arXiv 2306.05685): MT-Bench, expert and GPT-4 pairwise judgments of the same pairs = our matched expert vs model-judge design.
+- Singh et al. 2025, *The Leaderboard Illusion* (arXiv 2504.20879): practices that distort Arena (private testing, sampling). Related, orthogonal: they study data *collection* bias; we study sensitivity of the fit to altering the data given.
+- Ameli et al., *A Statistical Framework for Ranking LLM-Based Chatbots* (arXiv 2412.18407): richer statistical model (ties, covariance) for Arena; a model-side alternative to our estimators.
+- Chatzi et al. (NeurIPS 2024), *Prediction-Powered Ranking of Large Language Models*: rank sets with CIs combining human and LLM-judge comparisons; relates to the sampling-noise side and to the LLM-judge design.
+- *Lagrangian Inference for Ranking Problems* (Operations Research, 2022; authors to be taken from the page): inference for ranks of BT items; the sampling-noise benchmark.
+
+## Pairwise-comparison models and estimation
+- Bradley & Terry 1952; Hunter 2004 (MM algorithms, AoS 32(1)); Rao & Kupper 1967 and Davidson 1970 (ties; classical, cite from the originals); Elo 1978 (*The Rating of Chessplayers*); *Modelling Competitive Sports: Bradley–Terry–Élő Models for Supervised and On-Line Learning of Paired Competition Outcomes* (arXiv 1701.08055; Elo as online BT; author list to be taken from the arXiv page).
+- Negahban, Oh, Shah 2017, *Rank Centrality* (Operations Research 65(1)): spectral aggregator, alternative estimator.
+- Chen, Fan, Ma, Wang 2019, *Spectral method and regularized MLE are both optimal for top-K ranking* (AoS 47(4)): statistical theory of when the top-K is identifiable from n comparisons; we use it where the SE ∝ 1/√N scaling gives k\* ∝ z√N, the basis of the SE-unit fragility used as the cross-dataset currency.
+
+## Perturbation, influence, robustness
+- Koh & Liang 2017 (ICML, arXiv 1703.04730): influence functions.
+- Broderick, Giordano, Meager 2020 (arXiv 2011.14999): approximate maximum influence perturbation, "dropping a little data". Our linear search is this idea applied to a BT conclusion, verified by exact refit.
+- Hampel 1974 (influence curve), Cook 1977 (distance): background, cite from originals if used.
+- Min et al. 2025, *Improving Your Model Ranking on Chatbot Arena by Vote Rigging* (ICML; arXiv 2501.17858): insertion/rigging attacks. Threat model: inserted votes go through the platform's sampler, so the attacker does not choose the opponent freely; our free-choice insertion is therefore a lower bound on attacker cost, and comparison with their strategies is only under a matched (sampler-constrained) model.
+- *Poisoning Attack Against Estimating From Pairwise Comparisons* (TPAMI 2021), *A Tale of HodgeRank and Spectral Method: Target Attack Against Rank Aggregation* (TPAMI 2022); *Sequential Manipulation Against Rank Aggregation* (TPAMI 2024): attacks on pairwise rank aggregation, designed per system.
+- *Rank List Sensitivity of Recommender Systems to Interaction Perturbations* (CIKM 2022): sensitivity measure in recsys; analogous but not about BT/leaderboards.
+- Top-K ranking with a monotone adversary (arXiv 2402.07445): theory on adversarial edge additions.
+
+## Not read, by design or availability
+- Huang et al. 2025 (arXiv 2508.11847), on the starter list: **not read** (the objective forbids the published paper on this question; this item may be it). Cite as listed in `starter_literature.md` only; reproduction notes say it was not read.
+- Two Apr 2026 preprints on BT/MLE perturbation sensitivity ("Perturbation Sensitivity of Maximum-Likelihood Pairwise Ranking in Computational Decision Systems", arXiv 2604.17805; "Ranking Abuse via Strategic Pairwise Data Perturbations"): seen as abstract snippets only. They are on the same estimator family. If `paper-repo` cites them, someone must first read them, with the forbidden-paper rule in mind (stop if they discuss the forbidden paper).
+
+## Positioning in one paragraph
+Attack papers show leaderboards can be moved; robustness papers give a metric; inference papers give CIs. What is missing is a measure of "how much change" that is comparable across evaluation designs and tied to the statistical noise of the same data, applied to real crowd, expert, LLM-judge and sports data, with matched comparisons that separate design from statistics. That is the contribution.
+
+Author lists marked "to be taken from the page" must be filled from the source by `paper-repo` before citing; I have only titles and venues from the literature search for those.

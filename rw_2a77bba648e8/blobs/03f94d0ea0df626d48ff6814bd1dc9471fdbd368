@@ -1,0 +1,8 @@
+{
+ "script": "analysis/make_ht.py",
+ "code_commit": "1b5328ec14a261e28463578a5171e44729fa0bcb",
+ "seed": 20261125,
+ "n_draws": "300 per graph draw as in the frozen grid (cluster-design runs of the frozen grid and extension X)",
+ "date": "2026-11-26",
+ "description": "cluster designs: self-normalised (Hajek) and unnormalised (Horvitz-Thompson) exposure estimators against dm and chin, null and s = 0.5, noise multiple 0.5"
+}

@@ -1,0 +1,57 @@
+@article{nogueira2018,
+  title={On the Stability of Feature Selection Algorithms},
+  author={Nogueira, Sarah and Sechidis, Konstantinos and Brown, Gavin},
+  journal={Journal of Machine Learning Research}, volume={18}, number={174}, year={2018},
+  url={https://jmlr.org/papers/v18/17-514.html}
+}
+@article{webber2010,
+  title={A Similarity Measure for Indefinite Rankings},
+  author={Webber, William and Moffat, Alistair and Zobel, Justin},
+  journal={ACM Transactions on Information Systems}, volume={28}, number={4}, year={2010},
+  doi={10.1145/1852102.1852106}
+}
+@article{lundberg2020trees,
+  title={From local explanations to global understanding with explainable {AI} for trees},
+  author={Lundberg, Scott M. and Erion, Gabriel and Chen, Hugh and DeGrave, Alex and Prutkin, Jordan M. and Nair, Bala and Katz, Ronit and Himmelfarb, Jonathan and Bansal, Nisha and Lee, Su-In},
+  journal={Nature Machine Intelligence}, volume={2}, pages={56--67}, year={2020},
+  doi={10.1038/s42256-019-0138-9}
+}
+@article{chen2023algorithms,
+  title={Algorithms to estimate {Shapley} value feature attributions},
+  author={Chen, Hugh and Covert, Ian C. and Lundberg, Scott M. and Lee, Su-In},
+  journal={Nature Machine Intelligence}, volume={5}, pages={590--601}, year={2023},
+  doi={10.1038/s42256-023-00657-x}
+}
+@inproceedings{ghorbani2019fragile,
+  title={Interpretation of Neural Networks Is Fragile},
+  author={Ghorbani, Amirata and Abid, Abubakar and Zou, James},
+  booktitle={AAAI}, year={2019}, doi={10.1609/aaai.v33i01.33013681}
+}
+@article{visani2022lime,
+  title={Statistical stability indices for {LIME}: Obtaining reliable explanations for machine learning models},
+  author={Visani, Giorgio and Bagli, Enrico and Chesani, Federico and Poluzzi, Alessandro and Capuzzo, Davide},
+  journal={Journal of the Operational Research Society}, volume={73}, year={2022}, doi={10.1080/01605682.2020.1865846}
+}
+@inproceedings{witter2025regadj,
+  title={Regression-adjusted Monte Carlo Estimators for Shapley Values and Probabilistic Values},
+  booktitle={NeurIPS}, year={2025}, doi={10.52202/085713-0715},
+  note={Author list to be verified by the report role before use}
+}
+@article{dong2020cloud,
+  title={Exploring the cloud of variable importance for the set of all good models},
+  author={Dong, Jiayun and Rudin, Cynthia},
+  journal={Nature Machine Intelligence}, volume={2}, pages={810--824}, year={2020},
+  doi={10.1038/s42256-020-00264-0},
+  note={Volume/pages from memory; check against the DOI record before use}
+}
+@phdthesis{kolpaczki2021bandits,
+  title={Identifying Top-k Players in Cooperative Games via {Shapley} Bandits},
+  author={Kolpaczki, Patrick and Bengs, Viktor and H{\"u}llermeier, Eyke},
+  year={2021},
+  note={Found via OpenAlex, nbn-resolving.de/urn:nbn:de:bvb:19-epub-92527-0; title and abstract only read; venue and authors to be verified by report}
+}
+@inproceedings{antitheticTopK2025,
+  title={Antithetic Sampling for Top-K {Shapley} Identification},
+  booktitle={(proceedings volume to be verified)}, year={2025}, doi={10.1007/978-3-032-08324-1_6},
+  note={Found via OpenAlex; authors and venue to be verified by report; title and abstract only read}
+}

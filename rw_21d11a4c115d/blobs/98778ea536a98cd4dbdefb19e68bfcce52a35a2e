@@ -1,0 +1,14 @@
+{
+  "claim": "C5",
+  "draft": false,
+  "figure": "figA3_coherence",
+  "generated": "2026-11-25",
+  "height_in": 2.2,
+  "inputs": {
+    "/hutian/w/paper-repo/results/coherence.csv": "e758ad29dd98"
+  },
+  "k": 3,
+  "n_points": 84,
+  "note": "gamma-hat is a sampled minimum, an upper bound on the true submodularity ratio; (b) is a heuristic, not a guarantee",
+  "width_in": 5.5
+}

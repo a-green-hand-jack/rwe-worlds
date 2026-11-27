@@ -1,0 +1,106 @@
+# Result files: what each is and which function computes it
+
+All files: MTEB matrix, 238 models x 328 tasks (45,775 cells), scores = main_score x 100 ("raw points"). Resampling unit: held-out org group, B = 5000
+percentile intervals (`ct_run_meta.json`). Code state: see `git log` (analysis commit written into each sidecar by `24_aggregate_ct.py` / `08_aggregate.py`).
+
+## Primary (common target set, PREREG Deviation 3): `ct_*`  — produced by `code/21_eval_ct.py` (per model) then `code/24_aggregate_ct.py`
+Score definition (21_eval_ct.py `main`): 50 random C/T splits of the 328 tasks (`common.make_ct_splits`, stratified by task type, |T| = 109, shared by every rule, k and
+fold). For a held-out model and a split: S is chosen inside C and the model's run set (never in T); the prediction (P5 unless the method name says otherwise) is
+scored on the model's *observed* cells in T. Floor = the same model, the same T, with *all* the model's observed C cells revealed (factor rank = LOO-chosen rank).
+Eligible at (model, split): >= k observed C cells and >= m_T = 37 observed T cells; a model enters k if eligible in >= min(20, 50%) splits. `subset = fixed`:
+models eligible at k_max = 109 (same models at every k); `all`: every model that enters at that k.
+Every number is the mean over the model's eligible splits, then the equal-weight mean over models, CI by group bootstrap.
+
+* `ct_curves.csv` one row per (split, subset, k, method). `method = <selection>+<inference>` (S0 random, S1 popularity, S2 variance, S4 pivoted QR, S6 greedy Bayesian
+  V-optimal on all targets, S6T same with target = T, S6c cost-aware; P5 factor-analysis posterior mean, P1 offset-only, P0 benchmark mean).
+  `rmse_raw` RMSE on observed T cells (raw points); `lo`,`hi` 90% bootstrap bounds; `floor_raw` RMSE of the floor on the same models/cells; `excess_raw/lo/hi` mean of
+  (RMSE - floor RMSE) per model, paired, 90% CI; `rmse_sd_splits` sd over splits of the model's RMSE (mean over models); `mae_raw`; `rmse_mse_scale` sqrt(mean over
+  models of mean-over-splits MSE); `t1_rmse_raw` sqrt of T1 design risk averaged over T cells (S6/S0 with P5 only; function `fa.design_risk`, incl. noise psi_j);
+  `t1_floor_raw` same for the floor set; `excess_t1` = t1_rmse_raw - t1_floor_raw; `n_models_at_k`, `n_excluded_at_k` (held-out models not entering), `n_groups`,
+  `n_splits_mean`, `n_obsC_mean`, `n_obsT_mean` (mean eligible splits / observed C / observed T cells).
+* `ct_contrast.csv` paired contrast rule vs S0 (same inference P5), per split-eligible model: `gain_mean` = RMSE(S0) - RMSE(rule) (positive = rule better), `lo90/hi90`
+  (`lo95/hi95`) group-bootstrap bounds. `delta` = mean over target cells of the pre-registered delta_j (min(0.5 median adjacent gap, 0.25 floor_j)), averaged over the models
+  in the row (PREREG: primary, ~0.1 points); `delta_floor` = 0.25 x mean floor_j (secondary, ~1.1 points). `verdict` / `verdict_floor`: "design helps" if lo90 > margin,
+  "random better" if hi90 < -margin, "random matches" if lo90 > -margin and hi90 < margin, else "undecided". `t1_predicted_gain` = sqrt(T1(S0)) - sqrt(T1(rule)) averaged
+  over models (S6 rows), to compare with `gain_mean`. `frac_models_design_better` share of models with gain > 0. (`gain_excess` equals `gain_mean`; kept for the old schema.)
+* `ct_kstar.csv` k*(epsilon): smallest grid k at which the S6+P5 excess over floor is <= epsilon; `epsilon_name`: `delta_T`, `2delta_T`, `delta_floor`, `2delta_floor`
+  (the margins above, in raw points) and `eps_0.25 ... eps_3.0` (raw points). `k_emp` empirical (point curve), `k_emp_lo/hi` the 5th/95th percentile over bootstrap
+  curves, **all grid values** (lower/higher percentile, no interpolation); 9999 = not reached on the grid (up to 109); `frac_boot_never` share of bootstrap curves never
+  reaching it; `k_pred*` same on the T1-predicted excess curve (`excess_t1`).
+  Fractions of the floor: `epsilon_name` = `frac_0.1`, `frac_0.25`, `frac_0.5` is epsilon = that fraction x the mean floor RMSE of the subset (`epsilon` in raw points); added after the first aggregation (same code, no other file changed).
+* `ct_excess_curve_ct_<split>_<subset>.csv` S6+P5: `excess_emp(+lo/hi)` measured excess over floor, `excess_t1(+lo/hi)` T1 prediction of it, per k.
+* `ct_decomposition.csv` S6+P5, MSE in raw points^2, per k: `measured` = mean over models of the model's mean-over-splits (RMSE^2 per split); `noise_pred` = T1 of the
+  floor set (psi + posterior variance with all of C revealed); `noise_misfit` = floor MSE - `noise_pred`; `design_pred` = T1(S) - T1(floor set); `est_misfit` = measured -
+  floor MSE - design_pred (the remainder); measured = the four terms exactly. 90% group-bootstrap bounds on each.
+* `ct_extras/` (tag `ctx`; `24_aggregate_ct.py` on the `ctx` stage-B files, 20 of the 50 shared splits, same columns as the `ct_*` files above): baselines S3 (wrapper), S5 (k-medoids), S6s (greedy + swap), S7 (interview),
+  and S0/S6 with the inference baselines P1-P4, P6 (methods named `<selection>+<inference>`: P2 ridge on the revealed benchmarks trained on the EM-completed training matrix; P3 kNN over training models; P4 Soft-Impute row update;
+  P6 PC regression with sigmoid link, adapted from observational scaling laws; tuned by inner CV per k, `baselines.py`). `ct_contrast.csv` there compares each with S0+P5 (`ref`), so `gain_mean` for `S6`/`P2` is S0+P5 minus S6+P2.
+  S3 and S7 are evaluated for k <= 32 only.
+* `olb/` (Open LLM Leaderboard v2 per-subtask matrix, 4,507 models x 39 sub-benchmarks; PREREG Addendum 2; `23_olb_all.sh`, `24_aggregate_ct.py` with `MC_KGRID=1,2,3,5,8,13`): the `ct_*` files of the same schema and meaning
+  (50 shared splits, |T| = 12 stratified by sub-benchmark family, floor on the same T at the inner-CV rank, scores x 100 of the leaderboard's per-sub-benchmark accuracy; `split` G = 10 group folds over 475 family-stem groups,
+  `S` = strongest 25% of models by additive offset; no T split). `delta` (gap-based) prints ~0 on this matrix, so `delta_floor` is the margin read here (Addendum 2); `n_models_at_k` is every held-out model (dense matrix).
+  `inner_kstar.csv`, `inner_excess_curves.csv` there: the training-side rule of Deviation 4a on this matrix (confirmatory here, pre-registered in Addendum 2).
+* `olb/inner_kstar.csv`, `inner_excess_curves.csv`, `inner_kstar_by_outer_fold_G.csv`: the training-side rule of Deviation 4a on the OLB matrix (G: 10 outer folds, S: strength split; no T), columns as the MTEB `inner_*` files (`k_hat` from the training-side
+  inner-CV excess curve, `k_emp` the held-out value, `grid_steps_hat_minus_emp` = hat - emp in grid steps, `k_emp_in_hat_ci`).
+* `greedy_check.csv`, `greedy_check_summary.csv` (`code/19_greedy_check.py`): S6's greedy set against the best set of the same criterion F(S) = tr(V'V (I + sum_{j in S} a_j a_j')^-1), a_j = v_j/sqrt(psi_j), on the held-out models of G fold 0 that have more than 20 observed cells (24 models; a random subset of up to 40 was asked for, all 24 eligible are used), fit at the inner-CV rank for that k, candidates = all of the model's observed cells (not the C/T pool), all N benchmarks as target.
+  `kind` = `exhaustive` (k = 2, 3: every k-subset) or `swap` (k = 8, 20: greedy set refined by single-element swaps until none lowers F; a local optimum, not the global one). `F_greedy`, `F_refined`; `rel_gap` = (F_greedy - F_refined)/F_greedy; `same_set` greedy set = refined set;
+  `rmse_greedy`, `rmse_refined` = P5 RMSE in raw points on the model's remaining observed cells (R_m minus S, the secondary score, one split-free design per model; not the C/T score). Summary: means over models, `rel_gap_max`, `frac_same`.
+* `table3_pipelines_ct.csv` (`code/37_pipeline_table.py`, from the `ctx` files, fixed k_max subset): pipelines selection (S0, S6) x inference (P0-P6) on the common target set. `rmse_raw` (+`rmse_lo/hi`),
+  `excess_raw` over the model's own floor (+lo/hi), `floor_raw`, `delta_T`, `delta_floor` (margins as in `ct_contrast.csv`); `diff_vs_P5` = RMSE(sel+P5) - RMSE(sel+Px) paired by model (positive: Px better than P5), 90% group-bootstrap
+  bounds, `verdict_vs_P5` / `verdict_vs_P5_floor` (helps: lo > margin; hurts: hi < -margin; matches: inside; else undecided); `gain_S6_vs_S0` = RMSE(S0+Px) - RMSE(S6+Px), bounds, `verdict_gain(_floor)`. P0 has no k dependence.
+
+## Secondary (R_m \ S, targets = the model's remaining observed cells; PREREG Deviation 3 labels it secondary): `*_rms.csv`
+`curves_rms.csv`, `contrast_S6_vs_S0_rms.csv`, `kstar_rms.csv` (bounds there are interpolated percentiles, not grid values), `excess_curve_rms_*.csv`,
+`fig3_decomposition_rms.csv`; computed by `code/08_aggregate.py`, `code/17_theory.py` from `05_eval.py`/`05b_eval_extra.py`. Target cells change with k (cells
+moved into S leave the target) so rules reveal different targets: rules can fall below the floor (S2 at large k); compare rules only on the `ct_*` files.
+
+## Post hoc / sensitivity files (PREREG Deviation 4; every one labelled post hoc in the paper)
+* `inner_kstar.csv` (`code/32_inner_kstar.py`, states from `25_inner_states.py`): the training-side rule. `k_hat` = smallest grid k at which the pooled *training-side* S6+P5 excess over floor
+  (inner group-CV reveal curve, curve in `inner_excess_curves.csv`) is <= `epsilon` (raw points); `k_hat_lo/hi` 5th/95th percentile of its group bootstrap over training groups; `k_emp`, `k_emp_lo/hi` the
+  empirical k* of the held-out models of `split` (same epsilon, grid values, 9999 = not reached; G pooled over the 10 outer folds, T and S their single fold); `grid_steps_hat_minus_emp` difference in grid
+  steps between the two (grid {1,2,3,5,8,12,20,32,50,80,109}); `k_emp_in_hat_ci` whether k_emp lies in [k_hat_lo,k_hat_hi]; `n_train_side_models` models in the pooled training-side curve.
+  `inner_kstar_by_outer_fold_G.csv`: `k_hat_*` per outer G fold (what a user with only that fold's training data would get). `inner_excess_curves.csv`: `excess_S6_train`/`excess_S0_train` (raw points),
+  `lo90/hi90` bootstrap bounds for S6, `kfix` the k_max of the fixed subset.
+* `sens_randomfold/` same files and columns as the `ct_*` files above but `split = R`: 10 folds of random models (organisation of the held-out model mostly stays in training); `ct_kstar.csv` there
+  has `note = grid steps`. `floor_misfit_summary.csv` (`code/35_misfit_summary.py`): at k = 20 (the floor term does not depend on k), per hold-out (`G` group folds, `R` random model folds): `noise_pred` (T1 of the
+  floor set), `noise_misfit` = floor MSE - noise_pred, `floor_mse` (raw points^2), `ratio_floor_to_pred`, 90% group-bootstrap bounds, `share_of_G_misfit_removed_by_random_model_holdout`.
+* `floor_by_rank.csv` (`code/33_floor_rank.py`): the floor (all observed C cells revealed, P5) at each factor `rank` and at `selected` (the rank chosen by the inner LOO) and `min_over_ranks`
+  (each model's best rank on its own floor RMSE, optimistic reference); `floor_rmse` mean over models of the model's mean-over-splits RMSE on T (raw points), `lo90/hi90` group bootstrap, `n_models`, `n_groups`.
+* `scope_ct_curves.csv`, `scope_ct_kstar.csv` (`code/30_scope_ct.py`, `34_scope_agg.py`): scope sweeps on the C/T score, S0/S6 x P5, G folds 0-3 (67 models, 23 groups), 20 splits. `cond`: `ref`
+  (all data), `M50`/`M25` (50%/25% of the training models, `M_train`), `dens70/50/30` (training cells kept at random: 70/50/30%), `logit` (scores logit-transformed; all error columns then in logit units),
+  `suite` (the 75 task-suite columns, `N`: benchmarks per model). `types` (benchmark = mean over a task type, N = 10; rerun separately with ranks <= 6 and k grid 1, 2, 3, 5 because the first run, with the grid and ranks of the other conditions, failed at rank 16 > N; |C| = 7 so k <= 3 is the usable range). `k_over_N`; `floor` mean floor; `excess_S6`, `excess_S0` mean excess over floor, `gain` = S0 - S6 RMSE (positive: S6 better) with 90% bounds,
+  `gain_rel` = gain/floor, `excess_S6_rel` = excess/floor, `mean_rank` mean selected rank. k* file: epsilon = `eps_fraction_of_floor` x the condition's own mean floor (`eps` in condition units), `k_star` and `lo/hi` grid values
+  {1,2,3,5,8,12,20,32}, 9999 = not reached. Only 4 of the 10 G folds, so CIs are wider than in `ct_*`.
+* `synth/synth_summary.csv` (`code/10_synth.py`, `29_synth_tables.py`): synthetic factor matrices (standardised squared error; 120 benchmarks), per `regime` (`separated`, `decaying` spectrum), `level` (L0 correct model;
+  L1_saturating_link, L2_heavy_tails, L3_heteroscedastic_ceiling, L4_correlated_residuals), training size `M`, `k`, fitted `rank_fit`; `mse_S6`, `mse_S0` measured; `t1_fit` T1 at fitted parameters, `t1_true` at true parameters; `mse_trueparams_S6` measured with the true parameters;
+  `est_term` = mse_S6 - mse_trueparams_S6; `misfit` = mse_S6 - t1_fit (`misfit_rel` its share of mse_S6); `mis_true` = mse_trueparams_S6 - t1_true; `gain` = mse_S0 - mse_S6; `*_se` standard errors over `n_seeds`.
+  `synth_estimation_fit.csv`: least-squares fit of est_term = c/M on the correct-model separated regime per k (`c_in_c_over_M`, `loglog_slope`, `rel_resid_c_over_M`).
+* `ladder/ladder_diagnostics.csv` (`code/28_diagnostics.py`): diagnostics of held-out LOO residuals on the real matrix (`source = real`, `rung = MTEB`) and on each rung/seed: `calib` ratio of held-out MSE
+  to the model's own predicted variance, `calib_med` same with medians (robust), `kurt` excess kurtosis of standardised residuals, `rescorr` mean absolute residual correlation between benchmarks,
+  `het` correlation of log residual variance with the fitted level, `link` quadratic-link curvature. `ladder_placement.json`: the pre-set placement rule, per-rung [5%,95%] range (`lo`,`hi`) and `inside` for
+  each diagnostic; `placed_on` = "outside the ladder" if no rung is consistent.
+  `ladder_combined.csv`, `ladder_combined_placement.json` (`code/36_combined_rung.py`, PREREG Deviation 4h): the pre-specified combined rung `L5_link_tails_ceiling` (t3 noise x ceiling factor, then tanh link), same diagnostics
+  and same placement rule; `reproduces` = every real diagnostic inside the rung's widened [5%,95%] range; `median` = rung median. Result: does not reproduce (calib 1.18 vs real 2.75, kurt 4 vs 29).
+* `ladder/ladder_real_matrices.csv` (`code/40_ladder_real.py`): the six ladder diagnostics (same definitions as `ladder_diagnostics.csv`) for `matrix` (MTEB or OLB) x `split` (G: 10 outer folds; S, T: the single outer fold), `n_heldout_cells` LOO residual cells used;
+  spectral decay of the pairwise-correlation matrix of the outer-fold-0 training side (post hoc, descriptive): `top1_share`, `top3_share`, `participation_ratio` = (sum of eigenvalues)^2 / sum of squares, `participation_ratio_over_N`, `n_benchmarks`.
+  `ladder_real_matrices_placement.json`: the unchanged placement rule per matrix against each rung (`n_diagnostics_inside_by_rung`, `placed_on`; all five 'outside the ladder'). OLB is at another shape than the synthetic rungs (39 vs 120 benchmarks).
+  `ladder_vs_floor_ratio.csv` (`code/42_ladder_vs_ratio.py`): the same rows with `floor_ratio` = floor MSE / T1 noise term (k = 20 for MTEB, k = 13 for OLB; the floor term does not depend on k) and its 90% bounds, sorted by ratio;
+  `ladder_vs_floor_ratio_rank_corr.csv`: Spearman correlation of each diagnostic with `floor_ratio` over the 5 matrices (n = 5, descriptive).
+* `sens_rank/rank{4,8,12}/` (`code/39_rank_sens.sh`): the `ct_*` files of the main run (same columns) with the factor rank fixed at 4, 8 or 12 for every fold and k (G only, S0 and S6 x P5, 20 of the 50 shared splits; floor also at that rank).
+  `sens_rank/summary_by_rank.csv` (`code/41_rank_sens_summary.py`): per rank (and `inner-CV` = the main run, 50 splits, and `inner-CV (20 splits)` = the same run on the 20 splits of the fixed-rank runs), fixed-k_max subset: `floor_rmse`, S6+P5 `rmse_k*`, `excess_k*` (+ `_lo/_hi` 90%), `kstar_<epsilon>` with bounds.
+
+## Unchanged files
+`table1_*` (shape/filter/splits; `08_aggregate.py`), `table3_*` (`18_table3.py`), `unit_t3.json` (`11_unit_t3.py`).
+`fig2_*` (`09_structure.py`): `fig2_spectrum.csv:eigenvalue` = eigenvalues of the pairwise-complete correlation matrix of the standardised full matrix (all 238 models,
+descriptive, not a held-out quantity); `pa95` = 95th percentile of the same spectrum over 200 within-column permutations of the observed entries (parallel analysis);
+`noise_edge_gd` = Gavish-Donoho hard-threshold edge on the mean-imputed matrix; `fig2_cv_vs_rank.csv:rmse` = inner group-CV RMSE (standardised units, reveal = all other
+benchmarks of the model's run set) per rank, mean over the 10 G folds, `lo/hi` = mean +- 1.645 se over folds.
+
+`synth/synth_adaptive.csv`, `synth/synth_adaptive_common.csv` (`38_synth_adaptive.py`; PREREG 4i, 4i-b): synthetic ladder rungs L0-L5, N = 120 benchmarks, M = 240 training models, rank-6 factor model fitted, 80 fully observed test models per seed, 8 seeds.
+`mse_S0`, `mse_S6`, `mse_S7` = mean over seeds of the per-seed mean squared error of the factor-model posterior mean (P5) on the unrevealed benchmarks, standardised units (variance 1 per benchmark), after revealing k benchmarks chosen by random (S0), the batch
+V-optimal greedy design (S6) or the adaptive neighbour-tree interview (S7, an adaptation of Golbandi et al. 2011, K = 30 neighbours, not tuned); `gain_S6_over_S7` = mse_S7 - mse_S6 (positive: batch better), `gain_se` = standard error over the 8 seeds, `n_test` = test models per seed.
+In `synth_adaptive.csv` each rule is scored on the benchmarks it left unrevealed (the sets differ between rules); in `synth_adaptive_common.csv` every rule is scored on the benchmarks outside the union of the S6 and S7 revealed sets (and outside the random draw), so the target set does not depend on the rule (post hoc, written after the first run). `*_raw.csv`: per seed and rung, the same quantities before averaging.
+`ct_extras/` is also the like-for-like comparator of the fixed-rank runs (S6+P5 with the inner-CV rank on the same 20 splits as `sens_rank/rank*`); `sens_rank/paired_vs_innercv.csv` (`43_rank_paired.py`): G, headline subset (154 models, 51 organisations),
+`rmse_innerCV` and `rmse_fixed` = S6+P5 RMSE in raw points (mean over models of the per-model mean over splits), `diff_innerCV_minus_fixed` = their paired difference (positive: the fixed rank is better), `lo90`/`hi90` = 90% group bootstrap over organisations (B = 5000), post hoc (4j-b).
+
+* `olb_uploader/` (PREREG Deviation 4(l), written before the run; `code/44_olb_uploader.sh`): OLB G with the held-out groups being the 717 uploaders (`models.csv` column `org` replaced by `up:<uploader>`) instead of the 475 family stems; S0 and S6 x P1/P5 (S0 also P0), the same 50 shared splits, the same k grid {1,2,3,5,8,13} and rank grid, 10 held-out folds. The `ct_*` files have the schema and meaning of `olb/ct_*` (`n_groups` = 717, bootstrap resamples uploaders). Sensitivity only: compare with `olb/ct_*` rows with `split == G`; the paper's OLB numbers stay on family stems.

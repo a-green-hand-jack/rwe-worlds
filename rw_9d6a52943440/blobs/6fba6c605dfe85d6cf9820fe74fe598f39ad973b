@@ -1,0 +1,37 @@
+"""Check of the IRT settings against the public p-IRT (stage B of 12_public_baselines.py): our `irt` at latent dimension 10 and the near-flat ability prior.
+
+usage: python3 -I scripts/15_dsweep.py results/raw_dsweep results/raw results/dsweep.csv
+results/raw_dsweep holds the output of the `dsweep` stage of scripts/run_all.sh (tags _d10: d = 10; _d2w: d = 2; both with `irtw` precision 0.01, `irt` precision 1;
+ _fit2, _fit10: d = 2, 10 with 2000 Adam steps, penalties x0.1, `irtw` precision 0.01).
+Rows: (bench, split, config, design, method) with the pooled RMSE over all folds and the ratio to `uniform|mean` of results/raw on the same targets; config `d2` is the main run
+(d = 2, 300 steps; it has no `irtw` rows here, so those are NaN in the summary) and `d10`, `d2w`, `fit2`, `fit10` the sweep. Summary printed: geometric mean of the ratio over the benchmarks.
+"""
+import sys, glob, pickle, numpy as np, pandas as pd
+swd, rawd, out = sys.argv[1:4]
+KEYS = ["mean", "irt-model", "irt-plugin", "diff-irt", "irtw-model", "irtw-plugin", "diff-irtw"]
+def pooled(recs, keys):
+    se = {}
+    for r in recs:
+        for k in keys:
+            if k in r["preds"]:
+                se.setdefault(k, []).append(((r["preds"][k] - r["true"][None]) ** 2).mean(0))
+    return {k: float(np.sqrt(np.concatenate(v).mean())) for k, v in se.items()}
+rows = []
+for f in sorted(glob.glob(f"{swd}/*.pkl")):
+    d = pickle.load(open(f, "rb")); a = d["args"]; cfg = a["tag"].lstrip("_")
+    o = pickle.load(open(f"{rawd}/{a['bench']}__{a['split']}.pkl", "rb"))
+    ours = {r["fold"]: r for r in o["records"] if r["n"] == 100}
+    recs = d["records"]
+    for r in recs:
+        assert np.array_equal(r["tgt"], ours[r["fold"]]["tgt"])
+    ref = pooled([ours[r["fold"]] for r in recs], ["uniform|mean"])["uniform|mean"]
+    keys = [f"{dn}|{k}" for dn in ("anchor", "uniform") for k in KEYS]
+    for c, rec in ((cfg, recs), ("d2", [ours[r["fold"]] for r in recs])):
+        rm = pooled(rec, keys)
+        for k, v in rm.items():
+            rows.append(dict(bench=a["bench"], split=a["split"], config=c, design=k.split("|")[0], method=k.split("|")[1], rmse=v, ratio_uniform_mean=v / ref, folds=len(recs)))
+r = pd.DataFrame(rows).drop_duplicates(["bench", "split", "config", "design", "method"]); r.to_csv(out, index=False)
+gm = lambda x: float(np.exp(np.log(x).mean()))
+for (sp, dn), g in r.groupby(["split", "design"]):
+    print(f"{sp} {dn} (geometric mean over {g.bench.nunique()} benchmarks):")
+    print(g.pivot_table(index="method", columns="config", values="ratio_uniform_mean", aggfunc=gm).round(2).to_string())

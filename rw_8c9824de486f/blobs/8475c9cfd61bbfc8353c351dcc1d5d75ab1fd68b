@@ -1,0 +1,27 @@
+"""Paired difference in S6+P5 RMSE between the inner-CV rank (main run, same 20 of the 50 shared splits: stage-B `ctx` files) and a fixed rank (sens_rank runs), G split, headline subset
+(models present at k_max in both runs); 90% group bootstrap over held-out organisations (B=5000). Positive = the fixed rank is better. Post hoc (PREREG 4j).
+usage: python 43_rank_paired.py <data_dir> <ctx_dir> <rank_work_base> <out_csv>   (rank_work_base/rank{4,8,12}/ct/*_ct.parquet)"""
+import os, sys, glob, numpy as np, pandas as pd
+sys.path.insert(0, os.path.dirname(__file__))
+from common import *
+data_dir, ctx, rb, out = sys.argv[1:5]; B = 5000
+Y, mods, tasks, et = load_matrix(data_dir); org = mods.org.values; kmax = max(K_GRID)
+def load(d, tag):
+    x = pd.concat([pd.read_parquet(f) for f in sorted(glob.glob(os.path.join(d, f"*_{tag}.parquet")))], ignore_index=True); return x[x.split == "G"]
+def per_model(d, k):
+    s = d[(d.rule == "S6") & (d.inf == "P5") & (d.k == k)].set_index("model").rmse
+    return s
+base = load(ctx, "ctx"); rows = []
+for r in (4, 8, 12):
+    alt = load(os.path.join(rb, f"rank{r}", "ct"), "ct")
+    fx = set(base[(base.rule == "floor") & (base.k == kmax)].model) & set(alt[(alt.rule == "floor") & (alt.k == kmax)].model)
+    for k in K_GRID:
+        a, b = per_model(base, k), per_model(alt, k); idx = a.index.intersection(b.index); idx = np.array(sorted(set(idx) & fx))
+        if len(idx) < 5: continue
+        d = (a.loc[idx] - b.loc[idx]).values; g = org[idx]; ug, inv = np.unique(g, return_inverse=True)
+        dr = np.random.default_rng(7 + k).integers(0, len(ug), size=(B, len(ug)))
+        gs = np.bincount(inv, weights=d, minlength=len(ug)); gn = np.bincount(inv, minlength=len(ug)).astype(float)
+        reps = gs[dr].sum(1) / gn[dr].sum(1)
+        rows.append(dict(fixed_rank=r, k=k, n_models=len(idx), n_groups=len(ug), rmse_innerCV=a.loc[idx].mean(), rmse_fixed=b.loc[idx].mean(), diff_innerCV_minus_fixed=d.mean(),
+                         lo90=np.percentile(reps, 5), hi90=np.percentile(reps, 95)))
+df = pd.DataFrame(rows).round(4); df.to_csv(out, index=False); print(df.to_string())

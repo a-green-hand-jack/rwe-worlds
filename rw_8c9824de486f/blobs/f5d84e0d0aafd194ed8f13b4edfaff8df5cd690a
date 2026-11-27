@@ -1,0 +1,27 @@
+tag,split,subset,epsilon_name,epsilon,k_emp,k_emp_lo,k_emp_hi,frac_boot_never,k_pred,k_pred_lo,k_pred_hi,n_models,n_groups,N,note
+ct,R,fixed,delta_T,0.09857633661197386,9999,9999.0,9999.0,1.0,9999,9999.0,9999.0,154,51,328,grid steps; 9999 = not reached on the grid
+ct,R,fixed,2delta_T,0.19715267322394772,9999,9999.0,9999.0,0.9792,9999,9999.0,9999.0,154,51,328,grid steps; 9999 = not reached on the grid
+ct,R,fixed,delta_floor,1.169644653012814,50,50.0,80.0,0.0,80,80.0,80.0,154,51,328,grid steps; 9999 = not reached on the grid
+ct,R,fixed,2delta_floor,2.339289306025628,12,5.0,20.0,0.0,32,32.0,32.0,154,51,328,grid steps; 9999 = not reached on the grid
+ct,R,fixed,eps_0.25,0.25,9999,109.0,9999.0,0.761,9999,9999.0,9999.0,154,51,328,grid steps; 9999 = not reached on the grid
+ct,R,fixed,eps_0.5,0.5,109,80.0,109.0,0.0,109,109.0,109.0,154,51,328,grid steps; 9999 = not reached on the grid
+ct,R,fixed,eps_1.0,1.0,80,50.0,80.0,0.0,80,80.0,80.0,154,51,328,grid steps; 9999 = not reached on the grid
+ct,R,fixed,eps_1.5,1.5,50,32.0,50.0,0.0,50,50.0,80.0,154,51,328,grid steps; 9999 = not reached on the grid
+ct,R,fixed,eps_2.0,2.0,20,12.0,32.0,0.0,50,32.0,50.0,154,51,328,grid steps; 9999 = not reached on the grid
+ct,R,fixed,eps_3.0,3.0,5,3.0,5.0,0.0,12,12.0,20.0,154,51,328,grid steps; 9999 = not reached on the grid
+ct,R,fixed,frac_0.1,0.4077035027545149,109,109.0,109.0,0.0016,9999,109.0,9999.0,154,51,328,grid steps; 9999 = not reached on the grid
+ct,R,fixed,frac_0.25,1.0192587568862872,80,50.0,80.0,0.0,80,80.0,80.0,154,51,328,grid steps; 9999 = not reached on the grid
+ct,R,fixed,frac_0.5,2.0385175137725744,20,12.0,32.0,0.0,50,32.0,50.0,154,51,328,grid steps; 9999 = not reached on the grid
+ct,R,all,delta_T,0.09753137650619297,9999,9999.0,9999.0,1.0,9999,9999.0,9999.0,167,55,328,grid steps; 9999 = not reached on the grid
+ct,R,all,2delta_T,0.19506275301238593,9999,9999.0,9999.0,0.9822,9999,9999.0,9999.0,167,55,328,grid steps; 9999 = not reached on the grid
+ct,R,all,delta_floor,1.1718700022829234,50,50.0,80.0,0.0,80,80.0,80.0,167,55,328,grid steps; 9999 = not reached on the grid
+ct,R,all,2delta_floor,2.3437400045658467,8,5.0,12.0,0.0,32,32.0,32.0,167,55,328,grid steps; 9999 = not reached on the grid
+ct,R,all,eps_0.25,0.25,9999,109.0,9999.0,0.761,9999,9999.0,9999.0,167,55,328,grid steps; 9999 = not reached on the grid
+ct,R,all,eps_0.5,0.5,109,80.0,109.0,0.0,109,109.0,109.0,167,55,328,grid steps; 9999 = not reached on the grid
+ct,R,all,eps_1.0,1.0,80,50.0,80.0,0.0,80,80.0,80.0,167,55,328,grid steps; 9999 = not reached on the grid
+ct,R,all,eps_1.5,1.5,32,32.0,50.0,0.0,50,50.0,80.0,167,55,328,grid steps; 9999 = not reached on the grid
+ct,R,all,eps_2.0,2.0,20,8.0,32.0,0.0,50,32.0,50.0,167,55,328,grid steps; 9999 = not reached on the grid
+ct,R,all,eps_3.0,3.0,5,3.0,5.0,0.0,12,12.0,12.0,167,55,328,grid steps; 9999 = not reached on the grid
+ct,R,all,frac_0.1,0.42058467095682595,109,109.0,109.0,0.001,109,109.0,9999.0,167,55,328,grid steps; 9999 = not reached on the grid
+ct,R,all,frac_0.25,1.0514616773920649,50,50.0,80.0,0.0,80,80.0,80.0,167,55,328,grid steps; 9999 = not reached on the grid
+ct,R,all,frac_0.5,2.1029233547841297,20,8.0,32.0,0.0,32,32.0,32.0,167,55,328,grid steps; 9999 = not reached on the grid

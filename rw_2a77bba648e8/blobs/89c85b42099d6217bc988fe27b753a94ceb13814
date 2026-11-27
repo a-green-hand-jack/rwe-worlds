@@ -1,0 +1,67 @@
+r"""Appendix Table A3 (C4, C8): where the Chin regression beats the difference in means, and where its 95% interval covers.
+Entries: share of cells (%) in which the regression has the smaller RMSE (95% paired bootstrap interval of the log ratio excludes 0; ties are counted separately in the CSV),
+by noise multiple sigma (0.25, 0.5, 1 planned; 2, 4 extensions) and by the factor that defines the row: all cells; target degree d; mechanism; graph family; design.
+Last column: mean HC0 coverage of the Chin interval at sigma = 0.5 over the cells of Fig 9 (`common.coverage_population`: Bernoulli, mechanisms (a)-(f), true graph);
+not defined for graph-cluster designs, whose HC0 interval is a unit-level interval and is not valid there.
+Usage: t3_regime.py RESULTS_DIR OUT_DIR
+"""
+import argparse
+import pathlib
+
+import numpy as np
+import pandas as pd
+
+import common
+
+ap = argparse.ArgumentParser()
+ap.add_argument("data"); ap.add_argument("out")
+a = ap.parse_args()
+R = pathlib.Path(a.data) / "claims"
+rs = pd.read_csv(R / "c4_regime_share.csv")
+cells, meta = common.load(a.data, "cells")
+pop = common.coverage_population(cells)
+o = common.out_dir(meta, a.out)
+SIG = [0.25, 0.5, 1.0, 2.0, 4.0]
+GN = {"ego-Facebook": "ego-Facebook", "DCSBM": "DC-SBM", "Stanford3": "Stanford3"}
+MN = dict(zip("abcdef", ["(a) linear fraction", "(b) linear count", "(c) saturating", "(d) threshold", "(e) multi-hop", "(f) interaction"]))
+DN = {"bern": "Bernoulli", "cluster": "graph-cluster"}
+rows = []   # (block, label, by, key column, key value, coverage)
+
+
+def cell(by, col, val):
+    t = rs[rs.by == by] if col is None else rs[(rs.by == by) & (rs[col] == val)]
+    assert len(t) == len(SIG), (by, col, val, len(t))
+    return t.sort_values("sigma")
+
+
+def cover(col=None, val=None):
+    """Mean HC0 coverage over the Fig 9 population (sigma = 0.5, Bernoulli, true graph); NaN for no cells."""
+    t = pop if col is None else pop[np.isclose(pop[col], val) if isinstance(val, float) else pop[col] == val]
+    return float(t.coverage_hc.mean()) if len(t) else np.nan
+
+
+spec = [("", "all cells", "sigma", None, None, cover())]
+spec += [("Degree", f"$d={int(d)}$", "sigma+d_target", "d_target", float(d), cover("d_target", float(d))) for d in (5, 20, 80)]
+spec += [("Mechanism", MN[m], "sigma+mechanism", "mechanism", m, cover("mechanism", m)) for m in "abcdef"]
+spec += [("Graph", GN.get(g, g), "sigma+graph", "graph", g, cover("graph", g)) for g in ["BA", "DCSBM", "ER", "SBM", "Stanford3", "WS", "ego-Facebook"]]
+spec += [("Design", DN[dz] + (" (units)" if dz == "bern" else ""), "sigma+design", "design", dz, cover() if dz == "bern" else np.nan) for dz in ("bern", "cluster")]
+tex = [r"\begin{tabular}{@{}lrrrrrrr@{}}", r"\toprule",
+       r"& & \multicolumn{5}{c}{regression better than DM (\% of cells), $\sigma=$} & \\", r"\cmidrule(lr){3-7}",
+       r"& cells & 0.25 & 0.5 & 1 & 2$^\dagger$ & 4$^\dagger$ & HC0 coverage \\", r"\midrule"]
+out = []; last = None
+for blk, lab, by, col, val, cvg in spec:
+    t = cell(by, col, val)
+    n = int(t[np.isclose(t.sigma, 0.5)].n_cells.iloc[0])
+    if blk and blk != last:
+        tex.append(r"\midrule" if last is not None else "")
+        tex.append(r"\multicolumn{8}{@{}l}{\emph{" + blk + r"}} \\")
+    last = blk if blk else last
+    sh = [f"{100 * x:.0f}" for x in t.share_regression_wins]
+    tex.append(f"{'~~' if blk else ''}{lab} & {n} & " + " & ".join(sh) + " & " + (f"{cvg:.2f}" if np.isfinite(cvg) else "--") + r" \\")
+    for s_, w, l_, ti, md, nn in zip(t.sigma, t.share_regression_wins, t.share_regression_loses, t.share_tie, t.median_log_ratio, t.n_cells):
+        out.append(dict(block=blk or "all", row=lab, sigma=s_, n_cells=nn, share_wins=w, share_loses=l_, share_tie=ti, median_log_ratio=md, coverage_hc_mean_sigma0p5=cvg))
+tex = [x for x in tex if x != ""]
+tex += [r"\bottomrule", r"\end{tabular}"]
+(o / "t3_regime.tex").write_text("\n".join(tex) + "\n")
+pd.DataFrame(out).to_csv(o / "t3_regime.csv", index=False)
+print("rows:", len(spec))

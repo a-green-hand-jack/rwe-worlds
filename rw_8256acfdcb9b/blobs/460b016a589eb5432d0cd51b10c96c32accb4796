@@ -1,0 +1,8 @@
+# venue-repo
+
+The venue record of the study: **NeurIPS 2026, Main Track**.
+
+- `VENUE.md` — choice and reasons, page/format/anonymity/checklist requirements with sources, how reviewers judge, figure/table widths and type sizes, how accepted papers of this audience are written, page budget, what cannot be established.
+- `template/` — the official NeurIPS 2026 style kit, unmodified (`neurips_2026.sty`, `neurips_2026.tex`, `checklist.tex`); delivered to `paper-repo`'s `template/`. It compiles with `latexmk -pdf neurips_2026.tex` on TeX Live 2022 (12 pages, Type 1 fonts only).
+- `accepted_papers/` — `sample.csv` (13 accepted main-track papers, counts of figures, tables, words, bibliography entries) and the scripts that produced it (`analyze.py`, `refs.py`, `intro.py`, `chk.py`, `meta.py`); they read PDFs in a local directory `corpus/` (arXiv PDFs, not committed).
+- `venue-artifacts.json` — paths every version must hold.

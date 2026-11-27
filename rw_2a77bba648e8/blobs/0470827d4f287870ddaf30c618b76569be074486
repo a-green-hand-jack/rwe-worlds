@@ -1,0 +1,10 @@
+Randomised experiments on networks suffer from interference.
+A standard estimator of the global average treatment effect (GATE) regresses the outcome on own treatment and a summary of neighbours' treatments, then predicts at all-treated and all-control.
+We ask how accurate it is, what determines its error and when it should not be used, treating it as extrapolation from the exposures the experiment produced to the two global corners.
+In simulations with exactly known GATE (six interference mechanisms, synthetic and two real graphs, Bernoulli and cluster assignment; each combination of graph, mechanism, design and noise level is a cell), the error has two parts.
+The variance follows the leverage of the corner contrast: where the model is correct, the standard deviation scales as $n^{-0.50}$ and $(1{+}d)^{0.55}$ in sample size and mean degree.
+The bias is, on our reading, the response's curvature times the distance to the corners, which data inside the observed range cannot identify; a formula that knows the true response lies inside the 95\% Monte Carlo interval of the measured bias in 85\% of cells, but how the bias depends on degree differs by mechanism.
+Regression beats difference-in-means in most cells; the spillover share above which it wins rises with degree, and a threshold mechanism is the exception on synthetic graphs but not on real ones.
+Two expectations fail: no data-computable score we tried predicts the bias usefully, and nominal 95\% intervals cover only 74\% of Bernoulli cells; an interval widened by a bound on the bias covers only by being wide.
+Flexible learners do not beat the regression except on the threshold mechanism, where three of five cannot be told apart from it and a small untuned graph network has a lower RMSE than it (paired interval below zero) in 5 of 13 cells.
+All outcomes are simulated, and shares describe our grid.

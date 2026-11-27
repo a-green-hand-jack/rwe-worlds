@@ -1,0 +1,158 @@
+@misc{lundberg2017,
+  title={A Unified Approach to Interpreting Model Predictions},
+  author={Scott Lundberg and Su-In Lee},
+  year={2017},
+  eprint={1705.07874},
+  archivePrefix={arXiv}
+}
+
+@misc{krishna2022,
+  title={The Disagreement Problem in Explainable Machine Learning: A Practitioner's Perspective},
+  author={Satyapriya Krishna and Tessa Han and Alex Gu and Steven Wu and Shahin Jabbari and Himabindu Lakkaraju},
+  year={2022},
+  eprint={2202.01602},
+  archivePrefix={arXiv}
+}
+
+@misc{yuan2022,
+  title={An empirical study of the effect of background data size on the stability of SHapley Additive exPlanations (SHAP) for deep learning models},
+  author={Han Yuan and Mingxuan Liu and Lican Kang and Chenkui Miao and Ying Wu},
+  year={2022},
+  eprint={2204.11351},
+  archivePrefix={arXiv}
+}
+
+@misc{musco2025,
+  title={Provably Accurate Shapley Value Estimation via Leverage Score Sampling},
+  author={Christopher Musco and R. Teal Witter},
+  year={2024},
+  eprint={2410.01917},
+  archivePrefix={arXiv}
+}
+
+@misc{chen2020,
+  title={True to the Model or True to the Data?},
+  author={Hugh Chen and Joseph D. Janizek and Scott Lundberg and Su-In Lee},
+  year={2020},
+  eprint={2006.16234},
+  archivePrefix={arXiv}
+}
+
+@misc{marx2020,
+  title={Predictive Multiplicity in Classification},
+  author={Charles T. Marx and Flavio du Pin Calmon and Berk Ustun},
+  year={2019},
+  eprint={1909.06677},
+  archivePrefix={arXiv}
+}
+
+@misc{ding2021,
+  title={Retiring Adult: New Datasets for Fair Machine Learning},
+  author={Frances Ding and Moritz Hardt and John Miller and Ludwig Schmidt},
+  year={2021},
+  eprint={2108.04884},
+  archivePrefix={arXiv}
+}
+
+@misc{gorishniy2021,
+  title={Revisiting Deep Learning Models for Tabular Data},
+  author={Yury Gorishniy and Ivan Rubachev and Valentin Khrulkov and Artem Babenko},
+  year={2021},
+  eprint={2106.11959},
+  archivePrefix={arXiv}
+}
+
+@misc{covert2021,
+  title={Improving KernelSHAP: Practical Shapley Value Estimation via Linear Regression},
+  author={Ian Covert and Su-In Lee},
+  year={2020},
+  eprint={2012.01536},
+  archivePrefix={arXiv}
+}
+
+@misc{mitchell2022,
+  title={Sampling Permutations for Shapley Value Estimation},
+  author={Rory Mitchell and Joshua Cooper and Eibe Frank and Geoffrey Holmes},
+  year={2021},
+  eprint={2104.12199},
+  archivePrefix={arXiv}
+}
+
+@misc{kumar2020,
+  title={Problems with Shapley-value-based explanations as feature importance measures},
+  author={I. Elizabeth Kumar and Suresh Venkatasubramanian and Carlos Scheidegger and Sorelle Friedler},
+  year={2020},
+  eprint={2002.11097},
+  archivePrefix={arXiv}
+}
+
+@misc{sundararajan2020,
+  title={The many Shapley values for model explanation},
+  author={Mukund Sundararajan and Amir Najmi},
+  year={2019},
+  eprint={1908.08474},
+  archivePrefix={arXiv}
+}
+
+@misc{fumagalli2023,
+  title={SHAP-IQ: Unified Approximation of any-order Shapley Interactions},
+  author={Fabian Fumagalli and Maximilian Muschalik and Patrick Kolpaczki and Eyke Hüllermeier and Barbara Hammer},
+  year={2023},
+  eprint={2303.01179},
+  archivePrefix={arXiv}
+}
+
+@misc{covert2020removal,
+  title={Explaining by Removing: A Unified Framework for Model Explanation},
+  author={Ian Covert and Scott Lundberg and Su-In Lee},
+  year={2020},
+  eprint={2011.14878},
+  archivePrefix={arXiv}
+}
+
+@misc{alvarez2018,
+  title={On the Robustness of Interpretability Methods},
+  author={David Alvarez-Melis and Tommi S. Jaakkola},
+  year={2018},
+  eprint={1806.08049},
+  archivePrefix={arXiv}
+}
+
+@misc{fisher2019,
+  title={All Models are Wrong, but Many are Useful: Learning a Variable's Importance by Studying an Entire Class of Prediction Models Simultaneously},
+  author={Aaron Fisher and Cynthia Rudin and Francesca Dominici},
+  year={2018},
+  eprint={1801.01489},
+  archivePrefix={arXiv}
+}
+
+@misc{neely2021,
+  title={Order in the Court: Explainable AI Methods Prone to Disagreement},
+  author={Michael Neely and Stefan F. Schouten and Maurits J. R. Bleeker and Ana Lucic},
+  year={2021},
+  eprint={2105.03287},
+  archivePrefix={arXiv}
+}
+
+@misc{rid2023,
+  title={The Rashomon Importance Distribution: Getting RID of Unstable, Single Model-based Variable Importance},
+  author={Jon Donnelly and Srikar Katta and Cynthia Rudin and Edward P. Browne},
+  year={2023},
+  eprint={2309.13775},
+  archivePrefix={arXiv}
+}
+@misc{huang2023,
+  title={The Inadequacy of Shapley Values for Explainability},
+  author={Xuanxiang Huang and Joao Marques-Silva},
+  year={2023},
+  eprint={2302.08160},
+  archivePrefix={arXiv}
+}
+
+@misc{shapleyvic2022,
+  title={Shapley variable importance cloud for machine learning models},
+  author={Yilin Ning and Mingxuan Liu and Nan Liu},
+  year={2022},
+  eprint={2212.08370},
+  archivePrefix={arXiv}
+}

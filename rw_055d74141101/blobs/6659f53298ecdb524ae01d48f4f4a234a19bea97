@@ -1,0 +1,10 @@
+cd /hutian/repo
+python3 - <<'PY' > /tmp/units_small.txt
+import sys; sys.path.insert(0,'src')
+import datasets as D, os
+print('mtbench_human'); print('arena_single')
+for f in sorted(os.listdir(D.DATA+'/potsawee/prob-avg')): print('judge:'+f[:-6])
+for y in D.nba_years(): print(f'nba:{y}')
+PY
+cat /tmp/units_small.txt | xargs -P 2 -I{} sh -c "python3 -u scripts/02b_ci.py {} > /hutian/results/log_ci_{}.txt 2>&1; python3 -u scripts/02_random.py {} > /hutian/results/log_random_{}.txt 2>&1"
+echo "HUTIAN_WAKE: ci+random small units done"

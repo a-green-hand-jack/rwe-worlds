@@ -1,0 +1,74 @@
+"""Step 1: MTEB sparse matrix (model x task) and dense pool.
+
+Rules (fixed here, logged in data_out/mteb_rules.json):
+ R1 revision: per model, cells are taken from the revision dir with most task files; missing tasks are filled from
+    the other revision dirs (in order of task count); share of filled cells reported.
+ R2 split: per task, the modal split over models (test > validation > dev > train on ties); other models missing there.
+ R3 subsets: per task, the modal subset set over models; a cell is the mean main_score over that set; a model that lacks
+    any subset of it is missing.
+ R4 dense pool: start from tasks with coverage >= MINCOV models; greedily delete the model or task with the most missing
+    cells in the remaining block (ties: lower coverage) until the block is complete, but stop at the largest block
+    with >= MIN_TASKS tasks maximising min(M, 10*N) -- see code; all candidate block sizes written out.
+Run: python3 build_mteb_matrix.py <long.parquet> <meta.parquet> <first_commit.json> <out_dir>
+"""
+import sys, json, collections
+import numpy as np, pandas as pd
+
+lp, mp, fp, out = sys.argv[1:5]
+df = pd.read_parquet(lp); meta = pd.read_parquet(mp); first = json.load(open(fp))
+SPL = {"test": 0, "validation": 1, "dev": 2, "train": 3}
+# R2
+nm = df.groupby(["task", "split"]).model.nunique().reset_index(name="n")
+nm["pr"] = nm.split.map(SPL)
+modal_split = nm.sort_values(["task", "n", "pr"], ascending=[True, False, True]).drop_duplicates("task").set_index("task").split
+df = df[df.split == df.task.map(modal_split)]
+# R3
+sets = df.groupby(["task", "model", "rev"]).subset.agg(lambda s: tuple(sorted(set(s)))).reset_index(name="ss")
+modal_set = sets.groupby("task").ss.agg(lambda s: collections.Counter(s).most_common(1)[0][0])
+df = df.merge(sets, on=["task", "model", "rev"])
+df = df[df.ss == df.task.map(modal_set)]
+cell = df.groupby(["model", "rev", "task"]).score.mean().reset_index()
+# R1
+ntask = cell.groupby(["model", "rev"]).task.nunique().reset_index(name="n")
+ntask["rank"] = ntask.groupby("model").n.rank(method="first", ascending=False)
+cell = cell.merge(ntask[["model", "rev", "rank"]], on=["model", "rev"])
+cell = cell.sort_values(["model", "task", "rank"]).drop_duplicates(["model", "task"])
+filled = float((cell["rank"] > 1).mean())
+W = cell.pivot(index="model", columns="task", values="score")
+print("sparse matrix", W.shape, "density %.3f" % W.notna().values.mean(), "share of cells from non-primary revision %.3f" % filled)
+W.to_parquet(f"{out}/mteb_sparse.parquet")
+# model info
+mi = meta.sort_values("n_parameters").drop_duplicates("model").set_index("model")[["name", "release_date", "n_parameters", "adapted_from", "embed_dim", "max_tokens"]]
+rd = meta.dropna(subset=["release_date"]).groupby("model").release_date.min()
+mi["release_date"] = rd
+mi["first_commit_ts"] = [first.get(m, [None, None])[1] for m in mi.index]
+mi["first_commit"] = [first.get(m, [None, None])[0] for m in mi.index]
+mi.to_parquet(f"{out}/mteb_models.parquet")
+# R4 candidate pool via greedy deletion
+MINCOV = 100
+tasks = [t for t in W.columns if W[t].notna().sum() >= MINCOV]
+B = W[tasks].notna().values.copy(); rows = list(W.index); cols = list(tasks)
+alive_r = np.ones(len(rows), bool); alive_c = np.ones(len(cols), bool)
+traj = []
+while True:
+    sub = B[np.ix_(alive_r, alive_c)]
+    M, N = sub.shape
+    traj.append((M, N, float(sub.mean()), alive_r.copy(), alive_c.copy()))
+    if sub.all() or M < 10 or N < 8: break
+    miss_r = (~sub).sum(1); miss_c = (~sub).sum(0)
+    # delete the row or column whose removal frees the most missing cells per unit "value" (rows cheaper than columns)
+    ri = np.argmax(miss_r); ci = np.argmax(miss_c)
+    if miss_r[ri] / N >= miss_c[ci] / M:
+        alive_r[np.where(alive_r)[0][ri]] = False
+    else:
+        alive_c[np.where(alive_c)[0][ci]] = False
+cand = [(M, N, d) for M, N, d, _, _ in traj if d == 1.0]
+print("complete block reached:", cand[:1])
+pd.DataFrame([(M, N, d) for M, N, d, _, _ in traj], columns=["M", "N", "density"]).to_csv(f"{out}/mteb_pool_trajectory.csv", index=False)
+M, N, d, ar, ac = traj[-1]
+pool_models = [r for r, a in zip(rows, ar) if a]; pool_tasks = [c for c, a in zip(cols, ac) if a]
+print("dense pool", M, N)
+Wd = W.loc[pool_models, pool_tasks]; assert Wd.notna().values.all()
+Wd.to_parquet(f"{out}/mteb_dense_pool.parquet")
+json.dump(dict(R1="union over revision dirs, primary = most tasks", R2="modal split", R3="modal subset set, mean main_score",
+               share_filled_nonprimary=filled, mincov=MINCOV, pool_models=M, pool_tasks=N), open(f"{out}/mteb_rules.json", "w"), indent=1)

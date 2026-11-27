@@ -1,0 +1,151 @@
+# Reproduction notes
+
+Everything in `results/` is computed by the code in `code/` from synthetic graphs, two public real graphs and the seeds below.
+Nothing is copied from the literature. CPU only. The figure and table scripts are described in the last section.
+
+## 1. Environment
+
+Python 3.11.2, CPU only. Pinned versions in `code/requirements.lock`: numpy 2.4.6, scipy 1.17.1, pandas 3.0.6, pyarrow 26.0.0,
+scikit-learn 1.9.1, networkx 3.6.1, matplotlib 3.11.2. Every script sets one thread per process (`OMP_NUM_THREADS=1`); runs are independent.
+
+```
+pip install -r code/requirements.lock
+export PYTHONPATH=$PWD/code/src
+```
+
+## 2. Data
+
+No experimental data is used: treatments are randomised by the code and outcomes are generated from the interference mechanisms.
+Only graphs are needed. Synthetic families (SBM, ER, BA, WS, degree-corrected SBM) are generated in `code/src/gate/graphs.py`.
+Two real graphs go in `code/data/raw/` (create it) and are checked against a hash on load:
+
+| file | source | sha256 |
+| --- | --- | --- |
+| `socfb-Stanford3.zip` | Network Repository, `https://nrvis.com/download/data/socfb/socfb-Stanford3.zip` (Traud, Mucha, Porter 2012; CC BY-SA) | `b1221e414dbaf3278468f60881bac932e935b8813020157bc6fb3823f5e8720d` |
+| `facebook_combined.txt.gz` | SNAP ego-Facebook, `https://snap.stanford.edu/data/facebook_combined.txt.gz` (McAuley, Leskovec 2012) | `125e84db872eeba443d270c70315c256b0af43a502fcfe51f50621166ad035d7` |
+
+The loader raises an error on a hash mismatch. The directory can be moved with `GATE_RAW=<dir>`.
+Real graphs are reduced to their giant component; mean degree is set by independent edge thinning (`graphs.thin`), so the thinned graphs also differ in size and clustering, and the tables carry `n`, `d`, `clustering_coef`, `dmax`.
+
+## 3. Seeds
+
+One master seed, `20261125`, in `code/scripts/grid.py`. Every random stream is seeded from `(master seed, graph family, n, d, graph draw index, run tag, role)`
+with role in {graph, pilot, assign}, so a run's result does not depend on how the runs are split into shards or on the order they are run.
+Synthetic cells: 10 graph draws x 300 assignments = 3000 assignments per run, bootstrap (B = 100) on the first 30 assignments of each graph.
+Real graphs: 1 graph x 3000 assignments, bootstrap on the first 300. The grid was frozen in `code/ANALYSIS_PLAN.md` before the runs; later runs are extensions and are labelled as such in the tables.
+
+## 4. Commands
+
+All commands run from `code/`; `OUT` is any scratch directory. A run writes `<run id>.pkl` (raw arrays, up to about 10 MB each; about 1.7 GB for everything including the reruns, so the raw files are not delivered) or `<run id>.degenerate.json`.
+Finished runs are skipped, so a command can be repeated.
+
+```
+python scripts/grid.py list                          # the frozen run list (104 runs) and the extension lists
+python scripts/grid.py run  SHARD NSHARDS OUT/raw    # Tier G/O frozen grid (SHARD = 0 .. NSHARDS-1; any NSHARDS)
+python scripts/grid.py runA SHARD NSHARDS OUT/rawA   # Tier A (14 runs: lasso, ridge, random forest, gradient boosting, adaptive-threshold Hajek)
+python scripts/grid.py runX|runF|runG|runZ SHARD NSHARDS OUT/rawX|rawF|rawG|rawZ   # extensions: cluster designs, fine grid, other graphs, extra noise
+python scripts/grid.py runS SHARD NSHARDS OUT/rawS   # frozen-grid subset rerun with the extra functional (estimated spillover share)
+python scripts/grid.py runP SHARD NSHARDS OUT/rawP   # fine p grid (SBM, d = 20) for mechanisms (c) and (g)
+python scripts/grid.py runD SHARD NSHARDS OUT/rawD   # rerun of original cells with the cubic-curvature arrays used by the interval check (P6)
+python scripts/grid.py runC|runH SHARD NSHARDS OUT/rawC   # confirmatory block for P7 (mechanisms (a)-(h), new seeds, two new graph families); run only after the P6/P7 freeze
+python scripts/run_ht.py SHARD NSHARDS OUT/rawK      # unnormalised Horvitz-Thompson columns (ht75, ht100) on the 22 cluster-design runs; same seeds, assignments and graph draws as the D rerun
+python scripts/run_gnn.py SHARD NSHARDS OUT/rawGNN   # graph neural network on the 14 Tier A cells (cell i goes to shard i mod NSHARDS; first 10 of 40 assignments per graph draw, 50 of 200 on real graphs); 3.6-4.1 h per cell
+scripts/aggregate_all.sh OUT                         # all tables into OUT/tables (the P6 and P7 tables, the true-M arm, the GNN and cluster HT tables included)
+python scripts/export_results.py OUT/tables results  # copy tables and write their .meta.json
+```
+
+Run time as recorded in the raw files (wall-clock of each run, on a host shared by several jobs, so an upper bound; one CPU per run):
+
+| set | runs written | summed time |
+| --- | --- | --- |
+| frozen Tier G/O grid | 99 (+5 degenerate designs) | 4.3 h |
+| Tier A | 14 | 3.3 h |
+| extension X (cluster designs, DC-SBM, baselines) | 18 (+1 degenerate) | 0.8 h |
+| extensions F, G, Z | 3, 5, 4 | 0.4 h |
+| rerun with `bz` | 78 | 2.8 h |
+| rerun with the cubic-curvature arrays (`runD`, P6) | 119 | 5.6 h |
+| confirmatory block (`runC`, P6 and P7) | 33 | 1.3 h |
+| cluster HT rerun (`run_ht.py`) | 22 | 1.0 h |
+| GNN (`run_gnn.py`) | 13 of 14 (the SBM d = 80, p = 0.25 cell did not finish within the 4 h job limit) | 22.7 h (0.5 to 4.1 h per cell) |
+
+Aggregation (`aggregate_all.sh`, including the bias prediction) took 13 minutes on 4 CPUs on a loaded host. Total about 12 CPU-hours for the frozen grid and its first extensions; the reruns and block above add 6.9 h, the cluster HT rerun 1.0 h and the GNN 22.7 h. The tables of the true-M arm take a few minutes each.
+
+## 5. Script to table map
+
+| script | writes (in `results/`) |
+| --- | --- |
+| `analysis/make_cells.py` | `cells.parquet`, `ratios.parquet` |
+| `analysis/make_draws.py` | `draws.parquet` |
+| `analysis/predict_bias.py` | `bias_prediction.csv` |
+| `analysis/make_diag.py` | `diag_rows.parquet`, `diag_cells.parquet`, `diagnostic.csv`, `diagnostic_groups.csv`, `acceptance.csv`, `within_cell.csv`, `variance_components.csv`, `bias_reference.csv`, `cv_benchmark.csv`, `diagnostic_absolute.csv` |
+| `analysis/make_tierA.py` | `tierA_cells.csv` |
+| `analysis/parity_d.py` | `parity_d.csv` (median RMSE ratio of each Tier A learner to the regression, 95% bootstrap intervals by resampling cells and by resampling runs) |
+| `analysis/populations.py` | `populations.csv` (filter and run count of each cell population behind a paper number: 2193, 1797, 2178, 1800, 1974, 1440, 1224, 9795) |
+| `analysis/make_gnn.py` | `gnn_cells.csv` (GNN against dm, chin and the other Tier A learners on the same draws; 13 of 14 cells) |
+| `analysis/make_ht.py` | `cluster_ht_cells.csv` (Hajek and unnormalised Horvitz-Thompson exposure estimators under the cluster designs) |
+| `analysis/p6_interval.py` | `p6/p6_*.csv`, `p6/p6_frozen.json` (extrapolation-sensitivity interval; the multipliers are frozen on the original cells) |
+| `analysis/p6_true_m.py` | `p6/p6_true_m_{confirmatory,original}*.csv` (exploratory arm after the results: the interval with the true curvature, a noise-free cubic and a noise-lean estimate; run on `rawC` and `rawD`) |
+| `analysis/p7_confirm.py` | `p7/*.csv` (confirmatory test of the noise-adjusted score on the block; coefficients frozen on the original cells) |
+| `analysis/hk_compare.py` | `hk_compare*.csv` (Holme-Kim against the other families on the threshold mechanism; exploratory) |
+| `analysis/make_calibration.py` | `calibration.csv` |
+| `analysis/cluster_quality.py` | `cluster_quality.csv` |
+| `analysis/check_rerun.py` | `check_rerun.csv` |
+| `analysis/explain_cells.py` | `exposure_spread_d.csv`, `b_dispersion.csv` |
+| `analysis/why_curvature.py` | `why_curvature_cells.csv`, `why_curvature_summary.csv` |
+| `analysis/or_fit_check.py` | `or_fit_check.csv` (re-simulation of the core cell with a fresh seed; not part of `aggregate_all.sh`) |
+| `analysis/claims.py` | `claims/c1_exponents.csv`, `c1_*`, `c2_*`, `c3_*`, `c4_*`, `c5_cluster.csv`, `c6_verdict.csv`, `c7_*`, `c8_*`, `tierA_summary.csv`: reductions of the tables above, one file per claim of the study (see the docstring of the script) |
+
+Each table has a `<name>.meta.json` with the script, the commit of the code that computed it, the seed, the number of draws and the date.
+Column definitions are in the docstrings of the scripts: `agg.py` (errors and variance components), `make_cells.py` (cell metrics and coverage), `make_diag.py` (diagnostic and acceptance rule).
+Errors are `(tau_hat - tau)/tau` with `tau` the realised global effect on that graph draw; `sigma` is the noise standard deviation as a multiple of the standard deviation of the noise-free outcome; `sigma` = 2 and 4 are extensions.
+
+## 6. Checks
+
+* **Unchanged defaults.** The `bz` rerun (`runS`) adds one functional to every run. `results/check_rerun.csv` shows that for all 78 reruns every array of the original run (signal, noise, weights, outcome-regression fit, standard errors, assignment exposures, true effects) is bit-identical. The tables use the rerun for the runs that have one, so each run enters once.
+* **Null check.** With a correct specification and no noise the estimator error is zero to machine precision (`calibration.csv`, `null_check_error`).
+* **Exact decomposition.** Every regression estimator is a linear functional `w'y`, so variance is split exactly into base, misfit, noise and cross terms; the shares in `cells.parquet` sum to one.
+
+## 7. Departures from the plan and the brief
+
+* The Tier-G grid was run as frozen. CMP (panel outcomes) was dropped, the adaptive-threshold Hajek estimator is a simplified version, the graph neural network ran on 13 of the 14 Tier A cells and 50 draws per cell (one architecture, no tuning of width or depth; the SBM d = 80, p = 0.25 cell did not finish within the 4 h job limit and is absent from `gnn_cells.csv`), and the cluster Horvitz-Thompson estimator was implemented in its unnormalised form (`ht75`, `ht100`) next to the Hajek form, on the 22 cluster runs at s = 0.5 only, with exposure probabilities of the cluster design by Monte Carlo (M = 1000, floor 1e-4). Neither was run on Tier G.
+* Graph families are plain SBM and (as an extension) degree-corrected SBM; Louvain clusters are used for cluster designs.
+* **Degenerate cluster designs.** A cluster-randomised design needs at least 4 clusters. Louvain at resolution 0.3 returns one cluster on the synthetic graphs tried (ER, BA, SBM at d = 5, 20, 80, and the weak-community SBM), so no cluster design exists and the run is skipped (the real graphs do give clusters at 0.3); `results/cluster_quality.csv` lists the cluster counts, sizes, modularity and the probability that all clusters get one arm. Resolutions 1 and 3 and the planted partition were run instead. The cluster guard was added after the first launch of some shards: jobs started before it hung on the degenerate designs (no output for about 30 minutes) and were stopped and restarted with the current code; finished runs are unchanged by this, since a run is determined by its seed and configuration alone.
+* **The score S specified before the runs is dominated by noise.** The spec-disagreement score S includes the noise part of the disagreement between specifications, so it mostly measures noise, not misfit. The noise-adjusted and noise-free variants are reported as exploratory in `acceptance.csv` (`variant` column). Only rows with `counted = True` enter the verdict.
+* Part (i) of the diagnostic is judged on D*: cells whose misfit share of variance is at least 0.2, selected on the first half of the assignments and tested on the other half. D* with fewer than 2 families or fewer than 50 rows is too thin to decide.
+
+## 8. Access record
+
+The published study that addresses this exact question was not searched for, opened or read at any point of the analysis.
+
+## 9. Figures and tables
+
+The generators are in `figures/gen/` (`common.py`, `style.py`, `venue.json` shared; one script per figure or table). Each reads `results/`
+(read-only, the analysis tables), computes no result of its own, and writes the PDF/TeX and the CSV of the plotted values. Figures are vector PDFs with Type 42 fonts, cropped
+to the 5.5 in text width (`style.save`), and a check (`style.check_min_type`) stops a script if any text is below 8 pt. From the repository root, with the environment of section 1:
+
+```
+cd figures/gen
+for f in fig1_regime_map fig3_bias_sd fig5_tiers fig6_cluster fig7_diagnostic fig9_coverage figA2_variance figA4_p figA8_robust figA9_orfit figP6_interval; do python3 $f.py ../../results ..; done
+for f in t1_mechanisms t2_acceptance t3_regime; do python3 $f.py ../../results ../../tables; done
+```
+
+The first column is the number in the paper; the generator names (`fig3_...`, `fig9_...`) and the figure numbers of `figures/CAPTIONS.md` are internal and differ from it.
+
+| paper item | script | output | claim | reads |
+| --- | --- | --- | --- | --- |
+| Fig. 2 | `fig1_regime_map.py` | `figures/fig1_regime_map.pdf` (+ `_A.csv`, `_B.csv`) | C4 regime map, break-even s* | `ratios.parquet`, `claims/c4_breakeven.csv` |
+| Fig. 1 | `fig3_bias_sd.py` | `figures/fig3_bias_sd.pdf` | C2, C3 bias and SD against d and p | `cells.parquet` (core runs and the fine-p runs `pfine_*`) |
+| Fig. 3 | `fig5_tiers.py` | `figures/fig5_tiers.pdf` | C4 tiers G, A, O against DM | `tierA_cells.csv`, `ratios.parquet` |
+| Fig. 11 | `fig6_cluster.py` | `figures/fig6_cluster.pdf` | C5 cluster designs | `cells.parquet` |
+| Fig. 5 | `fig7_diagnostic.py` | `figures/fig7_diagnostic.pdf` | C6 diagnostic, per-group gains | `diagnostic.csv`, `diag_cells.parquet`, `diagnostic_groups.csv`, `diagnostic_absolute.csv`, `acceptance.csv` |
+| Fig. 4 | `fig9_coverage.py` | `figures/fig9_coverage.pdf` | C8 coverage against bias/SD and L | `cells.parquet` |
+| Fig. 6 | `figA2_variance.py` | `figures/figA2_variance.pdf` (+ `_A.csv`, `_B.csv`) | C1 variance = sigma^2 L / n, exponents | `cells.parquet`, `claims/c1_exponents.csv` |
+| Fig. 7 | `figA4_p.py` | `figures/figA4_p.pdf` | C3 p-dependence at every degree | `claims/c3_p_dependence.csv` |
+| Fig. 8 | `figA8_robust.py` | `figures/figA8_robust.pdf` (+ `_A.csv`, `_B.csv`) | C7 edge noise, real against synthetic | `claims/c7_edge_noise.csv`, `claims/c7_real_vs_synthetic.csv` |
+| Fig. 9 | `figA9_orfit.py` | `figures/figA9_orfit.pdf` (+ `.csv`) | C4 why the fitted-form oracle fails at d >= 20 | `or_fit_check.csv` |
+| Fig. 10 | `figP6_interval.py` | `figures/figP6_interval.pdf` (+ `_AB.csv`, `_C.csv`, `_D.csv`) | P6 coverage and width of the extrapolation-sensitivity interval | `p6/p6_confirmatory_strata_at_frozen_kappa.csv`, `p6/p6_confirmatory_threshold_and_prediction1.csv`, `p6/p6_confirmatory_curve_by_mechanism.csv` |
+| Tables 3, 4 | `t1_mechanisms.py` | `tables/t1_mechanisms.tex`, `tables/t1_calibration_full.tex` | C0 mechanisms and calibration | `calibration.csv` |
+| Table 2 | `t2_acceptance.py` | `tables/t2_acceptance.tex` | C6 acceptance-rule criteria | `acceptance.csv`, `claims/c6_verdict.csv`, `bias_reference.csv`, `diagnostic_absolute.csv`, `p7/p7_confirmatory.csv` |
+| Table 1 | `t3_regime.py` | `tables/t3_regime.tex` | C4, C8 regime shares and coverage by factor | `claims/c4_regime_share.csv`; coverage column from `cells` (the Fig. 4 population) |
+
+Captions, placement and what each carries: `figures/CAPTIONS.md`. Each figure was run on the results of analysis commit `c52a5f1a643c` (`results/*.meta.json`), master seed 20261125.

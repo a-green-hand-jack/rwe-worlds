@@ -1,0 +1,287 @@
+@article{angelopoulos2023ppi,
+  title={Prediction-powered inference},
+  author={Angelopoulos, Anastasios N. and Bates, Stephen and Fannjiang, Clara and Jordan, Michael I. and Zrnic, Tijana},
+  journal={Science},
+  volume={382},
+  number={6671},
+  pages={669--674},
+  year={2023}
+}
+@article{angelopoulos2023ppipp,
+  title={{PPI++}: Efficient prediction-powered inference},
+  author={Angelopoulos, Anastasios N. and Duchi, John C. and Zrnic, Tijana},
+  journal={arXiv preprint arXiv:2311.01453},
+  year={2023}
+}
+@article{zrnic2024cross,
+  title={Cross-prediction-powered inference},
+  author={Zrnic, Tijana and Cand{\`e}s, Emmanuel J.},
+  journal={Proceedings of the National Academy of Sciences},
+  volume={121},
+  number={15},
+  pages={e2322083121},
+  year={2024}
+}
+@inproceedings{zrnic2024active,
+  title={Active statistical inference},
+  author={Zrnic, Tijana and Cand{\`e}s, Emmanuel J.},
+  booktitle={International Conference on Machine Learning},
+  year={2024}
+}
+@article{fisch2024stratified,
+  title={Stratified prediction-powered inference for hybrid language model evaluation},
+  author={Fisch, Adam and Maynez, Joshua and Hofer, R. Alex and Dhingra, Bhuwan and Globerson, Amir and Cohen, William W.},
+  journal={arXiv preprint arXiv:2406.04291},
+  year={2024}
+}
+@article{chernozhukov2018double,
+  title={Double/debiased machine learning for treatment and structural parameters},
+  author={Chernozhukov, Victor and Chetverikov, Denis and Demirer, Mert and Duflo, Esther and Hansen, Christian and Newey, Whitney and Robins, James},
+  journal={The Econometrics Journal},
+  volume={21},
+  number={1},
+  pages={C1--C68},
+  year={2018}
+}
+@article{robins1994estimation,
+  title={Estimation of regression coefficients when some regressors are not always observed},
+  author={Robins, James M. and Rotnitzky, Andrea and Zhao, Lue Ping},
+  journal={Journal of the American Statistical Association},
+  volume={89},
+  number={427},
+  pages={846--866},
+  year={1994}
+}
+@book{tsiatis2006semiparametric,
+  title={Semiparametric Theory and Missing Data},
+  author={Tsiatis, Anastasios A.},
+  publisher={Springer},
+  year={2006}
+}
+@article{zhang2019semi,
+  title={Semi-supervised inference: General theory and estimation of means},
+  author={Zhang, Anru and Brown, Lawrence D. and Cai, T. Tony},
+  journal={The Annals of Statistics},
+  volume={47},
+  number={5},
+  pages={2538--2566},
+  year={2019}
+}
+@article{gronsbell2022efficient,
+  title={Efficient evaluation of prediction rules in semi-supervised settings under stratified sampling},
+  author={Gronsbell, Jessica and Liu, Molei and Tian, Lu and Cai, Tianxi},
+  journal={Journal of the Royal Statistical Society: Series B},
+  volume={84},
+  number={4},
+  pages={1353--1391},
+  year={2022}
+}
+@article{wang2020methods,
+  title={Methods for correcting inference based on outcomes predicted by machine learning},
+  author={Wang, Siruo and McCormick, Tyler H. and Leek, Jeffrey T.},
+  journal={Proceedings of the National Academy of Sciences},
+  volume={117},
+  number={48},
+  pages={30266--30275},
+  year={2020}
+}
+@article{kallus2024surrogates,
+  title={On the role of surrogates in the efficient estimation of treatment effects with limited outcome data},
+  author={Kallus, Nathan and Mao, Xiaojie},
+  journal={Journal of the Royal Statistical Society: Series B},
+  volume={87},
+  number={2},
+  pages={480--509},
+  year={2024}
+}
+@article{chakrabortty2018efficient,
+  title={Efficient and adaptive linear regression in semi-supervised settings},
+  author={Chakrabortty, Abhishek and Cai, Tianxi},
+  journal={The Annals of Statistics},
+  volume={46},
+  year={2018},
+  doi={10.1214/17-AOS1594}
+}
+@article{azriel2022semi,
+  title={Semi-supervised linear regression},
+  author={Azriel, David and Brown, Lawrence D. and Sklar, Michael and Berk, Richard and Buja, Andreas and Zhao, Linda},
+  journal={Journal of the American Statistical Association},
+  year={2022},
+  doi={10.1080/01621459.2021.1915320}
+}
+@article{zhang2022high,
+  title={High-dimensional semi-supervised learning: in search of optimal inference of the mean},
+  author={Zhang, Yuqian and Bradic, Jelena},
+  journal={Biometrika},
+  year={2022},
+  doi={10.1093/biomet/asab042}
+}
+@article{song2024general,
+  title={A general {M}-estimation theory in semi-supervised framework},
+  author={Song, Shanshan and Lin, Yuanyuan and Zhou, Yong},
+  journal={Journal of the American Statistical Association},
+  volume={119},
+  number={546},
+  pages={1065--1075},
+  year={2024},
+  doi={10.1080/01621459.2023.2169699}
+}
+@article{miao2023assumption,
+  title={Assumption-lean and data-adaptive post-prediction inference},
+  author={Miao, Jiacheng and Miao, Xinran and Wu, Yixuan and Zhao, Jiwei and Lu, Qiongshi},
+  journal={arXiv preprint arXiv:2311.14220},
+  year={2023}
+}
+@article{zrnic2024note,
+  title={A note on the prediction-powered bootstrap},
+  author={Zrnic, Tijana},
+  journal={arXiv preprint arXiv:2405.18379},
+  year={2024}
+}
+@article{bang2005doubly,
+  title={Doubly robust estimation in missing data and causal inference models},
+  author={Bang, Heejung and Robins, James M.},
+  journal={Biometrics},
+  volume={61},
+  number={4},
+  pages={962--972},
+  year={2005},
+  doi={10.1111/j.1541-0420.2005.00377.x}
+}
+@article{brown2001interval,
+  title={Interval estimation for a binomial proportion},
+  author={Brown, Lawrence D. and Cai, T. Tony and DasGupta, Anirban},
+  journal={Statistical Science},
+  volume={16},
+  number={2},
+  pages={101--133},
+  year={2001}
+}
+@article{wilson1927probable,
+  title={Probable inference, the law of succession, and statistical inference},
+  author={Wilson, Edwin B.},
+  journal={Journal of the American Statistical Association},
+  volume={22},
+  number={158},
+  pages={209--212},
+  year={1927}
+}
+@book{efron1993introduction,
+  title={An Introduction to the Bootstrap},
+  author={Efron, Bradley and Tibshirani, Robert J.},
+  publisher={Chapman \& Hall},
+  year={1993}
+}
+@book{cochran1977sampling,
+  title={Sampling Techniques},
+  author={Cochran, William G.},
+  edition={3},
+  publisher={Wiley},
+  year={1977}
+}
+@inproceedings{ding2021retiring,
+  title={Retiring {A}dult: New datasets for fair machine learning},
+  author={Ding, Frances and Hardt, Moritz and Miller, John and Schmidt, Ludwig},
+  booktitle={Advances in Neural Information Processing Systems},
+  year={2021}
+}
+@article{bludau2022structural,
+  title={The structural context of posttranslational modifications at a proteome-wide scale},
+  author={Bludau, Isabell and Willems, Sander and Zeng, Wen-Feng and others},
+  journal={PLOS Biology},
+  volume={20},
+  number={5},
+  pages={e3001636},
+  year={2022}
+}
+@article{vaishnav2022evolution,
+  title={The evolution, evolvability and engineering of gene regulatory {DNA}},
+  author={Vaishnav, Eeshit Dhaval and de Boer, Carl G. and Molinet, Jennifer and others},
+  journal={Nature},
+  volume={603},
+  pages={455--463},
+  year={2022}
+}
+
+@article{willett2013galaxy,
+  author = {Willett, Kyle W. and Lintott, Chris J. and Bamford, Steven P. and Masters, Karen L. and Simmons, Brooke D. and others},
+  title = {Galaxy {Zoo} 2: detailed morphological classifications for 304,122 galaxies from the {Sloan Digital Sky Survey}},
+  journal = {Monthly Notices of the Royal Astronomical Society},
+  volume = {435},
+  number = {4},
+  pages = {2835--2860},
+  year = {2013},
+  doi = {10.1093/mnras/stt1458}
+}
+
+@article{bullock2020forest,
+  author = {Bullock, Eric L. and Woodcock, Curtis E. and Souza Jr., Carlos and Olofsson, Pontus},
+  title = {Satellite-based estimates reveal widespread forest degradation in the {Amazon}},
+  journal = {Global Change Biology},
+  volume = {26},
+  number = {5},
+  pages = {2956--2969},
+  year = {2020},
+  doi = {10.1111/gcb.15029}
+}
+
+@article{sexton2013global,
+  author = {Sexton, Joseph O. and Song, Xiao-Peng and Feng, Min and Noojipady, Praveen and others},
+  title = {Global, 30-m resolution continuous fields of tree cover: {Landsat}-based rescaling of {MODIS} vegetation continuous fields with lidar-based estimates of error},
+  journal = {International Journal of Digital Earth},
+  volume = {6},
+  number = {5},
+  pages = {427--448},
+  year = {2013},
+  doi = {10.1080/17538947.2013.786146}
+}
+
+@article{olson2003automated,
+  author = {Olson, Robert J. and Shalapyonok, Alexi and Sosik, Heidi M.},
+  title = {An automated submersible flow cytometer for analyzing pico- and nanophytoplankton: {FlowCytobot}},
+  journal = {Deep Sea Research Part I: Oceanographic Research Papers},
+  volume = {50},
+  number = {2},
+  pages = {301--315},
+  year = {2003},
+  doi = {10.1016/S0967-0637(03)00003-7}
+}
+
+@misc{orenstein2015whoi,
+  author = {Orenstein, Eric C. and Beijbom, Oscar and Peacock, Emily E. and Sosik, Heidi M.},
+  title = {{WHOI-Plankton}: a large scale fine grained visual recognition benchmark dataset for plankton classification},
+  howpublished = {arXiv preprint arXiv:1510.00745},
+  year = {2015}
+}
+
+@article{jumper2021highly,
+  author = {Jumper, John and Evans, Richard and Pritzel, Alexander and Green, Tim and others},
+  title = {Highly accurate protein structure prediction with {AlphaFold}},
+  journal = {Nature},
+  volume = {596},
+  pages = {583--589},
+  year = {2021},
+  doi = {10.1038/s41586-021-03819-2}
+}
+
+@article{zhang2002risk,
+  author = {Zhang, Cun-Hui},
+  title = {Risk bounds in isotonic regression},
+  journal = {The Annals of Statistics},
+  volume = {30},
+  number = {2},
+  pages = {528--555},
+  year = {2002},
+  doi = {10.1214/aos/1021379864}
+}
+
+@article{schick1986asymptotically,
+  author = {Schick, Anton},
+  title = {On asymptotically efficient estimation in semiparametric models},
+  journal = {The Annals of Statistics},
+  volume = {14},
+  number = {3},
+  pages = {1139--1151},
+  year = {1986},
+  doi = {10.1214/aos/1176350055}
+}

@@ -1,0 +1,36 @@
+"""Lists the cells every experiment script plans (by running the scripts with `run_grid` replaced by a recorder, so the
+scripts are the only source of the design) and which of them have a stored result. Writes results/planned_cells.csv.
+usage: python planned.py"""
+import os, sys, runpy
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(HERE, "..", "src"))
+sys.path.insert(0, os.path.join(HERE, "..", "experiments"))
+import pandas as pd
+import common
+from pci.paths import results_dir
+
+REAL = ["galaxies", "forest", "alphafold", "gene_expression", "census_income", "census_healthcare", "census_education",
+        "plankton", "ballots"]
+RUNS = ([("exp1_synth.py", [p, "1"]) for p in "ABC"] + [("exp3_real.py", [s, "1"]) for s in REAL] +
+        [("exp3_real.py", [s, "1", "disjoint"]) for s in ("galaxies", "gene_expression", "census_income")] +
+        [("exp3b_stress.py", ["1"]), ("exp3_T2ref.py", ["1"]), ("exp3c_K10.py", ["1"]), ("exp4_Nratio.py", ["1"])] +
+        [("exp5_constructions.py", [s, "1"]) for s in ("synth_rare", "forest", "ballots", "galaxies", "alphafold",
+                                                       "census_healthcare", "plankton")] +
+        [("exp6_T2.py", [p, "1"]) for p in ("real", "synth")] + [("exp7_fail.py", [p, "1"]) for p in ("shift", "select", "rare")])
+rows = []
+
+
+def recorder(exp, cells, procs, seed0=0, only=None):
+    for c in cells:
+        rows.append(dict(dir=exp, id=c["id"], n=c["n"], N=c["N"], reps=c["R"]))
+
+
+common.run_grid = recorder
+for script, args in RUNS:
+    sys.argv = [script] + args
+    runpy.run_path(os.path.join(HERE, "..", "experiments", script), run_name="__main__")
+df = pd.DataFrame(rows).drop_duplicates(["dir", "id"])
+R = results_dir()
+df["done"] = [int(os.path.exists(os.path.join(R, d, i + ".npz"))) for d, i in zip(df.dir, df.id)]
+df.to_csv(os.path.join(R, "planned_cells.csv"), index=False)
+print(df.groupby("dir").done.agg(["sum", "count"]))

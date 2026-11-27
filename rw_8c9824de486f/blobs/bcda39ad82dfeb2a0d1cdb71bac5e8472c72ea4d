@@ -1,0 +1,35 @@
+{
+  "analysis_commit": "66252a8",
+  "figure": "figtab/fig3_theory_vs_measurement.pdf",
+  "inputs": [
+    {
+      "path": "results/synth/synth_summary.csv",
+      "sha256": "01072d4f5918b3fb5731be84e053b65ac68f3f7a8d3a1614a7e72e3242c19e9b"
+    },
+    {
+      "path": "results/synth/synth_estimation_fit.csv",
+      "sha256": "b2768c6f69e7564038c2d102379f8bbe11807904eca83c5ae31044b8984ccada"
+    },
+    {
+      "path": "results/ct_decomposition.csv",
+      "sha256": "cfd0bcf582df7039ca706e354d9f987c4207071ad53289299e8b9bab306f70cc"
+    },
+    {
+      "path": "results/floor_misfit_summary.csv",
+      "sha256": "d172aa756447088d8b46015522d843e6017f4d0ebea276a92bcf70a76192c835"
+    },
+    {
+      "path": "results/ct_run_meta.json",
+      "sha256": "d7f791d3f5e560b552e0522ecbac0f820d5bebb13b4a4ad906b9db2bdf5916b3"
+    }
+  ],
+  "n_groups_in_real_panel": 51,
+  "n_models_in_real_panel": 154,
+  "n_seeds_synthetic": 8.0,
+  "panels": {
+    "a": "synthetic, separated, correct model L0, M=320",
+    "b": "synthetic, decaying, correct model L0, M=240",
+    "c": "real MTEB, common target set, split G, subset fixed"
+  },
+  "script": "figtab/make_fig3.py"
+}

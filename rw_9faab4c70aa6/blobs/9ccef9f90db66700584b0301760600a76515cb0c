@@ -1,0 +1,53 @@
+\section{Definitions and further results}
+\label{app:definitions}
+
+\paragraph{Refined predictor and search budgets.}
+The refined predictor shrinks the $S$-scores toward their mean by $\hat\sigma_\theta^2/(\hat\sigma_\theta^2+\mathrm{se}_k^2)$, with $\hat\sigma_\theta^2$ the spread of the scores minus the mean noise variance, adds $Z^*$, selects the maximiser $k^*$ and returns $\EE Z^*_{k^*}$.
+The multiplier bootstrap uses $500$ draws.
+For random search the evaluated set is the $B$ configurations drawn; for hill climbing, the distinct configurations visited.
+
+\paragraph{Protocol definitions.}
+\emph{Split}: search on $(1-f)N_{\mathrm{tot}}$ items, report the accuracy of the selection on the held-out $f$.
+\emph{Nested cross-fit}: the search is repeated on four of five folds, scored on the fifth, and the pooled held-out accuracy is reported for the procedure ($\EE\theta(\chat)$); the deployed configuration is the one found on all items.
+\emph{Optimism bootstrap}: with $100$ resamples $U^b$ and the configuration $\chat_b$ selected on each, the report is $\hat A_U(\chat)-\frac1{100}\sum_b[\hat A_{U^b}(\chat_b)-\hat A_U(\chat_b)]$; the .632 variant mixes $\hat A_U(\chat)$ with the out-of-bag accuracy of the $\chat_b$ with weights $0.368$ and $0.632$.
+\emph{Bonferroni} and \emph{\v{S}id\'ak}: $\hat A_U(\chat)-z\,\widehat{\mathrm{se}}$ with $z=z_{1-\alpha/m}$ or $\Phi^{-1}((1-\alpha)^{1/m})$, which differ by about $0.005$ at $m=128$.
+\emph{Pointwise}: the same bound with $m=1$, the reference without multiplicity adjustment.
+\emph{Max-t}: $\widehat{\mathrm{se}}(\chat)=\sqrt{\hat p(1-\hat p)/n}$ with $\hat p(1-\hat p)$ floored at $1/(4n)$, and $\widehat{\mathrm{sd}}_k$ the item-level standard deviation of column $k$, with $500$ multiplier-bootstrap draws.
+On the synthetic arm the truth is exact and there is one scoring, with a check that adds fresh-set noise to it.
+
+\paragraph{Decision tests.}
+The naive and split tests are paired $z$ tests with the sample standard deviation of the per-item difference, the split test on a 50/50 split of $S$; the simultaneous test computes $q$ on the paired differences to the default over the declared set.
+For tuned versus tuned the truth is the difference of fresh accuracies of the selected configurations.
+
+\paragraph{Generative model beyond the matrix.}
+$\mathrm{logit}\,P(\text{item } i \text{ correct under } k)=\mu+a_i+b_k+U_i\!\cdot\!V_k$, with item and configuration effects and a low-rank interaction.
+Rank and penalty are chosen on $10\%$ of cells held out from the fit, from ranks $\{1,3,5,8,12,20\}$ and penalties $\{0.001,0.005,0.02\}$; the selected rank is $20$, at the upper edge of the grid, but the held-out likelihood is flat beyond rank $12$.
+Validation fits one part and predicts the gap measured on another: a random half of the items predicting the other half; $75$ of the $128$ configurations predicting all $128$; and the fitted dependence between configurations replaced by independent or equicorrelated ones.
+A prediction passes if it lies inside the item-bootstrap percentile interval of the measured gap, which includes the Monte-Carlo noise of the draws.
+Curves extend to $n=800$ and $K=512$; the validated support is $n\le200$, $K\le128$.
+
+\paragraph{Leakage probe.}
+Each of the nine demonstration items is scored once with itself among the demonstrations and once with it swapped for a spare item, under both labellings; $\Delta_{\mathrm{leak}}$ is the mean increase in the probability of answering it correctly, with an item-bootstrap interval over the nine.
+It is a small probe of this model and space, not a rate for the benchmark.
+
+\begin{table}[h]
+\centering
+\caption{The measured pool.}
+\label{tab:facts}
+\small
+\input{../tables/tab1}
+\end{table}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\linewidth]{../figures/fig6.pdf}
+\caption{Gap predicted by the generative model (fitted on the real pool) against the measured gap on held-out items, and curves beyond the matrix. (a) Split-half fit and fit on $75$ of $128$ configurations; bars are item-bootstrap intervals of the measured value. (b) Predicted gap against $n$ for $K=32,128,512$ at $B=100$; open markers lie outside the validated support. (c) Coverage of the max-t lower bound in the same worlds ($400$ draws per cell; nominal $0.95$).}
+\label{fig:beyond}
+\end{figure}
+
+\begin{table}[h]
+\centering
+\caption{A real search tool against the replay at $n=60$ (Section~\ref{sec:tool}). The tool: $24$ draws of $S$, $19$ programs evaluated, truth on $400$ pool items outside $S$ per draw, $t$-interval over the draws, $20$ of $24$ draws positive. The replay: random search over $20$ configurations on the matrix. The two intervals are of different kinds: the replay's is the pool-bootstrap interval fixed before the result, marked * and used for the verdict; the one with draw noise included contains the tool's mean gap but was not used. The tool's own interval contains the replay gap.}
+\label{tab:tool}
+\input{../tables/tab3}
+\end{table}

@@ -1,0 +1,7 @@
+#!/bin/bash
+# usage: launch_floor_b.sh CPUS NOTE -- (commands: "DATASET MODEL N K" ...)  one job running floor_b_by_background.py for each given cell
+cpus=$1; note=$2; shift 2
+cd /hutian/repo
+cmd=""
+for c in "$@"; do cmd="$cmd python3 -u scripts/floor_b_by_background.py $c;"; done
+ht-resource run local-compute --cpus $cpus --memory 6000 --note "$note" -- env TMPDIR=/hutian/tmp OMP_NUM_THREADS=$cpus OPENBLAS_NUM_THREADS=$cpus bash -c "$cmd"

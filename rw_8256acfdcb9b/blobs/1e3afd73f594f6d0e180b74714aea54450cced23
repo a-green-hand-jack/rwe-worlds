@@ -1,0 +1,202 @@
+[
+ {
+  "dataset": "pima",
+  "d": 8,
+  "n": 768,
+  "model": "lr",
+  "fit_s": 0.05,
+  "auc": 0.8714,
+  "sec_per_2e5": 0.1,
+  "table_cpu_s_per_instance": 0.0
+ },
+ {
+  "dataset": "pima",
+  "d": 8,
+  "n": 768,
+  "model": "rf",
+  "fit_s": 0.29,
+  "auc": 0.8511,
+  "sec_per_2e5": 1.07,
+  "table_cpu_s_per_instance": 0.1
+ },
+ {
+  "dataset": "pima",
+  "d": 8,
+  "n": 768,
+  "model": "gbm",
+  "fit_s": 0.1,
+  "auc": 0.8248,
+  "sec_per_2e5": 0.54,
+  "table_cpu_s_per_instance": 0.0
+ },
+ {
+  "dataset": "pima",
+  "d": 8,
+  "n": 768,
+  "model": "mlp",
+  "fit_s": 0.11,
+  "auc": 0.7463,
+  "sec_per_2e5": 0.66,
+  "table_cpu_s_per_instance": 0.0
+ },
+ {
+  "dataset": "german",
+  "d": 20,
+  "n": 1000,
+  "model": "lr",
+  "fit_s": 0.32,
+  "auc": 0.8041,
+  "sec_per_2e5": 0.39,
+  "table_cpu_s_per_instance": 102.7
+ },
+ {
+  "dataset": "german",
+  "d": 20,
+  "n": 1000,
+  "model": "rf",
+  "fit_s": 0.28,
+  "auc": 0.8059,
+  "sec_per_2e5": 1.23,
+  "table_cpu_s_per_instance": 321.9
+ },
+ {
+  "dataset": "german",
+  "d": 20,
+  "n": 1000,
+  "model": "gbm",
+  "fit_s": 0.09,
+  "auc": 0.7782,
+  "sec_per_2e5": 0.56,
+  "table_cpu_s_per_instance": 145.5
+ },
+ {
+  "dataset": "german",
+  "d": 20,
+  "n": 1000,
+  "model": "mlp",
+  "fit_s": 0.49,
+  "auc": 0.8124,
+  "sec_per_2e5": 1.21,
+  "table_cpu_s_per_instance": 318.1
+ },
+ {
+  "dataset": "acs_employment",
+  "d": 16,
+  "n": 378817,
+  "model": "lr",
+  "fit_s": 2.93,
+  "auc": 0.8675,
+  "sec_per_2e5": 0.19,
+  "table_cpu_s_per_instance": 3.1
+ },
+ {
+  "dataset": "acs_employment",
+  "d": 16,
+  "n": 378817,
+  "model": "rf",
+  "fit_s": 1.84,
+  "auc": 0.8983,
+  "sec_per_2e5": 2.27,
+  "table_cpu_s_per_instance": 37.2
+ },
+ {
+  "dataset": "acs_employment",
+  "d": 16,
+  "n": 378817,
+  "model": "gbm",
+  "fit_s": 0.56,
+  "auc": 0.9015,
+  "sec_per_2e5": 0.54,
+  "table_cpu_s_per_instance": 8.8
+ },
+ {
+  "dataset": "acs_employment",
+  "d": 16,
+  "n": 378817,
+  "model": "mlp",
+  "fit_s": 11.57,
+  "auc": 0.8978,
+  "sec_per_2e5": 0.55,
+  "table_cpu_s_per_instance": 9.1
+ },
+ {
+  "dataset": "acs_income",
+  "d": 10,
+  "n": 195665,
+  "model": "lr",
+  "fit_s": 1.6,
+  "auc": 0.8753,
+  "sec_per_2e5": 0.24,
+  "table_cpu_s_per_instance": 0.1
+ },
+ {
+  "dataset": "acs_income",
+  "d": 10,
+  "n": 195665,
+  "model": "rf",
+  "fit_s": 2.83,
+  "auc": 0.8958,
+  "sec_per_2e5": 2.58,
+  "table_cpu_s_per_instance": 0.7
+ },
+ {
+  "dataset": "acs_income",
+  "d": 10,
+  "n": 195665,
+  "model": "gbm",
+  "fit_s": 0.5,
+  "auc": 0.9012,
+  "sec_per_2e5": 0.53,
+  "table_cpu_s_per_instance": 0.1
+ },
+ {
+  "dataset": "acs_income",
+  "d": 10,
+  "n": 195665,
+  "model": "mlp",
+  "fit_s": 12.79,
+  "auc": 0.8881,
+  "sec_per_2e5": 0.67,
+  "table_cpu_s_per_instance": 0.2
+ },
+ {
+  "dataset": "gmsc",
+  "d": 10,
+  "n": 150000,
+  "model": "lr",
+  "fit_s": 0.17,
+  "auc": 0.699,
+  "sec_per_2e5": 0.04,
+  "table_cpu_s_per_instance": 0.0
+ },
+ {
+  "dataset": "gmsc",
+  "d": 10,
+  "n": 150000,
+  "model": "rf",
+  "fit_s": 4.37,
+  "auc": 0.8521,
+  "sec_per_2e5": 2.14,
+  "table_cpu_s_per_instance": 0.5
+ },
+ {
+  "dataset": "gmsc",
+  "d": 10,
+  "n": 150000,
+  "model": "gbm",
+  "fit_s": 0.48,
+  "auc": 0.859,
+  "sec_per_2e5": 0.53,
+  "table_cpu_s_per_instance": 0.1
+ },
+ {
+  "dataset": "gmsc",
+  "d": 10,
+  "n": 150000,
+  "model": "mlp",
+  "fit_s": 6.6,
+  "auc": 0.8243,
+  "sec_per_2e5": 0.38,
+  "table_cpu_s_per_instance": 0.1
+ }
+]

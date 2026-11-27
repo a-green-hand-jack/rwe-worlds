@@ -1,0 +1,8 @@
+#!/bin/sh
+# usage: tools/build_all.sh RESULTS_DIR OUT_DIR  -- rebuild every figure and table (tables to OUT_DIR as well)
+set -e
+R=$1; O=$2; cd "$(dirname "$0")/../figs"
+for s in fig1_overview fig2_main fig3_gap fig4_shift fig5_theory fig7_history fig8_sparse figA1_spectra figA2_small figA3_coherence \
+         table1_datasets table2_kstar table3_coherence table4_theory tableA1_exploratory table_sparse tableA6_sparse_k tables_appendix; do
+  python3 -W ignore $s.py --results "$R" --out "$O" > /dev/null
+done

@@ -1,0 +1,878 @@
+"""Aggregates the stored Monte-Carlo cells (results/exp*/*.npz, per-replicate estimates and standard errors)
+into the delivered tables: results/cells.csv, prop_check.csv, breakeven.csv, diagnostic.csv, ladder.csv.
+usage: python build_results.py [cells|prop|breakeven|diagnostic|ladder|all]
+Every number in those files is computed here from the stored cells and results/floors.json; nothing is typed in."""
+import sys, os, json, glob
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+import numpy as np
+import pandas as pd
+from scipy import stats
+
+from pci import estimators as E
+from pci.analysis import wilson
+from pci.runner import load_cell
+from pci.pops import predicted_variances
+
+from pci.paths import results_dir
+R_DIR = results_dir()
+NOMINAL = 0.95
+Z = E.Z975
+K_CF, D_LIN, D_SPL = 5, 2, 7        # folds; degrees of freedom of the linear / spline(5 knots) calibrators
+BINARY_REAL = {"galaxies", "forest", "alphafold", "census_healthcare", "plankton", "ballots"}
+
+# stored arm -> (method id, tier). Methods not listed are not delivered.
+ARMS = {
+    "ppi": ("ppi", "T1"), "ppi++": ("ppipp", "T1"), "ppi++_unclip": ("ppipp_unclip", "T1"),
+    "pool_bins": ("strat_ppi", "T1"), "ppi++_on_iso": ("ppipp_on_iso", "T1"), "ppi++_on_spline": ("ppipp_on_spline", "T1"),
+    "pool_linear": ("pooled_linear", "T1"), "pool_spline": ("calib_spline", "T1"), "pool_isotonic": ("calib_iso", "T1"),
+    "select_T1": ("select", "T1"), "selectmin_T1": ("selectmin", "T1"),
+    "pool_linX": ("ols_adj", "T2"), "ppi++_on_linX": ("vec_ppipp_x", "T2"), "pool_gbmX": ("gbm_aipw", "T2"),
+    "pool_splineX": ("calib_x", "T2"), "select_T2": ("select_x", "T2"), "selectmin_T2": ("selectmin_x", "T2"),
+    "oracle_m": ("oracle_m", "oracle"), "oracle_lin": ("oracle_lin", "oracle"),
+}
+BOOT = {"boot_linear": "pooled_linear", "boot_isotonic": "calib_iso"}
+EXP_DIRS = {"exp1": "E1", "exp3": "E3", "exp3b": "E3", "exp3t2": "E3", "exp3_disjoint": "E3", "exp3k10": "E3", "exp4": "E4", "exp5": "E5",
+            "exp6": "E6", "exp7": "E7"}
+
+
+# ------------------------------------------------------------------------------------------- naming
+def is_binary(name):
+    return any(name.startswith(b) for b in BINARY_REAL) or name.startswith("syn_binary")
+
+
+def dataset_name(pop):
+    """Population name stored in the cell -> dataset id used in the delivered files."""
+    if pop.startswith("quad_c"):
+        c = pop.split("_")[1][1:]
+        return "syn_affine" if float(c) == 0 else f"syn_quad_c{c}"
+    if pop.startswith("tanh"):
+        return "syn_tanh"
+    if pop.startswith("sin"):
+        return "syn_nonmono"
+    if pop.startswith("bin_a"):
+        a = float(pop.split("_")[1][1:])
+        return "syn_binary" if a == -1.0 else f"syn_binary_a{a}"   # a = logit offset; prevalence in `truth`
+    if pop.startswith("X_t1"):
+        t1, t2 = pop.split("_")[1][2:], pop.split("_")[2][2:]
+        return f"syn_x_t1{t1}_t2{t2}"
+    return pop
+
+
+def floor_key(pop):
+    """Key of the population in floors.json (None if no population floor was computed)."""
+    fl = FLOORS
+    for k in (pop, "synth:" + pop):
+        if k in fl:
+            return k
+    return None
+
+
+def sampling_of(pop, exp):
+    if exp == "exp3_disjoint":
+        return "disjoint"
+    if "shift" in pop:
+        return "shift"
+    if pop == "ballots":
+        return "labeled_only_resample"
+    if "_sel-" in pop:
+        return "selected_labeling"
+    if dataset_name(pop).startswith("syn_") or pop.startswith(("rare_synth",)):
+        return "synthetic_iid"
+    return "with_replacement"
+
+
+def group_of(cell_id, pop, exp):
+    if exp == "exp1":
+        return {"A": "quad_n_sweep", "B": "shapes", "C": "N_sweep"}[cell_id[0]]
+    if exp == "exp3b":
+        return "stress_monotone_transform"
+    if exp == "exp7":
+        return "shift" if "shift" in cell_id else ("selected_labeling" if "_sel-" in pop else "rare")
+    return {"exp3": "reference_grid", "exp3t2": "reference_grid", "exp3_disjoint": "disjoint_check", "exp3k10": "K10_folds", "exp4": "N_over_n", "exp5": "constructions",
+            "exp6": "side_information"}[exp]
+
+
+# ------------------------------------------------------------------------------------------- intervals
+def wilson_eff_vec(est, se, M):
+    p = np.clip(est, 0.0, 1.0)
+    pt = np.clip(est, 0.5 / M, 1 - 0.5 / M)
+    neff = pt * (1 - pt) / np.maximum(se, 1e-12) ** 2
+    c = (p + Z * Z / (2 * neff)) / (1 + Z * Z / neff)
+    hw = Z / (1 + Z * Z / neff) * np.sqrt(p * (1 - p) / neff + Z * Z / (4 * neff * neff))
+    return c - hw, c + hw
+
+
+def interval(d, n, M, cons):
+    est, se = d["est"], d["se"]
+    with np.errstate(all="ignore"):
+        if cons in ("wald", "wald_trunc"):
+            lo, hi = est - Z * se, est + Z * se
+        elif cons == "t":
+            q = stats.t.ppf(0.975, n - 1)
+            lo, hi = est - q * se, est + q * se
+        elif cons == "wilson":
+            lo, hi = wilson_eff_vec(est, se, M)
+        elif cons == "boot_t":
+            lo, hi = d["lo"], d["hi"]
+        else:
+            raise ValueError(cons)
+        if cons == "wald_trunc":
+            lo, hi = np.clip(lo, 0, 1), np.clip(hi, 0, 1)
+    return lo, hi
+
+
+def labels_interval(y_mean, n, kind):
+    """Labels-only intervals from the sample mean of the labels (binary Y: k = n * mean)."""
+    k = np.round(y_mean * n).astype(int)
+    if kind == "wilson":
+        lh = np.array([wilson(a, n) for a in k])
+    else:
+        lh = np.array([E.clopper_pearson(int(a), n) for a in k])
+    return lh[:, 0], lh[:, 1]
+
+
+# ------------------------------------------------------------------------------------------- one cell
+def cell_rows(path, exp_dir, B=300):
+    arms, meta = load_cell(path)
+    # exp3t2 cells re-run the exp3 reference cell (same id, seed and draws) with the T2 arms: the unclipped PPI++ of that exp3 cell is paired with them
+    ucp = os.path.join(R_DIR, "unclip", "exp3" if exp_dir == "exp3t2" else exp_dir, os.path.basename(path))
+    if os.path.exists(ucp):     # PPI++ with lambda-hat not clipped to [0,1] (experiments/exp_unclipped.py), same draws
+        zu = dict(np.load(ucp))
+        if exp_dir == "exp3t2":  # the T2 cell may have fewer replicates than the exp3 cell (alphafold: 2000 of 5000): replicate r is the same draw in both, keep the first R
+            Rt = len(arms["ppi++"]["se"])
+            zu = {k: (v[:Rt] if np.ndim(v) == 1 and len(v) >= Rt else v) for k, v in zu.items()}
+        arms["ppi++_unclip"] = dict(est=zu["est"], se=zu["se"])
+        if exp_dir == "exp3t2":  # pairing check: where lambda-hat <= 1 the clipped and unclipped PPI++ are the same interval
+            same = zu["lam_unclipped"] <= 1
+            assert len(zu["se"]) == len(arms["ppi++"]["se"]) and np.allclose(zu["se"][same], arms["ppi++"]["se"][same], rtol=1e-9), path
+    pop, n, N, truth = meta["pop"], meta["n"], meta["N"], meta["truth"]
+    M = n + N
+    ds = dataset_name(pop)
+    binary = is_binary(pop) or is_binary(ds)
+    cons_list = ["wald", "t"] + (["wilson", "wald_trunc"] if binary else [])
+    R = meta["R"]
+    rng = np.random.default_rng(0)
+    idx = rng.integers(0, R, size=(B, R))      # one bootstrap index set per cell: paired across rows
+
+    # intervals per (arm, construction)
+    ivs = {}
+    ref_arm = arms["ppi++"]
+    for c in cons_list:
+        ivs[("ppipp", c)] = interval(ref_arm, n, M, c)
+    for a, (mid, tier) in ARMS.items():
+        if a not in arms or "est" not in arms[a]:
+            continue
+        for c in cons_list:
+            ivs[(mid, c)] = interval(arms[a], n, M, c)
+    ymean = arms["classical"]["est"]
+    ivs[("labels_z", "wald")] = interval(arms["classical"], n, M, "wald")
+    ivs[("labels_t", "t")] = interval(arms["classical"], n, M, "t")
+    if binary:
+        ivs[("labels_wilson", "wilson")] = labels_interval(ymean, n, "wilson")
+        ivs[("labels_cp", "cp")] = labels_interval(ymean, n, "cp")
+    for a, mid in BOOT.items():
+        if a in arms:
+            ivs[(mid, "boot_t")] = interval(arms[a], n, M, "boot_t")
+
+    estof = {mid: arms[a] for a, (mid, _) in ARMS.items() if a in arms}
+    estof["labels_z"] = estof["labels_t"] = estof["labels_wilson"] = estof["labels_cp"] = arms["classical"]
+    estof["ppipp"] = ref_arm
+    for a, mid in BOOT.items():
+        if a in arms:
+            estof[(mid, "boot_t")] = arms[a]
+    tierof = {mid: t for (_, (mid, t)) in ARMS.items()}
+    pv = None
+    fk = floor_key(pop)
+    if fk is not None:
+        fs = FLOORS[fk]
+        pv = predicted_variances(fs, n, N)
+
+    width_ref, cov_ref = {}, {}
+    for c in cons_list:
+        lo, hi = ivs[("ppipp", c)]
+        width_ref[c] = hi - lo
+        cov_ref[c] = (lo <= truth) & (truth <= hi)
+    width_u = {c: ivs[("ppipp_unclip", c)][1] - ivs[("ppipp_unclip", c)][0] for c in cons_list if ("ppipp_unclip", c) in ivs}
+    rows = []
+    base = dict(exp=EXP_DIRS[exp_dir], group=group_of(meta["id"], pop, exp_dir), dataset=ds, pop_name=pop, n=n, N=N,
+                truth=truth, sampling=sampling_of(pop, exp_dir), seed=meta["seed"], commit=meta["code"])
+    for (mid, c), (lo, hi) in ivs.items():
+        w = hi - lo
+        cov = (lo <= truth) & (truth <= hi)
+        k = int(cov.sum())
+        cl, ch = wilson(k, R)
+        rc = c if c in width_ref else "wald"
+        ok = np.isfinite(w) & (w > 0) & np.isfinite(width_ref[rc]) & (width_ref[rc] > 0)
+        wo, wr = w[ok], width_ref[rc][ok]
+        if ok.sum() > 20:
+            # resample replicate indices, keep those that are ok (paired)
+            m = ok[idx]
+            num = np.where(m, w[idx], 0).sum(1) / np.maximum(m.sum(1), 1)
+            den = np.where(m, width_ref[rc][idx], 0).sum(1) / np.maximum(m.sum(1), 1)
+            rb = num / den
+            ratio = wo.mean() / wr.mean()
+            rse = rb.std(ddof=1)
+            ratio_lo, ratio_hi = ratio - 1.96 * rse, ratio + 1.96 * rse
+        else:
+            ratio = ratio_lo = ratio_hi = np.nan
+        ratio_u = ratio_u_lo = ratio_u_hi = np.nan
+        if rc in width_u:       # second reference: PPI++ with unclipped lambda-hat
+            wu = width_u[rc]
+            oku = ok & np.isfinite(wu) & (wu > 0)
+            if oku.sum() > 20:
+                m = oku[idx]
+                rbu = np.where(m, w[idx], 0).sum(1) / np.where(m, wu[idx], 0).sum(1)
+                ratio_u = w[oku].mean() / wu[oku].mean()
+                rse_u = rbu.std(ddof=1)
+                ratio_u_lo, ratio_u_hi = ratio_u - 1.96 * rse_u, ratio_u + 1.96 * rse_u
+        d = estof[(mid, c)] if (mid, c) in estof else estof[mid]
+        ee = d["est"]
+        fin = np.isfinite(ee)
+        # paired coverage difference to PPI++ (same draws, same construction family)
+        diff = cov.astype(float) - cov_ref[rc].astype(float)
+        dse = diff.std(ddof=1) / np.sqrt(R)
+        cd = diff.mean()
+        valid, why = 1, ""
+        vrel = int(not (mid != "ppipp" and cd < -1.96 * dse and dse > 0))
+        if ch < NOMINAL:
+            valid, why = 0, "coverage significantly below nominal (Wilson upper < 0.95)"
+        elif mid != "ppipp" and cd < -1.96 * dse and dse > 0:
+            valid, why = 0, "coverage below PPI++ beyond MC error (paired)"
+        pick = ""
+        if "pick" in d:
+            vals, cnt = np.unique(d["pick"], return_counts=True)
+            pick = ";".join(f"{v}:{x / len(d['pick']):.3f}" for v, x in zip(vals, cnt))
+        pred = np.nan
+        if pv is not None and rc == "wald":
+            if mid in ("labels_z",):
+                pred = np.sqrt(pv["classical"] / pv["ppi++"])
+            elif mid == "ppi":
+                pred = np.sqrt(pv["ppi"] / pv["ppi++"])
+        rows.append(dict(base, tier=tierof.get(mid, "T1"), method=mid, construction=c, reps=R,
+                         coverage=k / R, cov_lo=cl, cov_hi=ch,
+                         width_mean=wo.mean() if len(wo) else np.nan,
+                         width_se=wo.std(ddof=1) / np.sqrt(len(wo)) if len(wo) > 2 else np.nan,
+                         ratio_vs_ppipp=ratio, ratio_lo=ratio_lo, ratio_hi=ratio_hi, ratio_ref=f"ppipp|{rc}",
+                         ratio_vs_unclip=ratio_u, ratio_unclip_lo=ratio_u_lo, ratio_unclip_hi=ratio_u_hi,
+                         bias=float(np.mean(ee[fin] - truth)) if fin.any() else np.nan,
+                         bias_se=float(np.std(ee[fin], ddof=1) / np.sqrt(fin.sum())) if fin.sum() > 2 else np.nan,
+                         valid=valid, valid_reason=why, valid_vs_ppipp=vrel, frac_degenerate=1 - ok.mean(), pick_frac=pick,
+                         cov_diff_vs_ppipp=cd, cov_diff_se=dse, pred_ratio_vs_ppipp=pred))
+    # floor rows (predicted from population fits; no interval)
+    if pv is not None:
+        for key, mid, tier in (("floor_T1", "floor", "T1"), ("floor_T2", "floor_x", "T2")):
+            if key in pv:
+                rows.append(dict(base, tier=tier, method=mid, construction="NA", reps=np.nan,
+                                 ratio_vs_ppipp=np.sqrt(pv[key] / pv["ppi++"]), ratio_ref="ppipp|predicted",
+                                 pred_ratio_vs_ppipp=np.sqrt(pv[key] / pv["ppi++"])))
+    return rows
+
+
+def load_floors():
+    p = os.path.join(R_DIR, "floors.json")
+    return json.load(open(p)) if os.path.exists(p) else {}
+
+
+FLOORS = load_floors()
+
+
+def cell_paths():
+    out = []
+    for d in EXP_DIRS:
+        for p in sorted(glob.glob(os.path.join(R_DIR, d, "*.npz"))):
+            out.append((d, p))
+    return out
+
+
+def build_cells():
+    rows = []
+    for d, p in cell_paths():
+        rr = cell_rows(p, d)
+        # exp3t2 re-runs the reference cell (same id, hence same seed and draws) with the T2 arms: keep only its T2 rows
+        rows += [r for r in rr if r.get("tier") == "T2"] if d == "exp3t2" else rr
+    # planned cells without a stored result are listed explicitly (reps = 0 and a reason)
+    pl = os.path.join(R_DIR, "planned_cells.csv")
+    if os.path.exists(pl):
+        rp = os.path.join(R_DIR, "not_run_reasons.json")
+        reasons = json.load(open(rp)) if os.path.exists(rp) else {}
+        for _, r in pd.read_csv(pl).query("done == 0").iterrows():
+            rows.append(dict(exp=EXP_DIRS[r.dir], group=r.dir, dataset=r["id"], n=r.n, N=r.N, method="NA", construction="NA",
+                             reps=0, valid_reason=reasons.get(r["id"], "not run: no stored result when the table was built")))
+    df = pd.DataFrame(rows)
+    df.to_csv(os.path.join(R_DIR, "cells.csv"), index=False)
+    return df
+
+
+# ------------------------------------------------------------------------------------------- prop_check
+def v_star(fs, n, N):
+    t = fs["T1"]
+    return t["sigma2_res"] / n + t["V_g"] / (n + N)
+
+
+def pred_excess_var(est, fs, n, N):
+    """Predicted excess variance over the floor V* for each estimator (population quantities):
+    ppipp / oracle_lin: (1/n - 1/M) Delta; oracle_m: 0; cross-fitted parametric calibrator with d parameters on
+    n_train = (K-1)n/K labels: (1/n - 1/M) [Delta_g + (sigma2 + Delta_g) d / n_train] with Delta_g = Delta for the
+    linear and 0 for a correctly specified spline. NA where no closed form exists (isotonic, bins, select)."""
+    t = fs["T1"]
+    M, nt = n + N, (K_CF - 1) * n / K_CF
+    c = 1 / n - 1 / M
+    s2, dl = t["sigma2_res"], t["Delta"]
+    if est in ("ppipp", "oracle_lin"):
+        return c * dl
+    if est == "oracle_m":
+        return 0.0
+    if est == "pooled_linear":
+        return c * (dl + (s2 + dl) * D_LIN / nt)
+    if est == "calib_spline":
+        return c * s2 * D_SPL / nt
+    return np.nan
+
+
+def build_prop(B=400):
+    rows = []
+    rng = np.random.default_rng(1)
+    for d, p in cell_paths():
+        if d not in ("exp1", "exp3"):
+            continue
+        arms, meta = load_cell(p)
+        pop = meta["pop"]
+        fk = floor_key(pop)
+        if fk is None:
+            continue
+        fs = FLOORS[fk]
+        n, N, R = meta["n"], meta["N"], meta["R"]
+        M = n + N
+        vs = v_star(fs, n, N)
+        vy = fs["var_y"]
+        eta2, rho2 = fs["T1"]["V_g"] / vy, fs["rho"] ** 2
+        idx = rng.integers(0, R, size=(B, R))
+        for a, mid in (("ppi++", "ppipp"), ("oracle_lin", "oracle_lin"), ("oracle_m", "oracle_m"), ("pool_linear", "pooled_linear"),
+                       ("pool_spline", "calib_spline"), ("pool_isotonic", "calib_iso"), ("pool_bins", "strat_ppi"),
+                       ("select_T1", "select"), ("classical", "labels_z"), ("ppi", "ppi")):
+            if a not in arms:
+                continue
+            e, se = arms[a]["est"], arms[a]["se"]
+            fin = np.isfinite(e)
+            var = e[fin].var(ddof=1)
+            vb = np.array([np.var(e[fin][np.random.default_rng(i).integers(0, fin.sum(), fin.sum())], ddof=1) for i in range(B // 4)])
+            w = 2 * Z * se
+            wm, wse = w.mean(), w.std(ddof=1) / np.sqrt(R)
+            wstar = 2 * Z * np.sqrt(vs)
+            pe = pred_excess_var(mid, fs, n, N)
+            if "oracle_m" in arms:   # paired against the known-m pooled estimator, whose variance is exactly V*
+                dd = (e - meta["truth"]) ** 2 - (arms["oracle_m"]["est"] - meta["truth"]) ** 2
+                dd = dd[np.isfinite(dd)]
+                pm, pse = float(dd.mean()), float(dd.std(ddof=1) / np.sqrt(len(dd)))
+            else:
+                pm = pse = np.nan
+            pw = 2 * Z * (np.sqrt(vs + pe) - np.sqrt(vs)) if np.isfinite(pe) else np.nan
+            rows.append(dict(dataset=dataset_name(pop), n=n, N=N, estimator=mid, calibrator=mid, reps=R,
+                             var_y=vy, eta2=eta2, rho2=rho2, sigma2_res=fs["T1"]["sigma2_res"], delta=fs["T1"]["Delta"],
+                             V_star=vs, V_ppipp_pred=predicted_variances(fs, n, N)["ppi++"],
+                             var_est=var, mean_se2=float(np.mean(se ** 2)),
+                             se_calibration=float(np.sqrt(np.mean(se ** 2) / var)),
+                             pred_excess_var=pe, meas_excess_var=var - vs,
+                             meas_excess_var_lo=float(np.quantile(vb, 0.025) - vs), meas_excess_var_hi=float(np.quantile(vb, 0.975) - vs),
+                             meas_excess_paired=pm, meas_excess_paired_lo=pm - 1.96 * pse, meas_excess_paired_hi=pm + 1.96 * pse,
+                             excess_ratio_paired=pm / pe if np.isfinite(pe) and pe > 0 else np.nan,
+                             excess_ratio_paired_lo=(pm - 1.96 * pse) / pe if np.isfinite(pe) and pe > 0 else np.nan,
+                             excess_ratio_paired_hi=(pm + 1.96 * pse) / pe if np.isfinite(pe) and pe > 0 else np.nan,
+                             excess_ratio=(var - vs) / pe if np.isfinite(pe) and pe > 0 else np.nan,
+                             excess_ratio_lo=(np.quantile(vb, 0.025) - vs) / pe if np.isfinite(pe) and pe > 0 else np.nan,
+                             excess_ratio_hi=(np.quantile(vb, 0.975) - vs) / pe if np.isfinite(pe) and pe > 0 else np.nan,
+                             pred_excess_width=pw, meas_excess_width=wm - wstar,
+                             meas_excess_width_lo=wm - 1.96 * wse - wstar, meas_excess_width_hi=wm + 1.96 * wse - wstar,
+                             pred_width_floor=wstar, group=group_of(meta["id"], pop, d)))
+    df = pd.DataFrame(rows)
+    df.to_csv(os.path.join(R_DIR, "prop_check.csv"), index=False)
+    return df
+
+
+# ------------------------------------------------------------------------------------------- break-even
+def crossing(ns, ratio):
+    """Smallest n at which the width ratio crosses below 1 (log-n linear interpolation of the ratio between
+    adjacent grid points; first crossing from above); NA if the ratio never goes below 1 on the grid;
+    the grid minimum if it starts below 1."""
+    ns, ratio = np.asarray(ns, float), np.asarray(ratio, float)
+    if ratio[0] < 1:
+        return ns[0]
+    for i in range(1, len(ns)):
+        if ratio[i] < 1 <= ratio[i - 1]:
+            f = (ratio[i - 1] - 1) / (ratio[i - 1] - ratio[i])
+            return float(np.exp(np.log(ns[i - 1]) + f * (np.log(ns[i]) - np.log(ns[i - 1]))))
+    return np.nan
+
+
+def crossing_bracket(ns, ratio_hi, ok):
+    """Grid bracket of the break-even: the first n at which the width ratio is below 1 with its upper limit below 1
+    AND the arm is not worse than PPI++ in coverage (valid_vs_ppipp); returns (n_below, n_win, censor), censor in
+    bracket | left (already winning at the grid minimum) | right (never wins on the grid)."""
+    ns = np.asarray(ns, float)
+    win = (np.asarray(ratio_hi, float) < 1) & np.asarray(ok, bool)
+    if not win.any():
+        return np.nan, np.nan, "right"
+    i = int(np.argmax(win))
+    return (np.nan, ns[0], "left") if i == 0 else (ns[i - 1], ns[i], "bracket")
+
+
+def ppipp_cost_multiplier():
+    """Learning cost of the in-sample PPI++ in units of the leading term (1/n - 1/M) 2 sigma2_res / n, from the
+    synthetic affine E1 cells (Delta = 0, so the whole excess over the floor is learning cost): median of
+    meas_excess_paired / lc over the cells with n <= 200 (where it is resolved)."""
+    p = pd.read_csv(os.path.join(R_DIR, "prop_check.csv"))
+    a = p[(p.dataset == "syn_affine") & (p.estimator == "ppipp") & (p.n <= 200)]
+    lc = (1 / a.n - 1 / (a.n + a.N)) * a.sigma2_res * 2 / a.n
+    return float((a.meas_excess_paired / lc).median())
+
+
+def pred_nstar(fs, d_eff):
+    t = fs["T1"]
+    if t["Delta"] <= 0:
+        return np.inf
+    return K_CF / (K_CF - 1) * d_eff * t["sigma2_res"] / t["Delta"]
+
+
+def build_breakeven():
+    """Width ratio of the cross-fitted calibrated arms to PPI++ along the n-grid, the predicted break-even
+    n* = K/(K-1) d_eff sigma2_res/Delta (d_eff = 7 for the spline arm) and the measured crossing.
+    Real pools: sigma2_res and Delta from the pool fit of the same spline class with a pool-bootstrap interval
+    (results/nstar_ci.json); synthetic populations: from the true E[Y|Z] (results/floors.json), no interval."""
+    cells = pd.read_csv(os.path.join(R_DIR, "cells.csv"))
+    nci_p = os.path.join(R_DIR, "nstar_ci.json")
+    nci = json.load(open(nci_p)) if os.path.exists(nci_p) else {}
+    rows = []
+    sel = cells[(cells.construction == "wald") & cells.method.isin(["calib_spline", "calib_iso", "select"])
+                & cells.group.isin(["quad_n_sweep", "reference_grid", "shapes", "stress_monotone_transform"])]
+    for (ds, grp, meth), g in sel.groupby(["dataset", "group", "method"]):
+        g = g.sort_values("n")
+        if len(g) < 3:
+            continue
+        pop = g.pop_name.iloc[0]
+        d_eff = D_SPL if meth == "calib_spline" else np.nan
+        pn = lo = hi = s2 = dl = np.nan
+        if meth == "calib_spline":
+            if pop in nci:
+                v = nci[pop]
+                pn, lo, hi, s2, dl = v["nstar"], v["nstar_lo"], v["nstar_hi"], v["sigma2_res"], v["Delta"]
+            elif floor_key(pop) is not None:
+                fs = FLOORS[floor_key(pop)]
+                pn, s2, dl = pred_nstar(fs, D_SPL), fs["T1"]["sigma2_res"], fs["T1"]["Delta"]
+        ms = crossing(g.n.values, g.ratio_vs_ppipp.values)
+        b_lo, b_hi, cens = crossing_bracket(g.n.values, g.ratio_hi.values, g.valid_vs_ppipp.values == 1)
+        u_lo = u_hi = np.nan
+        u_cens = ""
+        ok3u = np.nan
+        if g.ratio_unclip_hi.notna().all():        # same bracket against the stricter of the two PPI++ variants (clipped / unclipped lambda-hat)
+            u_lo, u_hi, u_cens = crossing_bracket(g.n.values, np.maximum(g.ratio_hi.values, g.ratio_unclip_hi.values),
+                                                  g.valid_vs_ppipp.values == 1)
+            if np.isfinite(pn):
+                ok3u = float(pn <= 3 * u_hi if u_cens == "left" else pn >= g.n.max() / 3 if u_cens == "right" else u_lo / 3 <= pn <= 3 * u_hi)
+        c_pp = ppipp_cost_multiplier()
+        net = pn * (1 - 2 * c_pp / (D_SPL * K_CF / (K_CF - 1))) if np.isfinite(pn) else np.nan
+        net_lo, net_hi = (lo * (net / pn), hi * (net / pn)) if np.isfinite(pn) and pn > 0 else (np.nan, np.nan)
+        ok3 = np.nan
+        if np.isfinite(pn):
+            ok3 = float(pn <= 3 * b_hi if cens == "left" else pn >= g.n.max() / 3 if cens == "right" else b_lo / 3 <= pn <= 3 * b_hi)
+        for _, r in g.iterrows():
+            rows.append(dict(dataset=ds, group=grp, calibrator=meth, d_eff=d_eff, K=K_CF, n=r.n, N=r.N, reps=r.reps,
+                             ratio_vs_ppipp=r.ratio_vs_ppipp, ratio_lo=r.ratio_lo, ratio_hi=r.ratio_hi,
+                             coverage=r.coverage, valid=r.valid, pred_nstar=pn, pred_nstar_lo=lo, pred_nstar_hi=hi,
+                             pred_nstar_net=net, pred_nstar_net_lo=net_lo, pred_nstar_net_hi=net_hi,
+                             meas_nstar=ms, meas_win_below=b_lo, meas_win_at=b_hi, meas_censor=cens, pred_within_factor3=ok3,
+                             ratio_vs_unclip=r.ratio_vs_unclip, ratio_unclip_hi=r.ratio_unclip_hi, meas_win_below_best=u_lo,
+                             meas_win_at_best=u_hi, meas_censor_best=u_cens, pred_within_factor3_best=ok3u, grid_min=g.n.min(), grid_max=g.n.max(), sigma2_res=s2, delta=dl))
+    df = pd.DataFrame(rows)
+    df.to_csv(os.path.join(R_DIR, "breakeven.csv"), index=False)
+    return df
+
+
+def build_breakeven_curves():
+    """One row per break-even curve (calib_spline, one per dataset x group; the unit C3 is scored on) and per-group counts.
+    A curve is `bracket` (the crossing lies between two grid points; scored against the factor-3 tolerance), `left` / `right`
+    (crossing at or below the grid minimum / not reached on the grid: only consistency with the prediction can be checked,
+    counted separately). Both baselines: package PPI++ and the narrower of package and unclipped PPI++ (`_best`)."""
+    b = pd.read_csv(os.path.join(R_DIR, "breakeven.csv"), keep_default_na=False)
+    b = b[b.calibrator == "calib_spline"].drop_duplicates(["dataset", "group"])
+    cols = ["dataset", "group", "pred_nstar", "pred_nstar_lo", "pred_nstar_hi", "grid_min", "grid_max", "meas_win_below", "meas_win_at",
+            "meas_censor", "pred_within_factor3", "meas_win_below_best", "meas_win_at_best", "meas_censor_best", "pred_within_factor3_best"]
+    curves = b[cols].rename(columns={"meas_censor": "state", "meas_censor_best": "state_best"})
+    curves.to_csv(os.path.join(R_DIR, "breakeven_curves.csv"), index=False)
+    out = []
+    for grp, g in curves.groupby("group"):
+        for tag, st, ok in (("package", "state", "pred_within_factor3"), ("best", "state_best", "pred_within_factor3_best")):
+            gg = g[g[st] != ""]
+            if not len(gg):
+                continue
+            br = gg[gg[st] == "bracket"]
+            cens = gg[gg[st] != "bracket"]
+            out.append(dict(group=grp, baseline=tag, curves=len(gg), bracketed=len(br),
+                            bracketed_within_factor3=int((br[ok].astype(float) == 1).sum()),
+                            censored_left=int((gg[st] == "left").sum()), censored_right=int((gg[st] == "right").sum()),
+                            censored_consistent_with_prediction=int((cens[ok].astype(float) == 1).sum()),
+                            bracketed_datasets=";".join(br.dataset), bracketed_misses=";".join(br[br[ok].astype(float) != 1].dataset)))
+    pd.DataFrame(out).to_csv(os.path.join(R_DIR, "breakeven_summary.csv"), index=False)
+    return curves
+
+
+# ------------------------------------------------------------------------------------------- diagnostic
+def build_diagnostic(B=0):
+    """Per cell, the analyst's headroom diagnostic computed in every replicate from the cross-fitted residual
+    variances of the pooled linear and spline estimators (vh):
+      sigma2_hat  = vh_spline / (1 + d_spl / n_train)           (inverts E vh_spline = sigma2 (1 + d/n_train))
+      delta_hat   = vh_linear / (1 + d_lin / n_train) - sigma2_hat
+      learning_cost = d_spl sigma2_hat / n_train
+      headroom_hat  = delta_hat - learning_cost.
+    pred_gain converts headroom_hat to a relative width gain: 1 - sqrt(1 - (1/n - 1/M) headroom_hat / se2_ppipp)."""
+    rows = []
+    for d, p in cell_paths():
+        if d not in ("exp1", "exp3", "exp3b"):
+            continue
+        arms, meta = load_cell(p)
+        if "pool_spline" not in arms or "pool_linear" not in arms:
+            continue
+        n, N, R = meta["n"], meta["N"], meta["R"]
+        M = n + N
+        nt = (K_CF - 1) * n / K_CF
+        vl, vs_ = arms["pool_linear"]["vh"], arms["pool_spline"]["vh"]
+        s2 = vs_ / (1 + D_SPL / nt)
+        dl = vl / (1 + D_LIN / nt) - s2
+        cost = D_SPL * s2 / nt
+        hh = dl - cost
+        se2 = arms["ppi++"]["se"] ** 2
+        pg = 1 - np.sqrt(np.clip(1 - (1 / n - 1 / M) * hh / se2, 1e-9, None))
+        w, wr = 2 * Z * arms["pool_spline"]["se"], 2 * Z * arms["ppi++"]["se"]
+        ok = np.isfinite(w) & np.isfinite(wr) & (w > 0) & (wr > 0)
+        rg = 1 - w[ok].mean() / wr[ok].mean()
+        rng = np.random.default_rng(0)
+        bi = rng.integers(0, ok.sum(), size=(300, ok.sum()))
+        gb = 1 - w[ok][bi].mean(1) / wr[ok][bi].mean(1)
+        pop = meta["pop"]
+        fk = floor_key(pop)
+        rows.append(dict(dataset=dataset_name(pop), group=group_of(meta["id"], pop, d), n=n, N=N, calibrator="calib_spline",
+                         reps=R, delta_hat=float(np.median(dl)), delta_hat_lo=np.quantile(dl, .025), delta_hat_hi=np.quantile(dl, .975),
+                         learning_cost=float(np.median(cost)),
+                         headroom_hat=float(np.median(hh)), headroom_hat_lo=np.quantile(hh, .025), headroom_hat_hi=np.quantile(hh, .975),
+                         frac_positive=float((hh > 0).mean()), pred_gain=float(pg.mean()),
+                         realised_gain=rg, gain_lo=float(np.quantile(gb, .025)), gain_hi=float(np.quantile(gb, .975)),
+                         delta_pop=FLOORS[fk]["T1"]["Delta"] if fk else np.nan,
+                         sigma2_res_pop=FLOORS[fk]["T1"]["sigma2_res"] if fk else np.nan))
+    df = pd.DataFrame(rows)
+    df.to_csv(os.path.join(R_DIR, "diagnostic.csv"), index=False)
+    return df
+
+
+# ------------------------------------------------------------------------------------------- ladder
+def build_ladder():
+    c = pd.read_csv(os.path.join(R_DIR, "cells.csv"))
+    c = c[c.group.isin(["reference_grid", "stress_monotone_transform", "side_information", "disjoint_check"])]
+    steps = [("classical", ["labels_z"]), ("ppi", ["ppi"]), ("ppipp", ["ppipp"]), ("clip", ["ppipp_unclip"]), ("calib_T1", ["select"]),
+             ("calib_T2", ["select_x"]), ("floor", ["floor"]), ("floor_T2", ["floor_x"])]
+    rows = []
+    for (ds, n, N, grp), g in c.groupby(["dataset", "n", "N", "group"]):
+        for step, ms in steps:
+            m = ms[0]
+            w = g[(g.method == m) & (g.construction.isin(["wald", "NA"]))]
+            if w.empty:
+                continue
+            w = w.iloc[0]
+            alt = g[(g.method == m) & (g.construction.isin(["wilson"] if is_binary(ds) else ["t"]))]
+            wald_w = w.width_mean
+            constr = alt.iloc[0].width_mean / wald_w if (len(alt) and np.isfinite(wald_w) and wald_w > 0) else np.nan
+            rows.append(dict(dataset=ds, n=n, N=N, group=grp, step=step, method=m, tier=w.tier,
+                             width_mean=wald_w, ratio_vs_ppipp=w.ratio_vs_ppipp, ratio_lo=w.ratio_lo, ratio_hi=w.ratio_hi,
+                             se_ratio=w.ratio_vs_ppipp, constr_ratio=constr,
+                             total_ratio=w.ratio_vs_ppipp * constr if np.isfinite(constr) else np.nan,
+                             coverage=w.coverage, cov_lo=w.cov_lo, cov_hi=w.cov_hi, valid=w.valid,
+                             alt_construction="wilson" if is_binary(ds) else "t"))
+    df = pd.DataFrame(rows)
+    df.to_csv(os.path.join(R_DIR, "ladder.csv"), index=False)
+    return df
+
+
+# ------------------------------------------------------------------------------------------- SE variants
+def build_variants():
+    """Fold-pooled residual variance (default `se`) vs per-fold-centred residual variance (`se_pf`) for the
+    cross-fitted pooled estimators; Wald-z intervals, same estimates."""
+    rows = []
+    for d, p in cell_paths():
+        if d not in ("exp1", "exp3", "exp3b"):
+            continue
+        arms, meta = load_cell(p)
+        n, N, R, truth = meta["n"], meta["N"], meta["R"], meta["truth"]
+        for a, mid in (("pool_linear", "pooled_linear"), ("pool_spline", "calib_spline"), ("pool_isotonic", "calib_iso")):
+            if a not in arms:
+                continue
+            w0 = None
+            for var, key in (("fold_pooled", "se"), ("per_fold", "se_pf")):
+                e, se = arms[a]["est"], arms[a][key]
+                lo, hi = e - Z * se, e + Z * se
+                cov = (lo <= truth) & (truth <= hi)
+                k = int(cov.sum())
+                cl, ch = wilson(k, R)
+                w = (hi - lo)
+                ok = np.isfinite(w) & (w > 0)
+                if w0 is None:
+                    w0 = w
+                rows.append(dict(dataset=dataset_name(meta["pop"]), group=group_of(meta["id"], meta["pop"], d), n=n, N=N,
+                                 method=mid, variant=var, reps=R, coverage=k / R, cov_lo=cl, cov_hi=ch,
+                                 width_mean=float(w[ok].mean()), ratio_vs_default=float(w[ok].mean() / w0[ok].mean())))
+    df = pd.DataFrame(rows)
+    df.to_csv(os.path.join(R_DIR, "se_variants.csv"), index=False)
+    return df
+
+
+# ------------------------------------------------------------------------------------------- run times
+def build_runtimes():
+    """Measured single-CPU wall-clock seconds per stored cell (on a shared, oversubscribed host: an upper bound)."""
+    rows = []
+    for d, p in cell_paths():
+        _, meta = load_cell(p)
+        rows.append(dict(exp=EXP_DIRS[d], dir=d, id=meta["id"], pop=meta["pop"], n=meta["n"], N=meta["N"], reps=meta["R"],
+                         seconds=meta["seconds"], seed=meta["seed"], commit=meta["code"]))
+    df = pd.DataFrame(rows)
+    df.to_csv(os.path.join(R_DIR, "run_times.csv"), index=False)
+    return df
+
+# ------------------------------------------------------------------------------------------- headline (C2)
+REFERENCE_N = {"forest": 200}     # reference n per set, fixed before the runs (experiments/exp3_real.py): 500, except forest (N = 1000): 200
+REFERENCE_N_DEFAULT = 500
+BEST_OF = ["ppi", "strat_ppi", "calib_spline", "calib_iso", "select", "selectmin"]
+
+
+def classify(lo, hi, valid):
+    """Pre-fixed margin of the Outline: no gain if the ratio CI lies in [0.98, 1.02]; gain if its upper end is
+    below 0.95 and the arm is valid; otherwise small / undecided."""
+    if not (np.isfinite(lo) and np.isfinite(hi)):
+        return "NA"
+    if lo >= 0.98 and hi <= 1.02:
+        return "no gain"
+    if hi < 0.95 and valid == 1:
+        return "gain"
+    return "small / undecided"
+
+
+def classification_of(h):
+    return classify(h.ratio_lo, h.ratio_hi, h.valid)
+
+
+def build_headline():
+    """Headline arms per (dataset, n): T1 `select` (A6) and, where X exists, T2 `select_x` (B5), with the pre-fixed
+    classification, the estimated-floor ratio and the best valid arm as a descriptive ceiling (biased towards gain).
+    Reference-grid cells, Wald-z construction; `is_reference_n` marks the reference n of the set."""
+    c = pd.read_csv(os.path.join(R_DIR, "cells.csv"))
+    c = c[(c.group == "reference_grid") & (c.construction.isin(["wald"]) | c.construction.isna())]
+    fs_path = os.path.join(R_DIR, "floors_strong.json")
+    strong = json.load(open(fs_path)) if os.path.exists(fs_path) else {}
+    rows = []
+    for (ds, n, N), g in c.groupby(["dataset", "n", "N"]):
+        def get(m):
+            x = g[g.method == m]
+            return x.iloc[0] if len(x) else None
+        for tier, m, fl in (("T1", "select", "floor"), ("T2", "select_x", "floor_x")):
+            h, f = get(m), get(fl)
+            if h is None:
+                continue
+            ok = g[g.method.isin(BEST_OF) & (g.valid == 1)]
+            best = ok.loc[ok.ratio_vs_ppipp.idxmin()] if (tier == "T1" and len(ok)) else None
+            r = h.ratio_vs_ppipp
+            # floors in *measured* units: z * sqrt(V*) over the measured PPI++ width of this cell (the predicted
+            # `floor_ratio` divides by PPI++'s asymptotic variance, which excludes its in-sample learning cost);
+            # `_strong`: V* from the best of a wider set of cross-fitted classes (results/floors_strong.json)
+            fm = fstrong = fstrong_m = np.nan
+            pp = get("ppipp")
+            fk = floor_key(ds)
+            if tier == "T1" and fk is not None and fk in FLOORS and pp is not None:
+                M = n + N
+                t1 = FLOORS[fk]["T1"]
+                fm = 2 * Z * np.sqrt(t1["sigma2_res"] / n + t1["V_g"] / M) / pp.width_mean
+                if ds in strong:
+                    st_ = strong[ds]
+                    vs = st_["sigma2_res"] / n + st_["V_g"] / M
+                    fstrong_m = 2 * Z * np.sqrt(vs) / pp.width_mean
+                    fstrong = np.sqrt(vs / predicted_variances(FLOORS[fk], n, N)["ppi++"])
+            uc = get("ppipp_unclip")                  # T1 rows of the same cell: the unclipped PPI++ is paired with T2 arms through the shared draws
+            # strongest *valid* PPI++ baseline (Outline rev. 9, fixed after the rev. 8 results were seen): the narrower of the package
+            # and the unclipped PPI++ among those whose coverage is valid in this cell (Wilson upper limit >= 0.95, as for every arm);
+            # if neither is, the narrower of the two is used and `baseline_valid` = 0
+            cand = {}
+            if pp is not None:
+                cand["package"] = (r, h.ratio_lo, h.ratio_hi, bool(pp.cov_hi >= NOMINAL))
+            if uc is not None and np.isfinite(h.ratio_vs_unclip):
+                cand["unclipped"] = (h.ratio_vs_unclip, h.ratio_unclip_lo, h.ratio_unclip_hi, bool(uc.cov_hi >= NOMINAL))
+            vb = {}
+            if cand:
+                pool_ = {k: v for k, v in cand.items() if v[3]} or cand
+                k = max(pool_, key=lambda k: pool_[k][0])         # the narrower baseline is the one the arm's width ratio is largest against
+                vb = dict(baseline_used=k, baseline_valid=int(cand[k][3]), ratio_vs_valid_baseline=cand[k][0],
+                          ratio_valid_lo=cand[k][1], ratio_valid_hi=cand[k][2],
+                          classification_vs_valid_baseline=classify(cand[k][1], cand[k][2], h.valid),
+                          baseline_package_valid=int(cand["package"][3]) if "package" in cand else np.nan,
+                          baseline_unclipped_valid=int(cand["unclipped"][3]) if "unclipped" in cand else np.nan)
+            rows.append(dict(
+                dataset=ds, n=n, N=N, tier=tier, headline_arm=m, is_reference_n=int(n == REFERENCE_N.get(ds, REFERENCE_N_DEFAULT)),
+                ratio=r, ratio_lo=h.ratio_lo, ratio_hi=h.ratio_hi, label_saving=1 - r ** 2,
+                coverage=h.coverage, cov_lo=h.cov_lo, valid=h.valid, valid_vs_ppipp=h.valid_vs_ppipp,
+                classification=classify(h.ratio_lo, h.ratio_hi, h.valid),
+                floor_ratio=f.ratio_vs_ppipp if f is not None else np.nan, floor_ratio_measured=fm,
+                floor_ratio_strong=fstrong, floor_ratio_strong_measured=fstrong_m,
+                unclip_ratio_vs_ppipp=uc.ratio_vs_ppipp if uc is not None else np.nan,
+                unclip_coverage=uc.coverage if uc is not None else np.nan,
+                ratio_vs_unclip=h.ratio_vs_unclip, ratio_unclip_lo=h.ratio_unclip_lo, ratio_unclip_hi=h.ratio_unclip_hi,
+                classification_vs_unclip=classify(h.ratio_unclip_lo, h.ratio_unclip_hi, h.valid) if np.isfinite(h.ratio_vs_unclip) else "",
+                ratio_vs_best_ppipp=max(r, h.ratio_vs_unclip) if np.isfinite(h.ratio_vs_unclip) else r,
+                classification_vs_best=classify(max(h.ratio_lo, h.ratio_unclip_lo), max(h.ratio_hi, h.ratio_unclip_hi), h.valid)
+                if np.isfinite(h.ratio_vs_unclip) else classification_of(h),
+                best_valid_arm=best.method if best is not None else "", best_valid_ratio=best.ratio_vs_ppipp if best is not None else np.nan,
+                **vb))
+    df = pd.DataFrame(rows).sort_values(["tier", "dataset", "n"])
+    df.to_csv(os.path.join(R_DIR, "headline.csv"), index=False)
+    return df
+
+
+def build_decomp():
+    """results/decomp.csv from results/gene_decomp/*.npz (experiments/gene_decomp.py): arms that differ in one
+    ingredient each, on the same draws. width = 2 z SE (Wald); ratio_vs_ppipp = mean width / PPI++ mean width (paired
+    bootstrap over replicates); sd_est = empirical SD of the point estimate; population truth = pool mean."""
+    rows = []
+    rng = np.random.default_rng(1)
+    for path in sorted(glob.glob(os.path.join(R_DIR, "gene_decomp", "*.npz"))):
+        z = np.load(path)
+        ds, sh = os.path.basename(path)[:-4].rsplit("_shift", 1)
+        t = float(z["_truth"])
+        ns = sorted({int(k.split("|")[0][1:]) for k in z.files if k.startswith("n")})
+        for n in ns:
+            arms = sorted({k.split("|")[1] for k in z.files if k.startswith(f"n{n}|")})
+            ref_se = z[f"n{n}|ppi++|se"]
+            R = len(ref_se)
+            idx = rng.integers(0, R, size=(500, R))
+            for a in arms:
+                e, se = z[f"n{n}|{a}|est"], z[f"n{n}|{a}|se"]
+                cov = np.abs(e - t) <= Z * se
+                cl, ch = wilson(int(cov.sum()), R)
+                rb = se[idx].mean(1) / ref_se[idx].mean(1)
+                rows.append(dict(dataset=ds, shift_sd=float(sh), n=n, N=10000, reps=R, arm=a, coverage=cov.mean(), cov_lo=cl,
+                                 cov_hi=ch, mean_se=se.mean(), sd_est=e.std(ddof=1), se_over_sd=se.mean() / e.std(ddof=1),
+                                 bias=e.mean() - t, rmse=float(np.sqrt(((e - t) ** 2).mean())),
+                                 ratio_vs_ppipp=se.mean() / ref_se.mean(), ratio_lo=np.quantile(rb, 0.025), ratio_hi=np.quantile(rb, 0.975),
+                                 sd_ratio_vs_ppipp=e.std(ddof=1) / z[f"n{n}|ppi++|est"].std(ddof=1)))
+    df = pd.DataFrame(rows)
+    df.to_csv(os.path.join(R_DIR, "decomp.csv"), index=False)
+    return df
+
+
+# ------------------------------------------------------------------------------------------- E9: the lambda clip
+def v_ppi(lam, n, N, var_y, var_f, cov_yf):
+    """Exact variance of PPI++ (mean) with a fixed tuning lambda: Var(Y - lam f)/n + lam^2 Var(f)/N (independent sums)."""
+    return (var_y - 2 * lam * cov_yf + lam ** 2 * var_f) / n + lam ** 2 * var_f / N
+
+
+def clip_terms(n, N, var_y, var_f, cov_yf):
+    """Population quantities of the clip: b = Cov(Y,f)/Var f, the optimal tuning lam* = b N/(n+N), the tuning the package
+    can reach clip(lam*, 0, 1), their exact variances, and the excess (1/n - 1/M)(b - c)^2 Var f with c = lam M/N."""
+    M = n + N
+    b = cov_yf / var_f
+    lam_s = b * N / M
+    lam_c = float(np.clip(lam_s, 0.0, 1.0))
+    v_u, v_c = v_ppi(lam_s, n, N, var_y, var_f, cov_yf), v_ppi(lam_c, n, N, var_y, var_f, cov_yf)
+    c = lam_c * M / N
+    return dict(b=b, lam_star=lam_s, lam_clipped=lam_c, v_unclip=v_u, v_pkg=v_c, excess=v_c - v_u,
+                excess_closed_form=(1 / n - 1 / M) * (b - c) ** 2 * var_f, pred_width_ratio_unclip_over_pkg=np.sqrt(v_u / v_c))
+
+
+def clip_pair(e_u, s_u, e_p, s_p, truth, idx):
+    """Paired summary of the unclipped (u) vs package (p) PPI++ on the same draws."""
+    R = len(s_u)
+    out = {}
+    for tag, e, s in (("pkg", e_p, s_p), ("unclip", e_u, s_u)):
+        k = int((np.abs(e - truth) <= Z * s).sum())
+        cl, ch = wilson(k, R)
+        out.update({f"coverage_{tag}": k / R, f"cov_lo_{tag}": cl, f"cov_hi_{tag}": ch, f"mean_width_{tag}": 2 * Z * s.mean(),
+                    f"sd_est_{tag}": e.std(ddof=1), f"se_over_sd_{tag}": s.mean() / e.std(ddof=1)})
+    rb = s_u[idx].mean(1) / s_p[idx].mean(1)
+    r = s_u.mean() / s_p.mean()
+    out.update(width_ratio_unclip_over_pkg=r, ratio_lo=r - 1.96 * rb.std(ddof=1), ratio_hi=r + 1.96 * rb.std(ddof=1),
+               sd_ratio_unclip_over_pkg=e_u.std(ddof=1) / e_p.std(ddof=1), label_saving_unclip_vs_pkg=1 - r ** 2)
+    return out
+
+
+def build_clip():
+    """E9. clip_sweep.csv: synthetic populations f ~ N(0,1), Y = b f + sigma eps (known truth 0), package vs unclipped PPI++ on the same
+    draws (and with lambda fixed at its optimum: no estimation of lambda), against the exact variance formula.
+    clip_real.csv: the same quantities on the real pools (reference grid and the N/n cells, those with unclipped replicates)."""
+    from pci.pops import load_pool
+    rng = np.random.default_rng(2)
+    rows = []
+    for path in sorted(glob.glob(os.path.join(R_DIR, "exp9", "*.npz"))):
+        z = np.load(path)
+        m = json.loads(str(z["_meta"]))
+        n, N, b, sg, R = m["n"], m["N"], m["b"], m["sigma"], m["R"]
+        idx = rng.integers(0, R, size=(300, R))
+        t = clip_terms(n, N, b * b + sg * sg, 1.0, b)
+        row = dict(sigma=sg, n=n, N=N, M=n + N, reps=R, **t,
+                   frac_lamhat_gt1=float((z["lam_hat_unclipped"] > 1).mean()), frac_lamhat_lt0=float((z["lam_hat_unclipped"] < 0).mean()),
+                   lamhat_mean=float(z["lam_hat_unclipped"].mean()), lamhat_sd=float(z["lam_hat_unclipped"].std(ddof=1)))
+        row.update(clip_pair(z["unclip|est"], z["unclip|se"], z["pkg|est"], z["pkg|se"], 0.0, idx))
+        # estimation of lambda removed: fixed lambda at its optimum (unclipped) vs at clip(optimum)
+        o = clip_pair(z["unclip_oracle|est"], z["unclip_oracle|se"], z["pkg_oracle|est"], z["pkg_oracle|se"], 0.0, idx)
+        row.update({k + "_oracle": v for k, v in o.items()})
+        row["sd_formula_unclip_oracle"] = float(np.sqrt(t["v_unclip"]))
+        row["sd_formula_pkg_oracle"] = float(np.sqrt(t["v_pkg"]))
+        row["sd_ratio_formula"] = float(np.sqrt(t["v_unclip"] / t["v_pkg"]))
+        row["excess_var_measured_oracle"] = float(z["pkg_oracle|est"].var(ddof=1) - z["unclip_oracle|est"].var(ddof=1))
+        row["label_saving_formula"] = 1 - t["v_unclip"] / t["v_pkg"]
+        rows.append(row)
+    sweep = pd.DataFrame(rows).sort_values(["sigma", "n", "N", "b"])
+    sweep.to_csv(os.path.join(R_DIR, "clip_sweep.csv"), index=False)
+
+    rows = []
+    pools = {}
+    for d in ("exp3", "exp4"):
+        for path in sorted(glob.glob(os.path.join(R_DIR, "unclip", d, "*.npz"))):
+            zu = np.load(path)
+            m = json.loads(str(zu["_meta"]))
+            cid = m["id"]
+            zp = np.load(os.path.join(R_DIR, d, cid + ".npz"), allow_pickle=True)
+            ds = dataset_name(m["pop"])
+            if ds not in pools:
+                pl = load_pool(ds)
+                pools[ds] = (pl.truth, float(pl.Y.var()), float(pl.f.var()), float(np.cov(pl.Y, pl.f, bias=True)[0, 1]))
+            truth, vy, vf, cyf = pools[ds]
+            n, N, R = m["n"], m["N"], m["R"]
+            idx = rng.integers(0, R, size=(300, R))
+            t = clip_terms(n, N, vy, vf, cyf)
+            lam_u = zu["lam_unclipped"]
+            row = dict(dataset=ds, exp=d, n=n, N=N, M=n + N, reps=R, **t,
+                       frac_lamhat_gt1=float((lam_u > 1).mean()), frac_lamhat_lt0=float((lam_u < 0).mean()),
+                       lamhat_mean=float(lam_u.mean()), lamhat_sd=float(lam_u.std(ddof=1)))
+            row.update(clip_pair(zu["est"], zu["se"], zp["ppi++|est"], zp["ppi++|se"], truth, idx))
+            row["sd_ratio_formula"] = float(np.sqrt(t["v_unclip"] / t["v_pkg"]))
+            rows.append(row)
+    real = pd.DataFrame(rows).sort_values(["exp", "dataset", "n", "N"])
+    real.to_csv(os.path.join(R_DIR, "clip_real.csv"), index=False)
+    return sweep, real
+
+
+if __name__ == "__main__":
+    what = sys.argv[1] if len(sys.argv) > 1 else "all"
+    if what in ("cells", "all"):
+        print("cells", len(build_cells()))
+    if what in ("prop", "all"):
+        print("prop", len(build_prop()))
+    if what in ("breakeven", "all"):
+        print("breakeven", len(build_breakeven()), len(build_breakeven_curves()))
+    if what in ("diagnostic", "all"):
+        print("diagnostic", len(build_diagnostic()))
+    if what in ("ladder", "all"):
+        print("ladder", len(build_ladder()))
+    if what in ("runtimes", "all"):
+        print("runtimes", len(build_runtimes()))
+    if what in ("headline", "all"):
+        print("headline", len(build_headline()))
+    if what in ("clip", "all"):
+        a, b_ = build_clip()
+        print("clip", len(a), len(b_))
+    if what in ("decomp", "all"):
+        print("decomp", len(build_decomp()))
+    if what in ("variants", "all"):
+        print("variants", len(build_variants()))

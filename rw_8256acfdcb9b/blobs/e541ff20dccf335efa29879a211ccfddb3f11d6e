@@ -1,0 +1,22 @@
+"""Re-time the actual fitted models: seconds per 2e5 evaluations, and per full table (extrapolated)."""
+import sys, os, time, numpy as np, json
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import roc_auc_score
+from shapreliab import data, models
+out = []
+for ds in sys.argv[1].split(","):
+    X, names, cat, y = data.load(ds)
+    d = X.shape[1]
+    Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.3, random_state=0, stratify=y)
+    if len(ytr) > 30000:
+        Xtr, ytr = Xtr[:30000], ytr[:30000]
+    for kind in ["lr", "rf", "gbm", "mlp"]:
+        t = time.time(); m = models.Model(kind, d, cat, seed=0).fit(Xtr, ytr); tf = time.time() - t
+        auc = roc_auc_score(yte, m.f(Xte))
+        Z = Xte[np.random.RandomState(0).randint(0, len(Xte), 200000)]
+        t = time.time(); m.f(Z); te = time.time() - t
+        r = dict(dataset=ds, d=d, n=len(y), model=kind, fit_s=round(tf, 2), auc=round(auc, 4), sec_per_2e5=round(te, 2),
+                 table_cpu_s_per_instance=round(te / 2e5 * (2 ** d) * 50, 1))
+        print(r, flush=True); out.append(r)
+json.dump(out, open("results/retime_%s.json" % sys.argv[1].replace(",", "_"), "w"), indent=1)

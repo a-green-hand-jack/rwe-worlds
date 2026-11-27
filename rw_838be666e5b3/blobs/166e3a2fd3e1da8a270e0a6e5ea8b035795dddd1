@@ -1,0 +1,134 @@
+\section{Proofs}
+\label{app:proofs}
+
+\paragraph{Proof of \cref{prop:floor}.}
+Condition on the $M$ records. The labeled set is a simple random subset of size $n$, so $\bar h_{\mathrm{lab}}-\bar h_{\mathrm{all}}$ has conditional mean zero and conditional variance $(\frac1n-\frac1M)S_h^2$, where $S_h^2=\frac1{M-1}\sum_i(h_i-\bar h_{\mathrm{all}})^2$. By \eqref{eq:est}, $\hat\theta_g=\bar Y_{\mathrm{all}}+(\bar h_{\mathrm{lab}}-\bar h_{\mathrm{all}})$; the first term is a function of the records and the second has conditional mean zero, so they are uncorrelated and $\Var\hat\theta_g=\Var(Y)/M+(\frac1n-\frac1M)\E S_h^2$. For i.i.d.\ records $\E S_h^2=\Var(h)$, which gives \eqref{eq:Vg}. Writing $Y-g=(Y-m)+(m-g)$, whose terms are uncorrelated, $\Var(Y-g)=\sigma^2_{\mathrm{res}}+\Var(m-g)$, and $\Var(Y)=\sigma^2_{\mathrm{res}}+V_m$. Substituting gives \eqref{eq:floor}. \hfill$\square$
+
+\paragraph{PPI++ as the best linear member.}
+For $g=\lambda f$ the estimator is $\lambda\bar f_{\mathrm{unl}}+\bar{(Y-\lambda f)}_{\mathrm{lab}}$, with variance $\Var(Y-\lambda f)/n+\lambda^2\Var(f)/N$ because the two parts use disjoint records. Setting the derivative in $\lambda$ to zero gives $\lambda^\star$ and \eqref{eq:ppipp}. For the pooled estimator with $g=bf$, $\frac1M(n\bar f_{\mathrm{lab}}+N\bar f_{\mathrm{unl}})b+\bar Y_{\mathrm{lab}}-b\bar f_{\mathrm{lab}}=\frac{bN}{M}\bar f_{\mathrm{unl}}+\bar{(Y-\tfrac{bN}M f)}_{\mathrm{lab}}$, i.e.\ PPI with $\lambda=bN/M$. With the best linear $g$, $\Var(Y-g)=\Var(Y)(1-\rho^2)$ in \eqref{eq:Vg} gives $\frac{\Var(Y)}n[\frac nM+(1-\frac nM)(1-\rho^2)]=\frac{\Var(Y)}n(1-\rho^2\frac NM)$, equal to \eqref{eq:ppipp}. \hfill$\square$
+
+\paragraph{The clip.}
+By \eqref{eq:floor} with $g=a+cf$ for any constant $a$, $V(g)-\Vstar=(\frac1n-\frac1M)\Var(m-a-cf)$. The projection of $m(f)$ on $(1,f)$ has slope $b^\star$ and residual $m-a^\star-b^\star f$, uncorrelated with $f$ with variance $\Delta$; hence $\Var(m-a-cf)=\Delta+(b^\star-c)^2\Var(f)$, which is \eqref{eq:clip}. With $c=b^\star$ this is \eqref{eq:gap}. \hfill$\square$
+
+\emph{Check on synthetic populations.} We drew $f\sim N(0,1)$ and $Y=b f+\sigma\varepsilon$ (so $\Delta=0$) for $b\in\{-0.5,0,0.8,1,1.2,1.5,2\}$ and $\sigma=0.6$ at $n\in\{30,100,300,10^3,3\cdot10^3\}$ with $N=10^4$, at $n=300$ with $N\in\{300,1200\}$, and for $\sigma\in\{0.3,1.5\}$ at $n\in\{100,10^3\}$ ($61$ cells, $4000$ to $8000$ repetitions). The paired width ratio of the unclipped to the package's PPI++ differs from $\sqrt{V(\lambda^\star)/V(\mathrm{clip}\,\lambda^\star)}$ by at most $0.004$ at $n\ge10^3$, $0.014$ at $n=300$, $0.088$ at $n=100$ and $0.131$ at $n=30$; the difference is the cost of estimating $\lambda$. For $0\le b\le1$ the ratio is within $0.013$ of one at $n\ge100$, and at $n=30$ the unclipped interval is up to $4.6\%$ wider (the clip then shrinks a noisy $\hat\lambda$). For $b<0$ the package sets $\lambda=0$ and returns the classical interval, and the unclipped interval is $0.77$ to $0.89$ as wide.
+\Cref{fig:clip} shows the sweep with the real datasets at their reference $n$, and \cref{tab:decomp} splits the width ratio on four datasets into the spread of the estimate and the ratio of its standard error to that spread, arm by arm on the same draws.
+
+\begin{figure*}[!t]
+\centering
+\includegraphics{../figures/fig_clip.pdf}
+\caption{The package's clip of the PPI++ weight. Left: paired width ratio of PPI++ with the weight unclipped to the package's against the slope $b$ of $Y$ on $f$; markers are the synthetic sweep ($95\%$ intervals, colour is $n$; $\sigma=0.6$, $N=10^4$), the line the formula for the population-optimal weight, hollow diamonds the real datasets at their reference $n$. Below one, the unclipped interval is shorter. Right: coverage of the package's (filled) and unclipped (hollow) intervals on the same sweep, Wilson $95\%$ intervals; dashed: nominal.}
+\label{fig:clip}
+\end{figure*}
+
+\refstepcounter{table}\label{tab:decomp}
+\noindent\textbf{Table~\thetable.} Where the width gap to the package's PPI++ comes from ($3000$ draws per cell, shared by all arms): width ratio $=$ (SD ratio of the estimates) $\times$ (the arm's SE/SD over the package's), with SE/SD the mean estimated standard error over the SD of the estimates; SE/SD below one means the interval is too short for the spread of the estimate. $n=100$, $500$ and $N=10^4$.\par\vspace{4pt}
+{\centering\input{../tables/tab_decomp}\par}
+
+\paragraph{The floor as an efficiency bound.}
+Let the label indicator $R_i$ be Bernoulli with known $\pi=n/M$, independent of $(Y_i,Z_i)$ (the fixed-size design differs from this only by the finite-population term that the $M$-fold sums already carry). The efficient influence function for $\theta=\E[Y]$ with $Z$ always observed is $m(Z)-\theta+\frac{R}{\pi}(Y-m(Z))$, which is the influence function of the estimator \eqref{eq:est} at $g=m$ \citep{robins1994estimation,tsiatis2006semiparametric}. Its variance is $V_m+\sigma^2_{\mathrm{res}}/\pi$ per record, that is $\Vstar$ after division by $M$. No regular estimator at the same $n$, $N$ and $Z$ has smaller asymptotic variance.
+
+
+\section{Interval constructions}
+\label{app:constructions}
+
+The standard error of an estimator is the same under every construction; what changes is the critical value or the shape of the interval. \Cref{tab:constructions} gives, for binary outcomes at small $n$, the mean width and coverage of each estimator under the Wald interval ($z=1.96$), the $t$ interval ($t_{n-1}$), the Wilson interval (with effective sample size $\hat p(1-\hat p)/\widehat{\mathrm{SE}}^2$), the Wald interval clipped to $[0,1]$, a studentised bootstrap ($B=399$; run only for the pooled linear and the isotonic-calibrated estimators, with the fitted $g$ held at its cross-fitted values and the labeled pairs and the unlabeled predictions resampled separately) and, for the labels-only interval, Clopper--Pearson. Each row uses the same draws across constructions ($2000$ repetitions; $n\in\{25,50,200\}$, \texttt{plankton} $\{50,100,400\}$, synthetic $\{100,200,800\}$). At small $n$ PPI++ under the Wald interval itself misses the validity rule, so a dagger there is not specific to one estimator. Widths of $10^6$ or more are the degenerate bootstrap-$t$ intervals at $n=25$.
+
+\refstepcounter{table}\label{tab:constructions}
+\noindent\textbf{Table~\thetable.} Mean width (empirical coverage, \%) per estimator and interval construction, binary outcomes. $^\dagger$: coverage fails the validity rule; ``--'': not run for that estimator.\par\vspace{4pt}
+{\centering\input{../tables/tab_constructions}\par}
+
+\section{Side information}
+\label{app:sidex}
+
+Side information $X$ enters only through $g(f,X)$. \Cref{tab:sideinfo} reports, for the three census tasks, \texttt{alphafold} and four synthetic populations, the arms that use $(f,X)$: the OLS-adjusted mean (cross-fitted linear in $(f,X)$) and the package's PPI++ run on that predictor, gradient-boosting AIPW, a spline in $f$ plus linear $X$, the selected arm (1-SE safeguard from the OLS-adjusted mean), and the model-based floor with $X$ (not an interval). Each is shown with its paired width ratio to the PPI++ arm that uses $f$ only, on the same draws ($1000$ repetitions; $n\in\{100,200,400,1000,1600\}$, $N$ between $4000$ and $5000$). In the synthetic populations $Y=u+\tau_1X_1+\tau_2(X_2^2-1)+0.7\varepsilon$ with $f=u+0.5\varepsilon'$ and $X_1,X_2$ independent standard normals, so $\tau_1$ is a linear and $\tau_2$ a nonlinear signal beyond $f$; the populations are named by $(\tau_1,\tau_2)\in\{0,0.6\}^2$. A gain from $X$ is credited to calibration only if the calibrated or the selected arm is shorter, at valid coverage, than both the vector PPI++ and the OLS-adjusted rows.
+
+\refstepcounter{table}\label{tab:sideinfo}
+\noindent\textbf{Table~\thetable.} Arms with side information: mean width, coverage (Wilson 95\% interval) and paired width ratio to PPI++ using $f$ only. Bold: shortest valid width. $^\dagger$: coverage fails the validity rule.\par\vspace{4pt}
+{\centering\input{../tables/tab_side_info}\par}
+
+\section{Closed-form excess and the headroom diagnostic}
+\label{app:diagnostic}\label{app:propcheck}
+
+\Cref{fig:propcheck} plots, for every synthetic population and every real dataset with a closed form, the measured excess width of each estimator over the estimated floor against the prediction of \eqref{eq:gap}, plus the learning cost of the calibrator where the estimator is cross-fitted: $(\tfrac1n-\tfrac1M)[\Delta+(\sigma^2_{\mathrm{res}}+\Delta)\,2/n_{\mathrm{train}}]$ for the pooled linear estimator and $(\tfrac1n-\tfrac1M)\,7\sigma^2_{\mathrm{res}}/n_{\mathrm{train}}$ for the spline, with $n_{\mathrm{train}}=4n/5$.
+
+The diagnostic uses only the labeled records. From the cross-fitted residual variances $v_{\mathrm{lin}}$ and $v_{\mathrm{spl}}$ of the linear and the spline calibrators it forms $\hat\sigma^2=v_{\mathrm{spl}}/(1+7/n_{\mathrm{train}})$, $\hat\Delta=v_{\mathrm{lin}}/(1+2/n_{\mathrm{train}})-\hat\sigma^2$ and the learning cost $7\hat\sigma^2/n_{\mathrm{train}}$; its predicted relative width gain is $1-\sqrt{1-(\tfrac1n-\tfrac1M)(\hat\Delta-\mathrm{cost})/\mathrm{SE}^2_{\mathrm{PPI}{+}{+}}}$, with medians over repetitions. \Cref{fig:diagnostic} compares it with the realised gain, $1-r$ for the spline-calibrated arm.
+
+\begin{figure}[t]
+\centering
+\includegraphics{../figures/fig_prop_check.pdf}
+\caption{Predicted against measured excess width over the estimated floor, as a fraction of the floor width, one point per cell and estimator (filled: synthetic, hollow: real) with the Monte Carlo interval; dashed line: identity.}
+\label{fig:propcheck}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics{../figures/fig_diagnostic.pdf}
+\caption{Gain predicted from the labels alone (cross-fitted $\hat\Delta$ minus learning cost) against the realised gain $1-r$ of the spline-calibrated arm, per dataset, $n$ and calibrator, with 95\% intervals; dashed line: identity. Six of the $135$ cells have no diagnostic value and are not drawn.}
+\label{fig:diagnostic}
+\end{figure}
+
+\section{Break-even for every population}
+\label{app:breakeven}
+
+\Cref{fig:breakevenall} repeats \cref{fig:breakeven} for every population of the break-even grid: the nine datasets, their monotone-transformed versions (stress), and the synthetic designs.
+
+\begin{figure*}[p]
+\centering
+\includegraphics{../figures/fig_breakeven_all_a.pdf}
+\caption{(a) Width of the cross-fitted calibrated interval relative to PPI++ against $n$ (paired, 95\% band), per calibrator, on the nine datasets; dotted line and band: predicted $n^\ast$ with its interval; ``out of grid'': predicted $n^\ast$ beyond the plotted range.}
+\label{fig:breakevenall}
+\end{figure*}
+
+\begin{figure*}[p]
+\centering
+\includegraphics{../figures/fig_breakeven_all_b.pdf}
+\caption{(b) As panel (a) for the monotone-transformed predictors (stress designs) and the synthetic designs.}
+\label{fig:breakevenallb}
+\end{figure*}
+
+\Cref{tab:scoring} scores the prediction population by population.
+
+\refstepcounter{table}\label{tab:scoring}
+\noindent\textbf{Table~\thetable.} Predicted break-even $n^\ast$ and the measured crossing of the calibrated (spline) arm with PPI++, one row per population. ``Scored'': within the pre-fixed factor of three, for bracketed rows only. ``Flag in file'' is the indicator as written by the analysis; it is 1 for all 12 censored rows and is not a confirmation. Against the narrower of the two PPI++ intervals the bracket and censoring of every real dataset are the same.\par\vspace{4pt}
+{\centering\input{../tables/tab_breakeven_scoring}\par}
+
+\section{Headline cells in full}
+\label{app:headline}
+
+\Cref{tab:headlinefull} lists, for every dataset at its reference $n$ and every arm of the ladder, the mean width, the coverage with its Wilson 95\% interval and the paired width ratio to PPI++ with its interval.
+
+\refstepcounter{table}\label{tab:headlinefull}
+\noindent\textbf{Table~\thetable.} All T1 arms at the reference $n$. Bold: shortest valid width (the floor excluded). $^\dagger$: coverage fails the validity rule.\par\vspace{4pt}
+{\centering\input{../tables/tab_headline_full}\par}
+
+\section{Finite-population check}
+\label{app:finitepop}
+
+On \texttt{galaxies} ($16{,}743$ records), \texttt{gene\_expression} ($61{,}150$) and \texttt{census\_income} ($380{,}091$) we redrew the labeled and unlabeled records disjointly and without replacement, with $N=10^4$, and compared the SD of the PPI++ estimate over repetitions ($2000$ for $n\ge300$, so about $\pm0.02$) with the i.i.d.\ cell of the same $n$. With $P$ records, the approximation $\sqrt{[\sigma^2_{\mathrm{res}}(1-n/P)/n+V_g(1-M/P)/M]/[\sigma^2_{\mathrm{res}}/n+V_g/M]}$ gives a predicted ratio. The observed ratio falls with $M/P$ as predicted (\texttt{galaxies}, $n=3000$: $0.828$ against $0.831$; below one in every \texttt{galaxies} cell with $n\ge300$), with differences from the approximation of up to $0.04$, the size of the scatter on \texttt{census\_income}, where no effect is predicted. On \texttt{gene\_expression} at $n=500$ and $1000$ the observed ratio lies above the approximation ($0.994$ against $0.964$; $0.987$ against $0.946$), so the approximation is not quantitative there. The interval assumes i.i.d.\ draws, so it over-covers where the SD falls (\texttt{galaxies}, $n=3000$: $0.98$ against $0.95$): a finite-pool effect, not a failure of the arm. All other real-data cells draw i.i.d.\ with replacement from the pool (\texttt{ballots}: from its labeled records), as in \cref{sec:experiments}.
+
+\section{Compute and reproducibility}
+\label{app:repro}
+
+\paragraph{Environment and data.} Python 3.11.2 on CPU only, with \texttt{numpy} 2.4.6, \texttt{scipy} 1.17.1, \texttt{pandas} 3.0.6, \texttt{scikit-learn} 1.9.1 and \texttt{ppi-python} 0.2.3 (the PPI and PPI++ baselines). The data are the nine example sets of \texttt{ppi-python}, fetched by its loader; no model is trained, and the supplied predictions are the fixed predictor. SHA-256 sums and shapes of the files used are recorded with the results. The literature search for prior work (seven queries on named related work) did not meet the paper that the task excludes.
+
+\paragraph{Randomness.} Each cell (population, $n$, $N$) has the seed $20261126+\mathrm{crc32}(\text{cell id}) \bmod 10^6$ and repetition $r$ uses \texttt{SeedSequence}$([\text{seed},r])$, so a cell does not depend on the number of processes. Intervals for ratios use a paired bootstrap over repetitions ($300$ resamples) with fixed seeds.
+
+\paragraph{Compute.} The experiments took about $13.4$ CPU-hours: $12.8$ recorded per cell (the sum of wall-clock seconds, each cell on one CPU of a shared host, so an upper bound) and $0.6$ for the clip sweep ($0.19$) and the unclipped re-runs (about $0.45$, estimated, not timed per job). The recorded part splits as $1.6$ for the synthetic experiments, $5.6$ for the real-data grid, $1.3$ for interval constructions, $2.8$ for side information, $1.5$ for the failure regimes and $0.06$ for the $N/n$ slice; the longest cell took $22$ minutes.
+
+\paragraph{From the code to the exhibits.} \Cref{tab:scripts} maps each exhibit to the script that draws it. Every script reads the result files built by \texttt{analysis/build\_results.py} from the stored cells, and a missing or inconsistent input stops it. The commands that run each experiment are in the README of the code directory.
+
+\refstepcounter{table}\label{tab:scripts}
+\noindent\textbf{Table~\thetable.} Exhibit, script and input.\par\vspace{4pt}
+{\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+Exhibit & Script & Input \\
+\midrule
+\Cref{fig:ladder}, \cref{fig:regime} & \texttt{fig3\_ladder.py}, \texttt{fig6\_regime.py} & \texttt{cells.csv} \\
+\Cref{fig:breakeven}, \cref{fig:breakevenall,fig:breakevenallb} & \texttt{fig4\_breakeven.py} & \texttt{breakeven.csv}, \texttt{prop\_check.csv} \\
+\Cref{fig:propcheck} & \texttt{fig2\_prop.py} & \texttt{prop\_check.csv} \\
+\Cref{fig:diagnostic} & \texttt{fig5\_diag.py} & \texttt{diagnostic.csv} \\
+\Cref{tab:main,tab:headlinefull,tab:constructions,tab:sideinfo} & \texttt{tables.py} & \texttt{cells.csv}, \texttt{headline.csv} \\
+\Cref{tab:scoring} & \texttt{tables.py} & \texttt{breakeven.csv} \\
+\bottomrule
+\end{tabular}\par}

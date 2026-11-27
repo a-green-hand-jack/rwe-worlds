@@ -1,0 +1,9 @@
+# Paper, code and results
+
+The paper and the code and data released with it. Layout:
+
+- `paper/` LaTeX sources of the paper (venue template, text, bibliography, checklist, appendix)
+- `code/` simulation, estimators and analysis code
+- `results/` per-cell result files behind every number in the paper
+- `figures/`, `tables/` the figures and tables of the paper, with the script that makes each
+- `REPRODUCE.md` environment, data, seeds, commands, run times, script per figure and table

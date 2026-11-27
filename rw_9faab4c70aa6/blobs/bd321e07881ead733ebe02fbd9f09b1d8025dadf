@@ -1,0 +1,44 @@
+\section{Method}
+\label{sec:method}
+
+\paragraph{The measured configuration space.}
+The pool is $N=1500$ MMLU-Pro test items drawn uniformly at random, scored by Qwen2.5-1.5B-Instruct \citep{qwen2024} under $K=128$ configurations: four demonstration sets (none, or one of three sets of three fixed demonstrations) $\times$ two option labellings $\times$ eight instruction wordings $\times$ two answer cues.
+A configuration is scored by one forward pass, the answer being the option letter with the highest log-probability after the cue; there is no sampling and no generated reasoning.
+The $1500\times128$ correctness matrix is computed once, and every search, report and verification below is a replay on it.
+One live check runs the \texttt{dspy} 3.0.4 optimiser \texttt{BootstrapFewShotWithRandomSearch} (Section~\ref{sec:tool}) with the same scorer as its language model; its verdict rule, that the tool's mean gap lies inside the replay's pool-bootstrap interval, was fixed before it ran.
+The default (untuned) configuration is no demonstrations, ``dot'' labelling, the first wording and the first cue; it was fixed before the matrix was analysed.
+
+\paragraph{Truth and uncertainty.}
+The truth of the configuration selected on $S$ is its accuracy on the pool items outside $S$ (at least $1100$ items for $n\le400$ and $1260$ in the protocol experiments, standard error $\le0.015$); every gap is shown beside this floor.
+At $n=400$ the mean gap against the items outside $S$ is $N/(N-n)=1.36$ times the gap against the whole pool, and we say which reading a point is.
+The spread of the gap over draws of $S$ is reported as such; because draws from one pool overlap, every statement about behaviour on the benchmark uses a between-pool interval, from bootstrap resamples of the pool items, with the variance due to the finite number of draws of $S$ taken out of the resample spread (allowing two standard errors for its estimate) and the Monte-Carlo error of the point added, the interval placed on the point estimate (the number of resamples and draws is given in the source file of each result).
+On the synthetic arm the truth is known exactly.
+
+\paragraph{Searchers.}
+\emph{Random search} evaluates $B$ configurations drawn without replacement on all of $S$; $B=K$ is the exhaustive grid.
+\emph{Hill climbing} is coordinate ascent over the four factors from a random start.
+\emph{Successive halving} scores all candidates on a small subset of $S$, keeps the best half and doubles the subset each round; its floor on the subset size matches its evaluation count (configuration--item cells) to that of random search at a given $B$.
+Cost is counted in cells, so comparisons are at equal evaluation budget.
+
+\paragraph{Predicting the gap from the search log.}
+Let $Y_S\in\{0,1\}^{n\times B}$ be the logged item-level scores and $Z^*\sim\mathcal N(0,\hat\Sigma/n)$ a Gaussian multiplier bootstrap of their column means \citep{chernozhukov2013}.
+If all configurations were equally accurate, the expected optimism of the best is $\EE\max_k Z^*_k=\kappa\,\bar\sigma/\sqrt n$, with $\bar\sigma/\sqrt n$ the mean standard error of a column; this defines $\kappa$ and the first predictor.
+$\Keff$ is the number of independent standard-normal competitors whose expected maximum equals $\kappa$.
+A refined predictor shrinks the scores toward their mean by an empirical-Bayes estimate of $\sigmatheta$ (Appendix~\ref{app:definitions}).
+
+\paragraph{Reporting protocols.}
+All protocols receive the same $N_{\mathrm{tot}}$ items and searcher and are scored on the fresh-item accuracy of the configuration they deploy.
+\emph{Naive} reports the score on the search items.
+\emph{Split} searches on a fraction $1-f$, $f\in\{0.2,0.5\}$, and reports the held-out accuracy with an exact binomial lower bound.
+\emph{Nested cross-fit} (five folds) and the \emph{optimism bootstrap} (100 resamples) with its .632 variant \citep{efron1997} estimate the expected accuracy of the procedure.
+\emph{Bonferroni}, \emph{\v{S}id\'ak} and \emph{max-t} give one-sided lower bounds simultaneous over a candidate set of size $m$.
+Max-t, our candidate, is $\hat A_U(\chat)-q_{1-\alpha}\,\widehat{\mathrm{se}}(\chat)$, with $q_{1-\alpha}$ the $(1-\alpha)$ quantile of $\max_k Z^*_k/\widehat{\mathrm{sd}}_k$ from the logged item-level matrix, in the manner of \citet{rink2025}; it needs no held-out items and no re-search.
+Bounds are formed over the configurations the search \emph{evaluated} and over the whole \emph{declared} space; for successive halving the evaluated set is the two configurations that reach the last round, a deliberately narrow set.
+The level is $\alpha=0.05$.
+Protocols are scored by the probability that a point report exceeds the fresh accuracy, the coverage and width of the bound, and the accuracy lost by spending items on reporting.
+On the real matrix the fresh accuracy is a noisy proportion, so coverage and overstatement are scored against it and against it plus $1.645$ standard errors, and a statement is called valid or invalid only when the two scorings agree.
+
+\paragraph{Decisions, and the matrix beyond its support.}
+A claim that tuning helped is declared when the paired $z$ statistic of the tuned score against the default on the same items exceeds $1.645$ (naive), when the max-t band excludes zero (simultaneous), or on a held-out half of $S$ (split); a claim that tuned system $A$ beats tuned system $B$ compares their reported scores at equal and at four-to-one budgets.
+The nulls are synthetic worlds with equal accuracies fitted to the item-level structure of the matrix, and the densest window of the real configurations in pool accuracy, a near-null.
+To reach sizes and numbers of configurations the matrix cannot, a low-rank logistic model fitted to the matrix generates further worlds; its validation and its leakage probe are in Appendix~\ref{app:definitions}.

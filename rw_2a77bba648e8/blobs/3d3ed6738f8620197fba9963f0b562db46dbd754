@@ -1,0 +1,445 @@
+"""P6: extrapolation-sensitivity interval for the `chin` estimator (ANALYSIS_PLAN addendum 5, Brief rev. 10-11).
+    python analysis/p6_interval.py freeze OUT ORIG_RAWDIR            writes OUT/p6_frozen.json (kappa-hat, leave-one-mechanism-out) from the original cells
+    python analysis/p6_interval.py run OUT ORIG_RAWDIR [CONF_RAWDIR]  every table; reads OUT/p6_frozen.json (the frozen kappa-hat; never recomputed from the block)
+
+Interval  tau_hat +- cv(kappa B / SE_HC0) SE_HC0,  cv(t) = 0.90 quantile of |N(t, 1)|;  B1 = range of tau_hat over (chin, quad, spline, count, hop2);
+B2 = 0.5 Mhat ((1-p)^2 + p^2), Mhat = largest |d^2/df^2| over the observed [min f, max f] of a global cubic polynomial in f fitted separately in each own-treatment arm
+(z, f, f^2, f^3 and their interactions with z), the larger of the two arms (`mhat3`).  kappa grid {0.25, ..., 64}.  Bernoulli designs only (HC0 is unit level),
+noise level 0.5 (in-run level; 0.25 and 1 for the by-noise-level table), every draw of a cell, the mechanism-free null column (s = 0) included for kappa*_0.
+Population 'primary': iid baseline with SD 1, no edge noise; the other Bernoulli runs (degree/community baselines, weak baselines, edge noise) are reported as robustness."""
+import glob
+import json
+import os
+import subprocess
+import sys
+from datetime import date
+
+import numpy as np
+import pandas as pd
+from scipy.stats import binom, ncx2, norm, spearmanr
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import agg  # noqa: E402
+from gate import mech  # noqa: E402
+from gate.sim import EI, LADDER, NOISE_EXTRA, NOISE_M  # noqa: E402
+
+KAPPAS_EXT = (1 / 64, 1 / 32, 1 / 16, 1 / 8)    # below the pre-registered grid; exploratory, curves only (no kappa*, no controls)
+KAPPAS = (0.25, 0.5, 1, 2, 4, 8, 16, 32, 64)
+ALPHA = 0.10
+Z90 = norm.ppf(1 - ALPHA / 2)          # 1.645: HC0 interval at the level of the P6 interval
+Z95 = 1.96
+SMOOTH = ("a", "b", "c", "e", "f")
+SMOOTH_BLOCK = ("a", "b", "c", "e", "f", "g", "h")
+NEW_FAMILIES = ("HK", "LN")
+_T = np.linspace(0, 12, 2401)
+_CV = ncx2.ppf(1 - ALPHA, 1, _T ** 2) ** 0.5
+
+
+def cv(t):
+    """(1 - alpha) quantile of |N(t, 1)| (fixed-length honest interval); tabulated below t = 12, t + z_{1-alpha} above (the other tail is below 1e-30)"""
+    t = np.asarray(t, float)
+    return np.where(t < 12, np.interp(t, _T, _CV), t + norm.ppf(1 - ALPHA))
+
+
+def est(o, run, name, j, m):
+    e = EI[name]
+    return o["sig"][:, e, j].astype(float) + m * np.repeat(run.sd[:, j], run.R) * o["nz"][:, e, j].astype(float)
+
+
+def q_threshold(d, p, theta=mech.THETA):
+    """P(Bin(d, p)/d >= theta): the share of units whose treated-neighbour fraction reaches the threshold, from the design alone"""
+    d = int(round(d))
+    return float(binom.sf(np.ceil(theta * d - 1e-9) - 1, d, p))
+
+
+def true_curvature(mname, s, lo, hi):
+    """sup |g''| over [lo, hi] of the treatment part's dependence on f, for the mechanisms that are a function of f alone (NaN otherwise)"""
+    f = np.linspace(lo, hi, 401)
+    h = 1e-4
+    if mname in ("a", "f"):
+        return 0.0
+    if mname in ("c", "g", "h"):
+        fn = {"c": mech.g_sat, "g": mech.g_conv, "h": mech.g_sig}[mname]
+        ff = np.clip(f, h, 1 - h)
+        return float(np.abs(s * (fn(ff + h) - 2 * fn(ff) + fn(ff - h)) / h ** 2).max())
+    return np.nan
+
+
+def load_cells(run, source):
+    """all arrays of one run needed by the interval; returns (meta rows, arrays) for the columns of the run"""
+    cfg, o = run.cfg, run.o
+    if cfg.get("design", "bern") != "bern" or "mhat3" not in o:
+        return [], []
+    G, R, p = run.G, run.R, cfg["p"]
+    NR = G * R
+    fmax, fmin = o["expo"][:, 1], o["expo"][:, 2]
+    dreal = float(np.mean([x["dbar"] for x in o["gmeta"]]))
+    metas, arrs = [], []
+    for j, (mname, s) in enumerate(run.cols):
+        tau = np.repeat(run.tau[:, j], R)
+        for im, m in enumerate((NOISE_M,) + NOISE_EXTRA):
+            th = est(o, run, "chin", j, m)
+            if m == NOISE_M:
+                se, M, M0 = o["se_hc"][:, j], o["mhat3"][:, j], o["mhat3_0"][:, j]
+            else:
+                se, M, M0 = o["se_hc_x"][:, im - 1, j], o["mhat3_x"][:, im - 1, j], o["mhat3_0"][:, j]
+            lad = np.stack([est(o, run, e, j, m) for e in LADDER])
+            B1 = lad.max(0) - lad.min(0)
+            B2 = 0.5 * M.astype(float) * ((1 - p) ** 2 + p ** 2)
+            tg = th.reshape(G, R)
+            sd_rel = float(np.mean(tg.std(1, ddof=1) / run.tau[:, j]))
+            meta = dict(source=source, run_id=run.id, family=cfg["family"], d_nom=cfg.get("d", 0), d_real=dreal, p=p, mechanism=mname, s=s, m=m,
+                        base=cfg.get("base", "iid"), base_sd=cfg.get("base_sd", 1.0), q_edge=cfg.get("q_edge", 0.0), n_draws=NR, G=G, R=R,
+                        tau=float(tau.mean()), bias=float(np.mean(th - tau)), bias_rel=float(np.mean((th - tau) / tau)), sd_rel=sd_rel,
+                        mean_se=float(np.mean(se)), mean_M=float(np.mean(M)), mean_M0=float(np.mean(M0)), mean_B1=float(B1.mean()), mean_B2=float(B2.mean()),
+                        q_thr=q_threshold(dreal, p) if mname == "d" else np.nan,
+                        true_curv=true_curvature(mname, s, float(fmin.min()), float(fmax.max())) if mname != "0" else np.nan)
+            arr = dict(err=np.abs(th - tau).astype(np.float32), se=se.astype(np.float32), B1=B1.astype(np.float32), B2=B2.astype(np.float32), tau=tau.astype(np.float32))
+            if m == NOISE_M:
+                # subset for the MC-SD check: first graph draw of the SBM runs at p = 0.5
+                if p == 0.5 and cfg["family"] == "SBM" and run.id.startswith(("core_SBM_n3000", "conf_SBM")):
+                    sl = slice(0, R)
+                    meta["mcsd"] = float(th[sl].std(ddof=1))
+                    arr["sub"] = {k: v[sl] for k, v in arr.items() if k != "sub"}
+            metas.append(meta)
+            arrs.append(arr)
+    return metas, arrs
+
+
+def interval_hw(a, b, kappa):
+    se = a["se"].astype(float)
+    return cv(kappa * a[b].astype(float) / np.maximum(se, 1e-12)) * se
+
+
+def cov_width(err, hw, tau):
+    return float(np.mean(err <= hw)), float(np.mean(2 * hw / tau))
+
+
+def cell_curve(metas, arrs):
+    """coverage and width of P6 (B1, B2), HC0 (levels 0.90 and 0.95) per cell and kappa"""
+    rows = []
+    for meta, a in zip(metas, arrs):
+        r = dict(cov_hc90=None)
+        err, tau, se = a["err"].astype(float), a["tau"].astype(float), a["se"].astype(float)
+        r["cov_hc90"], r["width_hc90"] = cov_width(err, Z90 * se, tau)
+        r["cov_hc95"], r["width_hc95"] = cov_width(err, Z95 * se, tau)
+        for b in ("B1", "B2"):
+            for k in KAPPAS + KAPPAS_EXT:
+                r[f"cov_{b}_k{k}"], r[f"width_{b}_k{k}"] = cov_width(err, interval_hw(a, b, k), tau)
+        rows.append(r)
+    return pd.DataFrame(rows)
+
+
+def controls(metas, arrs, cells, kappas):
+    """equal-width controls at m = 0.5 on the primary cells with s > 0: C1 (per-cell factor to the cell's median P6 width), C2 (one global factor), C3 (design-only:
+    mean over mechanisms and shares of the added half-width for each (family, d, p)), C3' (kappa c(p), one pooled constant), oracle (z SE + |bias|)"""
+    prim = np.where(cells.primary & (cells.s > 0) & (cells.m == NOISE_M))[0]
+    out = {}
+    se_w = np.mean([np.mean(2 * Z90 * arrs[i]["se"] / arrs[i]["tau"]) for i in prim])
+    keyg = {i: (metas[i]["family"], metas[i]["d_nom"], metas[i]["p"]) for i in prim}
+    for b in ("B1", "B2"):
+        for k in kappas:
+            hw = {i: interval_hw(arrs[i], b, k) for i in prim}
+            w_p6 = np.mean([np.mean(2 * hw[i] / arrs[i]["tau"]) for i in prim])
+            add = {i: float(np.mean(hw[i] - Z90 * arrs[i]["se"])) for i in prim}
+            grp = {}
+            for i in prim:
+                grp.setdefault(keyg[i], []).append(add[i])
+            a_g = {g: float(np.mean(v)) for g, v in grp.items()}
+            lam2 = w_p6 / se_w
+            wa3 = np.mean([2 * a_g[keyg[i]] / arrs[i]["tau"].mean() for i in prim])
+            lam3 = (w_p6 - se_w) / wa3
+            cp = {i: (1 - metas[i]["p"]) ** 2 + metas[i]["p"] ** 2 for i in prim}
+            wa3p = np.mean([2 * cp[i] / arrs[i]["tau"].mean() for i in prim])
+            lam3p = (w_p6 - se_w) / wa3p
+            for i in prim:
+                a = arrs[i]
+                err, tau, se = a["err"].astype(float), a["tau"].astype(float), a["se"].astype(float)
+                med = np.median(hw[i]) / np.median(se)
+                r = out.setdefault(i, {})
+                for nm, h in (("c1", med * se), ("c2", lam2 * Z90 * se), ("c3", Z90 * se + lam3 * a_g[keyg[i]]),
+                              ("c3p", Z90 * se + lam3p * cp[i]), ("oracle", Z90 * se + abs(metas[i]["bias"]))):
+                    r[f"cov_{nm}_{b}_k{k}"], r[f"width_{nm}_{b}_k{k}"] = cov_width(err, h, tau)
+    return pd.DataFrame.from_dict(out, orient="index")
+
+
+def kstar(cov_by_kappa):
+    """smallest kappa in the grid at which the mean coverage reaches 0.90; inf if none"""
+    for k, v in zip(KAPPAS, cov_by_kappa):
+        if v >= 0.9:
+            return float(k)
+    return np.inf
+
+
+def kstar_table(cells, b, keys):
+    rows = []
+    for key, g in cells.groupby(keys, dropna=False):
+        cov = [g[f"cov_{b}_k{k}"].mean() for k in KAPPAS]
+        rows.append(dict(zip(keys, key if isinstance(key, tuple) else (key,)), bound=b, cells=len(g), kappa_star=kstar(cov),
+                         **{f"cov_k{k}": c for k, c in zip(KAPPAS, cov)}))
+    return pd.DataFrame(rows)
+
+
+def frozen_kappa(cells, b):
+    """smallest grid kappa at which the mean over the smooth mechanisms (equal weight per mechanism) of mean cell coverage is >= 0.90, and the leave-one-mechanism-out version"""
+    g = cells[cells.primary & (cells.s > 0) & cells.mechanism.isin(SMOOTH)]
+    mc = np.array([[g[g.mechanism == m][f"cov_{b}_k{k}"].mean() for k in KAPPAS] for m in SMOOTH])   # mech x kappa
+    khat = kstar(mc.mean(0))
+    lomo = {}
+    for i, m in enumerate(SMOOTH):
+        kk = kstar(np.delete(mc, i, 0).mean(0))
+        idx = KAPPAS.index(kk) if np.isfinite(kk) else len(KAPPAS) - 1
+        lomo[m] = dict(kappa_chosen_on_others=kk, held_out_coverage=float(mc[i, idx]))
+    return dict(kappa_hat=khat, mean_smooth_coverage={str(k): float(v) for k, v in zip(KAPPAS, mc.mean(0))}, per_mechanism_coverage={m: {str(k): float(v) for k, v in zip(KAPPAS, mc[i])} for i, m in enumerate(SMOOTH)},
+                leave_one_mechanism_out=lomo, n_cells=int(len(g)))
+
+
+def boot_groups(gdf, col, n=2000, seed=20261126):
+    """mean of per-group means with a bootstrap over groups; gdf has columns group, col"""
+    gm = gdf.groupby("group")[col].mean()
+    rng = np.random.default_rng(seed)
+    v = gm.values
+    bs = [v[rng.integers(0, len(v), len(v))].mean() for _ in range(n)]
+    return float(v.mean()), float(np.percentile(bs, 2.5)), float(np.percentile(bs, 97.5)), float((v > 0).mean()), len(v)
+
+
+def info_tests(cells, kappas):
+    rows = []
+    g0 = cells[cells.primary & (cells.s > 0) & (cells.m == NOISE_M)].copy()
+    g0["group"] = g0.mechanism + "|" + g0.family
+    for b in ("B1", "B2"):
+        for k in kappas:
+            for ctl in ("c1", "c2", "c3") + (("c3p",) if b == "B2" else ()):
+                col = f"cov_{ctl}_{b}_k{k}"
+                if col not in g0:
+                    continue
+                g0["diff"] = g0[f"cov_{b}_k{k}"] - g0[col]
+                mean, lo, hi, pos, ng = boot_groups(g0, "diff")
+                rho = []
+                for m_, h in g0.groupby("mechanism"):
+                    if len(h) > 5 and h.bias.abs().nunique() > 1:
+                        add = h[f"width_{b}_k{k}"] - h.width_hc90
+                        rho.append(spearmanr(add, h.bias.abs())[0])
+                rows.append(dict(bound=b, kappa=k, control=ctl, groups=ng, mean_diff=mean, ci_lo=lo, ci_hi=hi, share_groups_positive=pos,
+                                 carries_information=bool(mean >= 0.03 and lo > 0 and pos >= 2 / 3), mean_rank_corr_added_width_vs_abs_bias=float(np.nanmean(rho)) if rho else np.nan))
+    return pd.DataFrame(rows)
+
+
+def tails(cells, b, k):
+    g = cells[cells.primary & (cells.s > 0) & (cells.m == NOISE_M)]
+    out = []
+    for by in ("mechanism", "family"):
+        for key, h in g.groupby(by):
+            v = h[f"cov_{b}_k{k}"]
+            out.append(dict(by=by, group=key, bound=b, kappa=k, cells=len(h), mean=v.mean(), share_ge_085=(v >= .85).mean(), share_ge_090=(v >= .9).mean(), p10=v.quantile(.1), minimum=v.min(),
+                            hc90_mean=h.cov_hc90.mean(), hc90_min=h.cov_hc90.min()))
+    v = g[f"cov_{b}_k{k}"]
+    out.append(dict(by="all", group="all", bound=b, kappa=k, cells=len(g), mean=v.mean(), share_ge_085=(v >= .85).mean(), share_ge_090=(v >= .9).mean(), p10=v.quantile(.1), minimum=v.min(),
+                    hc90_mean=g.cov_hc90.mean(), hc90_min=g.cov_hc90.min()))
+    return pd.DataFrame(out)
+
+
+def strata(cells, b, k):
+    g = cells[cells.primary & (cells.s > 0) & (cells.m == NOISE_M)].copy()
+    g["bias_over_sd"] = g.bias_rel.abs() / g.sd_rel
+    g["bin"] = pd.cut(g.bias_over_sd, [0, 0.25, 0.5, 1, 2, np.inf], include_lowest=True).astype(str)
+    cols = dict(cells=("bin", "size"), hc90=("cov_hc90", "mean"), p6=(f"cov_{b}_k{k}", "mean"), p6_width=(f"width_{b}_k{k}", "mean"), hc90_width=("width_hc90", "mean"))
+    for c in ("c1", "c2", "c3", "oracle"):
+        if f"cov_{c}_{b}_k{k}" in g:
+            cols[c] = (f"cov_{c}_{b}_k{k}", "mean")
+    out = g.groupby("bin").agg(**cols).reset_index()
+    out["width_ratio"] = out.p6_width / out.hc90_width
+    out.insert(0, "bound", b)
+    out.insert(1, "kappa", k)
+    return out
+
+
+def mhat_diag(cells):
+    g = cells[cells.primary & (cells.s > 0) & (cells.m == NOISE_M)].copy()
+    g["ratio_M0_true"] = g.mean_M0 / g.true_curv.replace(0, np.nan)
+    g["ratio_M_M0"] = g.mean_M / g.mean_M0.replace(0, np.nan)
+    return g.groupby(["mechanism", "d_nom"]).agg(cells=("s", "size"), M_hat_sigma0=("mean_M0", "median"), true_sup_g2=("true_curv", "median"), M_hat_at_noise=("mean_M", "median"),
+                                                 ratio_M0_to_true=("ratio_M0_true", "median"), ratio_M_to_M0=("ratio_M_M0", "median"),
+                                                 mean_SE_HC0=("mean_se", "median"), mean_abs_bias=("bias", lambda x: float(np.mean(np.abs(x))))).reset_index()
+
+
+def main(mode, out, orig_dir, conf_dir=None):
+    os.makedirs(out, exist_ok=True)
+    sources = [("original", orig_dir)] + ([("confirmatory", conf_dir)] if conf_dir else [])
+    commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, cwd=os.path.dirname(os.path.abspath(__file__))).stdout.strip()
+    allc, allcm = [], []
+    frozen = None
+    if mode == "run":
+        frozen = json.load(open(os.path.join(out, "p6_frozen.json")))
+    for name, d in sources:
+        metas, arrs = [], []
+        for f in sorted(glob.glob(os.path.join(d, "*.pkl"))):
+            mm, aa = load_cells(agg.Run(f), name)
+            metas += mm
+            arrs += aa
+            print("p6", name, os.path.basename(f), len(mm), flush=True)
+        if mode == "freeze" and name != "original":
+            continue
+        cells = pd.DataFrame(metas)
+        cells["primary"] = (cells.base == "iid") & (cells.base_sd == 1.0) & (cells.q_edge == 0)
+        cells = pd.concat([cells, cell_curve(metas, arrs)], axis=1)
+        for i in np.where(cells.m != NOISE_M)[0]:
+            arrs[i] = None        # only m = 0.5 enters the controls
+        if mode == "freeze":
+            fz = dict(script="analysis/p6_interval.py freeze", code_commit=commit, date=str(date.today()), source="original cells (rerun with the cubic arrays; exploratory-after-results)",
+                      mhat="cubic (`mhat3`), noise level 0.5", population="primary: Bernoulli, iid baseline SD 1, no edge noise, s > 0, mechanisms (a), (b), (c), (e), (f)",
+                      B2=frozen_kappa(cells[cells.m == NOISE_M], "B2"), B1=frozen_kappa(cells[cells.m == NOISE_M], "B1"))
+            json.dump(fz, open(os.path.join(out, "p6_frozen.json"), "w"), indent=1)
+            print(json.dumps({b: {k: v for k, v in fz[b].items() if k in ("kappa_hat", "mean_smooth_coverage")} for b in ("B1", "B2")}, indent=1))
+            return
+        khat = {b: next(k for k in KAPPAS if float(k) == float(frozen[b]["kappa_hat"])) for b in ("B1", "B2")}   # the grid's own value: column names are formatted from it (1, not 1.0)
+        kap_ctl = list(KAPPAS_EXT + KAPPAS)
+        ctl = controls(metas, arrs, cells, kap_ctl)
+        cells = cells.join(ctl)
+        # the MC-SD subset
+        sub = []
+        for i, (meta, a) in enumerate(zip(metas, arrs)):
+            if a is not None and "sub" in a:
+                s_ = a["sub"]
+                err, tau = s_["err"].astype(float), s_["tau"].astype(float)
+                r = dict(cell=i, **{k: meta[k] for k in ("source", "run_id", "family", "d_nom", "p", "mechanism", "s")}, primary=bool(cells.primary.iloc[i]))
+                for b in ("B1", "B2"):
+                    for k in KAPPAS:
+                        r[f"cov_hc_{b}_k{k}"] = float(np.mean(err <= cv(k * s_[b].astype(float) / np.maximum(s_["se"], 1e-12)) * s_["se"]))
+                        r[f"cov_mcsd_{b}_k{k}"] = float(np.mean(err <= cv(k * s_[b].astype(float) / meta["mcsd"]) * meta["mcsd"]))
+                r["mean_se_hc0"] = float(np.mean(s_["se"]))
+                r["mcsd"] = meta["mcsd"]
+                sub.append(r)
+        sub = pd.DataFrame(sub)
+        cells["source"] = name
+        allc.append(cells.drop(columns=[]))
+        if len(sub):
+            sub = sub[sub.primary]
+            rows = []
+            for b in ("B1", "B2"):
+                for (mname, dv), h in sub.groupby(["mechanism", "d_nom"]):
+                    sel = h[h.s > 0] if mname != "0" else h
+                    r = dict(bound=b, mechanism=mname, d_nom=dv, cells=len(sel), mean_se_hc0=sel.mean_se_hc0.mean(), mean_mcsd=sel.mcsd.mean())
+                    r["kappa_star_hc0"] = kstar([sel[f"cov_hc_{b}_k{k}"].mean() for k in KAPPAS])
+                    r["kappa_star_mcsd"] = kstar([sel[f"cov_mcsd_{b}_k{k}"].mean() for k in KAPPAS])
+                    rows.append(r)
+            sub.to_csv(os.path.join(out, f"p6_{name}_mcsd_subset_cells.csv"), index=False)
+            pd.DataFrame(rows).to_csv(os.path.join(out, f"p6_{name}_mcsd_subset_kappa_star.csv"), index=False)
+        cm = cells[cells.m == NOISE_M]
+        # --- tables for this source
+        pre = f"p6_{name}_"
+        ks = []
+        for b in ("B1", "B2"):
+            for pop, sel in (("primary", cm.primary), ("all Bernoulli runs", cm.primary | ~cm.primary)):
+                g = cm[sel & (cm.s > 0)]
+                for keys in (["mechanism", "d_nom"], ["mechanism", "d_nom", "family"], ["mechanism"]):
+                    t = kstar_table(g, b, keys)
+                    t.insert(0, "population", pop)
+                    ks.append(t)
+                t0 = kstar_table(cm[sel & (cm.s == 0)], b, ["d_nom"])
+                t0.insert(0, "population", pop + " (null column s = 0)")
+                ks.append(t0)
+                t0 = kstar_table(cm[sel & (cm.s == 0)], b, ["d_nom", "family"])
+                t0.insert(0, "population", pop + " (null column s = 0)")
+                ks.append(t0)
+        ks = pd.concat(ks, ignore_index=True)
+        ks.to_csv(os.path.join(out, pre + "kappa_star.csv"), index=False)
+        # kappa* excess over the null kappa*_0 (same d, all families pooled), primary population
+        ex = []
+        for b in ("B1", "B2"):
+            kk = ks[(ks.bound == b) & (ks.population == "primary") & ks.family.isna() & ks.d_nom.notna() & ks.mechanism.notna()]
+            k0 = ks[(ks.bound == b) & (ks.population == "primary (null column s = 0)") & ks.family.isna()].set_index("d_nom").kappa_star
+            for _, r in kk.iterrows():
+                z0 = k0.get(r.d_nom, np.nan)
+                ex.append(dict(source=name, bound=b, mechanism=r.mechanism, d_nom=r.d_nom, kappa_star=r.kappa_star, kappa_star_null=z0,
+                               excess_grid_steps=(np.log2(r.kappa_star / z0) if np.isfinite(r.kappa_star) and np.isfinite(z0) else (np.inf if not np.isfinite(r.kappa_star) and np.isfinite(z0) else np.nan))))
+        pd.DataFrame(ex).to_csv(os.path.join(out, pre + "kappa_star_excess.csv"), index=False)
+        # coverage / width curve by mechanism (all kappa), primary population
+        cur = []
+        for b in ("B1", "B2"):
+            for k in KAPPAS_EXT + KAPPAS:
+                g = cm[cm.primary & (cm.s > 0)]
+                for mname, h in g.groupby("mechanism"):
+                    r = dict(bound=b, kappa=k, mechanism=mname, cells=len(h), cov=h[f"cov_{b}_k{k}"].mean(), width=h[f"width_{b}_k{k}"].mean(), hc90_cov=h.cov_hc90.mean(), hc90_width=h.width_hc90.mean(),
+                             hc95_cov=h.cov_hc95.mean())
+                    for c in ("c1", "c2", "c3", "c3p", "oracle"):
+                        if f"cov_{c}_{b}_k{k}" in h:
+                            r[f"cov_{c}"] = h[f"cov_{c}_{b}_k{k}"].mean()
+                            r[f"width_{c}"] = h[f"width_{c}_{b}_k{k}"].mean()
+                    cur.append(r)
+        pd.DataFrame(cur).to_csv(os.path.join(out, pre + "curve_by_mechanism.csv"), index=False)
+        info = info_tests(cm, KAPPAS_EXT + KAPPAS)
+        info.to_csv(os.path.join(out, pre + "information_tests.csv"), index=False)
+        tl, st = [], []
+        for b in ("B1", "B2"):
+            tl.append(tails(cm, b, khat[b]))
+            st.append(strata(cm, b, khat[b]))
+        pd.concat(tl).to_csv(os.path.join(out, pre + "tails_at_frozen_kappa.csv"), index=False)
+        pd.concat(st).to_csv(os.path.join(out, pre + "strata_at_frozen_kappa.csv"), index=False)
+        # by noise level
+        rows = []
+        for b in ("B1", "B2"):
+            for mm, h in cells[cells.primary & (cells.s > 0)].groupby("m"):
+                for k in (khat[b],) + tuple(KAPPAS):
+                    rows.append(dict(bound=b, m=mm, kappa=k, frozen=bool(k == khat[b]), cells=len(h), cov=h[f"cov_{b}_k{k}"].mean(), width=h[f"width_{b}_k{k}"].mean(), hc90_cov=h.cov_hc90.mean(), hc95_cov=h.cov_hc95.mean()))
+        pd.DataFrame(rows).drop_duplicates(["bound", "m", "kappa"]).to_csv(os.path.join(out, pre + "by_noise_level.csv"), index=False)
+        mhat_diag(cells).to_csv(os.path.join(out, pre + "mhat_diagnostics.csv"), index=False)
+        # robustness populations at the frozen kappa
+        rb = []
+        for b in ("B1", "B2"):
+            g = cm[(cm.s > 0)].copy()
+            g["population"] = np.where(g.primary, "primary", np.where(g.q_edge > 0, "edge noise", np.where(g.base_sd != 1.0, "weak baseline", "degree/community baseline")))
+            for pop, h in g.groupby("population"):
+                rb.append(dict(bound=b, kappa=khat[b], population=pop, cells=len(h), cov=h[f"cov_{b}_k{khat[b]}"].mean(), width=h[f"width_{b}_k{khat[b]}"].mean(), hc90_cov=h.cov_hc90.mean(), hc95_cov=h.cov_hc95.mean()))
+        pd.DataFrame(rb).to_csv(os.path.join(out, pre + "robustness_populations.csv"), index=False)
+        # --- threshold (d) criterion and prediction (1)
+        thr = []
+        for b in ("B1", "B2"):
+            sm = cm[cm.primary & (cm.s > 0) & cm.mechanism.isin(SMOOTH_BLOCK if name == "confirmatory" else SMOOTH)]
+            km = kstar_table(sm, b, ["mechanism", "d_nom"]).kappa_star
+            med = float(np.median(km))
+            dd = cm[cm.primary & (cm.s > 0) & (cm.mechanism == "d")]
+            bound = max(8 * med, 4)
+            for label, h in (("outside support (q < 0.05), pooled over d", dd[dd.q_thr < 0.05]), ("inside support (q >= 0.05), pooled over d", dd[dd.q_thr >= 0.05])) + \
+                    tuple((f"outside support (q < 0.05), d = {int(dv)}", dd[(dd.q_thr < 0.05) & (dd.d_nom == dv)]) for dv in sorted(dd.d_nom.unique())) + \
+                    tuple((f"inside support (q >= 0.05), d = {int(dv)}", dd[(dd.q_thr >= 0.05) & (dd.d_nom == dv)]) for dv in sorted(dd.d_nom.unique())):
+                if len(h) == 0:
+                    continue
+                ks_ = kstar([h[f"cov_{b}_k{k}"].mean() for k in KAPPAS])
+                if label.startswith("outside"):
+                    verdict = "supported" if (not np.isfinite(ks_) or ks_ >= bound) else ("inconclusive" if ks_ > 2 * med else "argument wrong for the threshold")
+                else:
+                    verdict = "reported only"
+                thr.append(dict(bound=b, subset=label, cells=len(h), kappa_star_d=ks_, smooth_median_kappa_star=med, criterion_threshold=bound, two_times_median=2 * med, verdict=verdict,
+                                **{f"cov_k{k}": h[f"cov_{b}_k{k}"].mean() for k in KAPPAS}))
+            thr.append(dict(bound=b, subset="prediction (1): median kappa* over smooth mechanism x d", cells=len(km), kappa_star_d=med, smooth_median_kappa_star=med, criterion_threshold=2.0,
+                            verdict="supported" if med <= 2 else "not supported"))
+        pd.DataFrame(thr).to_csv(os.path.join(out, pre + "threshold_and_prediction1.csv"), index=False)
+        # --- P6(1) pass rule on the block
+        if name == "confirmatory":
+            rows = []
+            for b in ("B1", "B2"):
+                g = cm[cm.primary & (cm.s > 0)].copy()
+                g = g[~((g.mechanism == "d") | ((g.family == "SBM") & ~g.mechanism.isin(SMOOTH_BLOCK)))]
+                g["group"] = np.where(g.family.isin(NEW_FAMILIES), g.family, g.mechanism)
+                g = g[g.family.isin(("SBM",) + NEW_FAMILIES)]
+                g = g[(g.family == "SBM") | g.family.isin(NEW_FAMILIES)]
+                k = khat[b]
+                col = f"cov_{b}_k{k}"
+                gm = g.groupby("group")[col].mean()
+                share85 = float((g[col] >= 0.85).mean())
+                ok1, ok2, ok3 = gm.mean() >= 0.90, share85 >= 0.75, gm.min() >= 0.80
+                verdict = "supported" if (ok1 and ok2 and ok3) else "inconclusive" if ok1 else "not supported"
+                rows.append(dict(bound=b, kappa_hat=k, groups=len(gm), group_mean_coverage=gm.mean(), share_cells_ge_085=share85, min_group_coverage=gm.min(), verdict=verdict,
+                                 group_coverages="; ".join(f"{i}={v:.3f}" for i, v in gm.items()), hc90_group_mean=g.groupby("group").cov_hc90.mean().mean()))
+            pd.DataFrame(rows).to_csv(os.path.join(out, "p6_confirmatory_passrule.csv"), index=False)
+    allcells = pd.concat(allc, ignore_index=True)
+    allcells.to_csv(os.path.join(out, "p6_cells.csv"), index=False)
+    for nm in ("p6_cells",):
+        json.dump(dict(script="analysis/p6_interval.py run", code_commit=commit, noise_levels=[NOISE_M, *NOISE_EXTRA], kappas=list(KAPPAS), alpha=ALPHA, date=str(date.today()), rows=len(allcells),
+                       frozen=json.load(open(os.path.join(out, "p6_frozen.json")))["B2"]["kappa_hat"],
+                       note="Bernoulli designs, chin, HC0 on every draw; original cells are exploratory-after-results, confirmatory cells (conf_*) are not"), open(os.path.join(out, nm + ".meta.json"), "w"), indent=1)
+
+
+if __name__ == "__main__":
+    main(*sys.argv[1:])

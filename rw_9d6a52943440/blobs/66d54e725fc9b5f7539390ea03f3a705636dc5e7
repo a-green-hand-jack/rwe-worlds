@@ -1,0 +1,208 @@
+"""Main experiment: for one benchmark and split, run every design x estimator on every fold and subset draw.
+
+usage: python scripts/02_run.py BENCH SPLIT [--draws R] [--d D] [--out results/raw]
+Single-threaded BLAS on purpose (jobs are parallelised across benchmark/split).
+"""
+import os
+for v in ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS"):
+    os.environ[v] = "1"
+import sys, re, time, pickle, argparse, pathlib
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
+import numpy as np
+from bpred import data, core
+
+BASE_SEED = 20261126
+SPLITS = ["interp", "lineage", "extrap", "extrap10", "extrap50"]   # extrapN: targets = top N % (extrap = 25 %)
+
+
+INNER_FRAC = None     # --inner-frac: share of the sources held out as inner "targets" in extrapolation (default = the outer share)
+
+
+def extrap_frac(split):
+    return (int(split[6:]) if len(split) > 6 else 25) / 100.0
+NGRID = (10, 25, 50, 100, 200, 400)
+DESIGN_ORDER = ["uniform", "strat", "pps", "balanced", "anchor", "infotop"]
+FIXED = ("diff-irt@1.0", "diffnaive-irt@1.0", "irt-model", "mean")
+R_IN = dict(uniform=2, strat=2, pps=2, balanced=2, anchor=1, infotop=1)
+
+
+def make_folds(Y, fams, split, seed=0):
+    M = Y.shape[0]; rng = np.random.default_rng(seed)
+    if split == "interp":
+        perm = rng.permutation(M)
+        parts = np.array_split(perm, 5)
+        return [(np.setdiff1d(np.arange(M), p), np.sort(p)) for p in parts]
+    if split == "lineage":
+        uf = np.unique(fams); sizes = {f: (fams == f).sum() for f in uf}
+        order = sorted(uf, key=lambda f: (-sizes[f], rng.random()))
+        folds = [[] for _ in range(5)]; load = [0] * 5
+        for f in order:
+            k = int(np.argmin(load)); folds[k].append(f); load[k] += sizes[f]
+        out = []
+        for fl in folds:
+            t = np.where(np.isin(fams, fl))[0]
+            out.append((np.setdiff1d(np.arange(M), t), t))
+        return out
+    if split.startswith("extrap"):
+        sc = Y.mean(1); order = np.argsort(sc, kind="stable"); ns = int((1 - extrap_frac(split)) * M)
+        src, tgt = order[:ns], order[ns:]
+        tgt = tgt[sc[tgt] > sc[src].max()]
+        return [(np.sort(src), np.sort(tgt))]
+    raise ValueError(split)
+
+
+def inner_split(Y, fams, split, src_idx, seed=1):
+    """Held-out part of the sources mimicking the outer split. Returns (train_idx, val_idx) as indices into Y rows."""
+    Ys, fs = Y[src_idx], fams[src_idx]
+    if split.startswith("extrap"):
+        sc = Ys.mean(1); order = np.argsort(sc, kind="stable"); ns = int((1 - (INNER_FRAC or extrap_frac(split))) * len(order))
+        tr, va = order[:ns], order[ns:]
+        va = va[sc[va] > sc[tr].max()]
+    else:
+        tr, va = make_folds(Ys, fs, split, seed)[0]
+    return src_idx[np.sort(tr)], src_idx[np.sort(va)]
+
+
+_pat = re.compile(r"^(?P<pre>diffnaive-|diff-)?(?P<base>irtw|irt|knn|ridge)(?P<hp>[0-9.]*)(?P<suf>-model|-plugin)?(?:@(?P<lam>[0-9.]+))?$")
+
+
+def group_of(name):
+    m = _pat.match(name)
+    if not m:
+        return name
+    return (m["pre"] or "") + m["base"] + (m["suf"] or "")
+
+
+def rng_for(*key):
+    return np.random.default_rng([BASE_SEED, *key])
+
+
+def design_variants(dn):
+    return [(f"pps{e}", "pps", dict(eps=e)) for e in core.EPS_GRID] if dn == "pps" else [(dn, dn, {})]
+
+
+def run_designs(src, Yt, n, dn, R, key, d, with_diag=False):
+    """list over variants -> {variant: {name: (R,T)}} for the R draws of design family dn."""
+    res = {}
+    diag = {}
+    for vname, fam, kw in design_variants(dn):
+        acc = {}
+        for r in range(R):
+            S, w = core.DESIGNS[fam](src, n, rng_for(*key, n, r, DESIGN_ORDER.index(dn)), **kw)
+            est, dg = core.estimate(src, S, w, Yt[:, S].astype(float), rng_for(*key, n, r, 100), src.N, d,
+                                    Yt=Yt if (with_diag and dn == "uniform" and vname == "uniform") else None)
+            for k, v in est.items():
+                acc.setdefault(k, []).append(v)
+            for k in [k for k in dg if k.startswith("fb:")]:        # fall-back flags of the recalibrated estimators, per design
+                diag.setdefault(f"fb:{dn}:{k[3:]}", []).append(dg.pop(k))
+            if dg:
+                mask = np.ones((Yt.shape[0], src.N), bool); mask[:, S] = False
+                dg["brier_p"] = (((Yt - src.p[None]) ** 2) * mask).sum(1) / (src.N - n)
+                for k, v in dg.items():
+                    diag.setdefault(k, []).append(v)
+        res[vname] = {k: np.stack(v) for k, v in acc.items()}
+    return res, diag
+
+
+def choose(res_inner, true_inner, dn):
+    """Pick hyper-parameters on the inner (source-only) validation set. Returns {group: (variant, name)}."""
+    rm = {}
+    for vname, d in res_inner.items():
+        for k, P in d.items():
+            rm[(vname, k)] = float(np.sqrt(((P - true_inner[None]) ** 2).mean()))
+    chosen = {}
+    if dn == "pps":                      # epsilon: the variant whose best diff-irt estimator is best inner
+        best_v = min((v for v, _ in rm if v.startswith("pps")),
+                     key=lambda v: min(x for (vv, k), x in rm.items() if vv == v and group_of(k) == "diff-irt"))
+        variants = [best_v]
+    else:
+        variants = [v for v, _, _ in design_variants(dn)]
+    groups = sorted({group_of(k) for (_, k) in rm})
+    for g in groups:
+        cand = [(x, v, k) for (v, k), x in rm.items() if v in variants and group_of(k) == g]
+        if cand:
+            x, v, k = min(cand)
+            chosen[g] = (v, k, x)
+    return chosen
+
+
+def run_cat(src, Yt, nlist, key, d):
+    S, y = core.cat_select(src, Yt, max(nlist), nlist)
+    out = {}
+    for n in nlist:
+        est, _ = core.estimate(src, S[:, :n], np.ones(n), y[:, :n], rng_for(*key, n, 0, 200), src.N, 1, Yt=None)
+        out[n] = est
+    return out
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("bench"); ap.add_argument("split")
+    ap.add_argument("--draws", type=int, default=10)
+    ap.add_argument("--d", type=int, default=2)
+    ap.add_argument("--out", default="results/raw")
+    ap.add_argument("--designs", default=",".join(DESIGN_ORDER))
+    ap.add_argument("--ngrid", default=",".join(map(str, NGRID)))
+    ap.add_argument("--nfolds", type=int, default=99)
+    ap.add_argument("--no-cat", action="store_true")
+    ap.add_argument("--msrc", type=int, default=0, help="keep only M random source models per fold (0 = all)")
+    ap.add_argument("--extra", action="store_true", help="also compute the target-recalibrated and weak-prior IRT estimators")
+    ap.add_argument("--R", type=int, default=0, help="number of outer draws per (fold, n) for every design but anchor/infotop/cat (0 = the rule: draws, or 4 x draws for extrapolation)")
+    ap.add_argument("--inner-frac", type=float, default=0.0, help="extrapolation only: fraction of sources held out in the inner split (0 = same as the outer split)")
+    ap.add_argument("--tag", default="", help="suffix of the output file name")
+    a = ap.parse_args()
+    core.EXTRA = a.extra
+    global INNER_FRAC
+    INNER_FRAC = a.inner_frac or None
+    D = data.get(a.bench); Y, fams = D["Y"], D["families"]
+    N = Y.shape[1]
+    nlist = [n for n in map(int, a.ngrid.split(",")) if n <= N / 2]
+    folds = make_folds(Y, fams, a.split)[: a.nfolds]
+    bid, sid = data.BENCHES.index(a.bench), SPLITS.index(a.split)
+    R = a.draws if not a.split.startswith("extrap") else max(a.draws, 40) * a.draws // 10
+    R = a.R or R
+    records, t0 = [], time.time()
+    for fi, (si, ti) in enumerate(folds):
+        key = (bid, sid, fi)
+        if a.msrc and a.msrc < len(si):
+            si = np.sort(np.random.default_rng([20261127, bid, sid, fi, a.msrc]).choice(si, a.msrc, replace=False))
+        src = core.Source(Y[si], irt_d=a.d, seed=fi)
+        tr_i, va_i = inner_split(Y, fams, a.split, si)
+        src_in = core.Source(Y[tr_i], irt_d=a.d, seed=100 + fi)
+        Yt, Yv = Y[ti], Y[va_i]
+        true_t, true_v = Yt.mean(1), Yv.mean(1)
+        cat_out = None if a.no_cat else run_cat(src, Yt, nlist, key, a.d)
+        cat_in = None if a.no_cat else run_cat(src_in, Yv, nlist, key + (7,), a.d)
+        for n in nlist:
+            rec = dict(bench=a.bench, split=a.split, fold=fi, n=n, N=N, tgt=ti, true=true_t, fam=fams[ti],
+                       preds={}, chosen={}, diag={}, inner_rmse={}, R=R)
+            for dn in a.designs.split(","):
+                r_in = R_IN[dn]; r_out = 1 if dn in core.DETERMINISTIC else R
+                if dn == "anchor":
+                    r_out = min(R, 5 if not a.split.startswith("extrap") else 10)
+                ri, _ = run_designs(src_in, Yv, n, dn, r_in, key + (9,), a.d)
+                ch = choose(ri, true_v, dn)
+                ro, dg = run_designs(src, Yt, n, dn, r_out, key, a.d, with_diag=True)
+                for g, (v, k, x) in ch.items():
+                    rec["preds"][f"{dn}|{g}"] = ro[v][k].astype(np.float32)
+                    rec["chosen"][f"{dn}|{g}"] = (v, k)
+                    rec["inner_rmse"][f"{dn}|{g}"] = x
+                v0 = ch["diff-irt"][0]
+                for k in FIXED:                  # fixed-hyper-parameter diagnostics (same lambda for naive vs cross-fitted)
+                    rec["preds"][f"{dn}|fixed:{k}"] = ro[v0][k].astype(np.float32)
+                for k, v in dg.items():
+                    rec["diag"][k] = np.stack(v).mean(0).astype(np.float32)
+            if cat_out is not None:
+                ch = choose({"cat": {k: v[None] for k, v in cat_in[n].items()}}, true_v, "cat")
+                for g, (v, k, x) in ch.items():
+                    rec["preds"][f"cat|{g}"] = cat_out[n][k][None].astype(np.float32)
+                    rec["chosen"][f"cat|{g}"] = (v, k); rec["inner_rmse"][f"cat|{g}"] = x
+            records.append(rec)
+            print(f"{a.bench} {a.split} fold {fi} n={n} done {time.time() - t0:.0f}s", flush=True)
+    out = pathlib.Path(a.out); out.mkdir(parents=True, exist_ok=True)
+    with open(out / f"{a.bench}__{a.split}{a.tag}.pkl", "wb") as f:
+        pickle.dump(dict(args=vars(a), records=records, runtime=time.time() - t0), f)
+
+
+if __name__ == "__main__":
+    main()

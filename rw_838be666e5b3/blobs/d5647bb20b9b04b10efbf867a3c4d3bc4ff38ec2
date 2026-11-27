@@ -1,0 +1,43 @@
+{\scriptsize\setlength{\tabcolsep}{2pt}
+\begin{longtable}{lrlllr}
+\toprule
+Population & Predicted $n^\ast$ [interval] & Grid $n$ & Measured crossing & Scored within $\times 3$ & Flag in file \\
+\midrule
+\endhead
+\multicolumn{6}{l}{\emph{Quadratic designs}} \\
+syn affine & $2.8\!\times\!10^{6}$ exact & 25--1600 & no win up to 1600 & -- & yes \\
+syn quad c0.05 & 630 exact & 25--1600 & win between 400 and 800 & yes & yes \\
+syn quad c0.1 & 160 exact & 25--1600 & win between 400 and 800 & yes & yes \\
+syn quad c0.2 & 40 exact & 25--1600 & win between 50 and 100 & yes & yes \\
+syn quad c0.5 & 6.3 exact & 25--1600 & win at the smallest $n$ (25) & -- & yes \\
+\multicolumn{6}{r}{bracketed 3 of 5 (3 within the factor); censored 2} \\
+\midrule
+\multicolumn{6}{l}{\emph{Other synthetic shapes}} \\
+syn binary & 860 exact & 100--1600 & win between 100 and 400 & yes & yes \\
+syn binary a-4.5 & 390 exact & 100--1600 & win between 400 and 1600 & yes & yes \\
+syn nonmono & 12 exact & 100--1600 & win at the smallest $n$ (100) & -- & yes \\
+syn tanh & 14 exact & 100--1600 & win at the smallest $n$ (100) & -- & yes \\
+\multicolumn{6}{r}{bracketed 2 of 4 (2 within the factor); censored 2} \\
+\midrule
+\multicolumn{6}{l}{\emph{Real datasets}} \\
+alphafold & 1900 [970, 5800] & 30--3000 & no win up to 3000 & -- & yes \\
+ballots & 23000 [4400, 93000] & 30--500 & no win up to 500 & -- & yes \\
+census educ. & 21000 [6500, 48000] & 30--3000 & no win up to 3000 & -- & yes \\
+census health & 11000 [6100, 17000] & 30--3000 & no win up to 3000 & -- & yes \\
+census income & 2100 [1000, 3000] & 30--3000 & no win up to 3000 & -- & yes \\
+forest & 860 [280, 2400] & 30--500 & no win up to 500 & -- & yes \\
+galaxies & 22000 [5000, 48000] & 30--3000 & no win up to 3000 & -- & yes \\
+gene expr. & 360 [310, 390] & 30--3000 & win between 30 and 100 & no & no \\
+plankton & $2.9\!\times\!10^{6}$ [190000, $2.4\!\times\!10^{6}$] & 30--3000 & no win up to 3000 & -- & yes \\
+\multicolumn{6}{r}{bracketed 1 of 9 (0 within the factor); censored 8} \\
+\midrule
+\multicolumn{6}{l}{\emph{Monotone-transformed predictors (stress)}} \\
+alphafold logit & 30 [27, 34] & 30--3000 & win between 30 and 100 & yes & yes \\
+census healthcare logit & 96 [92, 100] & 30--3000 & win between 30 and 100 & yes & yes \\
+census income log & 42 [38, 45] & 30--3000 & win between 300 and 500 & no & no \\
+forest logit & 150 [96, 230] & 30--500 & win between 200 and 300 & yes & yes \\
+galaxies logit & 84 [75, 94] & 30--3000 & win between 30 and 100 & yes & yes \\
+\multicolumn{6}{r}{bracketed 5 of 5 (4 within the factor); censored 0} \\
+\bottomrule
+\end{longtable}
+}

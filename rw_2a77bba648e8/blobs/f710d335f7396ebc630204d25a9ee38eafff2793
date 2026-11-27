@@ -1,0 +1,28 @@
+{
+ "script": "analysis/p6_interval.py run",
+ "code_commit": "d90789d52201311ac3a21f1ff998186a82744310",
+ "date": "2026-11-26",
+ "frozen_kappa_hat": {
+  "B1": 1.0,
+  "B2": 0.25
+ },
+ "noise_levels": [
+  0.5,
+  0.25,
+  1.0
+ ],
+ "kappas": [
+  0.25,
+  0.5,
+  1,
+  2,
+  4,
+  8,
+  16,
+  32,
+  64
+ ],
+ "alpha": 0.1,
+ "population": "original grid cells (exploratory after the results), primary population unless the file name says otherwise",
+ "description": "P6 extrapolation-sensitivity interval, table 'p6_original_mcsd_subset_kappa_star': Bernoulli designs, chin, HC0 on every draw; original cells are exploratory-after-results, confirmatory cells (conf_*) are not"
+}

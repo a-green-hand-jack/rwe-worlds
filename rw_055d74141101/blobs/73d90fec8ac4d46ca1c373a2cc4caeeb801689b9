@@ -1,0 +1,81 @@
+\section{Reproducibility, disclosures and use of AI}\label{app:repro}
+
+\paragraph{Code and data.} The code, the result tables and the script for every figure and table accompany the submission as an anonymised archive, with the commands, seeds (\texttt{--seed 0}; replicate $r$ of a null uses the generator seeded by $(0,\mathrm{tag},r)$) and expected run time (Arena-55k with $B=500$ and 20 null replicates about 14 minutes on 4 CPU cores, the 19 Arena units about one hour, the NBA seasons minutes). The raw data are not in the archive; the archive lists the source, the pinned revision and the SHA-256 of every file we used. Everything runs on CPU, on shared cores, without a GPU. The datasets are used as published: Arena-55k (Apache-2.0), MT-Bench human judgments (CC-BY-4.0), NBA game results from FiveThirtyEight (CC BY 4.0), and the LLM-judge labels of the Arena battles, whose dataset declares no licence and derives from the Kaggle LMSYS competition data.
+
+\paragraph{Order of the analysis plan.} The decision rules (margin, strata, what each claim needs) are in a pre-analysis note that was fixed before the full results were produced, but not before all code: they were written after the code and the synthetic calibration and while the core batch was running. Before writing them the analyst had seen the MT-Bench human leaderboard (six models) and about 28 Arena-55k pairs while debugging the search, and, when the second revision was written, summaries of Arena-55k and MT-Bench output. The second revision says: ``the summaries of Arena-55k ($\Delta$, $Q$ real vs null for delete and flip, top-1 pair) had been read when this revision was written; the changes below make the rules stricter or define statistics for every pair, and none was chosen to favour an Arena outcome''; the changes were the equal-budget comparison as the primary noise statistic, the equivalence rule with margin 0.15, each dataset compared with its own null, a design term tested only where a design has at least two units, further search checks at scale, $B\ge300$ for the headline matched contrasts, and the published-view definition as the headline survival curve. No margin was tuned on a real-data summary: the margins come from the synthetic calibration. Any rule changed after real results is reported as a deviation where it applies.
+
+\paragraph{A bug found during the run.} The first preparation step kept cluster identifiers with gaps for the Arena units, so some bootstrap draws were empty; with compact identifiers the median bootstrap standard error changed by $+0.5\%$ (Arena single-turn), and the bootstrap columns computed before the fix were recomputed with the same seeds.
+
+\paragraph{Literature item not read, and an incidental encounter.}\label{app:literature} The starter literature contains one item on the question of this paper (Huang et al.\ 2025, cited in Section~\ref{sec:related} as listed). We chose not to read it, or work that discusses it, so that this study stays independent of it; the choice is ours. No role searched for it, fetched it or guessed its content; the role that searched the literature saw only its entry in the starter list. That role did receive, among results of a search on Bradley--Terry perturbation, truncated abstract snippets (about 500 characters each) of two 2026 preprints, ``Perturbation Sensitivity of Maximum-Likelihood Pairwise Ranking in Computational Decision Systems'' and ``Ranking Abuse via Strategic Pairwise Data Perturbations''. We cannot tell whether either is the forbidden paper or cites it. The search stopped there: neither was opened or read, their citing pages were not searched, and neither is used or cited in this paper.
+
+\paragraph{Use of AI.} The study was carried out by AI agents (Claude Sonnet 5.5) working as the roles of a research group: the idea and its review, the outline, the code and the analysis, the figures and tables, the venue requirements and this text. Every number in the paper is produced by a script in the archive; every reference was checked against a bibliographic database record.
+
+\section{Synthetic calibration}\label{app:synth}
+All numbers in this section are computed on \emph{synthetic} Bradley--Terry data (no real comparisons): $M\in\{12,30\}$ models, $N$ from $2\times10^{3}$ to $1.28\times10^{5}$ comparisons, graph density $\{1,0.25\}$, tie rate $\{0,0.3\}$, three replicates per configuration; \synPairRows{} pair rows, of which \synFitDelRows{} per family have $1<z<12$ and a positive $k^{*}$ and enter the regression. They fix the equivalence margin and the noise reference, and they are not evidence about real leaderboards.
+
+\paragraph{Scaling.} A regression $\log k^{*}=a+b\log z+c\log N+d\log(\text{density})$ gives $b=\synZDel$ (deletion) and $\synZFlip$ (flip) and $c=\synNDel$ and $\synNFlip$, against $b=1$ and $c=\tfrac12$ if $k^{*}\propto z\sqrt N$ held exactly; the residual standard deviation is $\synResidDel$ and $\synResidFlip$ on the log scale. We therefore report the fitted exponents, not the proportionality.
+
+\paragraph{The level of $Q$ under a correctly specified model.} Under exact refit, $Q$ is not bounded below by one. The mean of $\log Q$ is $\synLogQDel$ for deletion ($\synLogQMinDel$ to $\synLogQMaxDel$ over the four combinations of density and tie rate) and $\synLogQFlip$ for flips ($\synLogQMinFlip$ to $\synLogQMaxFlip$, higher for dense graphs, where the capacity of the most influential comparisons is used up). The level depends on the graph and on the family, which is why $Q$ is read only against the null of the same graph. The standard deviation, over replicate instances of a configuration, of an instance's mean $\log Q$ is on average $\synSdMeanDel$ (deletion) and $\synSdMeanFlip$ (flip) over the 32 configurations and at most $\synSdMaxDel$ and $\synSdMaxFlip$; the margin $0.15$ is $2.5$ times the rounded value $0.06$ of the deletion maximum, a conservative choice for most configurations.
+
+\paragraph{First-order search.} The first-order estimate overshoots the verified count of deletion (median $k_{\mathrm{lin}}/k^{*}=\synKlinDel$, because influence grows as data are removed) and is accurate for flips ($\synKlinFlip$).
+
+\paragraph{Random deletion.} The probability that deleting a random fraction $f$ of the observed sample reverses a conclusion is $\Phi\big(-z\sqrt{(1-f)/f}\big)$, with a root-mean-square error of $\synRmseCond$ over \synCells{} cells of $\synDraws$ draws each; the variant $\Phi(-z\sqrt{1-f})$ has an error of $\synRmseBrief$ and a bias of $\synBiasBrief$ (measured minus formula).
+
+\paragraph{Search against exhaustive enumeration.} On \synTinyMatch{} tiny problems ($M\in\{3,4\}$, $N=30$--$70$) the iterated search, the Frank--Wolfe proposer and the rounded-up relaxation all equal the exhaustive minimum.
+
+\section{Positive control for the reference test}\label{app:control}
+All numbers here are computed on \emph{synthetic} data. We simulate outcomes from the Bradley--Terry model fitted to a real graph, first the MT-Bench human graph (six models, 15 pairs) and then the Arena-55k graph below, and add one departure to the log-odds of every comparison, at four sizes $s$ (the standard deviation, on the logit scale, of the term below): overdispersion (a random effect for every model on every question, which raises the cluster design effect to \ctlDesEffMax{}), position bias ($\pm s$ according to which model is listed first, the share of comparisons of a pair with each order drawn between 0.2 and 0.8), a cyclic component (a skew-symmetric rank-two matrix scaled to standard deviation $s$ across pairs) and a pair-specific deviation (independent over pairs). The sizes were fixed in advance, from small to large enough to find where the test breaks (a position bias of 2 shifts a win probability by up to 0.4), and are not calibrated to departures measured in real data; the expert labels of Section~\ref{sec:design} have a design effect between those of overdispersion 0.5 and 1. Each replicate applies the pipeline of Section~\ref{sec:method} to the simulated data (the pairs with $0.7\le z\le10$, at most 300, of which \ctlPairs{} on average, among the replicates used, lie in $z\in[1,8]$; 200 bootstrap draws; the same-graph null with 20 simulations); of the \ctlRepMax{} replicates per cell, those with fewer than five pairs in range give no $\Delta$ and are dropped. With so few pairs, a departure that moves a few of them is the only kind that can be seen. In none of the \ctlCells{} cells does the 95\% interval of the mean of $\Delta$ over replicates reach the margin $\pm\deltaMargin$: it lies between $\ctlLoMin$ and \ctlHiMax{}. So $\Delta$ does not detect these departures at these sizes, and the margin is not a test of misfit. The ratio of the cluster-bootstrap to the model-based standard error rises from \ctlSeNone{} with no departure to \ctlSeMax{} under the largest overdispersion; position bias, the cyclic component and pair-specific deviations raise it to at most \ctlSeOther{}. The control on Arena-55k uses the same departures and sizes, with the comparisons cut into random blocks of 20 for resampling, 5 replicates per cell and \arenaCtlNull{} null simulations (Table~\ref{tab:controlarena}). Again none of the \arenaCtlCells{} cells is detected: the intervals lie between \arenaCtlLoMin{} and \arenaCtlHiMax{}, and the largest overdispersion and position bias raise $\Delta$ by about 0.02 (deletion \arenaCtlDelMax{} at most, flip \arenaCtlFlipMax{} at most), nothing at the other departures. This control is weaker than the MT-Bench one at detecting overdispersion: it is injected per block of 20 comparisons, and with 55 models a block holds about one comparison of a given pair, so it acts almost as noise independent of pairs; the SE ratio rises only from \arenaCtlSeNone{} to \arenaCtlSeMax{} (design effect \arenaCtlDesEffMax{}), and position bias 2 gives \arenaCtlSePos{}. The overdispersion that the SE ratio does see (design effect \ctlDesEffMax{}) is the MT-Bench one. The flip value of $\Delta$ with no departure, \arenaCtlFlip{}, is the offset of the method that Section~\ref{sec:headline} reads against the real Arena flip value.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\linewidth]{../figures/out/fig6.pdf}
+\caption{Positive control, synthetic data. Top: $\Delta$ (filled: deletion, open: outcome flip) against the size of each departure; grey: $\pm\deltaMargin$. Bottom: median ratio of the cluster-bootstrap to the model-based standard error. Orange: the MT-Bench human graph (Table~\ref{tab:control}, 17 cells per family, up to 20 replicates); blue: Arena-55k (Table~\ref{tab:controlarena}, 5 replicates).}\label{fig:control}
+\end{figure}
+
+\begin{table}[h]
+\caption{Positive control, synthetic data from the MT-Bench human graph. $\Delta$: mean over replicates, with the 95\% interval of that mean; reps: replicates used; design effect and SE ratio: medians over replicates.}\label{tab:control}
+\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\input{control_table.tex}
+\end{table}
+
+\begin{table}[h]
+\caption{Positive control, synthetic data from the Arena-55k graph (random blocks of 20 comparisons as the resampling unit, 5 replicates per cell). Columns as in Table~\ref{tab:control}.}\label{tab:controlarena}
+\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\input{control_table_arena.tex}
+\end{table}
+
+\section{Per-dataset and per-stratum results}\label{app:full}
+Tables~\ref{tab:rule} and~\ref{tab:sens} report the predictive rule and the sensitivity checks of the main text; the per-stratum tables follow, then the search methods for every scope. Strata marked $\dagger$ lie outside the declared range $z\in[1,8]$ and enter no aggregate statement. The per-season rows of the NBA are in the released result tables.
+
+\begin{table}[h]
+\caption{Predictive rule for $k^{*}$: weighted least squares of $\log k^{*}$ on $\log z$, $\log N$, $\log$ density and tie rate over the pairs with $z\in[1,8]$, every dataset carrying equal total weight; coefficient intervals: bootstrap over datasets. Held-out errors: leave one dataset out, and leave one design out. The design term is a set of design dummies, evaluated only on held-out datasets of designs that have at least two datasets; its gain is the reduction of the held-out squared error of $\log k^{*}$ per held-out dataset (interval: bootstrap over datasets), also with ridge-shrunk dummies.}\label{tab:rule}
+\centering
+\input{../figures/out/tab3.tex}
+\end{table}
+
+\begin{table}[h]
+\caption{Sensitivity checks: $\Delta$ with 95\% interval (the core value of the same dataset in brackets), and the median ratio of the cost-2 $k^{*}$ (a win turned into a loss counts as two alterations) to the unit-cost $k^{*}$.}\label{tab:sens}
+\centering
+\input{../figures/out/tab4.tex}
+\end{table}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\linewidth]{../figures/out/fig5.pdf}
+\caption{Checks of the search. Ratio of the number of alterations found by a method to a reference (first-order estimate to the best found; iterated search, Frank--Wolfe and the relaxation candidate to the exhaustive minimum on tiny subproblems; restarts to the standard search and found to planted on Arena-55k), by family, with 95\% intervals.}\label{fig:search}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\linewidth]{../figures/out/fig3_flip.pdf}
+\caption{As Figure~\ref{fig:survival} for outcome flips; dotted: random flips.}\label{fig:survflip}
+\end{figure}
+
+\subsection*{Fragility by statistical separation, deletion}
+\input{../figures/out/tab2_full_delete.tex}
+
+\subsection*{Fragility by statistical separation, outcome flips}
+\input{../figures/out/tab2_full_flip.tex}
+
+\subsection*{Search methods, all scopes}
+\input{../figures/out/tab5_full.tex}

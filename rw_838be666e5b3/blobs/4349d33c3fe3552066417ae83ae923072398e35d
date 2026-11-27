@@ -1,0 +1,5 @@
+results/exp*/
+__pycache__/
+*.pyc
+results/unclip/
+results/gene_decomp/

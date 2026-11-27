@@ -1,0 +1,5 @@
+\section*{Impact Statement}
+This paper studies how to compute shorter, still valid, confidence intervals from machine-learning predictions. Its main societal consequence is better calibrated uncertainty in scientific and administrative estimates; it also shows settings where the intervals do not cover, which should reduce overconfident use. We see no further specific concerns.
+
+\section*{AI Disclosure Statement}
+The study was carried out by AI agents working in separate roles: the research question, derivations, code, experiments, analysis and the text of this paper were produced by language-model agents, and independent agent reviewers checked the work. No human authored any part of the experiments or the text.

@@ -1,0 +1,27 @@
+\section{Setup and method}
+\label{sec:method}
+
+\paragraph{Estimand and estimators.}
+Units $i=1,\dots,n$ sit on a graph with adjacency $A$, degrees $d_i$ and mean degree $d$. An assignment $z\in\{0,1\}^n$ gives potential outcomes $Y_i(z)$. The estimand is $\gate=\frac1n\sum_i\,[Y_i(\mathbf 1)-Y_i(\mathbf 0)]$.
+\emph{Regression adjustment} builds covariates $\varphi_i(z)$ from the assignment (own treatment $z_i$; treated-neighbour fraction $f_i=d_i^{-1}\sum_j A_{ij}z_j$; and optionally the count $c_i/d$, the two-hop fraction, $z_if_i$, $f_i^2$, a spline in $f_i$), fits $Y_i$ on $\varphi_i$ by OLS with an intercept, and returns $\hgate=\Delta x^{\top}\hat\beta$ with $\Delta x=\frac1n\sum_i[\varphi_i(\mathbf 1)-\varphi_i(\mathbf 0)]$ \citep{chin2019regression,han2023model}.
+The \emph{reporting specification} is $\varphi=(z_i,f_i)$, for which $\Delta x=(1,1)$ and $\hgate=\hat\beta_z+\hat\beta_f$; we call it ``regression'' unless a richer specification is named. Every such $\hgate$ is a linear functional $w^{\top}y$ of the outcome vector given $z$.
+Baselines are DM, H\'ajek estimators with exposure ``treated and at least a fraction $q\in\{0.75,1\}$ of neighbours treated'' (and the control analogue) \citep{horvitz1952generalization,aronow2017estimating,eckles2017design}, and cluster-randomised DM \citep{ugander2013graph}.
+
+\paragraph{Extrapolation to the corners.}
+Both global assignments move every unit's exposure to an end point of $[0,1]$, whereas $f_i$ under Bernoulli($p$) has mean $p$ and standard deviation $\sqrt{p(1-p)/d_i}$. Two quantities follow, one for each part of the error.
+
+\emph{Variance.} With independent noise of variance $\sigma_{\rm abs}^2$, $\mathrm{Var}(\hgate\mid z)=\sigma_{\rm abs}^2\,\|w\|^2=\sigma_{\rm abs}^2 L/n$, with leverage $L=n\|w\|^2=\Delta x^{\top}\hat\Sigma^{-1}\Delta x$ and $\hat\Sigma$ the empirical covariance of $\varphi$. For $\varphi=(z,f)$ with $z\perp f$ on a graph of equal degrees, $\hat\Sigma\approx\mathrm{diag}\big(p(1-p),\,p(1-p)/d\big)$ and
+\begin{equation}
+L\;\approx\;\frac{1+d}{p(1-p)},\qquad \mathrm{SD}(\hgate)\;\propto\; n^{-1/2}\,(1+d)^{1/2}\,[p(1-p)]^{-1/2}.\label{eq:leverage}
+\end{equation}
+The variance rises with degree because the exposure distribution narrows and the corner is farther in standard deviations, and is smallest at $p=\tfrac12$.
+
+\emph{Bias.} Suppose $Y_i=a_i+(1-s)z_i+s\,g(f_i)$ with $g(0)=0$, $g(1)=1$ (so $\gate=1$ and $s$ is the spillover share), $f_i$ independent of $z_i$, and $a_i$ unrelated to the assignment. The population OLS slope on $f$ is $s\,\mathrm{Cov}(g(f),f)/\mathrm{Var}(f)$ and the regression's bias is
+\begin{equation}
+\mathrm{bias}\;=\;s\Big[\tfrac{\mathrm{Cov}(g(f),f)}{\mathrm{Var}(f)}-1\Big]\;\approx\;-\tfrac{s}{2}\,g''(p)\,(1-2p)\quad\text{for a narrow exposure distribution}.\label{eq:bias}
+\end{equation}
+It is the chord from $0$ to $1$ against the local slope at $p$: curvature times the raw distance $(1-p)^2-p^2$ of the corners; it does not involve $d$, which only narrows the support around $p$, and vanishes at $p=\tfrac12$ to second order. For a threshold response the slope is the density of exposures at the threshold, so the bias depends on where the threshold falls relative to a distribution whose width shrinks like $d^{-1/2}$; for the count response (b) it reduces to a dispersion of degrees (Section~\ref{sec:varbias}). We evaluate the exact first expression (a binomial mixture over the realised degrees) for every cell and compare it with the measured bias.
+The bias is the response at the corners, which no data inside the exposure support constrain; \S\ref{sec:diag} returns to this.
+
+\paragraph{Hypotheses.}
+The five predictions tested below (variance exponents, bias form and degree dependence, minimum at $p=\tfrac12$, effect of cluster designs, and a diagnostic computed from the experiment) were fixed before the runs, together with the grid and the acceptance rule of the diagnostic (the \emph{freeze}); cells added afterwards are called post-freeze and labelled. They are listed in Appendix~\ref{app:grid}.

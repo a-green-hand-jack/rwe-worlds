@@ -1,0 +1,12 @@
+{
+ "figure": "figA_background",
+ "width_in": 5.5,
+ "height_in": 3.6,
+ "inputs": {
+  "results/tables/background_reference_shift.csv": "d23e47afafc0bd81397b3b9675d3487cc886080164d001caa6d194d3ee9e5dc8",
+  "results/tables/background_paired_diff.csv": "0a06fe9fc514e0838d7b74f7804baa768c3d419f3ecb5071e1e6817b52a3058e",
+  "results/tables/cells.csv": "3266aaca4ea1f015193d53732614c8a75bfce1c998cbbf0b28dfb88aeb155ed3"
+ },
+ "note": "estimator=shap_kernel; l1_reg=False; reference budget {'german': 2088, 'acs_employment': 2080}; only the instances listed in n_instances per point (subsets of the 40 German and 60 ACS Employment instances: German n=10-20, ACS Employment n=30-30); (a) exact phi under each background vs under B=50 (one pair of value functions per instance, not the K-draw floor b of Fig 5); (b) mean over instances of the per-instance share of runs correct (not the share of instances with P_c >= 0.9), B=50 rows restricted to the same instances; the P_c^eps differences (open) are exactly 0 in every drawn cell; each background has its own exact reference",
+ "scope": "Intervals resample instances of one trained model per dataset x model (one seed, B=50 random background rows); variance from retraining and from the background is not in them (floors b and c measure those separately)."
+}

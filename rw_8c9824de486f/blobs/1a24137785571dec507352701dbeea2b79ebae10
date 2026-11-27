@@ -1,0 +1,135 @@
+"""Selection rules S0-S7 (prereg/PREREG.md H). Each takes the fold state and a candidate set (benchmarks in the held-out
+model's run set) and returns k benchmark indices (a subset of the candidates)."""
+import numpy as np
+from scipy.linalg import qr
+from fa import complete
+
+def s0_random(cand, k, rng):
+    return rng.choice(cand, k, replace=False)
+
+def s1_popular(cand, k, cover):
+    """most-observed benchmarks (training coverage), ties by index"""
+    o = np.lexsort((cand, -cover[cand])); return cand[o[:k]]
+
+def s2_variance(cand, k, rawsd):
+    """highest-variance benchmarks in raw points (training standardisation sd)"""
+    o = np.lexsort((cand, -rawsd[cand])); return cand[o[:k]]
+
+def s6_greedy(fit, cand, k, target=None, cost=None):
+    """greedy Bayesian V-optimal design: maximise the reduction of tr(V Sigma_post V') (target: all N benchmarks, or the
+    benchmark index set `target`); with `cost`, maximise gain per unit cost. Sherman-Morrison gains."""
+    V, psi = fit["V"], fit["psi"]; r = V.shape[1]
+    Vt = V if target is None else V[target]
+    G = Vt.T @ Vt
+    A = V[cand] / np.sqrt(psi[cand])[:, None]
+    Sig = np.eye(r); chosen = []; avail = np.ones(len(cand), bool)
+    for _ in range(min(k, len(cand))):
+        SA = A @ Sig
+        den = 1.0 + np.einsum("jr,jr->j", SA, A)
+        gain = np.einsum("jr,jr->j", SA @ G, SA) / den
+        if cost is not None: gain = gain / cost[cand]
+        gain = np.where(avail, gain, -np.inf)
+        j = int(np.argmax(gain)); chosen.append(j); avail[j] = False
+        s = SA[j]; Sig = Sig - np.outer(s, s) / den[j]
+    return cand[np.array(chosen)]
+
+def s6_unrun(fit, cand, k):
+    """V-optimal greedy with the target 'all benchmarks not yet run': F(S) = sum_{j not in S} v_j' Sigma(S) v_j. Exact gains for
+    every candidate (Sherman-Morrison); variant of S6 that does not count the revealed benchmarks among the targets."""
+    V, psi = fit["V"], fit["psi"]; r = V.shape[1]
+    G = V.T @ V; Vc = V[cand]; A = Vc / np.sqrt(psi[cand])[:, None]
+    Sig = np.eye(r); Q = np.zeros((r, r)); chosen = []; avail = np.ones(len(cand), bool)
+    for _ in range(min(k, len(cand))):
+        SA = A @ Sig
+        den = 1.0 + np.einsum("jr,jr->j", SA, A)
+        H = G - Q
+        base = np.trace(H @ Sig)
+        vS = Vc @ Sig                                      # v_j' Sigma  (rows)
+        quad = np.einsum("jr,jr->j", vS, Vc)               # v_j' Sigma v_j
+        Hs = SA @ H
+        newF = base - np.einsum("jr,jr->j", Hs, SA) / den - quad + np.einsum("jr,jr->j", Vc, SA) ** 2 / den
+        newF = np.where(avail, newF, np.inf)
+        j = int(np.argmin(newF)); chosen.append(j); avail[j] = False
+        s = SA[j]; Sig = Sig - np.outer(s, s) / den[j]; Q = Q + np.outer(Vc[j], Vc[j])
+    return cand[np.array(chosen)]
+
+def s4_pivqr(Xc, cand, k):
+    """pivoted QR column subset selection (Businger-Golub; Boutsidis et al. 2009 baseline) on the completed training matrix"""
+    _, _, piv = qr(Xc[:, cand], mode="economic", pivoting=True)
+    return cand[piv[:k]]
+
+def kmedoids(D, k, rng, n_iter=50):
+    n = D.shape[0]
+    med = [int(rng.integers(n))]
+    for _ in range(k - 1):                       # k-medoids++ style init
+        d = D[:, med].min(1); p = d ** 2; p = p / p.sum() if p.sum() > 0 else np.ones(n) / n
+        med.append(int(rng.choice(n, p=p)))
+    med = np.array(med)
+    for _ in range(n_iter):
+        lab = D[:, med].argmin(1); new = med.copy()
+        for c in range(k):
+            idx = np.where(lab == c)[0]
+            if len(idx): new[c] = idx[D[np.ix_(idx, idx)].sum(1).argmin()]
+        if np.array_equal(np.sort(new), np.sort(med)): break
+        med = new
+    return med
+
+def s5_cluster(Xc, cand, k, rng):
+    """k-medoids on 1-|corr| of the completed training matrix restricted to candidates; one medoid per cluster"""
+    k = min(k, len(cand))
+    C = np.corrcoef(Xc[:, cand].T); D = 1 - np.abs(np.nan_to_num(C)); np.fill_diagonal(D, 0)
+    if k == len(cand): return cand
+    return cand[kmedoids(D, k, rng)]
+
+def s7_interview(Z, mask_tr, z_row, cand, k_max, K=30):
+    """adaptive continuous-score interview (adaptation of Golbandi et al. 2011): at each step take the K training models nearest to the
+    revealed answers and ask the benchmark whose median split of those neighbours reduces the summed squared deviation of all
+    other benchmarks the most. Returns the ordered list of asked benchmarks (prefix = run set for each k)."""
+    asked = []; Zf = np.where(mask_tr, Z, np.nan)
+    cand = list(cand)
+    for _ in range(min(k_max, len(cand))):
+        if asked:
+            D = np.nanmean((Zf[:, asked] - z_row[asked][None]) ** 2, axis=1)
+            D = np.where(np.isnan(D), np.inf, D); nb = np.argsort(D)[:K]
+        else:
+            nb = np.arange(Z.shape[0])
+        X = Zf[nb]
+        base = np.nansum((X - np.nanmean(X, 0)) ** 2)
+        best, bj = -np.inf, None
+        for j in cand:
+            col = X[:, j]; ok = ~np.isnan(col)
+            if ok.sum() < 6: continue
+            med = np.median(col[ok]); hi = ok & (col >= med); lo = ok & (col < med)
+            if hi.sum() < 2 or lo.sum() < 2: continue
+            sse = 0.0
+            for g in (hi, lo):
+                Xg = X[g]; sse += np.nansum((Xg - np.nanmean(Xg, 0)) ** 2)
+            if base - sse > best: best, bj = base - sse, j
+        if bj is None: bj = cand[0]
+        asked.append(bj); cand.remove(bj)
+    return np.array(asked)
+
+
+def s6_swap(fit, cand, k, max_pass=10):
+    """S6s: greedy start (s6_greedy), then single-swap local search on the same objective F(S)=tr(V'V Sigma(S)):
+    for each position remove its item (rank-1 downdate of the posterior precision) and re-pick the best item among all
+    candidates not in the rest of the set (Sherman-Morrison gains); repeat until no swap improves F (or max_pass passes)."""
+    V, psi = fit["V"], fit["psi"]; r = V.shape[1]
+    G = V.T @ V; A = V[cand] / np.sqrt(psi[cand])[:, None]
+    S = [int(np.where(cand == j)[0][0]) for j in s6_greedy(fit, cand, k)]
+    def Fval(S):
+        P = np.eye(r) + A[S].T @ A[S]; return float(np.trace(G @ np.linalg.inv(P)))
+    cur = Fval(S)
+    for _ in range(max_pass):
+        changed = False
+        for pos in range(len(S)):
+            rest = S[:pos] + S[pos + 1:]
+            Sig = np.linalg.inv(np.eye(r) + A[rest].T @ A[rest]) if rest else np.eye(r)
+            SA = A @ Sig; den = 1.0 + np.einsum("jr,jr->j", SA, A)
+            gain = np.einsum("jr,jr->j", SA @ G, SA) / den
+            gain[rest] = -np.inf
+            j = int(np.argmax(gain)); new = rest[:pos] + [j] + rest[pos:]
+            f = Fval(new)
+            if f < cur - 1e-9: S, cur, changed = new, f, True
+        if not changed: break
+    return cand[np.array(S)]

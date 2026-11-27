@@ -1,0 +1,769 @@
+dataset,split,selector,predictor,level,reference,kstar,censored,grid_max,r_eff,participation_ratio,h1_outcome,kstar_ci_lo,kstar_ci_hi,share_censored_boot,k_plateau10
+helm_mmlu,grouped,greedyA,fa,0.8,lobo,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,1.0,0.0,2.0
+helm_mmlu,grouped,greedyA,best_simple,0.8,lobo,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,1.0,0.0,2.0
+helm_mmlu,grouped,greedyA,ridge,0.8,lobo,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,1.0,0.0,3.0
+helm_mmlu,grouped,greedyA,onefactor,0.8,lobo,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,1.0,0.0,1.0
+helm_mmlu,grouped,greedyA,knn,0.8,lobo,,True,20,2,1.552639221318274,above window,1.0,21.0,0.653,1.0
+helm_mmlu,grouped,greedyA,lw,0.8,lobo,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,1.0,0.0,4.0
+helm_mmlu,grouped,greedyA,headline,0.8,lobo,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,1.0,0.0,
+helm_mmlu,grouped,greedyA,fa_minus_best_simple,0.8,lobo,0.0,False,20,2,1.552639221318274,,0.0,0.0,,
+helm_mmlu,grouped,greedyA,fa,0.9,lobo,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,2.0,0.0,2.0
+helm_mmlu,grouped,greedyA,best_simple,0.9,lobo,2.0,False,20,2,1.552639221318274,knee near r_eff,1.0,2.0,0.0,2.0
+helm_mmlu,grouped,greedyA,ridge,0.9,lobo,2.0,False,20,2,1.552639221318274,knee near r_eff,1.0,2.0,0.0,3.0
+helm_mmlu,grouped,greedyA,onefactor,0.9,lobo,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,3.0,0.0,1.0
+helm_mmlu,grouped,greedyA,knn,0.9,lobo,,True,20,2,1.552639221318274,above window,1.0,21.0,0.7585,1.0
+helm_mmlu,grouped,greedyA,lw,0.9,lobo,2.0,False,20,2,1.552639221318274,knee near r_eff,1.0,2.0,0.0,4.0
+helm_mmlu,grouped,greedyA,headline,0.9,lobo,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,2.0,0.0,
+helm_mmlu,grouped,greedyA,fa_minus_best_simple,0.9,lobo,-1.0,False,20,2,1.552639221318274,,-1.0,0.0,,
+helm_mmlu,grouped,greedyA,fa,0.95,lobo,3.0,False,20,2,1.552639221318274,knee near r_eff,2.0,4.0,0.0,2.0
+helm_mmlu,grouped,greedyA,best_simple,0.95,lobo,3.0,False,20,2,1.552639221318274,knee near r_eff,2.0,5.0,0.0,2.0
+helm_mmlu,grouped,greedyA,ridge,0.95,lobo,3.0,False,20,2,1.552639221318274,knee near r_eff,2.0,4.0,0.0,3.0
+helm_mmlu,grouped,greedyA,onefactor,0.95,lobo,,True,20,2,1.552639221318274,above window,3.0,21.0,0.371,1.0
+helm_mmlu,grouped,greedyA,knn,0.95,lobo,,True,20,2,1.552639221318274,above window,3.0,21.0,0.894,1.0
+helm_mmlu,grouped,greedyA,lw,0.95,lobo,3.0,False,20,2,1.552639221318274,knee near r_eff,2.0,4.0,0.0,4.0
+helm_mmlu,grouped,greedyA,headline,0.95,lobo,3.0,False,20,2,1.552639221318274,knee near r_eff,2.0,4.0,0.0,
+helm_mmlu,grouped,greedyA,fa_minus_best_simple,0.95,lobo,0.0,False,20,2,1.552639221318274,,-1.0,0.0,,
+helm_mmlu,grouped,greedyA,fa,0.8,insample,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,1.0,0.0,2.0
+helm_mmlu,grouped,greedyA,best_simple,0.8,insample,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,1.0,0.0,2.0
+helm_mmlu,grouped,greedyA,ridge,0.8,insample,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,1.0,0.0,3.0
+helm_mmlu,grouped,greedyA,onefactor,0.8,insample,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,1.0,0.0005,1.0
+helm_mmlu,grouped,greedyA,knn,0.8,insample,,True,20,2,1.552639221318274,above window,1.0,21.0,0.653,1.0
+helm_mmlu,grouped,greedyA,lw,0.8,insample,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,1.0,0.0,4.0
+helm_mmlu,grouped,greedyA,headline,0.8,insample,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,1.0,0.0,
+helm_mmlu,grouped,greedyA,fa_minus_best_simple,0.8,insample,0.0,False,20,2,1.552639221318274,,0.0,0.0,,
+helm_mmlu,grouped,greedyA,fa,0.9,insample,2.0,False,20,2,1.552639221318274,knee near r_eff,2.0,3.0,0.0005,2.0
+helm_mmlu,grouped,greedyA,best_simple,0.9,insample,3.0,False,20,2,1.552639221318274,knee near r_eff,2.0,3.0,0.0,2.0
+helm_mmlu,grouped,greedyA,ridge,0.9,insample,2.0,False,20,2,1.552639221318274,knee near r_eff,2.0,3.0,0.0,3.0
+helm_mmlu,grouped,greedyA,onefactor,0.9,insample,3.0,False,20,2,1.552639221318274,knee near r_eff,2.0,21.0,0.119,1.0
+helm_mmlu,grouped,greedyA,knn,0.9,insample,,True,20,2,1.552639221318274,above window,3.0,21.0,0.9235,1.0
+helm_mmlu,grouped,greedyA,lw,0.9,insample,3.0,False,20,2,1.552639221318274,knee near r_eff,2.0,3.0,0.0,4.0
+helm_mmlu,grouped,greedyA,headline,0.9,insample,2.0,False,20,2,1.552639221318274,knee near r_eff,2.0,3.0,0.0,
+helm_mmlu,grouped,greedyA,fa_minus_best_simple,0.9,insample,-1.0,False,20,2,1.552639221318274,,-1.0,0.0,,
+helm_mmlu,grouped,greedyA,fa,0.95,insample,,True,20,2,1.552639221318274,above window,5.0,21.0,0.66,2.0
+helm_mmlu,grouped,greedyA,best_simple,0.95,insample,,True,20,2,1.552639221318274,above window,5.0,21.0,0.7045,2.0
+helm_mmlu,grouped,greedyA,ridge,0.95,insample,5.0,False,20,2,1.552639221318274,above window,4.0,21.0,0.0585,3.0
+helm_mmlu,grouped,greedyA,onefactor,0.95,insample,,True,20,2,1.552639221318274,above window,20.0,21.0,0.955,1.0
+helm_mmlu,grouped,greedyA,knn,0.95,insample,,True,20,2,1.552639221318274,above window,21.0,21.0,0.988,1.0
+helm_mmlu,grouped,greedyA,lw,0.95,insample,5.0,False,20,2,1.552639221318274,above window,4.0,21.0,0.0775,4.0
+helm_mmlu,grouped,greedyA,headline,0.95,insample,,True,20,2,1.552639221318274,above window,5.0,21.0,0.644,
+helm_mmlu,grouped,greedyA,fa_minus_best_simple,0.95,insample,0.0,False,20,2,1.552639221318274,,-16.0,3.0,,
+helm_mmlu,grouped,random,fa,0.8,lobo,2.0,False,20,2,1.552639221318274,knee near r_eff,1.0,2.0,0.0,5.0
+helm_mmlu,grouped,random,best_simple,0.8,lobo,2.0,False,20,2,1.552639221318274,knee near r_eff,2.0,2.0,0.0,5.0
+helm_mmlu,grouped,random,ridge,0.8,lobo,2.0,False,20,2,1.552639221318274,knee near r_eff,1.0,2.0,0.0,7.0
+helm_mmlu,grouped,random,onefactor,0.8,lobo,2.0,False,20,2,1.552639221318274,knee near r_eff,1.0,3.0,0.0,4.0
+helm_mmlu,grouped,random,knn,0.8,lobo,,True,20,2,1.552639221318274,above window,2.0,21.0,0.653,2.0
+helm_mmlu,grouped,random,lw,0.8,lobo,2.0,False,20,2,1.552639221318274,knee near r_eff,2.0,2.0,0.0,6.0
+helm_mmlu,grouped,random,headline,0.8,lobo,2.0,False,20,2,1.552639221318274,knee near r_eff,1.0,2.0,0.0,
+helm_mmlu,grouped,random,fa_minus_best_simple,0.8,lobo,0.0,False,20,2,1.552639221318274,,-1.0,0.0,,
+helm_mmlu,grouped,random,fa,0.9,lobo,4.0,False,20,2,1.552639221318274,knee near r_eff,3.0,5.0,0.0,5.0
+helm_mmlu,grouped,random,best_simple,0.9,lobo,4.0,False,20,2,1.552639221318274,knee near r_eff,3.0,5.0,0.0,5.0
+helm_mmlu,grouped,random,ridge,0.9,lobo,3.0,False,20,2,1.552639221318274,knee near r_eff,3.0,4.0,0.0,7.0
+helm_mmlu,grouped,random,onefactor,0.9,lobo,4.0,False,20,2,1.552639221318274,knee near r_eff,3.0,7.0,0.001,4.0
+helm_mmlu,grouped,random,knn,0.9,lobo,,True,20,2,1.552639221318274,above window,4.0,21.0,0.758,2.0
+helm_mmlu,grouped,random,lw,0.9,lobo,3.0,False,20,2,1.552639221318274,knee near r_eff,3.0,4.0,0.0,6.0
+helm_mmlu,grouped,random,headline,0.9,lobo,4.0,False,20,2,1.552639221318274,knee near r_eff,3.0,5.0,0.0,
+helm_mmlu,grouped,random,fa_minus_best_simple,0.9,lobo,0.0,False,20,2,1.552639221318274,,0.0,0.0,,
+helm_mmlu,grouped,random,fa,0.95,lobo,9.0,False,20,2,1.552639221318274,above window,5.0,21.0,0.026,5.0
+helm_mmlu,grouped,random,best_simple,0.95,lobo,8.0,False,20,2,1.552639221318274,above window,5.0,12.0,0.0,5.0
+helm_mmlu,grouped,random,ridge,0.95,lobo,6.0,False,20,2,1.552639221318274,above window,5.0,7.0,0.0,7.0
+helm_mmlu,grouped,random,onefactor,0.95,lobo,15.0,False,20,2,1.552639221318274,above window,6.0,21.0,0.202,4.0
+helm_mmlu,grouped,random,knn,0.95,lobo,,True,20,2,1.552639221318274,above window,8.0,21.0,0.906,2.0
+helm_mmlu,grouped,random,lw,0.95,lobo,5.0,False,20,2,1.552639221318274,above window,5.0,7.0,0.0,6.0
+helm_mmlu,grouped,random,headline,0.95,lobo,8.0,False,20,2,1.552639221318274,above window,5.0,12.0,0.0,
+helm_mmlu,grouped,random,fa_minus_best_simple,0.95,lobo,1.0,False,20,2,1.552639221318274,,-1.0,8.0,,
+helm_mmlu,grouped,random,fa,0.8,insample,2.0,False,20,2,1.552639221318274,knee near r_eff,2.0,4.0,0.0,5.0
+helm_mmlu,grouped,random,best_simple,0.8,insample,2.0,False,20,2,1.552639221318274,knee near r_eff,2.0,4.0,0.0,5.0
+helm_mmlu,grouped,random,ridge,0.8,insample,2.0,False,20,2,1.552639221318274,knee near r_eff,2.0,3.0249999999998636,0.0,7.0
+helm_mmlu,grouped,random,onefactor,0.8,insample,2.0,False,20,2,1.552639221318274,knee near r_eff,2.0,5.0,0.003,4.0
+helm_mmlu,grouped,random,knn,0.8,insample,,True,20,2,1.552639221318274,above window,2.0,21.0,0.654,2.0
+helm_mmlu,grouped,random,lw,0.8,insample,2.0,False,20,2,1.552639221318274,knee near r_eff,2.0,3.0,0.0,6.0
+helm_mmlu,grouped,random,headline,0.8,insample,2.0,False,20,2,1.552639221318274,knee near r_eff,2.0,4.0,0.0,
+helm_mmlu,grouped,random,fa_minus_best_simple,0.8,insample,0.0,False,20,2,1.552639221318274,,0.0,0.0,,
+helm_mmlu,grouped,random,fa,0.9,insample,5.0,False,20,2,1.552639221318274,above window,4.0,12.0,0.0015,5.0
+helm_mmlu,grouped,random,best_simple,0.9,insample,5.0,False,20,2,1.552639221318274,above window,3.0,12.0,0.0035,5.0
+helm_mmlu,grouped,random,ridge,0.9,insample,4.0,False,20,2,1.552639221318274,knee near r_eff,3.0,10.0,0.003,7.0
+helm_mmlu,grouped,random,onefactor,0.9,insample,6.0,False,20,2,1.552639221318274,above window,4.0,21.0,0.134,4.0
+helm_mmlu,grouped,random,knn,0.9,insample,,True,20,2,1.552639221318274,above window,6.0,21.0,0.936,2.0
+helm_mmlu,grouped,random,lw,0.9,insample,4.0,False,20,2,1.552639221318274,knee near r_eff,3.0,12.0,0.0055,6.0
+helm_mmlu,grouped,random,headline,0.9,insample,5.0,False,20,2,1.552639221318274,above window,3.0,10.049999999999727,0.0015,
+helm_mmlu,grouped,random,fa_minus_best_simple,0.9,insample,0.0,False,20,2,1.552639221318274,,-1.0,1.0,,
+helm_mmlu,grouped,random,fa,0.95,insample,,True,20,2,1.552639221318274,above window,10.0,21.0,0.7425,5.0
+helm_mmlu,grouped,random,best_simple,0.95,insample,,True,20,2,1.552639221318274,above window,10.0,21.0,0.578,5.0
+helm_mmlu,grouped,random,ridge,0.95,insample,10.0,False,20,2,1.552639221318274,above window,6.0,21.0,0.11,7.0
+helm_mmlu,grouped,random,onefactor,0.95,insample,,True,20,2,1.552639221318274,above window,20.0,21.0,0.9655,4.0
+helm_mmlu,grouped,random,knn,0.95,insample,,True,20,2,1.552639221318274,above window,21.0,21.0,0.9955,2.0
+helm_mmlu,grouped,random,lw,0.95,insample,9.0,False,20,2,1.552639221318274,above window,6.0,21.0,0.1615,6.0
+helm_mmlu,grouped,random,headline,0.95,insample,,True,20,2,1.552639221318274,above window,9.0,21.0,0.56,
+helm_mmlu,grouped,random,fa_minus_best_simple,0.95,insample,0.0,False,20,2,1.552639221318274,,-1.0,6.0,,
+helm_mmlu,random,greedyA,fa,0.8,lobo,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,1.0,0.0,2.0
+helm_mmlu,random,greedyA,best_simple,0.8,lobo,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,1.0,0.0,3.0
+helm_mmlu,random,greedyA,ridge,0.8,lobo,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,1.0,0.0,3.0
+helm_mmlu,random,greedyA,onefactor,0.8,lobo,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,1.0,0.0,1.0
+helm_mmlu,random,greedyA,knn,0.8,lobo,,True,20,2,1.552639221318274,above window,1.0,21.0,0.653,1.0
+helm_mmlu,random,greedyA,lw,0.8,lobo,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,1.0,0.0,3.0
+helm_mmlu,random,greedyA,headline,0.8,lobo,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,1.0,0.0,
+helm_mmlu,random,greedyA,fa_minus_best_simple,0.8,lobo,0.0,False,20,2,1.552639221318274,,0.0,0.0,,
+helm_mmlu,random,greedyA,fa,0.9,lobo,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,2.0,0.0,2.0
+helm_mmlu,random,greedyA,best_simple,0.9,lobo,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,2.0,0.0,3.0
+helm_mmlu,random,greedyA,ridge,0.9,lobo,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,2.0,0.0,3.0
+helm_mmlu,random,greedyA,onefactor,0.9,lobo,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,3.0,0.0015,1.0
+helm_mmlu,random,greedyA,knn,0.9,lobo,,True,20,2,1.552639221318274,above window,2.0,21.0,0.726,1.0
+helm_mmlu,random,greedyA,lw,0.9,lobo,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,2.0,0.0,3.0
+helm_mmlu,random,greedyA,headline,0.9,lobo,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,2.0,0.0,
+helm_mmlu,random,greedyA,fa_minus_best_simple,0.9,lobo,0.0,False,20,2,1.552639221318274,,-1.0,0.0,,
+helm_mmlu,random,greedyA,fa,0.95,lobo,3.0,False,20,2,1.552639221318274,knee near r_eff,2.0,21.0,0.0505,2.0
+helm_mmlu,random,greedyA,best_simple,0.95,lobo,3.0,False,20,2,1.552639221318274,knee near r_eff,2.0,5.0,0.0,3.0
+helm_mmlu,random,greedyA,ridge,0.95,lobo,3.0,False,20,2,1.552639221318274,knee near r_eff,2.0,5.0,0.0,3.0
+helm_mmlu,random,greedyA,onefactor,0.95,lobo,,True,20,2,1.552639221318274,above window,3.0,21.0,0.705,1.0
+helm_mmlu,random,greedyA,knn,0.95,lobo,,True,20,2,1.552639221318274,above window,3.0,21.0,0.899,1.0
+helm_mmlu,random,greedyA,lw,0.95,lobo,3.0,False,20,2,1.552639221318274,knee near r_eff,2.0,5.0,0.0,3.0
+helm_mmlu,random,greedyA,headline,0.95,lobo,3.0,False,20,2,1.552639221318274,knee near r_eff,2.0,5.0,0.0,
+helm_mmlu,random,greedyA,fa_minus_best_simple,0.95,lobo,0.0,False,20,2,1.552639221318274,,0.0,17.0,,
+helm_mmlu,random,greedyA,fa,0.8,insample,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,1.0,0.0,2.0
+helm_mmlu,random,greedyA,best_simple,0.8,insample,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,1.0,0.0,3.0
+helm_mmlu,random,greedyA,ridge,0.8,insample,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,1.0,0.0,3.0
+helm_mmlu,random,greedyA,onefactor,0.8,insample,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,1.0,0.0,1.0
+helm_mmlu,random,greedyA,knn,0.8,insample,,True,20,2,1.552639221318274,above window,1.0,21.0,0.6465,1.0
+helm_mmlu,random,greedyA,lw,0.8,insample,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,1.0,0.0,3.0
+helm_mmlu,random,greedyA,headline,0.8,insample,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,1.0,0.0,
+helm_mmlu,random,greedyA,fa_minus_best_simple,0.8,insample,0.0,False,20,2,1.552639221318274,,0.0,0.0,,
+helm_mmlu,random,greedyA,fa,0.9,insample,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,2.0,0.0,2.0
+helm_mmlu,random,greedyA,best_simple,0.9,insample,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,2.0,0.0,3.0
+helm_mmlu,random,greedyA,ridge,0.9,insample,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,2.0249999999998636,0.0,3.0
+helm_mmlu,random,greedyA,onefactor,0.9,insample,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,4.0,0.0085,1.0
+helm_mmlu,random,greedyA,knn,0.9,insample,,True,20,2,1.552639221318274,above window,2.0,21.0,0.661,1.0
+helm_mmlu,random,greedyA,lw,0.9,insample,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,2.0,0.0,3.0
+helm_mmlu,random,greedyA,headline,0.9,insample,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,2.0,0.0,
+helm_mmlu,random,greedyA,fa_minus_best_simple,0.9,insample,0.0,False,20,2,1.552639221318274,,-1.0,0.0,,
+helm_mmlu,random,greedyA,fa,0.95,insample,3.0,False,20,2,1.552639221318274,knee near r_eff,3.0,4.0,0.0,2.0
+helm_mmlu,random,greedyA,best_simple,0.95,insample,3.0,False,20,2,1.552639221318274,knee near r_eff,3.0,4.0,0.0,3.0
+helm_mmlu,random,greedyA,ridge,0.95,insample,3.0,False,20,2,1.552639221318274,knee near r_eff,3.0,4.0,0.0,3.0
+helm_mmlu,random,greedyA,onefactor,0.95,insample,,True,20,2,1.552639221318274,above window,3.0,21.0,0.566,1.0
+helm_mmlu,random,greedyA,knn,0.95,insample,,True,20,2,1.552639221318274,above window,6.0,21.0,0.948,1.0
+helm_mmlu,random,greedyA,lw,0.95,insample,3.0,False,20,2,1.552639221318274,knee near r_eff,3.0,4.0,0.0,3.0
+helm_mmlu,random,greedyA,headline,0.95,insample,3.0,False,20,2,1.552639221318274,knee near r_eff,3.0,4.0,0.0,
+helm_mmlu,random,greedyA,fa_minus_best_simple,0.95,insample,0.0,False,20,2,1.552639221318274,,0.0,1.0,,
+helm_mmlu,random,random,fa,0.8,lobo,2.0,False,20,2,1.552639221318274,knee near r_eff,2.0,2.0,0.0,5.0
+helm_mmlu,random,random,best_simple,0.8,lobo,2.0,False,20,2,1.552639221318274,knee near r_eff,2.0,2.0,0.0,7.0
+helm_mmlu,random,random,ridge,0.8,lobo,2.0,False,20,2,1.552639221318274,knee near r_eff,2.0,2.0,0.0,8.0
+helm_mmlu,random,random,onefactor,0.8,lobo,2.0,False,20,2,1.552639221318274,knee near r_eff,2.0,3.0,0.0,4.0
+helm_mmlu,random,random,knn,0.8,lobo,,True,20,2,1.552639221318274,above window,2.0,21.0,0.6515,2.0
+helm_mmlu,random,random,lw,0.8,lobo,2.0,False,20,2,1.552639221318274,knee near r_eff,2.0,2.0,0.0,7.0
+helm_mmlu,random,random,headline,0.8,lobo,2.0,False,20,2,1.552639221318274,knee near r_eff,2.0,2.0,0.0,
+helm_mmlu,random,random,fa_minus_best_simple,0.8,lobo,0.0,False,20,2,1.552639221318274,,0.0,0.0,,
+helm_mmlu,random,random,fa,0.9,lobo,4.0,False,20,2,1.552639221318274,knee near r_eff,3.0,5.0,0.0,5.0
+helm_mmlu,random,random,best_simple,0.9,lobo,4.0,False,20,2,1.552639221318274,knee near r_eff,3.0,5.0,0.0,7.0
+helm_mmlu,random,random,ridge,0.9,lobo,4.0,False,20,2,1.552639221318274,knee near r_eff,3.0,5.0,0.0,8.0
+helm_mmlu,random,random,onefactor,0.9,lobo,5.0,False,20,2,1.552639221318274,above window,4.0,12.0,0.0085,4.0
+helm_mmlu,random,random,knn,0.9,lobo,,True,20,2,1.552639221318274,above window,3.0,21.0,0.7055,2.0
+helm_mmlu,random,random,lw,0.9,lobo,4.0,False,20,2,1.552639221318274,knee near r_eff,3.0,5.0,0.0,7.0
+helm_mmlu,random,random,headline,0.9,lobo,4.0,False,20,2,1.552639221318274,knee near r_eff,3.0,5.0,0.0,
+helm_mmlu,random,random,fa_minus_best_simple,0.9,lobo,0.0,False,20,2,1.552639221318274,,0.0,1.0,,
+helm_mmlu,random,random,fa,0.95,lobo,20.0,False,20,2,1.552639221318274,above window,6.0,21.0,0.434,5.0
+helm_mmlu,random,random,best_simple,0.95,lobo,7.0,False,20,2,1.552639221318274,above window,5.0,10.0,0.0,7.0
+helm_mmlu,random,random,ridge,0.95,lobo,7.0,False,20,2,1.552639221318274,above window,5.0,10.0,0.0,8.0
+helm_mmlu,random,random,onefactor,0.95,lobo,,True,20,2,1.552639221318274,above window,9.0,21.0,0.864,4.0
+helm_mmlu,random,random,knn,0.95,lobo,,True,20,2,1.552639221318274,above window,8.0,21.0,0.9115,2.0
+helm_mmlu,random,random,lw,0.95,lobo,7.0,False,20,2,1.552639221318274,above window,5.0,10.0,0.0,7.0
+helm_mmlu,random,random,headline,0.95,lobo,7.0,False,20,2,1.552639221318274,above window,5.0,10.0,0.0,
+helm_mmlu,random,random,fa_minus_best_simple,0.95,lobo,13.0,False,20,2,1.552639221318274,,0.0,15.0,,
+helm_mmlu,random,random,fa,0.8,insample,2.0,False,20,2,1.552639221318274,knee near r_eff,2.0,3.0,0.0,5.0
+helm_mmlu,random,random,best_simple,0.8,insample,2.0,False,20,2,1.552639221318274,knee near r_eff,2.0,3.0,0.0,7.0
+helm_mmlu,random,random,ridge,0.8,insample,2.0,False,20,2,1.552639221318274,knee near r_eff,2.0,3.0,0.0,8.0
+helm_mmlu,random,random,onefactor,0.8,insample,2.0,False,20,2,1.552639221318274,knee near r_eff,2.0,3.0,0.0,4.0
+helm_mmlu,random,random,knn,0.8,insample,,True,20,2,1.552639221318274,above window,2.0,21.0,0.6395,2.0
+helm_mmlu,random,random,lw,0.8,insample,2.0,False,20,2,1.552639221318274,knee near r_eff,2.0,3.0,0.0,7.0
+helm_mmlu,random,random,headline,0.8,insample,2.0,False,20,2,1.552639221318274,knee near r_eff,2.0,3.0,0.0,
+helm_mmlu,random,random,fa_minus_best_simple,0.8,insample,0.0,False,20,2,1.552639221318274,,0.0,0.0,,
+helm_mmlu,random,random,fa,0.9,insample,4.0,False,20,2,1.552639221318274,knee near r_eff,3.0,6.0,0.0,5.0
+helm_mmlu,random,random,best_simple,0.9,insample,4.0,False,20,2,1.552639221318274,knee near r_eff,3.0,5.0,0.0,7.0
+helm_mmlu,random,random,ridge,0.9,insample,4.0,False,20,2,1.552639221318274,knee near r_eff,3.0,6.0,0.0,8.0
+helm_mmlu,random,random,onefactor,0.9,insample,5.0,False,20,2,1.552639221318274,above window,3.0,21.0,0.0285,4.0
+helm_mmlu,random,random,knn,0.9,insample,,True,20,2,1.552639221318274,above window,4.0,21.0,0.661,2.0
+helm_mmlu,random,random,lw,0.9,insample,4.0,False,20,2,1.552639221318274,knee near r_eff,3.0,5.0,0.0,7.0
+helm_mmlu,random,random,headline,0.9,insample,4.0,False,20,2,1.552639221318274,knee near r_eff,3.0,5.0,0.0,
+helm_mmlu,random,random,fa_minus_best_simple,0.9,insample,0.0,False,20,2,1.552639221318274,,0.0,1.0,,
+helm_mmlu,random,random,fa,0.95,insample,15.0,False,20,2,1.552639221318274,above window,7.0,21.0,0.3025,5.0
+helm_mmlu,random,random,best_simple,0.95,insample,7.0,False,20,2,1.552639221318274,above window,5.0,12.0,0.0005,7.0
+helm_mmlu,random,random,ridge,0.95,insample,7.0,False,20,2,1.552639221318274,above window,5.0,12.0,0.0,8.0
+helm_mmlu,random,random,onefactor,0.95,insample,,True,20,2,1.552639221318274,above window,10.0,21.0,0.7495,4.0
+helm_mmlu,random,random,knn,0.95,insample,,True,20,2,1.552639221318274,above window,15.0,21.0,0.965,2.0
+helm_mmlu,random,random,lw,0.95,insample,7.0,False,20,2,1.552639221318274,above window,5.0,12.0,0.0,7.0
+helm_mmlu,random,random,headline,0.95,insample,7.0,False,20,2,1.552639221318274,above window,5.0,12.0,0.0,
+helm_mmlu,random,random,fa_minus_best_simple,0.95,insample,8.0,False,20,2,1.552639221318274,,0.0,15.0,,
+mteb_eng,grouped,greedyA,fa,0.8,lobo,3.0,False,30,4,2.081138644654182,dominated by general factor,1.0,9.0,0.0005,5.0
+mteb_eng,grouped,greedyA,best_simple,0.8,lobo,2.0,False,30,4,2.081138644654182,dominated by general factor,1.0,9.0,0.0,7.0
+mteb_eng,grouped,greedyA,ridge,0.8,lobo,3.0,False,30,4,2.081138644654182,dominated by general factor,1.0,9.0,0.0,9.0
+mteb_eng,grouped,greedyA,onefactor,0.8,lobo,4.0,False,30,4,2.081138644654182,knee near r_eff,1.0,31.0,0.1065,1.0
+mteb_eng,grouped,greedyA,knn,0.8,lobo,1.0,False,30,4,2.081138644654182,dominated by general factor,1.0,3.0,0.0,2.0
+mteb_eng,grouped,greedyA,lw,0.8,lobo,3.0,False,30,4,2.081138644654182,dominated by general factor,1.0,9.0,0.0,9.0
+mteb_eng,grouped,greedyA,headline,0.8,lobo,2.0,False,30,4,2.081138644654182,dominated by general factor,1.0,9.0,0.0,
+mteb_eng,grouped,greedyA,fa_minus_best_simple,0.8,lobo,1.0,False,30,4,2.081138644654182,,0.0,4.0,,
+mteb_eng,grouped,greedyA,fa,0.9,lobo,20.0,False,30,4,2.081138644654182,above window,4.0,31.0,0.258,5.0
+mteb_eng,grouped,greedyA,best_simple,0.9,lobo,9.0,False,30,4,2.081138644654182,above window,3.0,31.0,0.033,7.0
+mteb_eng,grouped,greedyA,ridge,0.9,lobo,12.0,False,30,4,2.081138644654182,above window,4.0,30.0,0.01,9.0
+mteb_eng,grouped,greedyA,onefactor,0.9,lobo,,True,30,4,2.081138644654182,above window,31.0,31.0,0.9935,1.0
+mteb_eng,grouped,greedyA,knn,0.9,lobo,8.0,False,30,4,2.081138644654182,knee near r_eff,2.0,31.0,0.1205,2.0
+mteb_eng,grouped,greedyA,lw,0.9,lobo,9.0,False,30,4,2.081138644654182,above window,4.0,30.0,0.0245,9.0
+mteb_eng,grouped,greedyA,headline,0.9,lobo,9.0,False,30,4,2.081138644654182,above window,3.0,31.0,0.0295,
+mteb_eng,grouped,greedyA,fa_minus_best_simple,0.9,lobo,11.0,False,30,4,2.081138644654182,,0.0,21.0,,
+mteb_eng,grouped,greedyA,fa,0.95,lobo,,True,30,4,2.081138644654182,above window,20.0,31.0,0.913,5.0
+mteb_eng,grouped,greedyA,best_simple,0.95,lobo,,True,30,4,2.081138644654182,above window,9.0,31.0,0.57,7.0
+mteb_eng,grouped,greedyA,ridge,0.95,lobo,30.0,False,30,4,2.081138644654182,above window,12.0,31.0,0.419,9.0
+mteb_eng,grouped,greedyA,onefactor,0.95,lobo,,True,30,4,2.081138644654182,above window,31.0,31.0,1.0,1.0
+mteb_eng,grouped,greedyA,knn,0.95,lobo,,True,30,4,2.081138644654182,above window,12.0,31.0,0.9245,2.0
+mteb_eng,grouped,greedyA,lw,0.95,lobo,,True,30,4,2.081138644654182,above window,10.0,31.0,0.509,9.0
+mteb_eng,grouped,greedyA,headline,0.95,lobo,,True,30,4,2.081138644654182,above window,9.0,31.0,0.5655,
+mteb_eng,grouped,greedyA,fa_minus_best_simple,0.95,lobo,0.0,False,30,4,2.081138644654182,,0.0,18.0,,
+mteb_eng,grouped,greedyA,fa,0.8,insample,3.0,False,30,4,2.081138644654182,dominated by general factor,1.0,9.0,0.0,5.0
+mteb_eng,grouped,greedyA,best_simple,0.8,insample,1.0,False,30,4,2.081138644654182,dominated by general factor,1.0,7.0,0.0,7.0
+mteb_eng,grouped,greedyA,ridge,0.8,insample,3.0,False,30,4,2.081138644654182,dominated by general factor,1.0,9.0,0.0,9.0
+mteb_eng,grouped,greedyA,onefactor,0.8,insample,3.0,False,30,4,2.081138644654182,dominated by general factor,1.0,31.0,0.0345,1.0
+mteb_eng,grouped,greedyA,knn,0.8,insample,1.0,False,30,4,2.081138644654182,dominated by general factor,1.0,2.0,0.0,2.0
+mteb_eng,grouped,greedyA,lw,0.8,insample,3.0,False,30,4,2.081138644654182,dominated by general factor,1.0,8.0,0.0,9.0
+mteb_eng,grouped,greedyA,headline,0.8,insample,1.0,False,30,4,2.081138644654182,dominated by general factor,1.0,7.0,0.0,
+mteb_eng,grouped,greedyA,fa_minus_best_simple,0.8,insample,2.0,False,30,4,2.081138644654182,,0.0,4.0,,
+mteb_eng,grouped,greedyA,fa,0.9,insample,9.0,False,30,4,2.081138644654182,above window,4.0,31.0,0.0695,5.0
+mteb_eng,grouped,greedyA,best_simple,0.9,insample,9.0,False,30,4,2.081138644654182,above window,3.0,30.0,0.0185,7.0
+mteb_eng,grouped,greedyA,ridge,0.9,insample,9.0,False,30,4,2.081138644654182,above window,4.0,30.0,0.0045,9.0
+mteb_eng,grouped,greedyA,onefactor,0.9,insample,,True,30,4,2.081138644654182,above window,31.0,31.0,0.997,1.0
+mteb_eng,grouped,greedyA,knn,0.9,insample,6.0,False,30,4,2.081138644654182,knee near r_eff,2.0,30.0,0.019,2.0
+mteb_eng,grouped,greedyA,lw,0.9,insample,9.0,False,30,4,2.081138644654182,above window,4.0,30.0,0.015,9.0
+mteb_eng,grouped,greedyA,headline,0.9,insample,9.0,False,30,4,2.081138644654182,above window,3.0,30.0,0.0105,
+mteb_eng,grouped,greedyA,fa_minus_best_simple,0.9,insample,0.0,False,30,4,2.081138644654182,,0.0,21.0,,
+mteb_eng,grouped,greedyA,fa,0.95,insample,,True,30,4,2.081138644654182,above window,30.0,31.0,0.961,5.0
+mteb_eng,grouped,greedyA,best_simple,0.95,insample,30.0,False,30,4,2.081138644654182,above window,8.0,31.0,0.3895,7.0
+mteb_eng,grouped,greedyA,ridge,0.95,insample,30.0,False,30,4,2.081138644654182,above window,12.0,31.0,0.2525,9.0
+mteb_eng,grouped,greedyA,onefactor,0.95,insample,,True,30,4,2.081138644654182,above window,31.0,31.0,1.0,1.0
+mteb_eng,grouped,greedyA,knn,0.95,insample,,True,30,4,2.081138644654182,above window,12.0,31.0,0.8665,2.0
+mteb_eng,grouped,greedyA,lw,0.95,insample,30.0,False,30,4,2.081138644654182,above window,12.0,31.0,0.339,9.0
+mteb_eng,grouped,greedyA,headline,0.95,insample,30.0,False,30,4,2.081138644654182,above window,8.0,31.0,0.3895,
+mteb_eng,grouped,greedyA,fa_minus_best_simple,0.95,insample,1.0,False,30,4,2.081138644654182,,0.0,21.0,,
+mteb_eng,grouped,random,fa,0.8,lobo,5.0,False,30,4,2.081138644654182,knee near r_eff,3.0,12.0,0.001,8.0
+mteb_eng,grouped,random,best_simple,0.8,lobo,4.0,False,30,4,2.081138644654182,knee near r_eff,3.0,7.0,0.0,12.0
+mteb_eng,grouped,random,ridge,0.8,lobo,4.0,False,30,4,2.081138644654182,knee near r_eff,3.0,8.0,0.0,15.0
+mteb_eng,grouped,random,onefactor,0.8,lobo,15.0,False,30,4,2.081138644654182,above window,5.0,31.0,0.244,4.0
+mteb_eng,grouped,random,knn,0.8,lobo,3.0,False,30,4,2.081138644654182,dominated by general factor,2.0,7.0,0.0,5.0
+mteb_eng,grouped,random,lw,0.8,lobo,4.0,False,30,4,2.081138644654182,knee near r_eff,3.0,8.0,0.0,12.0
+mteb_eng,grouped,random,headline,0.8,lobo,4.0,False,30,4,2.081138644654182,knee near r_eff,3.0,7.0,0.0,
+mteb_eng,grouped,random,fa_minus_best_simple,0.8,lobo,1.0,False,30,4,2.081138644654182,,0.0,6.0,,
+mteb_eng,grouped,random,fa,0.9,lobo,30.0,False,30,4,2.081138644654182,above window,8.0,31.0,0.2865,8.0
+mteb_eng,grouped,random,best_simple,0.9,lobo,12.0,False,30,4,2.081138644654182,above window,6.0,30.0,0.0015,12.0
+mteb_eng,grouped,random,ridge,0.9,lobo,12.0,False,30,4,2.081138644654182,above window,7.0,20.0,0.0,15.0
+mteb_eng,grouped,random,onefactor,0.9,lobo,,True,30,4,2.081138644654182,above window,31.0,31.0,0.999,4.0
+mteb_eng,grouped,random,knn,0.9,lobo,20.0,False,30,4,2.081138644654182,above window,6.0,31.0,0.27,5.0
+mteb_eng,grouped,random,lw,0.9,lobo,12.0,False,30,4,2.081138644654182,above window,7.0,30.0,0.0015,12.0
+mteb_eng,grouped,random,headline,0.9,lobo,12.0,False,30,4,2.081138644654182,above window,6.0,30.0,0.0015,
+mteb_eng,grouped,random,fa_minus_best_simple,0.9,lobo,18.0,False,30,4,2.081138644654182,,1.0,18.0,,
+mteb_eng,grouped,random,fa,0.95,lobo,,True,30,4,2.081138644654182,above window,30.0,31.0,0.942,8.0
+mteb_eng,grouped,random,best_simple,0.95,lobo,30.0,False,30,4,2.081138644654182,above window,15.0,31.0,0.3385,12.0
+mteb_eng,grouped,random,ridge,0.95,lobo,30.0,False,30,4,2.081138644654182,above window,15.0,31.0,0.1305,15.0
+mteb_eng,grouped,random,onefactor,0.95,lobo,,True,30,4,2.081138644654182,above window,31.0,31.0,1.0,4.0
+mteb_eng,grouped,random,knn,0.95,lobo,,True,30,4,2.081138644654182,above window,30.0,31.0,0.9705,5.0
+mteb_eng,grouped,random,lw,0.95,lobo,30.0,False,30,4,2.081138644654182,above window,15.0,31.0,0.24,12.0
+mteb_eng,grouped,random,headline,0.95,lobo,30.0,False,30,4,2.081138644654182,above window,15.0,31.0,0.3385,
+mteb_eng,grouped,random,fa_minus_best_simple,0.95,lobo,1.0,False,30,4,2.081138644654182,,0.0,11.0,,
+mteb_eng,grouped,random,fa,0.8,insample,4.0,False,30,4,2.081138644654182,knee near r_eff,3.0,9.0,0.0,8.0
+mteb_eng,grouped,random,best_simple,0.8,insample,4.0,False,30,4,2.081138644654182,knee near r_eff,3.0,6.0,0.0,12.0
+mteb_eng,grouped,random,ridge,0.8,insample,4.0,False,30,4,2.081138644654182,knee near r_eff,3.0,7.0,0.0,15.0
+mteb_eng,grouped,random,onefactor,0.8,insample,12.0,False,30,4,2.081138644654182,above window,5.0,31.0,0.1315,4.0
+mteb_eng,grouped,random,knn,0.8,insample,3.0,False,30,4,2.081138644654182,dominated by general factor,2.0,5.0,0.0,5.0
+mteb_eng,grouped,random,lw,0.8,insample,4.0,False,30,4,2.081138644654182,knee near r_eff,3.0,7.0,0.0,12.0
+mteb_eng,grouped,random,headline,0.8,insample,4.0,False,30,4,2.081138644654182,knee near r_eff,3.0,6.0,0.0,
+mteb_eng,grouped,random,fa_minus_best_simple,0.8,insample,0.0,False,30,4,2.081138644654182,,0.0,3.0,,
+mteb_eng,grouped,random,fa,0.9,insample,20.0,False,30,4,2.081138644654182,above window,8.0,31.0,0.0865,8.0
+mteb_eng,grouped,random,best_simple,0.9,insample,12.0,False,30,4,2.081138644654182,above window,6.0,30.0,0.0045,12.0
+mteb_eng,grouped,random,ridge,0.9,insample,12.0,False,30,4,2.081138644654182,above window,7.0,20.0,0.0005,15.0
+mteb_eng,grouped,random,onefactor,0.9,insample,,True,30,4,2.081138644654182,above window,31.0,31.0,0.9995,4.0
+mteb_eng,grouped,random,knn,0.9,insample,15.0,False,30,4,2.081138644654182,above window,6.0,31.0,0.092,5.0
+mteb_eng,grouped,random,lw,0.9,insample,12.0,False,30,4,2.081138644654182,above window,7.0,20.0,0.002,12.0
+mteb_eng,grouped,random,headline,0.9,insample,12.0,False,30,4,2.081138644654182,above window,6.0,30.0,0.0045,
+mteb_eng,grouped,random,fa_minus_best_simple,0.9,insample,8.0,False,30,4,2.081138644654182,,1.0,18.0,,
+mteb_eng,grouped,random,fa,0.95,insample,,True,30,4,2.081138644654182,above window,31.0,31.0,0.985,8.0
+mteb_eng,grouped,random,best_simple,0.95,insample,30.0,False,30,4,2.081138644654182,above window,15.0,31.0,0.2155,12.0
+mteb_eng,grouped,random,ridge,0.95,insample,30.0,False,30,4,2.081138644654182,above window,15.0,31.0,0.099,15.0
+mteb_eng,grouped,random,onefactor,0.95,insample,,True,30,4,2.081138644654182,above window,31.0,31.0,1.0,4.0
+mteb_eng,grouped,random,knn,0.95,insample,,True,30,4,2.081138644654182,above window,30.0,31.0,0.9615,5.0
+mteb_eng,grouped,random,lw,0.95,insample,30.0,False,30,4,2.081138644654182,above window,15.0,31.0,0.162,12.0
+mteb_eng,grouped,random,headline,0.95,insample,30.0,False,30,4,2.081138644654182,above window,15.0,31.0,0.2155,
+mteb_eng,grouped,random,fa_minus_best_simple,0.95,insample,1.0,False,30,4,2.081138644654182,,0.0,16.0,,
+mteb_eng,random,greedyA,fa,0.8,lobo,2.0,False,30,4,2.081138644654182,dominated by general factor,1.0,7.024999999999864,0.001,4.0
+mteb_eng,random,greedyA,best_simple,0.8,lobo,2.0,False,30,4,2.081138644654182,dominated by general factor,1.0,5.0,0.0,6.0
+mteb_eng,random,greedyA,ridge,0.8,lobo,2.0,False,30,4,2.081138644654182,dominated by general factor,1.0,8.0,0.0,9.0
+mteb_eng,random,greedyA,onefactor,0.8,lobo,5.0,False,30,4,2.081138644654182,knee near r_eff,1.0,31.0,0.1895,1.0
+mteb_eng,random,greedyA,knn,0.8,lobo,1.0,False,30,4,2.081138644654182,dominated by general factor,1.0,4.0,0.0,3.0
+mteb_eng,random,greedyA,lw,0.8,lobo,2.0,False,30,4,2.081138644654182,dominated by general factor,1.0,7.0,0.0,9.0
+mteb_eng,random,greedyA,headline,0.8,lobo,2.0,False,30,4,2.081138644654182,dominated by general factor,1.0,5.0,0.0,
+mteb_eng,random,greedyA,fa_minus_best_simple,0.8,lobo,0.0,False,30,4,2.081138644654182,,0.0,3.0,,
+mteb_eng,random,greedyA,fa,0.9,lobo,20.0,False,30,4,2.081138644654182,above window,4.0,31.0,0.398,4.0
+mteb_eng,random,greedyA,best_simple,0.9,lobo,10.0,False,30,4,2.081138644654182,above window,3.0,20.0,0.009,6.0
+mteb_eng,random,greedyA,ridge,0.9,lobo,12.0,False,30,4,2.081138644654182,above window,4.0,20.0,0.008,9.0
+mteb_eng,random,greedyA,onefactor,0.9,lobo,,True,30,4,2.081138644654182,above window,31.0,31.0,0.9935,1.0
+mteb_eng,random,greedyA,knn,0.9,lobo,7.0,False,30,4,2.081138644654182,knee near r_eff,2.0,31.0,0.145,3.0
+mteb_eng,random,greedyA,lw,0.9,lobo,12.0,False,30,4,2.081138644654182,above window,4.0,20.0,0.0055,9.0
+mteb_eng,random,greedyA,headline,0.9,lobo,10.0,False,30,4,2.081138644654182,above window,3.0,20.0,0.009,
+mteb_eng,random,greedyA,fa_minus_best_simple,0.9,lobo,10.0,False,30,4,2.081138644654182,,0.0,21.0,,
+mteb_eng,random,greedyA,fa,0.95,lobo,,True,30,4,2.081138644654182,above window,30.0,31.0,0.97,4.0
+mteb_eng,random,greedyA,best_simple,0.95,lobo,30.0,False,30,4,2.081138644654182,above window,8.0,31.0,0.486,6.0
+mteb_eng,random,greedyA,ridge,0.95,lobo,30.0,False,30,4,2.081138644654182,above window,12.0,31.0,0.433,9.0
+mteb_eng,random,greedyA,onefactor,0.95,lobo,,True,30,4,2.081138644654182,above window,31.0,31.0,1.0,1.0
+mteb_eng,random,greedyA,knn,0.95,lobo,,True,30,4,2.081138644654182,above window,7.0,31.0,0.852,3.0
+mteb_eng,random,greedyA,lw,0.95,lobo,,True,30,4,2.081138644654182,above window,12.0,31.0,0.449,9.0
+mteb_eng,random,greedyA,headline,0.95,lobo,30.0,False,30,4,2.081138644654182,above window,8.0,31.0,0.486,
+mteb_eng,random,greedyA,fa_minus_best_simple,0.95,lobo,1.0,False,30,4,2.081138644654182,,0.0,21.0,,
+mteb_eng,random,greedyA,fa,0.8,insample,3.0,False,30,4,2.081138644654182,dominated by general factor,1.0,30.0,0.023,4.0
+mteb_eng,random,greedyA,best_simple,0.8,insample,2.0,False,30,4,2.081138644654182,dominated by general factor,1.0,12.0,0.0015,6.0
+mteb_eng,random,greedyA,ridge,0.8,insample,3.0,False,30,4,2.081138644654182,dominated by general factor,1.0,12.0,0.002,9.0
+mteb_eng,random,greedyA,onefactor,0.8,insample,6.0,False,30,4,2.081138644654182,knee near r_eff,1.0,31.0,0.2985,1.0
+mteb_eng,random,greedyA,knn,0.8,insample,1.0,False,30,4,2.081138644654182,dominated by general factor,1.0,8.0,0.0065,3.0
+mteb_eng,random,greedyA,lw,0.8,insample,3.0,False,30,4,2.081138644654182,dominated by general factor,1.0,12.0,0.0015,9.0
+mteb_eng,random,greedyA,headline,0.8,insample,2.0,False,30,4,2.081138644654182,dominated by general factor,1.0,12.0,0.0015,
+mteb_eng,random,greedyA,fa_minus_best_simple,0.8,insample,1.0,False,30,4,2.081138644654182,,0.0,11.0,,
+mteb_eng,random,greedyA,fa,0.9,insample,,True,30,4,2.081138644654182,above window,4.0,31.0,0.455,4.0
+mteb_eng,random,greedyA,best_simple,0.9,insample,12.0,False,30,4,2.081138644654182,above window,3.0,31.0,0.1555,6.0
+mteb_eng,random,greedyA,ridge,0.9,insample,12.0,False,30,4,2.081138644654182,above window,4.0,31.0,0.166,9.0
+mteb_eng,random,greedyA,onefactor,0.9,insample,,True,30,4,2.081138644654182,above window,31.0,31.0,0.995,1.0
+mteb_eng,random,greedyA,knn,0.9,insample,12.0,False,30,4,2.081138644654182,above window,2.0,31.0,0.2945,3.0
+mteb_eng,random,greedyA,lw,0.9,insample,12.0,False,30,4,2.081138644654182,above window,4.0,31.0,0.16,9.0
+mteb_eng,random,greedyA,headline,0.9,insample,12.0,False,30,4,2.081138644654182,above window,3.0,31.0,0.1555,
+mteb_eng,random,greedyA,fa_minus_best_simple,0.9,insample,19.0,False,30,4,2.081138644654182,,0.0,20.0,,
+mteb_eng,random,greedyA,fa,0.95,insample,,True,30,4,2.081138644654182,above window,15.0,31.0,0.899,4.0
+mteb_eng,random,greedyA,best_simple,0.95,insample,,True,30,4,2.081138644654182,above window,7.0,31.0,0.5225,6.0
+mteb_eng,random,greedyA,ridge,0.95,insample,,True,30,4,2.081138644654182,above window,8.0,31.0,0.5025,9.0
+mteb_eng,random,greedyA,onefactor,0.95,insample,,True,30,4,2.081138644654182,above window,31.0,31.0,1.0,1.0
+mteb_eng,random,greedyA,knn,0.95,insample,,True,30,4,2.081138644654182,above window,5.0,31.0,0.7125,3.0
+mteb_eng,random,greedyA,lw,0.95,insample,,True,30,4,2.081138644654182,above window,8.0,31.0,0.5175,9.0
+mteb_eng,random,greedyA,headline,0.95,insample,,True,30,4,2.081138644654182,above window,7.0,31.0,0.5225,
+mteb_eng,random,greedyA,fa_minus_best_simple,0.95,insample,0.0,False,30,4,2.081138644654182,,0.0,23.0,,
+mteb_eng,random,random,fa,0.8,lobo,5.0,False,30,4,2.081138644654182,knee near r_eff,3.0,15.0,0.0025,7.0
+mteb_eng,random,random,best_simple,0.8,lobo,4.0,False,30,4,2.081138644654182,knee near r_eff,3.0,8.0,0.0,9.0
+mteb_eng,random,random,ridge,0.8,lobo,4.0,False,30,4,2.081138644654182,knee near r_eff,3.0,8.0,0.0,15.0
+mteb_eng,random,random,onefactor,0.8,lobo,15.0,False,30,4,2.081138644654182,above window,5.0,31.0,0.3115,4.0
+mteb_eng,random,random,knn,0.8,lobo,3.0,False,30,4,2.081138644654182,dominated by general factor,2.0,7.0,0.0005,5.0
+mteb_eng,random,random,lw,0.8,lobo,4.0,False,30,4,2.081138644654182,knee near r_eff,3.0,8.0,0.0,12.0
+mteb_eng,random,random,headline,0.8,lobo,4.0,False,30,4,2.081138644654182,knee near r_eff,3.0,8.0,0.0,
+mteb_eng,random,random,fa_minus_best_simple,0.8,lobo,1.0,False,30,4,2.081138644654182,,0.0,9.0,,
+mteb_eng,random,random,fa,0.9,lobo,30.0,False,30,4,2.081138644654182,above window,9.0,31.0,0.4665,7.0
+mteb_eng,random,random,best_simple,0.9,lobo,15.0,False,30,4,2.081138644654182,above window,6.0,30.0,0.016,9.0
+mteb_eng,random,random,ridge,0.9,lobo,15.0,False,30,4,2.081138644654182,above window,7.0,30.0,0.0005,15.0
+mteb_eng,random,random,onefactor,0.9,lobo,,True,30,4,2.081138644654182,above window,31.0,31.0,0.9985,4.0
+mteb_eng,random,random,knn,0.9,lobo,20.0,False,30,4,2.081138644654182,above window,5.0,31.0,0.2925,5.0
+mteb_eng,random,random,lw,0.9,lobo,15.0,False,30,4,2.081138644654182,above window,7.0,30.0,0.002,12.0
+mteb_eng,random,random,headline,0.9,lobo,15.0,False,30,4,2.081138644654182,above window,6.0,30.0,0.016,
+mteb_eng,random,random,fa_minus_best_simple,0.9,lobo,15.0,False,30,4,2.081138644654182,,1.0,20.0,,
+mteb_eng,random,random,fa,0.95,lobo,,True,30,4,2.081138644654182,above window,31.0,31.0,0.9845,7.0
+mteb_eng,random,random,best_simple,0.95,lobo,,True,30,4,2.081138644654182,above window,15.0,31.0,0.629,9.0
+mteb_eng,random,random,ridge,0.95,lobo,30.0,False,30,4,2.081138644654182,above window,20.0,31.0,0.295,15.0
+mteb_eng,random,random,onefactor,0.95,lobo,,True,30,4,2.081138644654182,above window,31.0,31.0,1.0,4.0
+mteb_eng,random,random,knn,0.95,lobo,,True,30,4,2.081138644654182,above window,20.0,31.0,0.933,5.0
+mteb_eng,random,random,lw,0.95,lobo,30.0,False,30,4,2.081138644654182,above window,20.0,31.0,0.3805,12.0
+mteb_eng,random,random,headline,0.95,lobo,,True,30,4,2.081138644654182,above window,15.0,31.0,0.629,
+mteb_eng,random,random,fa_minus_best_simple,0.95,lobo,0.0,False,30,4,2.081138644654182,,0.0,16.0,,
+mteb_eng,random,random,fa,0.8,insample,5.0,False,30,4,2.081138644654182,knee near r_eff,3.0,31.0,0.033,7.0
+mteb_eng,random,random,best_simple,0.8,insample,4.0,False,30,4,2.081138644654182,knee near r_eff,2.0,12.0,0.0015,9.0
+mteb_eng,random,random,ridge,0.8,insample,5.0,False,30,4,2.081138644654182,knee near r_eff,3.0,15.0,0.001,15.0
+mteb_eng,random,random,onefactor,0.8,insample,20.0,False,30,4,2.081138644654182,above window,4.0,31.0,0.3795,4.0
+mteb_eng,random,random,knn,0.8,insample,3.0,False,30,4,2.081138644654182,dominated by general factor,2.0,20.0,0.014,5.0
+mteb_eng,random,random,lw,0.8,insample,5.0,False,30,4,2.081138644654182,knee near r_eff,3.0,15.0,0.0015,12.0
+mteb_eng,random,random,headline,0.8,insample,4.0,False,30,4,2.081138644654182,knee near r_eff,2.0,12.0,0.0015,
+mteb_eng,random,random,fa_minus_best_simple,0.8,insample,1.0,False,30,4,2.081138644654182,,0.0,18.0,,
+mteb_eng,random,random,fa,0.9,insample,,True,30,4,2.081138644654182,above window,7.0,31.0,0.5005,7.0
+mteb_eng,random,random,best_simple,0.9,insample,15.0,False,30,4,2.081138644654182,above window,5.975000000000001,31.0,0.178,9.0
+mteb_eng,random,random,ridge,0.9,insample,15.0,False,30,4,2.081138644654182,above window,6.0,31.0,0.1015,15.0
+mteb_eng,random,random,onefactor,0.9,insample,,True,30,4,2.081138644654182,above window,31.0,31.0,0.9985,4.0
+mteb_eng,random,random,knn,0.9,insample,30.0,False,30,4,2.081138644654182,above window,5.0,31.0,0.3805,5.0
+mteb_eng,random,random,lw,0.9,insample,15.0,False,30,4,2.081138644654182,above window,6.0,31.0,0.134,12.0
+mteb_eng,random,random,headline,0.9,insample,15.0,False,30,4,2.081138644654182,above window,5.975000000000001,31.0,0.178,
+mteb_eng,random,random,fa_minus_best_simple,0.9,insample,16.0,False,30,4,2.081138644654182,,0.0,19.0,,
+mteb_eng,random,random,fa,0.95,insample,,True,30,4,2.081138644654182,above window,30.0,31.0,0.9365,7.0
+mteb_eng,random,random,best_simple,0.95,insample,,True,30,4,2.081138644654182,above window,12.0,31.0,0.6,9.0
+mteb_eng,random,random,ridge,0.95,insample,,True,30,4,2.081138644654182,above window,15.0,31.0,0.445,15.0
+mteb_eng,random,random,onefactor,0.95,insample,,True,30,4,2.081138644654182,above window,31.0,31.0,1.0,4.0
+mteb_eng,random,random,knn,0.95,insample,,True,30,4,2.081138644654182,above window,15.0,31.0,0.8175,5.0
+mteb_eng,random,random,lw,0.95,insample,,True,30,4,2.081138644654182,above window,12.0,31.0,0.4865,12.0
+mteb_eng,random,random,headline,0.95,insample,,True,30,4,2.081138644654182,above window,12.0,31.0,0.6,
+mteb_eng,random,random,fa_minus_best_simple,0.95,insample,0.0,False,30,4,2.081138644654182,,0.0,18.0,,
+mteb_eng,time,greedyA,fa,0.8,lobo,4.0,False,30,4,2.081138644654182,knee near r_eff,1.0,20.0,0.0035,4.0
+mteb_eng,time,greedyA,best_simple,0.8,lobo,3.0,False,30,4,2.081138644654182,dominated by general factor,1.0,5.0,0.0,4.0
+mteb_eng,time,greedyA,ridge,0.8,lobo,4.0,False,30,4,2.081138644654182,knee near r_eff,1.0,15.0,0.0,5.0
+mteb_eng,time,greedyA,onefactor,0.8,lobo,,True,30,4,2.081138644654182,above window,1.0,31.0,0.689,1.0
+mteb_eng,time,greedyA,knn,0.8,lobo,2.0,False,30,4,2.081138644654182,dominated by general factor,1.0,9.07499999999959,0.0045,1.0
+mteb_eng,time,greedyA,lw,0.8,lobo,4.0,False,30,4,2.081138644654182,knee near r_eff,1.0,12.0,0.0,5.0
+mteb_eng,time,greedyA,headline,0.8,lobo,3.0,False,30,4,2.081138644654182,dominated by general factor,1.0,5.0,0.0,
+mteb_eng,time,greedyA,fa_minus_best_simple,0.8,lobo,1.0,False,30,4,2.081138644654182,,0.0,15.0,,
+mteb_eng,time,greedyA,fa,0.9,lobo,,True,30,4,2.081138644654182,above window,5.0,31.0,0.718,4.0
+mteb_eng,time,greedyA,best_simple,0.9,lobo,30.0,False,30,4,2.081138644654182,above window,5.0,31.0,0.316,4.0
+mteb_eng,time,greedyA,ridge,0.9,lobo,30.0,False,30,4,2.081138644654182,above window,5.0,31.0,0.0725,5.0
+mteb_eng,time,greedyA,onefactor,0.9,lobo,,True,30,4,2.081138644654182,above window,31.0,31.0,0.9995,1.0
+mteb_eng,time,greedyA,knn,0.9,lobo,,True,30,4,2.081138644654182,above window,6.0,31.0,0.8615,1.0
+mteb_eng,time,greedyA,lw,0.9,lobo,20.0,False,30,4,2.081138644654182,above window,5.0,31.0,0.0585,5.0
+mteb_eng,time,greedyA,headline,0.9,lobo,30.0,False,30,4,2.081138644654182,above window,5.0,31.0,0.3155,
+mteb_eng,time,greedyA,fa_minus_best_simple,0.9,lobo,1.0,False,30,4,2.081138644654182,,0.0,25.0,,
+mteb_eng,time,greedyA,fa,0.95,lobo,,True,30,4,2.081138644654182,above window,31.0,31.0,0.997,4.0
+mteb_eng,time,greedyA,best_simple,0.95,lobo,,True,30,4,2.081138644654182,above window,30.0,31.0,0.9645,4.0
+mteb_eng,time,greedyA,ridge,0.95,lobo,,True,30,4,2.081138644654182,above window,30.0,31.0,0.8715,5.0
+mteb_eng,time,greedyA,onefactor,0.95,lobo,,True,30,4,2.081138644654182,above window,31.0,31.0,1.0,1.0
+mteb_eng,time,greedyA,knn,0.95,lobo,,True,30,4,2.081138644654182,above window,31.0,31.0,0.9995,1.0
+mteb_eng,time,greedyA,lw,0.95,lobo,,True,30,4,2.081138644654182,above window,20.0,31.0,0.842,5.0
+mteb_eng,time,greedyA,headline,0.95,lobo,,True,30,4,2.081138644654182,above window,30.0,31.0,0.9645,
+mteb_eng,time,greedyA,fa_minus_best_simple,0.95,lobo,0.0,False,30,4,2.081138644654182,,0.0,1.0,,
+mteb_eng,time,greedyA,fa,0.8,insample,4.0,False,30,4,2.081138644654182,knee near r_eff,1.0,5.0,0.0,4.0
+mteb_eng,time,greedyA,best_simple,0.8,insample,2.0,False,30,4,2.081138644654182,dominated by general factor,1.0,4.0,0.0,4.0
+mteb_eng,time,greedyA,ridge,0.8,insample,4.0,False,30,4,2.081138644654182,knee near r_eff,1.0,5.0,0.0,5.0
+mteb_eng,time,greedyA,onefactor,0.8,insample,,True,30,4,2.081138644654182,above window,1.0,31.0,0.513,1.0
+mteb_eng,time,greedyA,knn,0.8,insample,1.0,False,30,4,2.081138644654182,dominated by general factor,1.0,5.0,0.0005,1.0
+mteb_eng,time,greedyA,lw,0.8,insample,4.0,False,30,4,2.081138644654182,knee near r_eff,1.0,5.0,0.0,5.0
+mteb_eng,time,greedyA,headline,0.8,insample,2.0,False,30,4,2.081138644654182,dominated by general factor,1.0,4.0,0.0,
+mteb_eng,time,greedyA,fa_minus_best_simple,0.8,insample,2.0,False,30,4,2.081138644654182,,0.0,3.0,,
+mteb_eng,time,greedyA,fa,0.9,insample,30.0,False,30,4,2.081138644654182,above window,5.0,31.0,0.416,4.0
+mteb_eng,time,greedyA,best_simple,0.9,insample,20.0,False,30,4,2.081138644654182,above window,4.0,31.0,0.126,4.0
+mteb_eng,time,greedyA,ridge,0.9,insample,20.0,False,30,4,2.081138644654182,above window,5.0,31.0,0.0365,5.0
+mteb_eng,time,greedyA,onefactor,0.9,insample,,True,30,4,2.081138644654182,above window,31.0,31.0,0.9995,1.0
+mteb_eng,time,greedyA,knn,0.9,insample,,True,30,4,2.081138644654182,above window,4.0,31.0,0.6475,1.0
+mteb_eng,time,greedyA,lw,0.9,insample,20.0,False,30,4,2.081138644654182,above window,5.0,31.0,0.037,5.0
+mteb_eng,time,greedyA,headline,0.9,insample,20.0,False,30,4,2.081138644654182,above window,4.0,31.0,0.126,
+mteb_eng,time,greedyA,fa_minus_best_simple,0.9,insample,10.0,False,30,4,2.081138644654182,,0.0,26.0,,
+mteb_eng,time,greedyA,fa,0.95,insample,,True,30,4,2.081138644654182,above window,31.0,31.0,0.998,4.0
+mteb_eng,time,greedyA,best_simple,0.95,insample,,True,30,4,2.081138644654182,above window,15.0,31.0,0.7745,4.0
+mteb_eng,time,greedyA,ridge,0.95,insample,,True,30,4,2.081138644654182,above window,15.0,31.0,0.465,5.0
+mteb_eng,time,greedyA,onefactor,0.95,insample,,True,30,4,2.081138644654182,above window,31.0,31.0,1.0,1.0
+mteb_eng,time,greedyA,knn,0.95,insample,,True,30,4,2.081138644654182,above window,31.0,31.0,0.998,1.0
+mteb_eng,time,greedyA,lw,0.95,insample,30.0,False,30,4,2.081138644654182,above window,15.0,31.0,0.4185,5.0
+mteb_eng,time,greedyA,headline,0.95,insample,,True,30,4,2.081138644654182,above window,15.0,31.0,0.7745,
+mteb_eng,time,greedyA,fa_minus_best_simple,0.95,insample,0.0,False,30,4,2.081138644654182,,0.0,16.0,,
+mteb_eng,time,random,fa,0.8,lobo,7.0,False,30,4,2.081138644654182,knee near r_eff,4.0,20.0,0.0035,7.0
+mteb_eng,time,random,best_simple,0.8,lobo,6.0,False,30,4,2.081138644654182,knee near r_eff,3.0,12.0,0.0,7.0
+mteb_eng,time,random,ridge,0.8,lobo,6.0,False,30,4,2.081138644654182,knee near r_eff,4.0,12.0,0.0,12.0
+mteb_eng,time,random,onefactor,0.8,lobo,,True,30,4,2.081138644654182,above window,8.0,31.0,0.791,4.0
+mteb_eng,time,random,knn,0.8,lobo,7.0,False,30,4,2.081138644654182,knee near r_eff,3.0,30.0,0.0115,4.0
+mteb_eng,time,random,lw,0.8,lobo,6.0,False,30,4,2.081138644654182,knee near r_eff,4.0,10.0,0.0,12.0
+mteb_eng,time,random,headline,0.8,lobo,6.0,False,30,4,2.081138644654182,knee near r_eff,3.0,12.0,0.0,
+mteb_eng,time,random,fa_minus_best_simple,0.8,lobo,1.0,False,30,4,2.081138644654182,,0.0,10.0,,
+mteb_eng,time,random,fa,0.9,lobo,,True,30,4,2.081138644654182,above window,15.0,31.0,0.755,7.0
+mteb_eng,time,random,best_simple,0.9,lobo,30.0,False,30,4,2.081138644654182,above window,12.0,31.0,0.3545,7.0
+mteb_eng,time,random,ridge,0.9,lobo,20.0,False,30,4,2.081138644654182,above window,10.0,30.0,0.0015,12.0
+mteb_eng,time,random,onefactor,0.9,lobo,,True,30,4,2.081138644654182,above window,31.0,31.0,1.0,4.0
+mteb_eng,time,random,knn,0.9,lobo,,True,30,4,2.081138644654182,above window,20.0,31.0,0.925,4.0
+mteb_eng,time,random,lw,0.9,lobo,20.0,False,30,4,2.081138644654182,above window,10.0,30.0,0.002,12.0
+mteb_eng,time,random,headline,0.9,lobo,30.0,False,30,4,2.081138644654182,above window,12.0,31.0,0.3545,
+mteb_eng,time,random,fa_minus_best_simple,0.9,lobo,1.0,False,30,4,2.081138644654182,,0.0,15.0,,
+mteb_eng,time,random,fa,0.95,lobo,,True,30,4,2.081138644654182,above window,31.0,31.0,0.999,7.0
+mteb_eng,time,random,best_simple,0.95,lobo,,True,30,4,2.081138644654182,above window,31.0,31.0,0.987,7.0
+mteb_eng,time,random,ridge,0.95,lobo,,True,30,4,2.081138644654182,above window,30.0,31.0,0.6345,12.0
+mteb_eng,time,random,onefactor,0.95,lobo,,True,30,4,2.081138644654182,above window,31.0,31.0,1.0,4.0
+mteb_eng,time,random,knn,0.95,lobo,,True,30,4,2.081138644654182,above window,31.0,31.0,1.0,4.0
+mteb_eng,time,random,lw,0.95,lobo,,True,30,4,2.081138644654182,above window,30.0,31.0,0.655,12.0
+mteb_eng,time,random,headline,0.95,lobo,,True,30,4,2.081138644654182,above window,31.0,31.0,0.9865,
+mteb_eng,time,random,fa_minus_best_simple,0.95,lobo,0.0,False,30,4,2.081138644654182,,0.0,0.0,,
+mteb_eng,time,random,fa,0.8,insample,6.0,False,30,4,2.081138644654182,knee near r_eff,3.0,20.0,0.0,7.0
+mteb_eng,time,random,best_simple,0.8,insample,5.0,False,30,4,2.081138644654182,knee near r_eff,3.0,12.0,0.0,7.0
+mteb_eng,time,random,ridge,0.8,insample,5.0,False,30,4,2.081138644654182,knee near r_eff,3.0,12.0,0.0,12.0
+mteb_eng,time,random,onefactor,0.8,insample,,True,30,4,2.081138644654182,above window,7.0,31.0,0.6635,4.0
+mteb_eng,time,random,knn,0.8,insample,5.0,False,30,4,2.081138644654182,knee near r_eff,3.0,15.0,0.0005,4.0
+mteb_eng,time,random,lw,0.8,insample,5.0,False,30,4,2.081138644654182,knee near r_eff,3.0,10.0,0.0,12.0
+mteb_eng,time,random,headline,0.8,insample,5.0,False,30,4,2.081138644654182,knee near r_eff,3.0,12.0,0.0,
+mteb_eng,time,random,fa_minus_best_simple,0.8,insample,1.0,False,30,4,2.081138644654182,,0.0,7.0,,
+mteb_eng,time,random,fa,0.9,insample,30.0,False,30,4,2.081138644654182,above window,12.0,31.0,0.44,7.0
+mteb_eng,time,random,best_simple,0.9,insample,20.0,False,30,4,2.081138644654182,above window,8.0,31.0,0.1385,7.0
+mteb_eng,time,random,ridge,0.9,insample,15.0,False,30,4,2.081138644654182,above window,8.0,30.0,0.0145,12.0
+mteb_eng,time,random,onefactor,0.9,insample,,True,30,4,2.081138644654182,above window,31.0,31.0,1.0,4.0
+mteb_eng,time,random,knn,0.9,insample,,True,30,4,2.081138644654182,above window,15.0,31.0,0.792,4.0
+mteb_eng,time,random,lw,0.9,insample,15.0,False,30,4,2.081138644654182,above window,8.0,30.0,0.02,12.0
+mteb_eng,time,random,headline,0.9,insample,20.0,False,30,4,2.081138644654182,above window,8.0,31.0,0.1385,
+mteb_eng,time,random,fa_minus_best_simple,0.9,insample,10.0,False,30,4,2.081138644654182,,0.0,16.0,,
+mteb_eng,time,random,fa,0.95,insample,,True,30,4,2.081138644654182,above window,31.0,31.0,0.9995,7.0
+mteb_eng,time,random,best_simple,0.95,insample,,True,30,4,2.081138644654182,above window,30.0,31.0,0.8335,7.0
+mteb_eng,time,random,ridge,0.95,insample,30.0,False,30,4,2.081138644654182,above window,15.0,31.0,0.2335,12.0
+mteb_eng,time,random,onefactor,0.95,insample,,True,30,4,2.081138644654182,above window,31.0,31.0,1.0,4.0
+mteb_eng,time,random,knn,0.95,insample,,True,30,4,2.081138644654182,above window,31.0,31.0,1.0,4.0
+mteb_eng,time,random,lw,0.95,insample,30.0,False,30,4,2.081138644654182,above window,15.0,31.0,0.2525,12.0
+mteb_eng,time,random,headline,0.95,insample,,True,30,4,2.081138644654182,above window,30.0,31.0,0.8335,
+mteb_eng,time,random,fa_minus_best_simple,0.95,insample,0.0,False,30,4,2.081138644654182,,0.0,1.0,,
+mteb_multi,grouped,greedyA,fa,0.8,lobo,3.0,False,30,10,2.914375689604754,dominated by general factor,3.0,5.0,0.0,4.0
+mteb_multi,grouped,greedyA,best_simple,0.8,lobo,3.0,False,30,10,2.914375689604754,dominated by general factor,3.0,5.0,0.0,5.0
+mteb_multi,grouped,greedyA,ridge,0.8,lobo,3.0,False,30,10,2.914375689604754,dominated by general factor,3.0,5.0,0.0,7.0
+mteb_multi,grouped,greedyA,onefactor,0.8,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,1.0
+mteb_multi,grouped,greedyA,knn,0.8,lobo,3.0,False,30,10,2.914375689604754,dominated by general factor,2.0,4.0,0.0,3.0
+mteb_multi,grouped,greedyA,lw,0.8,lobo,3.0,False,30,10,2.914375689604754,dominated by general factor,3.0,5.0,0.0,6.0
+mteb_multi,grouped,greedyA,headline,0.8,lobo,3.0,False,30,10,2.914375689604754,dominated by general factor,3.0,5.0,0.0,
+mteb_multi,grouped,greedyA,fa_minus_best_simple,0.8,lobo,0.0,False,30,10,2.914375689604754,,0.0,1.0,,
+mteb_multi,grouped,greedyA,fa,0.9,lobo,,True,30,10,2.914375689604754,above window,10.0,31.0,0.543,4.0
+mteb_multi,grouped,greedyA,best_simple,0.9,lobo,30.0,False,30,10,2.914375689604754,above window,8.0,31.0,0.276,5.0
+mteb_multi,grouped,greedyA,ridge,0.9,lobo,20.0,False,30,10,2.914375689604754,knee near r_eff,8.0,30.0,0.018,7.0
+mteb_multi,grouped,greedyA,onefactor,0.9,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,1.0
+mteb_multi,grouped,greedyA,knn,0.9,lobo,,True,30,10,2.914375689604754,above window,7.0,31.0,0.85,3.0
+mteb_multi,grouped,greedyA,lw,0.9,lobo,20.0,False,30,10,2.914375689604754,knee near r_eff,7.975000000000001,31.0,0.0395,6.0
+mteb_multi,grouped,greedyA,headline,0.9,lobo,30.0,False,30,10,2.914375689604754,above window,8.0,31.0,0.265,
+mteb_multi,grouped,greedyA,fa_minus_best_simple,0.9,lobo,1.0,False,30,10,2.914375689604754,,0.0,16.0,,
+mteb_multi,grouped,greedyA,fa,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,4.0
+mteb_multi,grouped,greedyA,best_simple,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,0.9995,5.0
+mteb_multi,grouped,greedyA,ridge,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,0.9825,7.0
+mteb_multi,grouped,greedyA,onefactor,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,1.0
+mteb_multi,grouped,greedyA,knn,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,3.0
+mteb_multi,grouped,greedyA,lw,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,0.9885,6.0
+mteb_multi,grouped,greedyA,headline,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,0.9995,
+mteb_multi,grouped,greedyA,fa_minus_best_simple,0.95,lobo,0.0,False,30,10,2.914375689604754,,0.0,0.0,,
+mteb_multi,grouped,greedyA,fa,0.8,insample,3.0,False,30,10,2.914375689604754,dominated by general factor,2.0,4.0,0.0,4.0
+mteb_multi,grouped,greedyA,best_simple,0.8,insample,3.0,False,30,10,2.914375689604754,dominated by general factor,2.0,4.0,0.0,5.0
+mteb_multi,grouped,greedyA,ridge,0.8,insample,3.0,False,30,10,2.914375689604754,dominated by general factor,2.0,4.0,0.0,7.0
+mteb_multi,grouped,greedyA,onefactor,0.8,insample,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,1.0
+mteb_multi,grouped,greedyA,knn,0.8,insample,3.0,False,30,10,2.914375689604754,dominated by general factor,2.0,3.0,0.0,3.0
+mteb_multi,grouped,greedyA,lw,0.8,insample,3.0,False,30,10,2.914375689604754,dominated by general factor,3.0,4.0,0.0,6.0
+mteb_multi,grouped,greedyA,headline,0.8,insample,3.0,False,30,10,2.914375689604754,dominated by general factor,2.0,4.0,0.0,
+mteb_multi,grouped,greedyA,fa_minus_best_simple,0.8,insample,0.0,False,30,10,2.914375689604754,,0.0,1.0,,
+mteb_multi,grouped,greedyA,fa,0.9,insample,20.0,False,30,10,2.914375689604754,knee near r_eff,6.0,31.0,0.191,4.0
+mteb_multi,grouped,greedyA,best_simple,0.9,insample,15.0,False,30,10,2.914375689604754,knee near r_eff,5.975000000000001,31.0,0.1205,5.0
+mteb_multi,grouped,greedyA,ridge,0.9,insample,15.0,False,30,10,2.914375689604754,knee near r_eff,6.0,30.0,0.0195,7.0
+mteb_multi,grouped,greedyA,onefactor,0.9,insample,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,1.0
+mteb_multi,grouped,greedyA,knn,0.9,insample,30.0,False,30,10,2.914375689604754,above window,4.0,31.0,0.471,3.0
+mteb_multi,grouped,greedyA,lw,0.9,insample,15.0,False,30,10,2.914375689604754,knee near r_eff,6.0,31.0,0.04,6.0
+mteb_multi,grouped,greedyA,headline,0.9,insample,15.0,False,30,10,2.914375689604754,knee near r_eff,5.0,31.0,0.113,
+mteb_multi,grouped,greedyA,fa_minus_best_simple,0.9,insample,5.0,False,30,10,2.914375689604754,,0.0,15.0,,
+mteb_multi,grouped,greedyA,fa,0.95,insample,,True,30,10,2.914375689604754,above window,31.0,31.0,0.999,4.0
+mteb_multi,grouped,greedyA,best_simple,0.95,insample,,True,30,10,2.914375689604754,above window,20.0,31.0,0.8825,5.0
+mteb_multi,grouped,greedyA,ridge,0.95,insample,,True,30,10,2.914375689604754,above window,15.0,31.0,0.563,7.0
+mteb_multi,grouped,greedyA,onefactor,0.95,insample,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,1.0
+mteb_multi,grouped,greedyA,knn,0.95,insample,,True,30,10,2.914375689604754,above window,31.0,31.0,0.999,3.0
+mteb_multi,grouped,greedyA,lw,0.95,insample,,True,30,10,2.914375689604754,above window,20.0,31.0,0.6035,6.0
+mteb_multi,grouped,greedyA,headline,0.95,insample,,True,30,10,2.914375689604754,above window,20.0,31.0,0.8825,
+mteb_multi,grouped,greedyA,fa_minus_best_simple,0.95,insample,0.0,False,30,10,2.914375689604754,,0.0,11.0,,
+mteb_multi,grouped,random,fa,0.8,lobo,8.0,False,30,10,2.914375689604754,dominated by general factor,6.0,15.0,0.0,10.0
+mteb_multi,grouped,random,best_simple,0.8,lobo,7.0,False,30,10,2.914375689604754,dominated by general factor,6.0,12.0,0.0,12.0
+mteb_multi,grouped,random,ridge,0.8,lobo,8.0,False,30,10,2.914375689604754,dominated by general factor,6.0,10.0,0.0,15.0
+mteb_multi,grouped,random,onefactor,0.8,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,3.0
+mteb_multi,grouped,random,knn,0.8,lobo,7.0,False,30,10,2.914375689604754,dominated by general factor,5.0,12.0,0.0005,7.0
+mteb_multi,grouped,random,lw,0.8,lobo,8.0,False,30,10,2.914375689604754,dominated by general factor,6.0,10.0,0.0,12.0
+mteb_multi,grouped,random,headline,0.8,lobo,7.0,False,30,10,2.914375689604754,dominated by general factor,6.0,12.0,0.0,
+mteb_multi,grouped,random,fa_minus_best_simple,0.8,lobo,1.0,False,30,10,2.914375689604754,,0.0,3.0,,
+mteb_multi,grouped,random,fa,0.9,lobo,,True,30,10,2.914375689604754,above window,20.0,31.0,0.801,10.0
+mteb_multi,grouped,random,best_simple,0.9,lobo,30.0,False,30,10,2.914375689604754,above window,20.0,31.0,0.3395,12.0
+mteb_multi,grouped,random,ridge,0.9,lobo,30.0,False,30,10,2.914375689604754,above window,15.0,30.0,0.012,15.0
+mteb_multi,grouped,random,onefactor,0.9,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,3.0
+mteb_multi,grouped,random,knn,0.9,lobo,,True,30,10,2.914375689604754,above window,30.0,31.0,0.9355,7.0
+mteb_multi,grouped,random,lw,0.9,lobo,30.0,False,30,10,2.914375689604754,above window,15.0,31.0,0.0475,12.0
+mteb_multi,grouped,random,headline,0.9,lobo,30.0,False,30,10,2.914375689604754,above window,20.0,31.0,0.339,
+mteb_multi,grouped,random,fa_minus_best_simple,0.9,lobo,1.0,False,30,10,2.914375689604754,,0.0,11.0,,
+mteb_multi,grouped,random,fa,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,10.0
+mteb_multi,grouped,random,best_simple,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,12.0
+mteb_multi,grouped,random,ridge,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,15.0
+mteb_multi,grouped,random,onefactor,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,3.0
+mteb_multi,grouped,random,knn,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,7.0
+mteb_multi,grouped,random,lw,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,12.0
+mteb_multi,grouped,random,headline,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,
+mteb_multi,grouped,random,fa_minus_best_simple,0.95,lobo,0.0,False,30,10,2.914375689604754,,0.0,0.0,,
+mteb_multi,grouped,random,fa,0.8,insample,7.0,False,30,10,2.914375689604754,dominated by general factor,5.0,12.0,0.0,10.0
+mteb_multi,grouped,random,best_simple,0.8,insample,7.0,False,30,10,2.914375689604754,dominated by general factor,5.0,10.0,0.0,12.0
+mteb_multi,grouped,random,ridge,0.8,insample,7.0,False,30,10,2.914375689604754,dominated by general factor,5.0,9.0,0.0,15.0
+mteb_multi,grouped,random,onefactor,0.8,insample,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,3.0
+mteb_multi,grouped,random,knn,0.8,insample,6.0,False,30,10,2.914375689604754,dominated by general factor,4.0,9.0,0.0,7.0
+mteb_multi,grouped,random,lw,0.8,insample,7.0,False,30,10,2.914375689604754,dominated by general factor,5.0,10.0,0.0,12.0
+mteb_multi,grouped,random,headline,0.8,insample,7.0,False,30,10,2.914375689604754,dominated by general factor,5.0,10.0,0.0,
+mteb_multi,grouped,random,fa_minus_best_simple,0.8,insample,0.0,False,30,10,2.914375689604754,,0.0,2.0,,
+mteb_multi,grouped,random,fa,0.9,insample,30.0,False,30,10,2.914375689604754,above window,15.0,31.0,0.369,10.0
+mteb_multi,grouped,random,best_simple,0.9,insample,20.0,False,30,10,2.914375689604754,knee near r_eff,12.0,31.0,0.112,12.0
+mteb_multi,grouped,random,ridge,0.9,insample,20.0,False,30,10,2.914375689604754,knee near r_eff,12.0,30.0,0.011,15.0
+mteb_multi,grouped,random,onefactor,0.9,insample,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,3.0
+mteb_multi,grouped,random,knn,0.9,insample,,True,30,10,2.914375689604754,above window,15.0,31.0,0.638,7.0
+mteb_multi,grouped,random,lw,0.9,insample,20.0,False,30,10,2.914375689604754,knee near r_eff,12.0,31.0,0.0265,12.0
+mteb_multi,grouped,random,headline,0.9,insample,20.0,False,30,10,2.914375689604754,knee near r_eff,12.0,31.0,0.111,
+mteb_multi,grouped,random,fa_minus_best_simple,0.9,insample,10.0,False,30,10,2.914375689604754,,0.0,15.0,,
+mteb_multi,grouped,random,fa,0.95,insample,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,10.0
+mteb_multi,grouped,random,best_simple,0.95,insample,,True,30,10,2.914375689604754,above window,30.975,31.0,0.975,12.0
+mteb_multi,grouped,random,ridge,0.95,insample,,True,30,10,2.914375689604754,above window,30.0,31.0,0.735,15.0
+mteb_multi,grouped,random,onefactor,0.95,insample,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,3.0
+mteb_multi,grouped,random,knn,0.95,insample,,True,30,10,2.914375689604754,above window,31.0,31.0,0.9995,7.0
+mteb_multi,grouped,random,lw,0.95,insample,,True,30,10,2.914375689604754,above window,30.0,31.0,0.841,12.0
+mteb_multi,grouped,random,headline,0.95,insample,,True,30,10,2.914375689604754,above window,30.975,31.0,0.975,
+mteb_multi,grouped,random,fa_minus_best_simple,0.95,insample,0.0,False,30,10,2.914375689604754,,0.0,0.024999999999863576,,
+mteb_multi,random,greedyA,fa,0.8,lobo,4.0,False,30,10,2.914375689604754,dominated by general factor,3.0,7.0,0.0005,5.0
+mteb_multi,random,greedyA,best_simple,0.8,lobo,3.0,False,30,10,2.914375689604754,dominated by general factor,3.0,5.0,0.0,7.0
+mteb_multi,random,greedyA,ridge,0.8,lobo,3.0,False,30,10,2.914375689604754,dominated by general factor,3.0,6.0,0.0,15.0
+mteb_multi,random,greedyA,onefactor,0.8,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,1.0
+mteb_multi,random,greedyA,knn,0.8,lobo,3.0,False,30,10,2.914375689604754,dominated by general factor,3.0,5.0,0.0,3.0
+mteb_multi,random,greedyA,lw,0.8,lobo,3.0,False,30,10,2.914375689604754,dominated by general factor,3.0,6.0,0.0,15.0
+mteb_multi,random,greedyA,headline,0.8,lobo,3.0,False,30,10,2.914375689604754,dominated by general factor,3.0,5.0,0.0,
+mteb_multi,random,greedyA,fa_minus_best_simple,0.8,lobo,1.0,False,30,10,2.914375689604754,,0.0,2.0,,
+mteb_multi,random,greedyA,fa,0.9,lobo,,True,30,10,2.914375689604754,above window,15.0,31.0,0.9225,5.0
+mteb_multi,random,greedyA,best_simple,0.9,lobo,30.0,False,30,10,2.914375689604754,above window,8.0,31.0,0.1835,7.0
+mteb_multi,random,greedyA,ridge,0.9,lobo,20.0,False,30,10,2.914375689604754,knee near r_eff,9.0,30.0,0.0035,15.0
+mteb_multi,random,greedyA,onefactor,0.9,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,1.0
+mteb_multi,random,greedyA,knn,0.9,lobo,,True,30,10,2.914375689604754,above window,12.0,31.0,0.8855,3.0
+mteb_multi,random,greedyA,lw,0.9,lobo,20.0,False,30,10,2.914375689604754,knee near r_eff,9.0,30.0,0.0035,15.0
+mteb_multi,random,greedyA,headline,0.9,lobo,30.0,False,30,10,2.914375689604754,above window,8.0,31.0,0.1835,
+mteb_multi,random,greedyA,fa_minus_best_simple,0.9,lobo,1.0,False,30,10,2.914375689604754,,0.0,21.0,,
+mteb_multi,random,greedyA,fa,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,5.0
+mteb_multi,random,greedyA,best_simple,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,7.0
+mteb_multi,random,greedyA,ridge,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,0.9855,15.0
+mteb_multi,random,greedyA,onefactor,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,1.0
+mteb_multi,random,greedyA,knn,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,3.0
+mteb_multi,random,greedyA,lw,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,0.9845,15.0
+mteb_multi,random,greedyA,headline,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,
+mteb_multi,random,greedyA,fa_minus_best_simple,0.95,lobo,0.0,False,30,10,2.914375689604754,,0.0,0.0,,
+mteb_multi,random,greedyA,fa,0.8,insample,3.0,False,30,10,2.914375689604754,dominated by general factor,3.0,4.0,0.0,5.0
+mteb_multi,random,greedyA,best_simple,0.8,insample,3.0,False,30,10,2.914375689604754,dominated by general factor,2.0,3.0,0.0,7.0
+mteb_multi,random,greedyA,ridge,0.8,insample,3.0,False,30,10,2.914375689604754,dominated by general factor,3.0,3.0,0.0,15.0
+mteb_multi,random,greedyA,onefactor,0.8,insample,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,1.0
+mteb_multi,random,greedyA,knn,0.8,insample,3.0,False,30,10,2.914375689604754,dominated by general factor,2.0,3.0,0.0,3.0
+mteb_multi,random,greedyA,lw,0.8,insample,3.0,False,30,10,2.914375689604754,dominated by general factor,3.0,3.0,0.0,15.0
+mteb_multi,random,greedyA,headline,0.8,insample,3.0,False,30,10,2.914375689604754,dominated by general factor,2.0,3.0,0.0,
+mteb_multi,random,greedyA,fa_minus_best_simple,0.8,insample,0.0,False,30,10,2.914375689604754,,0.0,1.0,,
+mteb_multi,random,greedyA,fa,0.9,insample,12.0,False,30,10,2.914375689604754,knee near r_eff,5.0,31.0,0.121,5.0
+mteb_multi,random,greedyA,best_simple,0.9,insample,6.0,False,30,10,2.914375689604754,dominated by general factor,4.0,30.0,0.004,7.0
+mteb_multi,random,greedyA,ridge,0.9,insample,6.0,False,30,10,2.914375689604754,dominated by general factor,5.0,30.0,0.0,15.0
+mteb_multi,random,greedyA,onefactor,0.9,insample,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,1.0
+mteb_multi,random,greedyA,knn,0.9,insample,5.0,False,30,10,2.914375689604754,dominated by general factor,3.0,31.0,0.043,3.0
+mteb_multi,random,greedyA,lw,0.9,insample,6.0,False,30,10,2.914375689604754,dominated by general factor,4.0,30.0,0.0005,15.0
+mteb_multi,random,greedyA,headline,0.9,insample,6.0,False,30,10,2.914375689604754,dominated by general factor,4.0,30.0,0.004,
+mteb_multi,random,greedyA,fa_minus_best_simple,0.9,insample,6.0,False,30,10,2.914375689604754,,1.0,24.0,,
+mteb_multi,random,greedyA,fa,0.95,insample,,True,30,10,2.914375689604754,above window,30.0,31.0,0.9385,5.0
+mteb_multi,random,greedyA,best_simple,0.95,insample,30.0,False,30,10,2.914375689604754,above window,8.0,31.0,0.2075,7.0
+mteb_multi,random,greedyA,ridge,0.95,insample,20.0,False,30,10,2.914375689604754,knee near r_eff,10.0,31.0,0.0665,15.0
+mteb_multi,random,greedyA,onefactor,0.95,insample,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,1.0
+mteb_multi,random,greedyA,knn,0.95,insample,,True,30,10,2.914375689604754,above window,12.0,31.0,0.891,3.0
+mteb_multi,random,greedyA,lw,0.95,insample,20.0,False,30,10,2.914375689604754,knee near r_eff,9.0,31.0,0.07,15.0
+mteb_multi,random,greedyA,headline,0.95,insample,30.0,False,30,10,2.914375689604754,above window,8.0,31.0,0.2075,
+mteb_multi,random,greedyA,fa_minus_best_simple,0.95,insample,1.0,False,30,10,2.914375689604754,,0.0,22.0,,
+mteb_multi,random,random,fa,0.8,lobo,10.0,False,30,10,2.914375689604754,knee near r_eff,6.0,20.0,0.001,10.0
+mteb_multi,random,random,best_simple,0.8,lobo,7.0,False,30,10,2.914375689604754,dominated by general factor,5.0,12.0,0.0,12.0
+mteb_multi,random,random,ridge,0.8,lobo,8.0,False,30,10,2.914375689604754,dominated by general factor,6.0,12.0,0.0,15.0
+mteb_multi,random,random,onefactor,0.8,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,3.0
+mteb_multi,random,random,knn,0.8,lobo,6.0,False,30,10,2.914375689604754,dominated by general factor,4.0,12.0,0.0,8.0
+mteb_multi,random,random,lw,0.8,lobo,8.0,False,30,10,2.914375689604754,dominated by general factor,6.0,12.0,0.0,15.0
+mteb_multi,random,random,headline,0.8,lobo,7.0,False,30,10,2.914375689604754,dominated by general factor,5.0,12.0,0.0,
+mteb_multi,random,random,fa_minus_best_simple,0.8,lobo,3.0,False,30,10,2.914375689604754,,1.0,8.0,,
+mteb_multi,random,random,fa,0.9,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,0.9785,10.0
+mteb_multi,random,random,best_simple,0.9,lobo,30.0,False,30,10,2.914375689604754,above window,20.0,31.0,0.406,12.0
+mteb_multi,random,random,ridge,0.9,lobo,30.0,False,30,10,2.914375689604754,above window,20.0,31.0,0.0415,15.0
+mteb_multi,random,random,onefactor,0.9,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,3.0
+mteb_multi,random,random,knn,0.9,lobo,,True,30,10,2.914375689604754,above window,30.0,31.0,0.963,8.0
+mteb_multi,random,random,lw,0.9,lobo,30.0,False,30,10,2.914375689604754,above window,20.0,31.0,0.0495,15.0
+mteb_multi,random,random,headline,0.9,lobo,30.0,False,30,10,2.914375689604754,above window,20.0,31.0,0.406,
+mteb_multi,random,random,fa_minus_best_simple,0.9,lobo,1.0,False,30,10,2.914375689604754,,0.0,11.0,,
+mteb_multi,random,random,fa,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,10.0
+mteb_multi,random,random,best_simple,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,12.0
+mteb_multi,random,random,ridge,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,15.0
+mteb_multi,random,random,onefactor,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,3.0
+mteb_multi,random,random,knn,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,8.0
+mteb_multi,random,random,lw,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,15.0
+mteb_multi,random,random,headline,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,
+mteb_multi,random,random,fa_minus_best_simple,0.95,lobo,0.0,False,30,10,2.914375689604754,,0.0,0.0,,
+mteb_multi,random,random,fa,0.8,insample,7.0,False,30,10,2.914375689604754,dominated by general factor,5.0,10.0,0.0,10.0
+mteb_multi,random,random,best_simple,0.8,insample,6.0,False,30,10,2.914375689604754,dominated by general factor,4.0,8.0,0.0,12.0
+mteb_multi,random,random,ridge,0.8,insample,6.0,False,30,10,2.914375689604754,dominated by general factor,5.0,8.0,0.0,15.0
+mteb_multi,random,random,onefactor,0.8,insample,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,3.0
+mteb_multi,random,random,knn,0.8,insample,5.0,False,30,10,2.914375689604754,dominated by general factor,4.0,7.0,0.0,8.0
+mteb_multi,random,random,lw,0.8,insample,6.0,False,30,10,2.914375689604754,dominated by general factor,5.0,8.0,0.0,15.0
+mteb_multi,random,random,headline,0.8,insample,6.0,False,30,10,2.914375689604754,dominated by general factor,4.0,8.0,0.0,
+mteb_multi,random,random,fa_minus_best_simple,0.8,insample,1.0,False,30,10,2.914375689604754,,0.0,3.0,,
+mteb_multi,random,random,fa,0.9,insample,20.0,False,30,10,2.914375689604754,knee near r_eff,12.0,31.0,0.1795,10.0
+mteb_multi,random,random,best_simple,0.9,insample,15.0,False,30,10,2.914375689604754,knee near r_eff,9.0,30.0,0.0085,12.0
+mteb_multi,random,random,ridge,0.9,insample,15.0,False,30,10,2.914375689604754,knee near r_eff,10.0,20.0,0.001,15.0
+mteb_multi,random,random,onefactor,0.9,insample,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,3.0
+mteb_multi,random,random,knn,0.9,insample,15.0,False,30,10,2.914375689604754,knee near r_eff,8.0,31.0,0.1025,8.0
+mteb_multi,random,random,lw,0.9,insample,15.0,False,30,10,2.914375689604754,knee near r_eff,10.0,20.0,0.0015,15.0
+mteb_multi,random,random,headline,0.9,insample,15.0,False,30,10,2.914375689604754,knee near r_eff,9.0,30.0,0.0085,
+mteb_multi,random,random,fa_minus_best_simple,0.9,insample,5.0,False,30,10,2.914375689604754,,1.0,18.0,,
+mteb_multi,random,random,fa,0.95,insample,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,10.0
+mteb_multi,random,random,best_simple,0.95,insample,30.0,False,30,10,2.914375689604754,above window,20.0,31.0,0.39,12.0
+mteb_multi,random,random,ridge,0.95,insample,30.0,False,30,10,2.914375689604754,above window,20.0,31.0,0.1205,15.0
+mteb_multi,random,random,onefactor,0.95,insample,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,3.0
+mteb_multi,random,random,knn,0.95,insample,,True,30,10,2.914375689604754,above window,30.0,31.0,0.973,8.0
+mteb_multi,random,random,lw,0.95,insample,30.0,False,30,10,2.914375689604754,above window,20.0,31.0,0.145,15.0
+mteb_multi,random,random,headline,0.95,insample,30.0,False,30,10,2.914375689604754,above window,20.0,31.0,0.39,
+mteb_multi,random,random,fa_minus_best_simple,0.95,insample,1.0,False,30,10,2.914375689604754,,0.0,11.0,,
+mteb_multi,time,greedyA,fa,0.8,lobo,4.0,False,30,10,2.914375689604754,dominated by general factor,3.0,7.0,0.001,4.0
+mteb_multi,time,greedyA,best_simple,0.8,lobo,4.0,False,30,10,2.914375689604754,dominated by general factor,3.0,6.0,0.0,6.0
+mteb_multi,time,greedyA,ridge,0.8,lobo,4.0,False,30,10,2.914375689604754,dominated by general factor,3.0,6.0,0.0,6.0
+mteb_multi,time,greedyA,onefactor,0.8,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,1.0
+mteb_multi,time,greedyA,knn,0.8,lobo,8.0,False,30,10,2.914375689604754,dominated by general factor,3.0,31.0,0.2965,3.0
+mteb_multi,time,greedyA,lw,0.8,lobo,4.0,False,30,10,2.914375689604754,dominated by general factor,3.0,6.0,0.0,6.0
+mteb_multi,time,greedyA,headline,0.8,lobo,4.0,False,30,10,2.914375689604754,dominated by general factor,3.0,6.0,0.0,
+mteb_multi,time,greedyA,fa_minus_best_simple,0.8,lobo,0.0,False,30,10,2.914375689604754,,0.0,1.0,,
+mteb_multi,time,greedyA,fa,0.9,lobo,,True,30,10,2.914375689604754,above window,7.0,31.0,0.751,4.0
+mteb_multi,time,greedyA,best_simple,0.9,lobo,15.0,False,30,10,2.914375689604754,knee near r_eff,7.0,31.0,0.033,6.0
+mteb_multi,time,greedyA,ridge,0.9,lobo,15.0,False,30,10,2.914375689604754,knee near r_eff,7.0,31.0,0.032,6.0
+mteb_multi,time,greedyA,onefactor,0.9,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,1.0
+mteb_multi,time,greedyA,knn,0.9,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,3.0
+mteb_multi,time,greedyA,lw,0.9,lobo,15.0,False,30,10,2.914375689604754,knee near r_eff,6.0,30.0,0.02,6.0
+mteb_multi,time,greedyA,headline,0.9,lobo,15.0,False,30,10,2.914375689604754,knee near r_eff,7.0,31.0,0.033,
+mteb_multi,time,greedyA,fa_minus_best_simple,0.9,lobo,16.0,False,30,10,2.914375689604754,,0.0,22.0,,
+mteb_multi,time,greedyA,fa,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,4.0
+mteb_multi,time,greedyA,best_simple,0.95,lobo,,True,30,10,2.914375689604754,above window,30.0,31.0,0.9285,6.0
+mteb_multi,time,greedyA,ridge,0.95,lobo,,True,30,10,2.914375689604754,above window,30.0,31.0,0.9275,6.0
+mteb_multi,time,greedyA,onefactor,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,1.0
+mteb_multi,time,greedyA,knn,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,3.0
+mteb_multi,time,greedyA,lw,0.95,lobo,,True,30,10,2.914375689604754,above window,30.0,31.0,0.8315,6.0
+mteb_multi,time,greedyA,headline,0.95,lobo,,True,30,10,2.914375689604754,above window,30.0,31.0,0.9285,
+mteb_multi,time,greedyA,fa_minus_best_simple,0.95,lobo,0.0,False,30,10,2.914375689604754,,0.0,1.0,,
+mteb_multi,time,greedyA,fa,0.8,insample,4.0,False,30,10,2.914375689604754,dominated by general factor,3.0,7.0,0.0,4.0
+mteb_multi,time,greedyA,best_simple,0.8,insample,4.0,False,30,10,2.914375689604754,dominated by general factor,3.0,6.0,0.0,6.0
+mteb_multi,time,greedyA,ridge,0.8,insample,4.0,False,30,10,2.914375689604754,dominated by general factor,3.0,6.0,0.0,6.0
+mteb_multi,time,greedyA,onefactor,0.8,insample,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,1.0
+mteb_multi,time,greedyA,knn,0.8,insample,8.0,False,30,10,2.914375689604754,dominated by general factor,3.0,31.0,0.32,3.0
+mteb_multi,time,greedyA,lw,0.8,insample,4.0,False,30,10,2.914375689604754,dominated by general factor,3.0,6.0,0.0,6.0
+mteb_multi,time,greedyA,headline,0.8,insample,4.0,False,30,10,2.914375689604754,dominated by general factor,3.0,6.0,0.0,
+mteb_multi,time,greedyA,fa_minus_best_simple,0.8,insample,0.0,False,30,10,2.914375689604754,,0.0,1.0,,
+mteb_multi,time,greedyA,fa,0.9,insample,,True,30,10,2.914375689604754,above window,8.0,31.0,0.7505,4.0
+mteb_multi,time,greedyA,best_simple,0.9,insample,15.0,False,30,10,2.914375689604754,knee near r_eff,6.0,31.0,0.061,6.0
+mteb_multi,time,greedyA,ridge,0.9,insample,15.0,False,30,10,2.914375689604754,knee near r_eff,6.0,31.0,0.0585,6.0
+mteb_multi,time,greedyA,onefactor,0.9,insample,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,1.0
+mteb_multi,time,greedyA,knn,0.9,insample,,True,30,10,2.914375689604754,above window,31.0,31.0,0.9985,3.0
+mteb_multi,time,greedyA,lw,0.9,insample,15.0,False,30,10,2.914375689604754,knee near r_eff,6.0,31.0,0.0275,6.0
+mteb_multi,time,greedyA,headline,0.9,insample,15.0,False,30,10,2.914375689604754,knee near r_eff,6.0,31.0,0.061,
+mteb_multi,time,greedyA,fa_minus_best_simple,0.9,insample,16.0,False,30,10,2.914375689604754,,0.0,22.0,,
+mteb_multi,time,greedyA,fa,0.95,insample,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,4.0
+mteb_multi,time,greedyA,best_simple,0.95,insample,,True,30,10,2.914375689604754,above window,20.0,31.0,0.8205,6.0
+mteb_multi,time,greedyA,ridge,0.95,insample,,True,30,10,2.914375689604754,above window,20.0,31.0,0.8175,6.0
+mteb_multi,time,greedyA,onefactor,0.95,insample,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,1.0
+mteb_multi,time,greedyA,knn,0.95,insample,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,3.0
+mteb_multi,time,greedyA,lw,0.95,insample,,True,30,10,2.914375689604754,above window,20.0,31.0,0.752,6.0
+mteb_multi,time,greedyA,headline,0.95,insample,,True,30,10,2.914375689604754,above window,20.0,31.0,0.8205,
+mteb_multi,time,greedyA,fa_minus_best_simple,0.95,insample,0.0,False,30,10,2.914375689604754,,0.0,11.0,,
+mteb_multi,time,random,fa,0.8,lobo,10.0,False,30,10,2.914375689604754,knee near r_eff,7.0,30.0,0.0095,9.0
+mteb_multi,time,random,best_simple,0.8,lobo,9.0,False,30,10,2.914375689604754,dominated by general factor,7.0,15.0,0.0,12.0
+mteb_multi,time,random,ridge,0.8,lobo,9.0,False,30,10,2.914375689604754,dominated by general factor,7.0,15.0,0.0,12.0
+mteb_multi,time,random,onefactor,0.8,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,3.0
+mteb_multi,time,random,knn,0.8,lobo,,True,30,10,2.914375689604754,above window,9.0,31.0,0.61,5.0
+mteb_multi,time,random,lw,0.8,lobo,9.0,False,30,10,2.914375689604754,dominated by general factor,6.0,15.0,0.0,12.0
+mteb_multi,time,random,headline,0.8,lobo,9.0,False,30,10,2.914375689604754,dominated by general factor,7.0,15.0,0.0,
+mteb_multi,time,random,fa_minus_best_simple,0.8,lobo,1.0,False,30,10,2.914375689604754,,0.0,15.0,,
+mteb_multi,time,random,fa,0.9,lobo,,True,30,10,2.914375689604754,above window,30.0,31.0,0.941,9.0
+mteb_multi,time,random,best_simple,0.9,lobo,30.0,False,30,10,2.914375689604754,above window,20.0,31.0,0.19,12.0
+mteb_multi,time,random,ridge,0.9,lobo,30.0,False,30,10,2.914375689604754,above window,20.0,31.0,0.16,12.0
+mteb_multi,time,random,onefactor,0.9,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,3.0
+mteb_multi,time,random,knn,0.9,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,5.0
+mteb_multi,time,random,lw,0.9,lobo,30.0,False,30,10,2.914375689604754,above window,20.0,31.0,0.2255,12.0
+mteb_multi,time,random,headline,0.9,lobo,30.0,False,30,10,2.914375689604754,above window,20.0,31.0,0.19,
+mteb_multi,time,random,fa_minus_best_simple,0.9,lobo,1.0,False,30,10,2.914375689604754,,0.0,11.0,,
+mteb_multi,time,random,fa,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,9.0
+mteb_multi,time,random,best_simple,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,12.0
+mteb_multi,time,random,ridge,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,12.0
+mteb_multi,time,random,onefactor,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,3.0
+mteb_multi,time,random,knn,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,5.0
+mteb_multi,time,random,lw,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,12.0
+mteb_multi,time,random,headline,0.95,lobo,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,
+mteb_multi,time,random,fa_minus_best_simple,0.95,lobo,0.0,False,30,10,2.914375689604754,,0.0,0.0,,
+mteb_multi,time,random,fa,0.8,insample,10.0,False,30,10,2.914375689604754,knee near r_eff,7.0,30.0,0.0055,9.0
+mteb_multi,time,random,best_simple,0.8,insample,9.0,False,30,10,2.914375689604754,dominated by general factor,6.0,15.0,0.0005,12.0
+mteb_multi,time,random,ridge,0.8,insample,9.0,False,30,10,2.914375689604754,dominated by general factor,6.0,15.0,0.0005,12.0
+mteb_multi,time,random,onefactor,0.8,insample,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,3.0
+mteb_multi,time,random,knn,0.8,insample,,True,30,10,2.914375689604754,above window,9.0,31.0,0.5915,5.0
+mteb_multi,time,random,lw,0.8,insample,9.0,False,30,10,2.914375689604754,dominated by general factor,6.0,15.0,0.0005,12.0
+mteb_multi,time,random,headline,0.8,insample,9.0,False,30,10,2.914375689604754,dominated by general factor,6.0,15.0,0.0005,
+mteb_multi,time,random,fa_minus_best_simple,0.8,insample,1.0,False,30,10,2.914375689604754,,0.0,10.0,,
+mteb_multi,time,random,fa,0.9,insample,,True,30,10,2.914375689604754,above window,30.0,31.0,0.9345,9.0
+mteb_multi,time,random,best_simple,0.9,insample,30.0,False,30,10,2.914375689604754,above window,15.0,31.0,0.3395,12.0
+mteb_multi,time,random,ridge,0.9,insample,30.0,False,30,10,2.914375689604754,above window,15.0,31.0,0.3195,12.0
+mteb_multi,time,random,onefactor,0.9,insample,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,3.0
+mteb_multi,time,random,knn,0.9,insample,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,5.0
+mteb_multi,time,random,lw,0.9,insample,30.0,False,30,10,2.914375689604754,above window,15.0,31.0,0.363,12.0
+mteb_multi,time,random,headline,0.9,insample,30.0,False,30,10,2.914375689604754,above window,15.0,31.0,0.3395,
+mteb_multi,time,random,fa_minus_best_simple,0.9,insample,1.0,False,30,10,2.914375689604754,,0.0,16.0,,
+mteb_multi,time,random,fa,0.95,insample,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,9.0
+mteb_multi,time,random,best_simple,0.95,insample,,True,30,10,2.914375689604754,above window,30.0,31.0,0.8955,12.0
+mteb_multi,time,random,ridge,0.95,insample,,True,30,10,2.914375689604754,above window,30.0,31.0,0.8885,12.0
+mteb_multi,time,random,onefactor,0.95,insample,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,3.0
+mteb_multi,time,random,knn,0.95,insample,,True,30,10,2.914375689604754,above window,31.0,31.0,1.0,5.0
+mteb_multi,time,random,lw,0.95,insample,,True,30,10,2.914375689604754,above window,30.0,31.0,0.9065,12.0
+mteb_multi,time,random,headline,0.95,insample,,True,30,10,2.914375689604754,above window,30.0,31.0,0.8955,
+mteb_multi,time,random,fa_minus_best_simple,0.95,insample,0.0,False,30,10,2.914375689604754,,0.0,1.0,,

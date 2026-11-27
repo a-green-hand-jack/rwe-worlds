@@ -1,0 +1,39 @@
+\noindent{\footnotesize (a) Calibrated probability that the delivered top-3 set is exact: Brier score.}\par\smallskip
+{\scriptsize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+ & \multicolumn{3}{c}{Brier (base rate $p$) on the delivered run} & \multicolumn{2}{c}{Brier: certificate $-$ run-twice [95\% CI]} \\
+\cmidrule(lr){2-4}\cmidrule(l){5-6}
+Dataset & certificate & run-twice, 1st & run-twice, mean & registered (vs 1st) & variant (vs mean) \\
+\midrule
+German Credit & 0.166 (0.53) & 0.147 (0.41) & 0.191 (0.53) & $+$.019 [$+$.014,$+$.023] & $-$.025 [$-$.028,$-$.022] \\
+ACS Employment & 0.160 (0.53) & 0.140 (0.41) & 0.181 (0.53) & $+$.020 [$+$.017,$+$.023] & $-$.022 [$-$.025,$-$.019] \\
+ACS Income & 0.173 (0.37) & 0.136 (0.26) & 0.189 (0.37) & $+$.038 [$+$.035,$+$.040] & $-$.015 [$-$.018,$-$.013] \\
+Pima & 0.184 (0.31) & 0.135 (0.19) & 0.198 (0.31) & $+$.049 [$+$.046,$+$.052] & $-$.014 [$-$.017,$-$.011] \\
+GMSC & 0.163 (0.32) & 0.127 (0.22) & 0.181 (0.32) & $+$.036 [$+$.034,$+$.038] & $-$.018 [$-$.021,$-$.015] \\
+\bottomrule
+\end{tabular}}
+\medskip
+
+\noindent{\footnotesize (b) Minimum-budget rule, stop at probability $\ge 0.9$ (certificate) or agreeing runs (run-twice).}\par\smallskip
+{\scriptsize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}llrrrrr@{}}
+\toprule
+Dataset & Method & Stopped & Exact & Evals used & Flat evals, same share & Saved [95\% CI] \\
+\midrule
+German Credit & certificate & 50\% & 80\% & 161k & 202k & 20\% [17, 24] \\
+ & run-twice & 78\% & 67\% & 108k & 74k & $-$46\% [$-$55, $-$39] \\
+\addlinespace
+ACS Employment & certificate & 51\% & 80\% & 156k & 202k & 23\% [18, 28] \\
+ & run-twice & 77\% & 68\% & 109k & 73k & $-$50\% [$-$57, $-$43] \\
+\addlinespace
+ACS Income & certificate & 15\% & 64\% & 25k & 26k & 1.7\% [1.2, 2.4] \\
+ & run-twice & 51\% & 50\% & 20k & 11k & $-$79\% [$-$83, $-$75] \\
+\addlinespace
+Pima & certificate & 1\% & 44\% & 6k & n.a. & n.a. \\
+ & run-twice & 27\% & 29\% & 6k & 3k & $-$90\% [$-$93, $-$86] \\
+\addlinespace
+GMSC & certificate & 12\% & 56\% & 25k & 26k & 1.4\% [1.0, 1.9] \\
+ & run-twice & 45\% & 41\% & 21k & 11k & $-$84\% [$-$88, $-$80] \\
+\bottomrule
+\end{tabular}}

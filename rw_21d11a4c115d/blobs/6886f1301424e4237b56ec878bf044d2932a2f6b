@@ -1,0 +1,107 @@
+{
+  "band": "headline curve (first selector, first predictor) only; family-clustered bootstrap 95%",
+  "claim": "C1",
+  "design": "fixed",
+  "draft": false,
+  "figure": "fig2_main",
+  "generated": "2026-11-25",
+  "height_in": 3.19,
+  "inputs": {
+    "closure.csv": "dcb2ec94824a",
+    "curves.csv": "8d094a167049",
+    "kstar.csv": "3657dab512a5",
+    "refs.csv": "341f68773430"
+  },
+  "panels": {
+    "helm_mmlu": {
+      "ks": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        12,
+        15,
+        20
+      ],
+      "n_families": 21,
+      "n_models": 79,
+      "n_targets": 17,
+      "predictors": [
+        "fa",
+        "best_simple"
+      ],
+      "selectors": [
+        "greedyA",
+        "random"
+      ],
+      "split": "grouped"
+    },
+    "mteb_eng": {
+      "ks": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        12,
+        15,
+        20,
+        30
+      ],
+      "n_families": 75,
+      "n_models": 124,
+      "n_targets": 21,
+      "predictors": [
+        "fa",
+        "best_simple"
+      ],
+      "selectors": [
+        "greedyA",
+        "random"
+      ],
+      "split": "grouped"
+    },
+    "mteb_multi": {
+      "ks": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        12,
+        15,
+        20,
+        30
+      ],
+      "n_families": 71,
+      "n_models": 117,
+      "n_targets": 74,
+      "predictors": [
+        "fa",
+        "best_simple"
+      ],
+      "selectors": [
+        "greedyA",
+        "random"
+      ],
+      "split": "grouped"
+    }
+  },
+  "width_in": 5.5
+}

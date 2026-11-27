@@ -1,0 +1,19 @@
+\section{Introduction}
+\label{sec:intro}
+
+A prompt, an answer format or a set of demonstrations is chosen by trying several on a benchmark's items, and the score of the best is reported on those same items.
+That score is the maximum of several noisy estimates, so it can exceed what the chosen configuration achieves on items it was not chosen on, even if no configuration is better than another.
+How much it exceeds it, what the excess depends on, whether conclusions drawn from such scores survive it (tuned beats untuned, system A beats system B), and what should be reported instead are empirical questions about searched LLM configurations that selection-bias theory does not answer for us.
+Selection bias in the best of many estimates is classical \citep{cawley2010}, simultaneous bounds after selection on the same sample exist \citep{rink2025}, and leaderboard meta-analyses find little adaptive overfitting in rankings \citep{roelofs2019}; to our reading, none of them measures the gap of a searched LLM configuration against fresh items of the same benchmark, or compares what a practitioner could report instead (Section~\ref{sec:related}).
+
+We answer with a measurement for which the truth is known.
+A pool of 1500 MMLU-Pro items is scored once by Qwen2.5-1.5B-Instruct under 128 configurations, and every search, report and verification is a replay on that matrix, checked once against a live DSPy search (Section~\ref{sec:tool}); the configuration chosen on $n$ items is verified on the pool items outside them, and a synthetic arm with exact truth carries the drivers to regimes the matrix cannot reach (Sections~\ref{sec:setting}--\ref{sec:method}).
+Our results, each with the conditions it holds under, are:
+\begin{itemize}
+\item \emph{Size.} Searching 100 configurations on $n=30$ items reports $0.390$ for a configuration with fresh accuracy $0.277$; the gap is $0.113$ at $n=30$ and $0.025$ at $n=400$, its interval excludes zero in all 35 cells, and for $n\le100$ the reported improvement over the default is at least four times the real one (Figure~\ref{fig:size}).
+\item \emph{Drivers.} The prediction $\kappa\bar\sigma/\sqrt n$ from the item-level search log is $0.95$--$1.26$ times the measured gap of exhaustive search, matching up to 100 items and overshooting beyond; the 128 configurations compete like about eight independent ones, successive halving reports less optimism than random search at equal evaluations, and a search item placed among the demonstrations adds about $0.42$ to its own probability of being answered correctly (Figure~\ref{fig:drivers}).
+\item \emph{Decisions.} With all configurations exactly equally accurate, the naive tuned-versus-untuned test declares a gain in $32$--$54\%$ of draws at $n=120$ and a larger search outscores a smaller one in $74\%$; on the real pool the ranking distortion remains ($57$--$71\%$), while an excess of false gains over $5\%$ is not established (Figure~\ref{fig:decisions}).
+\item \emph{Protocols.} At equal item budget the max-$t$ bound over the declared configuration space is valid on the real pool and the narrowest valid lower bound (it falls to $91$--$93\%$ coverage in exact-null synthetic worlds at $240$ items), and, unlike a held-out split, it spends no search items (Figure~\ref{fig:protocols}, Table~\ref{tab:protocols}); over the configurations a successive-halving search evaluated it is not valid, because that set was chosen by the data (Figure~\ref{fig:coverage}).
+\end{itemize}
+The measurements are for one 1.5B model, one benchmark and one configuration space scored by answer-letter log-probability, and the searches are replayed except for one live-tool check; Section~\ref{sec:discussion} states what is not covered.
+Code, the correctness matrix and all result files are released with the paper.

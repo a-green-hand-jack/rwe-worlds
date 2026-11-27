@@ -1,0 +1,16 @@
+"""Floor misfit summary (idea-repo#5 item 2): predicted noise term of the factor model vs the measured floor MSE, by hold-out type, from the decomposition files of the C/T runs
+(`ct_decomposition.csv`: G, T, S group/shift hold-outs; `sens_randomfold/ct_decomposition.csv`: random-model hold-out). Columns (raw points^2, mean over models of mean-over-splits MSE on T):
+noise_pred = T1 noise term at the floor set; floor_mse = noise_pred + noise_misfit; ratio = floor_mse / noise_pred; share_across_group = 1 - (R misfit / G misfit).
+usage: python 35_misfit_summary.py <results_dir>"""
+import sys, os, pandas as pd
+res = sys.argv[1]; rows = []
+a = pd.read_csv(os.path.join(res, "ct_decomposition.csv")); a = a[(a.subset == "fixed") & (a.k == 20)]
+r = pd.read_csv(os.path.join(res, "sens_randomfold", "ct_decomposition.csv")); r = r[(r.subset == "fixed") & (r.k == 20)].assign(split="R_random_model_holdout")
+for d in (a, r):
+    for _, x in d.iterrows():
+        rows.append(dict(holdout=x.split, n_models=x.n_models, n_groups=x.n_groups, noise_pred=x.noise_pred, noise_pred_lo90=x.noise_pred_lo90, noise_pred_hi90=x.noise_pred_hi90, noise_misfit=x.noise_misfit,
+                         noise_misfit_lo90=x.noise_misfit_lo90, noise_misfit_hi90=x.noise_misfit_hi90, floor_mse=x.noise_pred + x.noise_misfit, ratio_floor_to_pred=(x.noise_pred + x.noise_misfit) / x.noise_pred,
+                         note="values at k=20 (the floor term does not depend on k)"))
+df = pd.DataFrame(rows); g = df[df.holdout == "G"].noise_misfit.iloc[0]; rr = df[df.holdout.str.startswith("R_")].noise_misfit.iloc[0]
+df["share_of_G_misfit_removed_by_random_model_holdout"] = [1 - rr / g if h.startswith("R_") else float("nan") for h in df.holdout]
+df.to_csv(os.path.join(res, "floor_misfit_summary.csv"), index=False); pd.set_option("display.width", 200); print(df.round(2).to_string())

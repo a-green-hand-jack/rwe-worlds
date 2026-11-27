@@ -1,0 +1,36 @@
+"""Unnormalised Horvitz-Thompson columns (ht75, ht100) on the cluster-design runs:  python scripts/run_ht.py SHARD NSHARDS OUTDIR
+The configurations are those of the D rerun (`grid.ext_runs("D")`, design = cluster, 28 runs: the frozen grid and extension X); same seeds and assignments, so every
+array of `check_rerun.py` equals the original and the only addition is the two HT columns."""
+import json
+import os
+import pickle
+import sys
+import time
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+import grid  # noqa: E402
+
+if __name__ == "__main__":
+    shard, nsh, outdir = int(sys.argv[1]), int(sys.argv[2]), sys.argv[3]
+    os.makedirs(outdir, exist_ok=True)
+    from gate import sim
+    cl = [c for c in grid.ext_runs("D") if c.get("design") == "cluster"]
+    for i, c in enumerate(cl):
+        if i % nsh != shard:
+            continue
+        f = os.path.join(outdir, c["id"] + ".pkl")
+        if os.path.exists(f) or os.path.exists(os.path.join(outdir, c["id"] + ".degenerate.json")):
+            continue
+        t = time.time()
+        try:
+            res = sim.run_config(c)
+        except sim.DegenerateDesign as e:
+            with open(os.path.join(outdir, c["id"] + ".degenerate.json"), "w") as fh:
+                json.dump(dict(id=c["id"], K=e.K, graph_draw=e.gi, reason=str(e)), fh)
+            print(f"DEGENERATE {c['id']} {e}", flush=True)
+            continue
+        with open(f + ".tmp", "wb") as fh:
+            pickle.dump(res, fh, protocol=4)
+        os.replace(f + ".tmp", f)
+        print(f"DONE {c['id']} {time.time()-t:.0f}s", flush=True)

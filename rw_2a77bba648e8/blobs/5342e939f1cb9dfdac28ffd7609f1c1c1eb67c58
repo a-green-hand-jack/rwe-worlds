@@ -1,0 +1,188 @@
+"""Pre-derived population bias of the `chin` regression (OLS on z and f) under Bernoulli(p) assignment,
+tree-like graph: f_i = Bin(d_i,p)/d_i independent of z_i.  Compared with the realised bias of the run files.
+    python analysis/predict_bias.py RAWDIR OUT.csv
+tau = 1 for every column, so bias = tau_hat_chin - 1.
+(a) 0   (b) s(HM(d)/AM(d)-1)   (c),(d) s[Cov(h(f),f)/Var f - 1] (exact Binomial mixture over the realised degrees)
+(e) tree-like limit -rho^2; on the realised graph the exact linear-OLS value (a, b, e) from traces of M, W   (f) -s(1-2p)/2.
+`pred_bias` is the population-OLS value; `pred_bias_finite_n` replaces the population covariances by the expected centred sample covariances (the grand-mean
+terms, of relative size about d/n) for (a), (b), (e) and equals `pred_bias` for the other mechanisms."""
+import glob
+import os
+import sys
+
+import numpy as np
+import pandas as pd
+from scipy.stats import binom
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+sys.path.insert(0, os.path.dirname(__file__))
+import agg  # noqa: E402
+from gate import mech  # noqa: E402
+from gate import sim  # noqa: E402
+
+
+def pooled_slope(deg, p, h):
+    """Cov(h(f), f)/Var(f) pooled over units with degrees `deg` (z independent of f)"""
+    ds, cnt = np.unique(deg, return_counts=True)
+    wts = cnt / cnt.sum()
+    cov = var = 0.0
+    for d, w in zip(ds, wts):
+        k = np.arange(d + 1)
+        pm = binom.pmf(k, d, p)
+        f = k / d
+        hv = h(f, d)
+        cov += w * (pm @ (hv * f) - (pm @ hv) * (pm @ f))
+        var += w * p * (1 - p) / d
+    return cov / var
+
+
+def linear_bias(g, M, p):
+    """exact population-OLS bias of chin for a mechanism y = M z (+ noise) under Bernoulli(p), on the realised graph g.
+    M sparse/dense n x n; Cov(y,z) = v mean_i M_ii, Cov(y,f) = v mean_i sum_j M_ij W_ij, Var f = v mean_i sum_j W_ij^2"""
+    import scipy.sparse as sp
+    W = g.W.tocsr()
+    Mc = sp.csr_matrix(M) if not sp.issparse(M) else M.tocsr()
+    cyz = Mc.diagonal().mean()
+    cyf = np.asarray(Mc.multiply(W).sum(1)).ravel().mean()
+    vf = np.asarray(W.multiply(W).sum(1)).ravel().mean()
+    # z and f are uncorrelated (no self loops): coefficients separate
+    return cyz + cyf / vf - 1.0
+
+
+def finite_n_bias(n, tr_M, cs_M, tr_WM, ws_WM, trW_sq, colW_sq, colW_M_dot, colW):
+    """bias of the OLS slope sum (b_z + b_f) with the expected *centred* sample covariances (ratio of expectations) in place of the population ones, for a
+    response y = M z + noise with z i.i.d.: E[sample cov(A z, B z)]/v = (tr(A B') - 1'A B'1/n)/n.  The population form drops the 1/n centring terms, i.e. the
+    variance of the grand mean of f and of y (about d/n of Var f).  Arguments are the traces and sums this needs."""
+    a = 1 - 1 / n                              # C(z, z)
+    b = -1 / n                                 # C(z, f): tr(W') = 0 and 1'W'1 = n
+    c = (trW_sq - colW_sq / n) / n             # C(f, f)
+    r = np.array([(tr_M - cs_M / n) / n, (tr_WM - colW_M_dot / n) / n])
+    beta = np.linalg.solve(np.array([[a, b], [b, c]]), r)
+    return float(beta.sum() - 1.0)
+
+
+def mech_matrix(g, mname, s):
+    import scipy.sparse as sp
+    n = g.n
+    I = sp.identity(n, format="csr")
+    if mname == "a":
+        return (1 - s) * I + s * g.W
+    if mname == "b":
+        return (1 - s) * I + s * sp.diags(1 / g.dbar * np.ones(n)) @ g.A
+    if mname == "e":
+        W = g.W.tocsr()
+        P = np.eye(n)
+        M = np.zeros((n, n))
+        for k in range(mech.KSTEP + 1):
+            M += s ** k * P
+            P = W @ P
+        return (1 - s) * M
+    raise ValueError(mname)
+
+
+EMAX = 12000     # largest graph for which the dense powers of W are formed (Stanford3 has 11 586 units)
+
+
+def e_bias_all(g, shares):
+    """population-OLS bias of chin for mechanism (e) (K = KSTEP truncated operator) at every share, one pass over the powers of W:
+    returns {s: (population value, finite-n value with the centring terms)}"""
+    W = g.W.tocsr().astype(np.float32)
+    n = g.n
+    vf = np.asarray(g.W.multiply(g.W).sum(1)).ravel().mean()
+    colW = np.asarray(W.sum(0)).ravel().astype(np.float64)
+    P = np.eye(n, dtype=np.float32)
+    dk, ck, cs, cw = [], [], [], []
+    for _ in range(mech.KSTEP + 1):
+        dk.append(float(np.diag(P).sum()))                                  # tr W^k
+        ck.append(float(np.asarray(W.multiply(P).sum())))                   # sum_ij W_ij (W^k)_ij = tr(W (W^k)')
+        colP = np.asarray(P.sum(0)).ravel().astype(np.float64)
+        cs.append(float(colP.sum()))                                        # 1' (W^k)' 1
+        cw.append(float(colW @ colP))                                       # 1' W (W^k)' 1
+        P = W @ P
+    dk, ck, cs, cw = map(np.array, (dk, ck, cs, cw))
+    k = np.arange(mech.KSTEP + 1)
+    trW_sq = float(np.asarray(g.W.multiply(g.W).sum()))
+    colW_sq = float(colW @ colW)
+    out = {}
+    for s in shares:
+        pw = (1 - s) * s ** k
+        pop = float(pw @ dk) / n + float(pw @ ck) / n / vf - 1.0
+        out[s] = (pop, finite_n_bias(n, pw @ dk, pw @ cs, pw @ ck, None, trW_sq, colW_sq, pw @ cw, colW))
+    return out
+
+
+def predict_graph(g, p, mname, s, cache=None):
+    """realised-graph prediction (population form, finite-n form): linear mechanisms (a), (b) and (e) on graphs with n <= EMAX units; tree-like formulas elsewhere"""
+    if mname in ("a", "b"):
+        M = mech_matrix(g, mname, s)
+        return linear_bias(g, M, p), linear_bias_n(g, M)
+    if mname == "e" and g.n <= EMAX:
+        return cache[s]
+    v = predict(g.deg.astype(int), p, mname, s)
+    return v, v
+
+
+def linear_bias_n(g, M):
+    """finite-n form of `linear_bias` (see finite_n_bias)"""
+    import scipy.sparse as sp
+    n = g.n
+    W = g.W.tocsr()
+    Mc = sp.csr_matrix(M) if not sp.issparse(M) else M.tocsr()
+    colW = np.asarray(W.sum(0)).ravel()
+    colM = np.asarray(Mc.sum(0)).ravel()
+    return finite_n_bias(n, Mc.diagonal().sum(), colM.sum(), float(Mc.multiply(W).sum()), None, float(W.multiply(W).sum()), float(colW @ colW), float(colW @ colM), colW)
+
+
+def predict(deg, p, mname, s):
+    if mname == "0" or mname == "a":
+        return 0.0
+    if mname == "b":
+        dbar = deg.mean()
+        return s * ((1 / np.mean(1 / deg)) / dbar - 1)
+    if mname == "c":
+        return s * (pooled_slope(deg, p, lambda f, d: mech.g_sat(f)) - 1)
+    if mname == "d":
+        return s * (pooled_slope(deg, p, lambda f, d: mech.thr(f)) - 1)
+    if mname == "g":
+        return s * (pooled_slope(deg, p, lambda f, d: mech.g_conv(f)) - 1)
+    if mname == "e":
+        return -s ** 2
+    if mname == "f":
+        return -s * (1 - 2 * p) / 2
+    raise ValueError(mname)
+
+
+ECACHE = {}
+
+
+def main(rawdir, out):
+    rows = []
+    for fpath in sorted(glob.glob(os.path.join(rawdir, "*.pkl"))):
+        run = agg.Run(fpath)
+        cfg = run.cfg
+        if cfg.get("design", "bern") != "bern" or cfg.get("base", "iid") not in ("iid", "none") or cfg.get("q_edge", 0):
+            continue
+        gs = []
+        for gi in range(min(run.G, 3)):                      # first three graph draws: the prediction varies little across draws
+            rng = np.random.default_rng(sim.seed_of(cfg.get("seed", 0), cfg["family"], cfg.get("n", 0), cfg["d"], gi, cfg.get("tag", ""), "graph"))
+            gs.append(sim.make_graph(cfg, gi, rng))
+        e_shares = [s for (mn, s) in run.cols if mn == "e"]
+        ekey = (cfg["family"], cfg.get("n", 0), cfg["d"], cfg.get("seed", 0), cfg.get("tag", ""), len(gs), tuple(e_shares))
+        if ekey not in ECACHE:                                 # the graphs do not depend on p: one pass per graph set
+            ECACHE[ekey] = [e_bias_all(g, e_shares) if (g.n <= EMAX and e_shares) else None for g in gs]
+        ecache = ECACHE[ekey]
+        for j, (mname, s) in enumerate(run.cols):
+            pr = [predict_graph(g, cfg["p"], mname, s, ec) for g, ec in zip(gs, ecache)]
+            pb = np.mean([v[0] for v in pr])
+            pbn = np.mean([v[1] for v in pr])
+            pb_tree = np.mean([predict(g.deg.astype(int), cfg["p"], mname, s) for g in gs])
+            x = run.err("chin", j, 0.5)
+            m = agg.metrics(x, seed=j)
+            rows.append(dict(run_id=run.id, graph=cfg["family"], d_target=cfg["d"], p=cfg["p"], mechanism=mname, s=s,
+                             pred_bias=pb, pred_bias_finite_n=pbn, pred_bias_tree=pb_tree, realised_bias=m["bias"], lo=m["bias_lo"], hi=m["bias_hi"],
+                             exact=(mname != "e") or max(g.n for g in gs) <= EMAX))
+    pd.DataFrame(rows).to_csv(out, index=False)
+
+
+if __name__ == "__main__":
+    main(*sys.argv[1:3])

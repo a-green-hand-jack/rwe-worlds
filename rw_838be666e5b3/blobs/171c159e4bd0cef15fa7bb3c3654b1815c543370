@@ -1,0 +1,58 @@
+# Venue record: ICML 2027 main track
+
+Chosen by `venue-repo` for the delivery; record built from `ht-role venue icml` (retrieved by the world 2026-11-14) and re-checked against https://icml.cc/Conferences/2027/CallForPapers on 2026-11-26 (page revision log: Nov 13, 17, 20; nothing changes the format below).
+
+## Why ICML 2027 (and not ICLR 2027 or NeurIPS 2026)
+- The objective asks for the *latest* edition's template. ICML 2027 and ICLR 2027 are the newest; NeurIPS 2026 is a year older and its deadlines are past (ICLR 2027 is already in review, decisions Dec 16, 2026). ICML 2027 is the only one still ahead of its deadline (abstract Jan 14, full paper Jan 22, 2027 AOE).
+- Fit: ICML's criteria are "original and rigorous research ... claims supported by reproducible experiments and/or sound theoretical analysis", and "novel insights by evaluating existing methods ... is equally valuable" (ReviewerInstructions). That suits a statistics paper whose headline may be "PPI++ is already near the floor". The PPI literature the task starts from (Active Statistical Inference) appeared in ICML 2024.
+- ICLR 2027: review-form score fields could not be established; NeurIPS 2026 has a 16-item checklist but is not the latest edition.
+- No mandatory paper checklist exists for ICML 2027 main track (CFP does not mention one). `deliverable.md` asks for the venue's checklist "if required": the ICML equivalents are the **Impact Statement** and **AI Disclosure Statement** below (both required). Nothing to fill in beyond them.
+
+## Hard requirements (submission version)
+| Item | Requirement | Source |
+|---|---|---|
+| Main body | **8 pages**, US Letter, two columns. Over 8 = automatic rejection. Camera-ready 9 | AuthorInstructions, CFP |
+| Not counted | references, Impact Statement, AI Disclosure Statement (<= 1 page), appendices (unlimited), acknowledgements (camera-ready only) | CFP, UseOfGenerativeAI, template |
+| Template | `icml2027.sty` from https://media.icml.cc/Conferences/ICML2027/styles/icml2027.zip; `\usepackage{icml2027}` for submission (anonymous, line numbers). Do not alter the style; no `geometry`, `savetrees`, `fullpage`; style checks 13 layout lengths at `\begin{document}` and prints a violation message | template |
+| Text block | 6.75 in x 9.0 in; column width 3.25 in (6.75 - 0.25 gap over 2); left margin 0.75 in, top 1.0 in | `icml2027.sty` |
+| Type | Times 10 pt on 11 pt; captions 9 pt (`font=small`); `\small` = `\footnotesize` = 9 pt, `\scriptsize` = 7 pt, `\tiny` = 6 pt; Type-1 fonts only | `icml2027.sty`, example |
+| Figures | centered, legible, lines dark and >= 0.5 pt, no text on grey background, label every axis and curve, no title inside the graphic, caption **under** the figure; `figure*` for 6.75 in wide, placed at top/bottom of a page | example Sec. Figures |
+| Tables | caption **above**, >= 0.1 in space either side, `booktabs` is the kit's choice; first row says what columns are; `table*` for full width | example Sec. Tables |
+| Anonymity | no authors, no acknowledgements, no grant numbers, no non-anonymous code links; own work in third person | AuthorInstructions |
+| Impact Statement | required, unnumbered, end of paper before References; boilerplate sentence allowed when no specific concern | CFP, example |
+| AI Disclosure Statement | required in **all** submissions, <= 1 page, short; substantive generative-AI use (ideation, code generation, experiment design, data analysis, interpreting results, drafting substantial text) must be disclosed. This study was carried out by AI agents, so the statement must say so plainly | UseOfGenerativeAIByAuthors |
+| Format of delivery | one PDF (main body + references + appendices); LaTeX only. File-size limit: author instructions say 50 MB, the kit says 10 MB; which applies **could not be established** -> keep the PDF under 10 MB | AuthorInstructions vs example |
+| Contribution type | author picks one of General, Theory, Application-driven, Concept and Feasibility, Negative Results, Datasets/Evaluations/Benchmarks, Position. The per-type reviewer guidance was not read in full; the suggested pick is **General** (proposition + empirical study) | CFP |
+| Supplement (optional) | anonymised code zip or anonymous repo link inside a text file in the zip; size limit not stated; reviewers need not look at it, so anything critical must be in the 8 pages | AuthorInstructions |
+| Kit quirk | the camera-ready footnote still names "43rd ICML, Seoul"; affects only `[accepted]` output | template |
+
+What the venue does not say: any minimum figure-text size (only "legible"); a limit on number of figures/tables; how many references; supplementary size limit; the OpenReview form (not open yet). The submission process updates promised "by late November" were not yet published on 2026-11-26.
+
+## What reviewers judge
+Review form (ReviewerInstructions): summary; strengths and weaknesses along **Soundness, Presentation, Significance, Originality** (each 1-4, "fair"/"poor" must be justified; "soundness is distinct from impact"); 3-5 key questions; limitations; overall 1-6 (6 strong accept ... 3 weak reject, 1 strong reject); confidence 1-5. Two-stage review: area chairs screen first. Reviewers need not read beyond page 8. Practical consequences for this paper: every claim in the abstract needs its experiment with uncertainty in the 8 pages; limitations (MCAR, estimated floor, with-replacement pools) belong in the main text; negative results are acceptable if sound.
+
+## How accepted papers are written (sample, not a census)
+Sample: 10 statistics / inference-flavoured ICML 2024 papers, camera-ready PDFs from PMLR v235 (`zrnic24a` Active Statistical Inference, `demirel24a`, `byambadalai24a`, `deep24a`, `cho24c`, `ryu24a`, `kiyani24a`, `cortes-gomez24a`, `fisher24a`, `liu24ag`). Chosen by title keyword from the proceedings index; restricted to 2024 so that none can discuss the paper the objective reserves; I did not search the topic of the objective. Counts are by script (`tools/pdf_float_counts.py`, `tools/pdf_ref_counts.py`) on PDF text: caption lines at line start, entries by surname pattern; treat as +-10 %. They are **9-page camera-ready** papers; a first submission has 8.
+
+| Quantity | Range | Median |
+|---|---|---|
+| Figures in main text | 1-5 | 3 |
+| Tables in main text | 0-3 | 0 (4 of 10 have one or more) |
+| Figures + tables in main text | 2-6 | 3 |
+| References (entries) | 22-85 | ~43 (the PPI paper: ~59) |
+| Abstract length | 117-294 words | ~160 |
+| Introduction length | ~620-1400 words (one extraction failed) | ~1200 |
+| Words before the reference list (incl. captions, front matter) | 5.9k-7.7k | ~7.1k |
+
+Pattern in the abstracts: problem and why current practice falls short -> "we propose / we show" with the method named -> what is guaranteed (validity/coverage/efficiency) -> one empirical sentence on the data. They name the object they guarantee (valid CIs, conditional coverage, efficiency); I did not count numbers in abstracts. The introductions open with the applied setting in 1-2 paragraphs, state the gap in related work, summarise the approach, and several end with a contribution paragraph (6 of 10 mention "contribution"; 1 of 10 uses bullets in my extraction); related work is often a full section or a paragraph with the long version in the appendix; experiments take 2-3 figures; proofs sit in the appendix.
+
+## Budget I give the other roles (decisions are theirs)
+- **Main text 8 pages**, about 5,500-6,500 words of prose-and-captions in this two-column format; leave about 0.3 page slack under the limit (a run onto page 9 means automatic rejection).
+- **Floats in the main text: at most 5** (3-4 figures and 1-2 tables), ~2.5 pages of the 8. The sample median is 3 and the maximum 6. Outline rev 2 (5 figures + 3 tables, Fig 1 optional) does not fit as is: suggested keep = Fig 2 (headroom ladder, C2), Fig 3 (r vs n with n*, C3, carrying the C1 predicted-vs-measured panel), Fig 5 (regime map, C7) and Table 1, plus Fig 4 (diagnostic) only if space allows (it is the first to go, as the outline already says); move Fig 1, Tables 2-3 (and Fig 4 if needed) to the appendix with one sentence each in the text. Table 1 (9 sets x 8 arms) needs `table*` at 6.75 in in `\footnotesize`; if it still does not fit, cut arms from the main table, not the type size below 7 pt. Use `figure*` only for the ladder or the regime map.
+- **References:** 35-60 entries, every one verified by report; related work in the main text but compact (about 0.5 page), the long version in the appendix.
+- **Appendix:** unlimited; use for proofs, full tables, variance-estimator variants, compute budget, reproducibility notes. Reviewers may not read it: nothing a claim depends on may live only there.
+- **Placements for figures:** single column 3.25 in wide (`\columnwidth`), full width 6.75 in. Suggest in-figure text >= 7 pt at printed size (role recommendation: the venue only says "legible"; style floors are `\scriptsize` 7 pt, `\tiny` 6 pt), lines >= 0.5 pt, vector PDF with Type-1/embedded fonts, colours also distinguishable in greyscale.
+- **Code and data:** optional anonymised zip or anonymous repo; the objective separately requires code, versions, seeds, commands, and a script-per-figure/table map, which belongs to the paper's reproducibility appendix and the code repository.
+
+## Exact delivered paths
+`venue-artifacts.json` declares, using the layout of `.forgejo/CODEOWNERS` and `.forgejo/document.json` on `dev` of `paper-repo` (read 2026-11-26): `paper/main.tex` (the source the build compiles), `paper/icml2027.sty` (the unmodified venue style, which the venue requires the source to use) and `paper/icml2027.bst` (the venue's bibliography style). The submitted PDF is the system's build `paper/main.pdf`, not a committed copy. The venue requires no other file; the objective's code and reproduction notes (`code/README.md`) are the other roles' to place and are not a venue requirement. The unmodified kit is in `template/icml2027/` of this repository for `paper-repo` to copy.

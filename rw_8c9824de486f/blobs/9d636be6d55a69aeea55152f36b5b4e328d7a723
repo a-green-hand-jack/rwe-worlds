@@ -1,0 +1,29 @@
+\begingroup\scriptsize\setlength{\tabcolsep}{4pt}
+\begin{tabular*}{\linewidth}{@{\extracolsep{\fill}}r rr rr l r@{}}\toprule
+$k$ & S0 & S6 & Gain S0$-$S6 [90\% CI] & T1 gain & $\pm\delta_{\text{floor}}$ & S6 excess over floor [90\% CI] \\
+\midrule\multicolumn{7}{@{}l}{G: held-out families (4,507 models, 475 groups; $\delta_{\text{floor}}$ = 1.13, floor = 4.82)} \\
+1 & 9.34 & 7.25 & 2.10 [1.88, 2.31] & 2.44 & helps & 2.42 [2.25, 2.59] \\
+2 & 8.04 & 6.20 & 1.84 [1.65, 2.04] & 2.06 & helps & 1.37 [1.28, 1.48] \\
+3 & 7.30 & 5.90 & 1.40 [1.28, 1.52] & 1.53 & helps & 1.07 [1.01, 1.14] \\
+5 & 6.48 & 5.71 & 0.77 [0.71, 0.83] & 0.84 & equiv. & 0.88 [0.83, 0.93] \\
+8 & 5.86 & 5.43 & 0.44 [0.41, 0.47] & 0.49 & equiv. & 0.60 [0.57, 0.64] \\
+13 & 5.36 & 5.09 & 0.28 [0.25, 0.30] & 0.28 & equiv. & 0.26 [0.23, 0.29] \\
+\midrule\multicolumn{7}{@{}l}{S: strongest quarter (1,127 models, 150 groups; $\delta_{\text{floor}}$ = 1.11, floor = 7.15)} \\
+1 & 14.93 & 12.21 & 2.72 [2.47, 3.02] & 2.06 & helps & 5.07 [4.36, 5.62] \\
+2 & 12.67 & 9.34 & 3.33 [2.86, 3.68] & 1.64 & helps & 2.19 [2.07, 2.31] \\
+3 & 11.54 & 9.02 & 2.52 [2.16, 2.81] & 1.36 & helps & 1.87 [1.72, 1.99] \\
+5 & 10.24 & 8.83 & 1.41 [1.22, 1.56] & 0.80 & helps & 1.69 [1.54, 1.81] \\
+8 & 9.16 & 8.27 & 0.89 [0.81, 0.95] & 0.37 & equiv. & 1.13 [0.95, 1.28] \\
+13 & 8.34 & 7.58 & 0.76 [0.69, 0.81] & 0.30 & equiv. & 0.43 [0.33, 0.52] \\
+\bottomrule\end{tabular*}
+\medskip
+
+\begin{tabular*}{\linewidth}{@{\extracolsep{\fill}}l ll@{}}\toprule
+ & G: empirical $k^*$ [90\% CI] / T1 & S: empirical $k^*$ [90\% CI] / T1 \\\midrule
+$k^*$ at $\delta_{\text{floor}}$ & 3 [3, 5] / 5 ($\epsilon$ = 1.13) & 13 [8, 13] / 3 ($\epsilon$ = 1.11) \\
+$k^*$ at $2\delta_{\text{floor}}$ & 2 [1, 2] / 2 ($\epsilon$ = 2.26) & 2 [2, 3] / 1 ($\epsilon$ = 2.22) \\
+$k^*$ at 0.1 floor & 13 [13, 13] / 13 ($\epsilon$ = 0.48) & 13 [13, 13] / 8 ($\epsilon$ = 0.71) \\
+$k^*$ at 0.5 point & 13 [13, 13] / 13 & 13 [13, $>$13] / 13 \\
+\midrule Floor MSE / T1 floor term [90\% CI] & 1.08 [1.02, 1.15] & 2.48 [2.27, 2.73] \\
+\bottomrule\end{tabular*}
+\endgroup

@@ -1,0 +1,27 @@
+"""Floor statistics for the rare-event populations of E7 (synthetic prevalence 1/2/5% and subsampled real pools)
+and the synthetic rare population of E5; appends to results/floors.json."""
+import json
+from common import *
+from scipy.optimize import brentq
+from scipy.special import expit
+
+fl = json.load(open(os.path.join(RESULTS, "floors.json")))
+
+
+def prev_of(a, b=1.5):
+    ug, w = np.polynomial.hermite_e.hermegauss(200)
+    return (w * expit(a + b * ug)).sum() / w.sum()
+
+
+pops = []
+for p in (0.01, 0.02, 0.05):
+    pops.append(synth_binary(round(brentq(lambda a: prev_of(a) - p, -12, 2), 3), 1.5, 0.5))
+pops.append(synth_binary(-4.0, 1.5, 0.5))      # E5 synth_rare
+for nm in ("galaxies", "plankton"):
+    for p in (0.02, 0.05):
+        pops.append(RarePool(load_pool(nm), p))
+for pop in pops:
+    key = ("synth:" + pop.name) if isinstance(pop, Synth) else pop.name
+    fl[key] = floor_stats(pop)
+    print(key, round(pop.truth, 4), {k: round(v, 5) for k, v in fl[key]["T1"].items() if isinstance(v, float)}, flush=True)
+json.dump(fl, open(os.path.join(RESULTS, "floors.json"), "w"), indent=1)

@@ -1,0 +1,75 @@
+"""Shared figure style. Sizes follow the venue's print widths; override via env or venue.json once venue-repo supplies them."""
+import json, os
+import matplotlib as mpl
+
+# Defaults: NeurIPS-type single-column page. Replaced by venue.json {"text_width_in":..,"col_width_in":..,"min_font_pt":..}
+_DEFAULT = {"text_width_in": 5.5, "col_width_in": 5.5, "min_font_pt": 8.0}
+_p = os.path.join(os.path.dirname(__file__), "venue.json")
+VENUE = {**_DEFAULT, **(json.load(open(_p)) if os.path.exists(_p) else {})}
+
+# Okabe-Ito colour-blind-safe palette; design is also encoded by marker so greyscale prints still separate.
+DESIGN = {
+    "crowd":     dict(color="#0072B2", marker="o", label="crowd votes (Arena)"),
+    "expert":    dict(color="#D55E00", marker="s", label="expert (MT-Bench)"),
+    "llm_judge": dict(color="#009E73", marker="^", label="LLM judge"),
+    "sports":    dict(color="#CC79A7", marker="D", label="sports (NBA)"),
+}
+OTHER = dict(color="#666666", marker="x", label="other")
+NULL_COLOR = "#999999"
+
+def design_style(d):
+    return DESIGN.get(d, OTHER)
+
+def setup():
+    f = VENUE["min_font_pt"]
+    mpl.rcParams.update({
+        "font.family": "serif", "mathtext.fontset": "cm",
+        "font.size": f, "axes.labelsize": f, "axes.titlesize": f,
+        "xtick.labelsize": f, "ytick.labelsize": f, "legend.fontsize": f,
+        "axes.spines.top": False, "axes.spines.right": False,
+        "axes.linewidth": 0.6, "lines.linewidth": 1.2, "lines.markersize": 4,
+        "xtick.major.width": 0.6, "ytick.major.width": 0.6,
+        "legend.frameon": False, "figure.dpi": 150, "savefig.dpi": 300,
+        "pdf.fonttype": 42, "ps.fonttype": 42,  # embed TrueType, no Type 3
+        "figure.constrained_layout.use": True,  # exact printed width: no bbox=tight
+    })
+
+def fig_size(width="text", aspect=0.6):
+    """Printed size in inches; the paper must include the PDF at exactly this width (no scaling).
+    text = full text width; single = 0.8 of it (one-panel figures)."""
+    w = VENUE["text_width_in"] * {"text": 1.0, "single": 0.8, "col": 1.0}[width]
+    return (w, w * aspect)
+
+def margin():
+    """Equivalence margin (log scale) from the pre-analysis note, as copied into margins.json."""
+    return json.load(open(os.path.join(os.path.dirname(__file__), "margins.json")))["delta_logQ"]
+
+def design_legend(ax_or_fig, designs, **kw):
+    """One legend entry per design present (colour + marker)."""
+    from matplotlib.lines import Line2D
+    hs = [Line2D([], [], ls="", marker=design_style(d)["marker"], color=design_style(d)["color"], label=design_style(d)["label"]) for d in designs]
+    return ax_or_fig.legend(handles=hs, **kw)
+
+
+def short_name(ds, tag_judge=False):
+    """Readable dataset name for ticks and table cells."""
+    if ds == "arena55k": return "Arena-55k"
+    if ds == "arena_single": return "Arena single-turn"
+    if ds.startswith("arena_judge_"): return ds[len("arena_judge_"):] + (" (judge)" if tag_judge else "")
+    if ds == "mtbench_human": return "MT-Bench human"
+    if ds == "mtbench_gpt4": return "MT-Bench GPT-4"
+    if ds == "mtbench_gpt4_matched": return "MT-Bench GPT-4 (matched)"
+    if ds.startswith("nba_"): return "NBA " + ds[4:]
+    return ds
+
+
+def plain_log(*axes_):
+    """Decade tick labels as plain numbers on every log axis: mathtext 10^k superscripts would print below the venue's smallest type size."""
+    from matplotlib.ticker import FuncFormatter, NullFormatter
+    for ax in axes_:
+        for axis in (ax.xaxis, ax.yaxis):
+            if axis.get_scale() == "log":
+                axis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}")); axis.set_minor_formatter(NullFormatter())
+
+# Labels with a mathtext superscript or subscript (k^*) are set a little larger: scripts print at 0.7 of the label size and must stay >= 6 pt.
+SCRIPTED = 8.6

@@ -1,0 +1,1 @@
+{"command":"cd paper && latexmk -pdf -interaction=nonstopmode -halt-on-error main.tex","output":"paper/main.pdf"}

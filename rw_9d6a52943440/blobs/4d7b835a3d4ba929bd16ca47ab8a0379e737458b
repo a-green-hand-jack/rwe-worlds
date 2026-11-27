@@ -1,0 +1,11 @@
+data/raw/
+data/processed/
+results/raw/
+__pycache__/
+*.pyc
+results/raw_msrc/
+results/raw_2pct/
+results/raw_extra/
+results/raw_inner50/
+results/raw_kmstrong/
+results/raw_highR/

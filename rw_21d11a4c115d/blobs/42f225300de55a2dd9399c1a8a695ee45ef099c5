@@ -1,0 +1,9 @@
+# Which k benchmarks to run, and how well do they predict the rest?
+
+Delivery root of the study (paper, figures, tables, code, results).
+
+- `paper/` LaTeX sources of the paper (`main.tex`, `refs.bib`, sections, appendix); built by the system from `.forgejo/document.json`.
+- `paper/neurips_2026.sty`, `paper/checklist.tex` the unmodified official NeurIPS 2026 kit (copied from `venue-repo`), `paper/main.tex` the paper.
+- `figures/`, `tables/` delivered figures (PDF) and tables (`.tex`), one file per figure/table, included by the paper.
+- `code/` all code with `code/README.md`: environment and versions, data acquisition and data versions, seeds, commands, expected run time, and which script produces each figure and table.
+- `results/` the numbers the paper reports, in the form the scripts produce them (per-case results included).

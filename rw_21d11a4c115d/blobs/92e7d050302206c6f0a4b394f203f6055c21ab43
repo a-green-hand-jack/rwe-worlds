@@ -1,0 +1,48 @@
+"""Aggregate results/raw/sparse/sparse_<subset>.pkl (run_sparse.py) into results/sparse_*.csv.
+Family-clustered bootstrap over the tested models, B=2000, seed 0, all statistics of one subset share the resamples (as aggregate.py).
+std_rmse = sqrt(mean over tested models of the per-model MSE); gap = std_rmse(greedyA) - std_rmse(random), both with the same predictor;
+closure C(k) = (colmean - err_k) / (colmean - lobo), lobo = the lower-error of the two held-out all-candidates references (lobo_fa, lobo_pw);
+k* = smallest grid k with C >= level (censored if never reached).
+python3 aggregate_sparse.py <results_raw_sparse> <results>"""
+import sys, glob, pickle, os, numpy as np, pandas as pd
+rawd, resd = sys.argv[1:3]; B = 2000; LEVELS = (0.8, 0.9, 0.95)
+class Boot:
+    def __init__(self, fam, seed=0):
+        u, self.fi = np.unique(fam, return_inverse=True); self.F = len(u); self.n_f = np.bincount(self.fi, minlength=self.F).astype(float)
+        self.cnt = np.random.default_rng(seed).multinomial(self.F, np.ones(self.F) / self.F, size=B).astype(float); self.den = self.cnt @ self.n_f
+    def mean(self, e):
+        s = np.bincount(self.fi, weights=e, minlength=self.F); return s.sum() / self.n_f.sum(), (self.cnt @ s) / self.den
+ci = lambda b: (float(np.percentile(b, 2.5)), float(np.percentile(b, 97.5)))
+curves, refs_o, gaps, clos, kst, info = [], [], [], [], [], []
+for f in sorted(glob.glob(f"{rawd}/sparse_*.pkl")):
+    R = pickle.load(open(f, 'rb')); ds = R['dataset']; kg = R['k_grid']
+    te = np.where(np.isfinite(R['refs']['colmean']))[0]; fam = R['family'][te]; bt = Boot(fam); nf = len(set(fam))
+    mse = {k: bt.mean(v[te]) for k, v in R['err'].items()}; refs = {k: bt.mean(v[te]) for k, v in R['refs'].items()}
+    assert all(np.isfinite(v[te]).all() for v in R['err'].values()), ds
+    for nm, (p, b) in refs.items(): refs_o.append((ds, nm, np.sqrt(p), *ci(np.sqrt(b))))
+    lob = min(('lobo_fa', 'lobo_pw'), key=lambda n: refs[n][0]); p, b = refs[lob]; refs_o.append((ds, 'lobo', np.sqrt(p), *ci(np.sqrt(b)))); refs_o.append((ds, 'lobo_source:' + lob, np.nan, np.nan, np.nan))
+    cmp_, cmb = refs['colmean']; lp, lb = refs[lob]
+    for (sel, pr, k), (p, b) in sorted(mse.items()):
+        curves.append((ds, sel, pr, k, np.sqrt(p), *ci(np.sqrt(b)), 1 - p / cmp_, *ci(1 - b / cmb), len(te), nf))
+        if sel == 'greedyA' and pr != 'colmean' or sel == 'random' and pr != 'colmean':
+            cl = (cmp_ - p) / (cmp_ - lp); clb = (cmb - b) / (cmb - lb); clos.append((ds, sel, pr, k, cl, *ci(clb)))
+    for pr in ('fa', 'pw', 'softimpute'):
+        for k in kg:
+            pg, bg = mse[('greedyA', pr, k)]; pr_, br_ = mse[('random', pr, k)]; g = np.sqrt(pg) - np.sqrt(pr_); gb = np.sqrt(bg) - np.sqrt(br_)
+            gaps.append((ds, pr, k, g, *ci(gb), g / np.sqrt(pr_), float((gb >= 0).mean())))
+        for sel in ('greedyA', 'random'):
+            for lev in LEVELS:
+                Cb = np.array([(cmb - mse[(sel, pr, k)][1]) / (cmb - lb) for k in kg]); Cp = [(cmp_ - mse[(sel, pr, k)][0]) / (cmp_ - lp) for k in kg]
+                big = kg[-1] + 1; kb = np.array([next((kg[i] for i in range(len(kg)) if Cb[i, j] >= lev), big) for j in range(B)])
+                kp = next((k for k, c in zip(kg, Cp) if c >= lev), None)
+                kst.append((ds, sel, pr, lev, kp if kp is not None else np.nan, kp is None, kg[-1], *np.percentile(kb, [2.5, 97.5]), float((kb >= big).mean())))
+    rank = [i['r_eff'] for i in R['info']]; info.append((ds, len(R['models']), len(R['tasks']), len(te), nf, int(np.median(R['n_cells'][te])), float(np.mean([i['train_density'] for i in R['info']])),
+        float(np.median(rank)), min(rank), max(rank), float(np.median([i['pw_alpha'] for i in R['info']])), float(np.median([i['softimpute_c'] for i in R['info']])), R['n_draws'], R['n_part'], R['seconds']))
+pd.DataFrame(curves, columns=['subset', 'selector', 'predictor', 'k', 'std_rmse', 'ci_lo', 'ci_hi', 'skill_vs_colmean', 'skill_lo', 'skill_hi', 'n_models', 'n_families']).to_csv(f"{resd}/sparse_curves.csv", index=False)
+pd.DataFrame(refs_o, columns=['subset', 'reference', 'std_rmse', 'ci_lo', 'ci_hi']).to_csv(f"{resd}/sparse_refs.csv", index=False)
+pd.DataFrame(gaps, columns=['subset', 'predictor', 'k', 'gap', 'ci_lo', 'ci_hi', 'rel_gap_to_random', 'p_boot_ge0']).to_csv(f"{resd}/sparse_gap.csv", index=False)
+pd.DataFrame(clos, columns=['subset', 'selector', 'predictor', 'k', 'closure', 'ci_lo', 'ci_hi']).to_csv(f"{resd}/sparse_closure.csv", index=False)
+pd.DataFrame(kst, columns=['subset', 'selector', 'predictor', 'level', 'kstar', 'censored', 'grid_max', 'kstar_ci_lo', 'kstar_ci_hi', 'share_censored_boot']).to_csv(f"{resd}/sparse_kstar.csv", index=False)
+pd.DataFrame(info, columns=['subset', 'n_models', 'n_tasks', 'n_tested_models', 'n_test_families', 'median_cells_per_tested_model', 'mean_train_density', 'median_r_eff', 'min_r_eff', 'max_r_eff',
+    'median_pw_shrink', 'median_softimpute_c', 'n_draws', 'n_part', 'seconds']).to_csv(f"{resd}/sparse_run_info.csv", index=False)
+print('ok', len(curves))

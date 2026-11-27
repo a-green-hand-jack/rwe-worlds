@@ -1,0 +1,6 @@
+#!/bin/bash
+# usage: 16_scope_all.sh <data_dir> <out_dir>   (scope sweeps over G folds 0-3)
+export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
+cd "$(dirname "$0")"
+( for c in ref M50 M25 dens70 dens50 dens30 logit types; do for f in 0 1 2 3; do echo "$c $f"; done; done ) | xargs -P 2 -L 1 sh -c "python3 -u 15_scope.py $1 $2 \$0 \$1"
+echo HUTIAN_WAKE: scope done

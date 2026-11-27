@@ -1,0 +1,112 @@
+Edition: NeurIPS 2026 (40th Conference on Neural Information Processing Systems), Main Track. Retrieved 2026-11-14.
+
+## Edition choice
+
+- NeurIPS 2026 is the newest edition with a published call for papers; https://neurips.cc/Conferences/2027 and https://neurips.cc/Conferences/2027/CallForPapers both return HTTP 404 on 2026-11-14.
+- Its deadlines have passed: abstract May 4, 2026 (AOE), full paper including all supplementary material May 6, 2026 (AOE), notification September 24, 2026 (https://neurips.cc/Conferences/2026/CallForPapers). Re-check for NeurIPS 2027 before using this for a new submission.
+- Scope: Main Track only. Other tracks (Evaluations & Datasets, Position Papers, and others) have separate calls, portals and timelines, and a paper cannot be submitted to more than one track (https://neurips.cc/Conferences/2026/CallForPapers).
+- Paths written as `template/...` are files of the official style kit; `ht-role venue neurips --template DIR` copies them into DIR.
+
+## Page limit
+
+- The main text is limited to nine content pages, including all figures and tables (https://neurips.cc/Conferences/2026/MainTrackHandbook; also `template/neurips_2026.tex`, Section 1.1).
+- Not counted: references, optional technical appendices and the mandatory paper checklist (https://neurips.cc/Conferences/2026/MainTrackHandbook). The kit's example adds acknowledgments to this list: "Additional pages containing acknowledgments, references, checklist, and optional technical appendices do not count as content pages" (`template/neurips_2026.tex`).
+- There is no page limit for references, appendices or the checklist (OpenReview submission form, pdf field: https://api2.openreview.net/invitations?id=NeurIPS.cc/2026/Conference/-/Submission&expired=true).
+- Penalty: "Papers that exceed the page limit will not be reviewed (or in any other way considered)" (`template/neurips_2026.tex`). Submissions that break the style or the page limit may be desk rejected (https://neurips.cc/Conferences/2026/MainTrackHandbook).
+- Camera-ready: one additional content page is allowed (https://neurips.cc/Conferences/2026/MainTrackHandbook). The camera-ready upload is a single PDF holding "All 10 pages of the paper, references, text appendices and the paper checklist" (same source).
+- Broader impacts: no section titled "broader impacts" is required. A discussion of negative societal impact may go anywhere in the paper, but "this discussion may not exceed the page limit" (https://neurips.cc/Conferences/2026/MainTrackHandbook).
+
+## Layout as enforced by the style file
+
+- Paper size: US Letter. The geometry package is loaded with `letterpaper` (`template/neurips_2026.sty`), and the instructions say "Please prepare submission files with paper size 'US Letter,' and not, for example, 'A4.'" (`template/neurips_2026.tex`, Section 5 "Preparing PDF files").
+- Text block: 5.5 in wide × 9 in high (33 × 54 picas), left margin 1.5 in, pages start 1 in from the top (`template/neurips_2026.tex`, Section 2). The style sets `textheight=9in`, `textwidth=5.5in`, `top=1in`, `headheight=12pt`, `headsep=25pt`, `footskip=30pt` (`template/neurips_2026.sty`).
+- Columns: one. The style does not set `\twocolumn` (`template/neurips_2026.sty`).
+- Font: Times. The style sets `\rmdefault` to `ptm` (Times) and `\sfdefault` to `phv` (Helvetica). Body text is 10 pt on 11 pt leading. Paragraphs have no indentation and are separated by 5.5 pt (`template/neurips_2026.sty`; `template/neurips_2026.tex`, Section 2).
+- Small sizes have a floor: `\tiny` is at least 6 pt, `\scriptsize` at least 7 pt and `\footnotesize` at least 8 pt (`template/neurips_2026.sty`). References may use `\small` (9 pt) (`template/neurips_2026.tex`, References).
+- Submission mode: if neither `final` nor `preprint` is passed, the style anonymises the author block ("Anonymous Author(s)"), adds line numbers through `lineno`, hides the `ack` environment, and prints the footer "Submitted to 40th Conference on Neural Information Processing Systems (NeurIPS 2026). Do not distribute." (`template/neurips_2026.sty`). Do not refer to these line numbers in the paper (`template/neurips_2026.tex`).
+- Track options: `main` (the default), `position`, `eandd`, `creativeai`, `education`, `sglblindworkshop` and `dblblindworkshop`. Add `final` only for the camera-ready version (`template/neurips_2026.tex`, preamble comments).
+- Rule against changing the layout: "Do not change any aspects of the formatting parameters in the style files. In particular, do not modify the width or length of the rectangle the text should fit into, and do not change font sizes. Please note that pages should be numbered." (`template/neurips_2026.tex`, Section 4.6 "Final instructions"). "Tweaking the style files may be grounds for desk rejection." (same file, Section 1.1). Submissions that decrease margins or font sizes may be desk rejected (https://neurips.cc/Conferences/2026/MainTrackHandbook). The style prints a warning if the `fullpage` package is loaded (`template/neurips_2026.sty`).
+- Template: the NeurIPS LaTeX style file for the year is the only accepted template, and the Word template has been discontinued (https://neurips.cc/Conferences/2026/MainTrackHandbook).
+- Fonts in the PDF: only Type 1 or embedded TrueType fonts. Authors will be asked to fix PDFs that contain Type 3 or non-embedded TrueType fonts (`template/neurips_2026.tex`, Section 5 "Preparing PDF files").
+
+## Anonymity and double-blind rules
+
+- All submissions must be anonymised and must not contain identifying information. This applies to "any supplementary or linked material as well, including code" (https://neurips.cc/Conferences/2026/MainTrackHandbook). Violations are desk rejected (same source).
+- Links: "If you are including links to any external material, it is your responsibility to guarantee anonymous browsing." (https://neurips.cc/Conferences/2026/MainTrackHandbook).
+- Acknowledgments must not appear at submission time (https://neurips.cc/Conferences/2026/MainTrackHandbook). The `ack` environment hides them automatically in the anonymous version (`template/neurips_2026.tex`).
+- Your own published work is cited in the third person: "In the previous work of Smith et al. [1]…", not "In our previous work [1]…" (https://neurips.cc/Conferences/2026/MainTrackHandbook).
+- Your own work that is under submission and not available as a non-anonymous preprint: include an anonymised copy in the supplementary material and cite it as "Anonymous et al. [1] concurrently show..." (https://neurips.cc/Conferences/2026/MainTrackHandbook).
+- Preprints: non-anonymous preprints on arXiv, personal websites or social media do not lead to rejection. If a preprint uses the NeurIPS style, it must use the `preprint` option, not `final`. Public versions must not say "Under review at NeurIPS" or similar. "Aggressive advertising" of papers under submission may be treated as a violation (https://neurips.cc/Conferences/2026/MainTrackHandbook).
+
+## Required parts besides the paper body
+
+- Paper checklist: mandatory. It is included in the template (`template/checklist.tex`, loaded by `\input{checklist.tex}`). "The papers not including the checklist will be desk rejected." It goes after the references and the optional appendix and does not count toward the page limit (`template/checklist.tex`). The submission form also requires confirming that the checklist is in the PDF (https://api2.openreview.net/invitations?id=NeurIPS.cc/2026/Conference/-/Submission&expired=true).
+- How to fill in the checklist: answer `\answerYes{}`, `\answerNo{}` or `\answerNA{}` and give a 1–2 sentence justification. Delete the instruction block but keep the heading "NeurIPS Paper Checklist". Do not modify the questions (`template/checklist.tex`).
+- The checklist has 16 items: Claims; Limitations; Theory assumptions and proofs; Experimental result reproducibility; Open access to data and code; Experimental setting/details; Experiment statistical significance; Experiments compute resources; Code of ethics; Broader impacts; Safeguards; Licenses for existing assets; New assets; Crowdsourcing and research with human subjects; IRB approvals or equivalent; Declaration of LLM usage (`template/checklist.tex`).
+- LLM use:
+  - Agent or LLM use must be described in the experimental setup (or equivalent) "if it is an important, original, or non-standard component of the approach". Spell checking, grammar suggestions, editing aid and basic code assistance need not be documented. Agents and LLMs cannot be authors. Prompt injection is "strictly prohibited" (https://neurips.cc/Conferences/2026/MainTrackHandbook).
+  - Checklist item 16 asks the same question (`template/checklist.tex`).
+  - The submission form also has a confidential `LLM_usage` multi-select, used only for aggregate statistics, and an optional opt-in to the LLM-assisted review experiment (https://api2.openreview.net/invitations?id=NeurIPS.cc/2026/Conference/-/Submission&expired=true).
+- Camera-ready only:
+  - Funding and competing-interests disclosure (https://neurips.cc/Conferences/2026/MainTrackHandbook). In the kit this goes in the `ack` environment, which prints "Acknowledgments and Disclosure of Funding" before the references (`template/neurips_2026.tex`; `template/neurips_2026.sty`).
+  - A paragraph-length lay summary (https://neurips.cc/Conferences/2026/MainTrackHandbook).
+- Suggested order inside the single PDF: paper content, references, appendices, checklist (https://neurips.cc/Conferences/2026/MainTrackHandbook).
+
+## Supplementary material
+
+- Text appendices go in the same PDF, after the references. "do not upload a separate PDF file for the appendix". There is no page limit for technical appendices, and the paper must stand alone without them (`template/neurips_2026.tex`, Appendix A). Written appendices must not go in the supplementary ZIP (OpenReview form: https://api2.openreview.net/invitations?id=NeurIPS.cc/2026/Conference/-/Submission&expired=true).
+- Code and data: a separate single ZIP file of up to 100 MB, anonymised (https://neurips.cc/Conferences/2026/MainTrackHandbook). The form accepts `.zip`, `.tgz` or `.gz` up to 100 MB. There is no separate supplementary deadline, and supplementary material stays visible to reviewers throughout and after review (https://api2.openreview.net/invitations?id=NeurIPS.cc/2026/Conference/-/Submission&expired=true).
+- Code guidelines: include training and evaluation code and a specification of dependencies. The code should ideally be self-contained and executable; otherwise explain why (https://neurips.cc/Conferences/2026/MainTrackHandbook).
+- New datasets: answer the relevant checklist questions. Link the dataset from the paper (anonymised for review). Recommended: long-term repository, persistent identifier, Schema.org/DCAT metadata, and the licence stated in the paper (https://neurips.cc/Conferences/2026/MainTrackHandbook).
+- Reviewers are not required to read supplementary material (https://neurips.cc/Conferences/2026/MainTrackHandbook, reviewer FAQ).
+
+## Submission format
+
+- One PDF that includes the content, references, appendices and checklist. Maximum file size is 50 MB (https://neurips.cc/Conferences/2026/MainTrackHandbook; OpenReview form, pdf field, maxSize 50).
+- Submitted through OpenReview: https://openreview.net/group?id=NeurIPS.cc/2026/Conference (https://neurips.cc/Conferences/2026/CallForPapers).
+- Camera-ready file size limit: not stated.
+
+## What reviewers judge
+
+The review form, from the Review Form section of https://neurips.cc/Conferences/2026/MainTrackHandbook:
+
+- **Summary.** The authors "should generally agree with a well-written summary".
+- **Contribution Type confirmation.** The reviewer confirms they have read the guidelines for the paper's type.
+- **Strengths and Weaknesses.** A narrative covering "the four dimensions of Quality, Clarity, Significance, and Originality". How these dimensions are read depends on the contribution type.
+- **Quality, Clarity, Significance and Originality.** Each is rated 4 excellent, 3 good, 2 fair or 1 poor.
+- **Questions.** Ideally 3–5.
+- **Limitations.** A yes, or constructive suggestions.
+- **Overall.**
+  - 6 Strong Accept
+  - 5 Accept
+  - 4 Borderline accept
+  - 3 Borderline reject
+  - 2 Reject
+  - 1 Strong Reject
+- **Confidence.** 1–5.
+- **Ethical concerns.** Flags for ethics review.
+- **Paper Formatting Concerns.** Reviewers list formatting or anonymity violations here. The handbook says "your overall reviewing score should not be decreased as a result of any perceived violations".
+
+General definitions of the four criteria, from https://neurips.cc/Conferences/2026/ReviewerGuidelines:
+
+- **Quality:** "Is the submission technically sound? Are claims well supported ...? ... Is this a complete piece of work or work in progress?"
+- **Clarity:** "Is the submission clearly written? Is it well organized? ... A superbly written paper provides enough information for an expert reader to reproduce its results."
+- **Significance:** "Are the results impactful for the community? Are others ... likely to use the ideas or build on them?"
+- **Originality:** "originality does not necessarily require introducing an entirely new method".
+
+Per-type rules from the same page:
+
+- Theory: "Empirical validation is not necessary."
+- Use-Inspired: the use case must be "real and meaningful".
+- Concept & Feasibility and Negative Results: higher significance and originality bars.
+
+Other reviewer guidance, from the reviewer FAQ in https://neurips.cc/Conferences/2026/MainTrackHandbook:
+
+- Reviewers may use the checklist. Answering "no" is "typically not grounds for rejection".
+- Minor formatting violations, such as going over by a few lines, are not to be penalised.
+
+## Template
+
+- Download URL (linked as "Paper template" from https://neurips.cc/Conferences/2026/CallForPapers): https://media.neurips.cc/Conferences/NeurIPS2026/Formatting_Instructions_For_NeurIPS_2026.zip, retrieved 2026-11-14. The style file declares itself the January 2026 submission/camera-ready style.
+- Files, as the kit holds them: `neurips_2026.tex` (the instructions, written as an example paper), `checklist.tex` (the paper checklist, loaded by `\input{checklist.tex}`), `neurips_2026.sty`. There is no example PDF or bibliography style.
+- Licence: none stated in the kit or on the venue's pages.

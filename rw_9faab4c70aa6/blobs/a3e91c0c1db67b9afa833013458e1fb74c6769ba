@@ -1,0 +1,45 @@
+"""Pool-bootstrap intervals from replicate-level estimates, with the Monte-Carlo variance of the S draws removed."""
+import numpy as np
+
+
+def pool_ci(vals, mc_var, level=0.95, center=None):
+    """vals: estimate in each bootstrap replicate (one per resampled pool); mc_var: variance of that estimate caused
+    by the finite number of S draws in the replicate (scalar or per-replicate).  Returns (lo, hi, se_between).
+    The between-replicate variance is var(vals) - mean(mc_var) ; the deviations are shrunk to it.  If it is not positive the unshrunk spread is returned (upper bound) with se_between = nan.
+    With `center` the interval is the shrunk bootstrap spread placed on that point estimate."""
+    v = np.asarray(vals, float); v = v[np.isfinite(v)]
+    if len(v) < 3: return (np.nan, np.nan, np.nan)
+    tot = v.var(ddof=1); b = tot - float(np.mean(mc_var))
+    if b <= 0:     # between-pool spread not resolved from the Monte-Carlo noise: keep the unshrunk spread (an upper bound) and flag it with se_between = nan
+        s, b = 1.0, np.nan
+    else: s = np.sqrt(b / tot)
+    w = v.mean() + s * (v - v.mean()); a = (1 - level) / 2
+    lo, hi = float(np.quantile(w, a)), float(np.quantile(w, 1 - a))
+    if center is not None and np.isfinite(center):    # spread of the pool bootstrap, placed on the point estimate (resampled pools carry duplicated items, so their mean is not the pool's value)
+        lo, hi = lo - v.mean() + center, hi - v.mean() + center
+    return lo, hi, float(np.sqrt(b)) if np.isfinite(b) else np.nan
+
+
+def rate_mc_var(p, draws):
+    p = np.asarray(p, float); return p * (1 - p) / draws
+
+
+def total_ci(vals, mc_var, point_mc_se, level=0.95, center=None, z_var=2.0):
+    """Interval for the expected value over S on the *population* of pools, from replicate-level estimates `vals`.
+    Two Monte-Carlo errors are carried, both of which `pool_ci` ignores:
+      1. the between-pool variance is var(vals) - mean(mc_var), a difference of two nearly equal numbers when the S draws
+         per replicate dominate; its own sampling error (relative SE sqrt(2/(R-1)) of the replicate variance) is added
+         at z_var standard errors, so an unresolved between-pool component gives a wide, not a spuriously narrow, interval;
+      2. the point estimate `center` itself rests on a finite number of S draws (point_mc_se), added in quadrature.
+    Returns (lo, hi, se_between_point, se_between_upper, resolved) where resolved = the point estimate of the between-pool
+    variance exceeds z_var standard errors of the replicate variance."""
+    v = np.asarray(vals, float); v = v[np.isfinite(v)]; R = len(v)
+    if R < 3: return (np.nan,) * 4 + (False,)
+    tot = v.var(ddof=1); b = tot - float(np.mean(mc_var)); se_var = tot * np.sqrt(2.0 / (R - 1))
+    b_pt = max(b, 0.0); b_ub = min(b_pt + z_var * se_var, tot)
+    s = np.sqrt(b_ub / tot); w = s * (v - v.mean()); a = (1 - level) / 2
+    lo_, hi_ = float(np.quantile(w, a)), float(np.quantile(w, 1 - a))
+    c = center if (center is not None and np.isfinite(center)) else v.mean()
+    z = 1.959964
+    lo = c - np.sqrt(lo_ ** 2 + (z * point_mc_se) ** 2); hi = c + np.sqrt(hi_ ** 2 + (z * point_mc_se) ** 2)
+    return float(lo), float(hi), (float(np.sqrt(b)) if b > 0 else np.nan), float(np.sqrt(b_ub)), bool(b > z_var * se_var)

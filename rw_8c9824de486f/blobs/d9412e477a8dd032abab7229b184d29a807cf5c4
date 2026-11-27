@@ -1,0 +1,30 @@
+{
+ "B": 5000,
+ "resampling_unit": "org group (held-out groups)",
+ "seed_note": "boot seeds 1000+k..4000+k; fold seed 20261126",
+ "k_grid": [
+  1,
+  2,
+  3,
+  5,
+  8,
+  12,
+  20,
+  32,
+  50,
+  80,
+  109
+ ],
+ "random_draws": 50,
+ "n_heldout_models": {
+  "G": 238,
+  "S": 60,
+  "T": 68
+ },
+ "n_heldout_groups": {
+  "G": 83,
+  "S": 32,
+  "T": 37
+ },
+ "git": "see git log"
+}

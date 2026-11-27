@@ -1,0 +1,118 @@
+"""Core fragility computation for one data set (or a family of data sets).
+
+usage: core01.py UNIT [--boot 500] [--null 20] [--seed 0] [--npairs-null 300]
+UNIT: arena55k | arena_single | judge:<name> | mtbench_human | mtbench_gpt4 | mtbench_gpt4_matched | nba:<year>
+Writes /hutian/results/core/<name>.parquet (real pairs) and <name>.null.parquet (parametric-bootstrap null pairs).
+"""
+import argparse, os, sys, time
+import numpy as np, pandas as pd
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+import btlib as B, datasets as D, analysis as A
+
+OUT = os.environ.get("BT_RESULTS", "/hutian/results")
+
+
+def drop_ties(d):
+    keep = d["s"] != 0.5
+    out = dict(d, s=d["s"][keep], ci=d["ci"][keep], cj=d["cj"][keep], cluster=pd.factorize(d["cluster"][keep])[0], name=d["name"] + "_noties")
+    if "extra" in d:
+        out["extra"] = {k: v[keep] for k, v in d["extra"].items()}
+    return out
+
+
+def get(unit):
+    """sensitivity variants: UNIT@t1 / UNIT@t2 (MT-Bench turn 1 / 2), UNIT@noties (comparisons that are ties removed)"""
+    if "@" in unit:
+        base, var = unit.split("@")
+        if var in ("t1", "t2"):
+            m = D.mtbench(turn=int(var[1]))
+            d = m[base[8:]]; d["name"] = d["name"] + "_" + var
+            return d
+        if var == "noties":
+            return drop_ties(get(base))
+        raise ValueError(unit)
+    if unit == "arena55k":
+        return D.arena55k()
+    if unit == "arena_single":
+        return D.potsawee_judges(which=[])["crowd"]
+    if unit.startswith("judge:"):
+        return D.potsawee_judges(which=[unit[6:]])[unit[6:]]
+    if unit.startswith("mtbench_"):
+        m = D.mtbench()
+        return {"human": m["human"], "gpt4": m["gpt4"], "gpt4_matched": m["gpt4_matched"]}[unit[8:]]
+    if unit.startswith("nba:"):
+        return D.nba(int(unit[4:]))
+    raise ValueError(unit)
+
+
+def stratified(rows, n):
+    """deterministic subset of pairs evenly spread over z-rank, always including the top-1 vs top-2 pair"""
+    if len(rows) <= n:
+        return list(range(len(rows)))
+    z = np.array([r["z_fisher"] for r in rows])
+    idx = np.argsort(z)
+    pick = set(idx[np.linspace(0, len(idx) - 1, n).astype(int)])
+    pick.add(int(np.argmax([(r["a"] == rows[0]["a"]) and (r["b"] == rows[0]["b"]) for r in rows])))
+    return sorted(pick)
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("unit"); ap.add_argument("--boot", type=int, default=500)
+    ap.add_argument("--null", type=int, default=20); ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--npairs-null", type=int, default=300)
+    ap.add_argument("--families", default="delete,flip")
+    ap.add_argument("--force", action="store_true")
+    ap.add_argument("--sub", default="core", help="output sub-directory of $BT_RESULTS (sensitivity variants use sens)")
+    a = ap.parse_args()
+    os.makedirs(f"{OUT}/{a.sub}", exist_ok=True)
+    fn = f"{OUT}/{a.sub}/{a.unit.replace(':', '_')}.parquet"
+    if os.path.exists(fn) and not a.force:
+        old = pd.read_parquet(fn, columns=["boot", "seed"]).iloc[0]
+        nn = f"{OUT}/{a.sub}/{a.unit.replace(':', '_')}.null.parquet"
+        if old.boot == a.boot and old.seed == a.seed and os.path.exists(nn) and pd.read_parquet(nn, columns=["rep"]).rep.max() + 1 == a.null:
+            print(a.unit, "exists, skipped"); return
+    t0 = time.time()
+    d = get(a.unit)
+    P = A.Prepared(d)
+    rng = np.random.default_rng(a.seed)
+    tb = P.bootstrap_theta(a.boot, rng, by="cluster")
+    tbi = P.bootstrap_theta(a.boot, np.random.default_rng(a.seed + 1), by="comparison")
+    order = np.argsort(-P.theta)
+    rank_boot = np.argsort(np.argsort(-tb, axis=1), axis=1)
+    meta = dict(unit=a.unit, name=P.name, design=P.design, N=P.N, M=P.M, P=P.g.P, density=P.g.P / (P.M * (P.M - 1) / 2),
+                tie_rate=P.tie_rate, ncl=P.ncl, boot=a.boot, seed=a.seed)
+    real, null = [], []
+    pairs_all = [(order[r], order[s]) for r in range(P.M) for s in range(r + 1, P.M)]
+    for fam in a.families.split(","):
+        rows = A.all_pairs(P, P.cnt, fam, th0=P.theta, pairs=pairs_all)
+        for r in rows:
+            ga = tb[:, r["a"]] - tb[:, r["b"]]
+            gi = tbi[:, r["a"]] - tbi[:, r["b"]]
+            r.update(family=fam, se_boot=ga.std(ddof=1), se_boot_cmp=gi.std(ddof=1), p_flip_boot=(ga <= 0).mean(),
+                     p_flip_boot_cmp=(gi <= 0).mean(), ra=int(np.where(order == r["a"])[0][0]), rb=int(np.where(order == r["b"])[0][0]))
+            r["z_boot"] = r["gap"] / r["se_boot"]
+            r.update(meta)
+        real += rows
+        sel = stratified(rows, a.npairs_null)
+        npairs = [(rows[i]["a"], rows[i]["b"]) for i in sel]
+        for rep in range(a.null):
+            cn = A.simulate_null(P, np.random.default_rng([a.seed, 7, rep]))
+            Pn = A.Prepared.__new__(A.Prepared)
+            th_n = B.fit(P.g, cn, theta0=P.theta)
+            nr = A.all_pairs(P, cn, fam, th0=th_n, pairs=npairs)
+            for r in nr:
+                r.update(family=fam, rep=rep, **meta)
+            null += nr
+        print(a.unit, fam, "done", round(time.time() - t0, 1), flush=True)
+    pd.DataFrame(real).to_parquet(f"{OUT}/{a.sub}/{a.unit.replace(':', '_')}.parquet")
+    pd.DataFrame(null).to_parquet(f"{OUT}/{a.sub}/{a.unit.replace(':', '_')}.null.parquet")
+    # model table
+    mt = pd.DataFrame(dict(model=P.names, theta=P.theta, se_boot=tb.std(0, ddof=1), n_cmp=np.bincount(P.g.pa, P.cnt.sum(1), P.M) + np.bincount(P.g.pb, P.cnt.sum(1), P.M),
+                           rank=np.argsort(np.argsort(-P.theta)) + 1, rank_lo=np.percentile(rank_boot, 2.5, axis=0) + 1, rank_hi=np.percentile(rank_boot, 97.5, axis=0) + 1))
+    mt.to_parquet(f"{OUT}/{a.sub}/{a.unit.replace(':', '_')}.models.parquet")
+    print("total", round(time.time() - t0, 1), flush=True)
+
+
+if __name__ == "__main__":
+    main()

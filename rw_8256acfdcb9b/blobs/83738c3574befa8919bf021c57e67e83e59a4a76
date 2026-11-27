@@ -1,0 +1,103 @@
+"""Numeric ranges quoted in the captions, computed from the plotted numbers (the figures' .csv), never typed by hand.
+
+usage: caption_ranges.py FIGURES_DIR   (reads FIGURES_DIR/fig*.csv, writes FIGURES_DIR/caption_ranges.json)
+Each entry: what the number is, the filter on the figure csv, min/max with the cell that attains it, n cells. A range over cells is a range of
+per-cell point estimates (dataset x model); the interval of a cell is in the figure csv. Counts of cells whose CI excludes 0 are given where the caption reads signs.
+"""
+import json, os, sys
+import numpy as np
+import pandas as pd
+
+D = sys.argv[1]
+rd = lambda n: pd.read_csv(os.path.join(D, n + ".csv"))
+out = {}
+
+
+def cell(r):
+    return "%s/%s" % (r["dataset"], r["model"]) + ("/" + str(r["estimator"]) if "estimator" in r.index and pd.notna(r["estimator"]) else "")
+
+
+def rng(key, df, col, what, filt, lo="ci_lo", hi="ci_hi", signed=None):
+    signed = col in ("diff", "paired_diff", "slope") if signed is None else signed
+    df = df.dropna(subset=[col])
+    if not len(df):
+        out[key] = dict(what=what, filter=filt, n_cells=0); return
+    a, b = df.loc[df[col].idxmin()], df.loc[df[col].idxmax()]
+    e = dict(what=what, filter=filt, min=round(float(a[col]), 4), max=round(float(b[col]), 4), min_at=cell(a), max_at=cell(b),
+             median=round(float(df[col].median()), 4), n_cells=int(len(df)))
+    if signed and lo in df and hi in df:
+        e["n_ci_below_0"] = int((df[hi] < 0).sum()); e["n_ci_above_0"] = int((df[lo] > 0).sum()); e["n_ci_contains_0"] = int(((df[lo] <= 0) & (df[hi] >= 0)).sum())
+    out[key] = e
+
+
+# Fig 2: shares at the reference budget (shap default where it samples: d >= 16; else the largest sampling budget)
+f2 = rd("fig2_headline")
+ref = {"german": 2088, "acs_employment": 2080, "acs_income": 511, "gmsc": 511, "pima": 127}
+f2["ref"] = f2.dataset.map(ref) == f2.budget_m
+for p in ["share_pc_strict", "share_pc_eps"]:
+    g = f2[(f2.panel == p) & f2.ref]
+    for name, ds in [("d16plus", ["german", "acs_employment"]), ("d10minus_largest_sampling", ["acs_income", "gmsc", "pima"])]:
+        rng("fig2_%s_%s" % (p, name), g[g.dataset.isin(ds)].rename(columns={"share": "v"}), "v",
+            "share of instances with P_c%s >= 0.9 at the reference budget" % ("" if p == "share_pc_strict" else "^eps(0.05)"),
+            "panel=%s, budget = reference, datasets %s" % (p, ds), lo="ci_lo", hi="ci_hi")
+g = f2[(f2.panel == "mean_pearson") & f2.ref]
+rng("fig2_mean_pearson_ref", g.rename(columns={"mean": "v"}), "v", "mean per-instance Pearson (aggregate agreement) at the reference budget", "panel=mean_pearson, budget = reference", lo="lo", hi="hi")
+
+# Fig 3: share by margin quartile (default budget cells)
+f3 = rd("fig3_margin")
+for q, g in f3.groupby("quartile"):
+    rng("fig3_share_exact_%s" % q, g, "share_pc_exact_ge09", "share of instances with exact top-3 P_c >= 0.9, margin quartile %s (n per cell in csv)" % q, "budget_role=%s" % sorted(g.budget_role.unique()), lo="ci_lo", hi="ci_hi")
+    rng("fig3_share_eps_%s" % q, g, "share_pc_eps_ge09", "share with P_c^eps(0.05) >= 0.9, quartile %s" % q, "same", lo="x", hi="x")
+    gg = g[g.budget_role == "default"]
+    rng("fig3_share_exact_%s_default_only" % q, gg, "share_pc_exact_ge09", "share with exact top-3 P_c >= 0.9, quartile %s, d >= 16 cells at the shap default" % q, "budget_role=default", lo="ci_lo", hi="ci_hi")
+
+# Fig 4
+f4 = rd("fig4_budget")
+rng("fig4_phi_error_slope", f4[f4.panel == "fitted_slope"], "slope", "log-log slope of the relative L2 error vs m (shap default estimator, fitted over the budgets listed)", "panel=fitted_slope", lo="ci_lo", hi="ci_hi")
+t = f4[f4.panel == "tobit_slope"]
+for (e, c), g in t.groupby(["estimator", "criterion"]):
+    rng("fig4_tobit_%s_%s" % (e, c), g, "slope", "Tobit slope of log m* on log margin (predicted -2); n_instances, censoring in csv", "panel=tobit_slope, estimator=%s, criterion=%s" % (e, c), lo="ci_lo", hi="ci_hi")
+    gg = g[g.dataset.isin(["german", "acs_employment"])]
+    if len(gg) and len(gg) < len(g):
+        rng("fig4_tobit_%s_%s_d16plus" % (e, c), gg, "slope", "same, d >= 16 cells only (German, ACS Employment)", "same + datasets german, acs_employment", lo="ci_lo", hi="ci_hi")
+        out["fig4_tobit_%s_%s_d16plus" % (e, c)]["n_ci_contains_minus2"] = int(((gg.ci_lo <= -2) & (gg.ci_hi >= -2)).sum())
+pdiff = f4[f4.panel == "paired_diff"]
+for (c, q), g in pdiff.groupby(["contrast", "quantity"]):
+    rng("fig4_paired_diff_%s_%s" % (c, q), g, "diff", "paired difference of share-correct at equal evaluations, %s, %s" % (c, q), "panel=paired_diff", lo="ci_lo", hi="ci_hi")
+
+# Fig 5: floors
+f5 = rd("fig5_floors")
+for fl, g in f5.groupby("floor"):
+    rng("fig5_%s" % fl, g, "mean", "mean top-3 agreement, floor %s (n_instances, n_models in csv; n/a cells absent)" % fl, "floor=%s" % fl, lo="ci_lo", hi="ci_hi")
+
+# Fig 6: R1
+f6 = rd("fig6_certificate")
+for c, g in f6[f6.panel == "b"].groupby("contrast"):
+    for s, gg in g.groupby("split"):
+        rng("fig6_%s_%s" % (c, s), gg.assign(dataset=gg.dataset, model="pooled"), "diff", "paired Brier difference (negative: certificate better), %s, split=%s" % (c, s), "panel=b", lo="ci_lo", hi="ci_hi")
+
+# Fig 7 and sampled-budget variant
+for nm, fn in [("fig7", "fig7_floor_b"), ("figA_floor_b_sampled", "figA_floor_b_sampled")]:
+    f7 = rd(fn)
+    for (b, e), g in f7.groupby(["background", "estimator_floor_a"]):
+        rng("%s_paired_diff_%s_vs_floor_a_%s" % (nm, b, e), g, "paired_diff", "floor b - floor a (negative: background changes the top-3 more than rerunning), background %s, floor a of %s" % (b, e), "all cells in csv", lo="diff_ci_lo", hi="diff_ci_hi")
+    g = f7.drop_duplicates(["dataset", "model", "background"])
+    for b, gg in g.groupby("background"):
+        rng("%s_floor_b_%s" % (nm, b), gg, "floor_b", "floor b (top-3 agreement across K independent backgrounds), background %s" % b, "one row per cell", lo="floor_b_ci_lo", hi="floor_b_ci_hi")
+    e = f7.groupby("estimator_floor_a").floor_a.agg(["min", "max"]).round(4)
+    out["%s_floor_a_by_estimator" % nm] = dict(what="floor a (run-to-run top-3 agreement at the reference budget) used in the paired difference", **{k: {"min": v["min"], "max": v["max"]} for k, v in e.to_dict("index").items()})
+
+# Fig A: background
+fa = rd("figA_background")
+for (p, b), g in fa.groupby(["panel", "background"]):
+    rng("figA_%s_%s" % (p, b), g, "value", "%s, background %s vs the B=50 reference (n_instances in csv)" % (p, b), "panel=%s" % p, lo="ci_lo", hi="ci_hi", signed=(p == "paired_diff_pc"))
+
+# Fig B
+fb = rd("figB_m5_robust")
+for (e,), g in fb[fb.panel == "probit_beta"].groupby(["estimator"]):
+    rng("figB_beta_%s" % e, g, "beta", "probit coefficient on g*sqrt(m)/sigma (collapse predicts 1)", "panel=probit_beta, estimator=%s" % e, lo="ci_lo", hi="ci_hi")
+for (e, v), g in fb[fb.panel == "tobit_variant"].groupby(["estimator", "variant"]):
+    rng("figB_tobit_%s_%s" % (e, v), g, "slope", "Tobit slope under grid variant %s" % v, "panel=tobit_variant, estimator=%s" % e, lo="ci_lo", hi="ci_hi")
+
+json.dump(out, open(os.path.join(D, "caption_ranges.json"), "w"), indent=1)
+print("caption_ranges.json: %d entries" % len(out))

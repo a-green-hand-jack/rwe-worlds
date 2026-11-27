@@ -1,0 +1,42 @@
+"""Aggregate the scope sweeps on the C/T score (30_scope_ct.py + 21_eval_ct.py, tag sc): per condition, S0/S6 x P5 excess over the model's own floor, paired gain, relative to the floor.
+Errors are in the units of the condition's matrix (raw points; logit units for `logit`; mean of the member tasks for suite/types), so the comparisons across conditions use the *relative*
+columns (excess/floor, gain/floor). Fixed subset per condition: models eligible at that condition's largest grid k with k <= |C|/2 and >= 20 models. Group bootstrap over held-out org groups.
+usage: python 34_scope_agg.py <work_dir_scope> <out_dir_parquet> <results_dir> [B]"""
+import os, sys, glob, pickle, numpy as np, pandas as pd
+sys.path.insert(0, os.path.dirname(__file__))
+from common import *
+work, outdir, res = sys.argv[1:4]; B = int(sys.argv[4]) if len(sys.argv) > 4 else 5000
+Y, mods, tasks, et = load_matrix(os.path.join(os.path.dirname(__file__), "..", "data")); org = mods.org.values
+conds = ["ref", "M50", "M25", "dens70", "dens50", "dens30", "logit", "suite", "types"]
+def boot(x, g, seed):
+    ug, inv = np.unique(g, return_inverse=True); rng = np.random.default_rng(seed); dr = rng.integers(0, len(ug), size=(B, len(ug)))
+    s = np.bincount(inv, weights=x, minlength=len(ug)); n = np.bincount(inv, minlength=len(ug)).astype(float); rp = s[dr].sum(1) / n[dr].sum(1)
+    return x.mean(), np.percentile(rp, 5), np.percentile(rp, 95), rp
+rows, ks = [], []
+for c in conds:
+    fs = sorted(glob.glob(os.path.join(outdir, f"{c}_*_sc.parquet")))
+    if not fs: continue
+    d = pd.concat([pd.read_parquet(f) for f in fs], ignore_index=True); d["org"] = org[d.model.values]
+    st = pickle.load(open(os.path.join(work, "state", f"{c}_0.pkl"), "rb")); N = st["Y"].shape[1]; M_train = len(st["train"])
+    fl = d[d.rule == "floor"].set_index(["fold", "model", "k"]); s6 = d[(d.rule == "S6") & (d.inf == "P5")].set_index(["fold", "model", "k"]); s0 = d[(d.rule == "S0") & (d.inf == "P5")].set_index(["fold", "model", "k"])
+    kk = sorted(d.k.unique()); n_at = {k: len(fl.xs(k, level="k")) for k in kk}; kmax = max([k for k in kk if n_at[k] >= 20 and k <= (N * 2 // 3) // 2] or [kk[0]])
+    fixed = set(fl.xs(kmax, level="k").index)
+    ex = {}
+    for k in kk:
+        idx = [i for i in fl.xs(k, level="k").index if i in fixed]
+        if len(idx) < 10: continue
+        ix = [(f, m, k) for f, m in idx]; F = fl.loc[ix, "rmse"].values; A6 = s6.loc[ix, "rmse"].values; A0 = s0.loc[ix, "rmse"].values; g = org[[m for f, m in idx]]
+        r6 = boot(A6 - F, g, 11 + k); r0 = boot(A0 - F, g, 12 + k); gn = boot(A0 - A6, g, 13 + k); fm = F.mean()
+        rel = boot((A0 - A6) / F, g, 14 + k)
+        ex[k] = r6[3]; rows.append(dict(cond=c, N=N, M_train=M_train, k=k, k_over_N=k / N, n_models=len(idx), n_groups=len(set(g)), kmax_fixed=kmax, floor=fm, excess_S6=r6[0], excess_S6_lo=r6[1], excess_S6_hi=r6[2],
+                                       excess_S0=r0[0], gain=gn[0], gain_lo=gn[1], gain_hi=gn[2], gain_rel=rel[0], gain_rel_lo=rel[1], gain_rel_hi=rel[2], excess_S6_rel=r6[0] / fm,
+                                       mean_rank=float(fl.loc[ix, "rank"].mean())))
+    kk2 = sorted(ex); pts = [r["excess_S6_rel"] for r in rows if r["cond"] == c]
+    reps = np.array([ex[k] for k in kk2]); fm_all = np.mean([r["floor"] for r in rows if r["cond"] == c])
+    for fr in (0.1, 0.25, 0.5):
+        eps = fr * fm_all; kh = lambda cv: next((k for k, v in zip(kk2, cv) if v <= eps), 9999)
+        pk = kh([np.mean(ex[k]) for k in kk2]); rk = np.array([kh(reps[:, j]) for j in range(reps.shape[1])])
+        ks.append(dict(cond=c, N=N, M_train=M_train, eps_fraction_of_floor=fr, eps=eps, k_star=pk, lo=float(np.percentile(rk, 5, method="lower")), hi=float(np.percentile(rk, 95, method="higher")),
+                       k_star_over_N=pk / N if pk != 9999 else np.nan, n_models=len(fixed), note="grid values; 9999 = not reached"))
+pd.DataFrame(rows).to_csv(os.path.join(res, "scope_ct_curves.csv"), index=False); pd.DataFrame(ks).to_csv(os.path.join(res, "scope_ct_kstar.csv"), index=False)
+pd.set_option("display.width", 220); r = pd.DataFrame(rows); print(r[r.k.isin([3, 8, 20])][["cond", "N", "M_train", "k", "n_models", "floor", "excess_S6", "excess_S0", "gain_rel", "gain_rel_lo", "gain_rel_hi"]].round(3).to_string()); print(pd.DataFrame(ks).round(2).to_string())

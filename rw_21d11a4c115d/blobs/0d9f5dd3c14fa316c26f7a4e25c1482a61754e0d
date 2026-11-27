@@ -1,0 +1,56 @@
+"""Fig. 4 (claim C3): the same method (greedy A + factor model) evaluated under three splits.
+
+Top: standardised RMSE vs k. Bottom: signed bias (predicted minus observed, standardised units) at fixed k by model-strength
+quintile (0 = weakest). Time-forward is available for MTEB only (release dates).
+"""
+import argparse
+import style, venue
+from data import load
+import matplotlib.pyplot as plt
+
+p = argparse.ArgumentParser()
+p.add_argument("--results", required=True); p.add_argument("--out", default="out")
+p.add_argument("--datasets", nargs="+", default=["mteb_eng", "mteb_multi", "helm_mmlu"])
+p.add_argument("--selector", default="greedyA"); p.add_argument("--predictor", default="fa"); p.add_argument("--design", default="fixed")
+p.add_argument("--bias_k", type=int, default=3); p.add_argument("--draft", action="store_true")
+a = p.parse_args()
+v = venue.get(a.draft)
+size = style.setup(v["TEXT_WIDTH_IN"], v["MIN_FONT_PT"], aspect=0.62)
+cur, p1 = load(a.results, "curves"); bias, p2 = load(a.results, "bias")
+cur = cur[(cur.design == a.design) & (cur.metric == "std_rmse") & (cur.selector == a.selector) & (cur.predictor == a.predictor)]
+bias = bias[(bias.selector == a.selector) & (bias.predictor == a.predictor) & (bias.k == a.bias_k) & bias.stratum.str.startswith("strength")]
+order = ["random", "grouped", "time"]
+fig, axs = plt.subplots(2, len(a.datasets), figsize=size, squeeze=False)
+meta = {}
+for j, ds in enumerate(a.datasets):
+    ax, bx = axs[0, j], axs[1, j]
+    meta[ds] = {}
+    for si, sp in enumerate(order):
+        d = cur[(cur.dataset == ds) & (cur.split == sp)].sort_values("k")
+        if not len(d):
+            continue
+        kw = dict(color=style.SPLIT_COLORS[sp], marker=style.SPLIT_MARKERS[sp], ms=3.2, lw=1.0)
+        ax.plot(d.k, d["mean"], **kw)
+        ax.fill_between(d.k, d.ci_lo, d.ci_hi, color=kw["color"], alpha=0.10, lw=0)
+        b = bias[(bias.dataset == ds) & (bias.split == sp)].copy()
+        b["q"] = b.stratum.str.split("=").str[1].astype(int); b = b.sort_values("q")
+        off = (si - 1) * 0.12
+        bx.errorbar(b.q + off, b.signed_bias, yerr=[b.signed_bias - b.ci_lo, b.ci_hi - b.signed_bias], fmt=kw["marker"] + "-", ms=3.2, lw=0.8,
+                    color=kw["color"], capsize=1.2)
+        n0 = d.iloc[0]
+        meta[ds][sp] = dict(n_families=int(n0.n_families), n_models=int(n0.n_models), n_targets=int(n0.n_targets), ks=[int(x) for x in d.k],
+                            bias_n=[int(x) for x in b.n])
+    ax.set_xscale("log"); tk = [1, 2, 3, 5, 10, 20] if d.k.max() <= 20 else [1, 2, 3, 5, 10, 30]; ax.set_xticks(tk); ax.set_xticklabels([str(x) for x in tk])
+    ax.xaxis.set_minor_locator(plt.NullLocator()); ax.set_xlabel("benchmarks run, $k$")
+    ax.set_title(style.DATASET_SHORT[ds])
+    bx.axhline(0, color="0.3", lw=0.8); bx.set_xticks(range(5)); bx.set_xticklabels(["weakest", "", "", "", "strongest"])
+    bx.set_xlabel("model strength quintile")
+    if j == 0:
+        ax.set_ylabel("standardised RMSE"); bx.set_ylabel(f"signed bias, $k={a.bias_k}$ (std. units)")
+from matplotlib.lines import Line2D
+hs = [Line2D([], [], color=style.SPLIT_COLORS[s], marker=style.SPLIT_MARKERS[s], ms=3.2, lw=1.0, label=style.SPLIT_LABELS[s]) for s in order]
+fig.legend(hs, [h.get_label() for h in hs], loc="outside lower center", ncol=3, columnspacing=1.2)
+print(style.save(fig, "fig4_shift", a.out, dict(claim="C3", inputs={x: style.sha(x) for x in (p1, p2)}, selector=a.selector, predictor=a.predictor,
+                                                design=a.design, bias_k=a.bias_k, panels=meta,
+                                                bias_definition="mean of (predicted - observed) over held-out cells, in standardised units of the training fold (code/bmk/protocol.py, track_bias)",
+                                                draft=a.draft)))

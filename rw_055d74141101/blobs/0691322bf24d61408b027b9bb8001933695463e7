@@ -1,0 +1,177 @@
+"""Build the tidy result tables (results/*.csv) from the raw per-dataset outputs in $BT_RESULTS (default /hutian/results).
+usage: 06_tables.py   (reads whatever data sets are finished)"""
+import glob, os, sys
+import numpy as np, pandas as pd
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src")); sys.path.insert(0, os.path.dirname(__file__))
+from core01 import OUT
+
+REPO = os.path.join(os.path.dirname(__file__), "..", "results")
+DESIGN = {"crowd": "crowd", "expert": "expert", "llm-judge": "llm_judge", "sports": "sports"}
+NPAIRS_OUT = 60
+ZLO, ZHI = 1.0, 8.0
+
+
+def dataset_id(unit):
+    if unit.startswith("judge:"):
+        return "arena_judge_" + unit[6:]
+    return unit.replace(":", "_")
+
+
+def load_core(sub="core"):
+    real, null, models = [], [], {}
+    for fn in sorted(glob.glob(f"{OUT}/{sub}/*.parquet")):
+        if fn.endswith(".null.parquet") or fn.endswith(".models.parquet"):
+            continue
+        base = fn[:-8]
+        if not (os.path.exists(base + ".null.parquet")):
+            continue
+        r = pd.read_parquet(fn); n = pd.read_parquet(base + ".null.parquet")
+        for d in (r, n):
+            d["dataset"] = d.unit.map(dataset_id)
+            d["Q"] = d.k_ver * d.gmax / d.gap
+        real.append(r); null.append(n); models[r.unit.iloc[0]] = pd.read_parquet(base + ".models.parquet")
+    return pd.concat(real, ignore_index=True), pd.concat(null, ignore_index=True), models
+
+
+def null_curves(null, nb=8):
+    """per dataset x family: z-binned null (median / 2.5 / 97.5 pct of Q and k, mean k) for pairs with k>0"""
+    out = {}
+    for (ds, fam), d in null.groupby(["dataset", "family"]):
+        d = d[(d.k_ver > 0) & np.isfinite(d.k_ver) & (d.z_fisher > 0.2) & np.isfinite(d.Q)]
+        if len(d) < 20:
+            continue
+        edges = np.unique(np.quantile(d.z_fisher, np.linspace(0, 1, nb + 1)))
+        b = np.clip(np.searchsorted(edges, d.z_fisher, side="right") - 1, 0, len(edges) - 2)
+        rows = []
+        for i in range(len(edges) - 1):
+            x = d[b == i]
+            if len(x) < 5:
+                continue
+            rows.append(dict(zc=np.median(x.z_fisher), Q=np.median(x.Q), Qlo=np.percentile(x.Q, 2.5), Qhi=np.percentile(x.Q, 97.5),
+                             kmean=x.k_ver.mean(), klo=np.percentile(x.k_ver, 2.5), khi=np.percentile(x.k_ver, 97.5)))
+        out[(ds, fam)] = pd.DataFrame(rows)
+    return out
+
+
+def attach_null(real, curves):
+    cols = ["Q_null", "Q_null_lo", "Q_null_hi", "k_null_mean", "k_null_lo", "k_null_hi"]
+    for c in cols:
+        real[c] = np.nan
+    for (ds, fam), cv in curves.items():
+        m = (real.dataset == ds) & (real.family == fam)
+        z = real.loc[m, "z_fisher"].values
+        j = np.abs(np.log(np.maximum(z, 1e-3))[:, None] - np.log(cv.zc.values)[None, :]).argmin(1)
+        for c, src in zip(cols, ["Q", "Qlo", "Qhi", "kmean", "klo", "khi"]):
+            real.loc[m, c] = cv[src].values[j]
+    return real
+
+
+def attach_null_fit(real, null):
+    """k_null_at_z: the null replicates' k* at the pair's z_fisher, from a quadratic fit of log k* on log z over the null pairs of the same dataset and
+    family (no use of the real pair's own gap, g_max or counts); _lo / _hi: the 2.5 / 97.5 percentiles of the fit's residuals around it.
+    NaN outside the 1-99 percent range of the null's z."""
+    for c in ("k_null_at_z", "k_null_at_z_lo", "k_null_at_z_hi"):
+        real[c] = np.nan
+    for (ds, fam), d in null.groupby(["dataset", "family"]):
+        d = d[(d.k_ver > 0) & np.isfinite(d.k_ver) & (d.z_fisher > 0.2)]
+        m = (real.dataset == ds) & (real.family == fam)
+        if len(d) < 50 or not m.any():
+            continue
+        lz, lk = np.log(d.z_fisher.to_numpy()), np.log(d.k_ver.to_numpy())
+        co = np.polyfit(lz, lk, 2)
+        res = lk - np.polyval(co, lz)
+        zr = np.quantile(d.z_fisher, [0.01, 0.99])
+        z = real.loc[m, "z_fisher"].to_numpy()
+        f = np.exp(np.polyval(co, np.log(np.maximum(z, 1e-3))))
+        ok = (z >= zr[0]) & (z <= zr[1])
+        for c, v in (("k_null_at_z", f), ("k_null_at_z_lo", f * np.exp(np.percentile(res, 2.5))), ("k_null_at_z_hi", f * np.exp(np.percentile(res, 97.5)))):
+            real.loc[m, c] = np.where(ok, v, np.nan)
+    return real
+
+
+def main():
+    os.makedirs(REPO, exist_ok=True)
+    real, null, models = load_core()
+    curves = null_curves(null)
+    real = attach_null(real, curves)
+    real = attach_null_fit(real, null)
+    real["design_f"] = real.design.map(DESIGN)
+    real["F"] = real.k_ver * real.gmax / real.se_boot
+    real["search_status"] = np.where(np.isfinite(real.k_ver), "ok", "unreachable")
+    real["conclusion_id"] = real.apply(lambda r: f"rank{r.ra + 1}>rank{r.rb + 1}", axis=1)
+    # datasets.csv
+    ds = real.drop_duplicates("dataset")[["dataset", "design_f", "N", "M", "density", "tie_rate", "ncl", "boot", "seed"]].rename(
+        columns={"design_f": "design", "M": "n_models", "ncl": "n_clusters", "boot": "n_boot"})
+    ds.to_csv(f"{REPO}/datasets_computed.csv", index=False)
+    # fragility_conclusions.csv : up to NPAIRS_OUT z-stratified pairs per dataset x family + top-1 conclusions
+    keep = []
+    for (d_, f_), x in real.groupby(["dataset", "family"]):
+        x = x[x.gap > 0]
+        idx = np.argsort(x.z_fisher.values)
+        pick = set(x.index[idx[np.linspace(0, len(idx) - 1, min(NPAIRS_OUT, len(idx))).astype(int)]])
+        pick |= set(x.index[(x.ra == 0)])
+        keep += sorted(pick)
+    o = real.loc[keep]
+    out = pd.DataFrame(dict(dataset=o.dataset, design=o.design_f, synthetic=0, N=o.N, cost_unit=1, perturbation=o.family,
+                            seed_set=o.seed, n_boot=o.boot, conclusion_id=o.conclusion_id, z=o.z_boot, z_fisher=o.z_fisher,
+                            k_upper=o.k_ver, k_lower="", k_exact_flag=0, k_first_order=o.k_lin, F=o.F, Q=o.Q, Q_null=o.Q_null,
+                            Q_null_lo=o.Q_null_lo, Q_null_hi=o.Q_null_hi, se_gap=o.se_boot, se_model_based=o.se_fisher,
+                            se_gap_cmp_boot=o.se_boot_cmp, p_flip=o.p_flip_boot, k_null_mean=o.k_null_mean, k_null_lo=o.k_null_lo,
+                            k_null_hi=o.k_null_hi, k_null_pred=o.Q_null * o.gap / o.gmax, k_null_at_z=o.k_null_at_z, k_null_at_z_lo=o.k_null_at_z_lo, k_null_at_z_hi=o.k_null_at_z_hi, search_status=o.search_status, n_models=o.M, density=o.density, tie_rate=o.tie_rate))
+    out.to_csv(f"{REPO}/fragility_conclusions.csv", index=False, float_format="%.6g")
+    # top-1 conclusions (Table 2): top-1 vs top-2 and 'top-1 loses its place' = min over rivals
+    rows = []
+    for (d_, f_), x in real.groupby(["dataset", "family"]):
+        t = x[x.ra == 0].sort_values("rb")
+        if len(t) == 0:
+            continue
+        t1 = t.iloc[0]
+        best = t.loc[t.k_ver.idxmin()]
+        rows.append(dict(dataset=d_, design=t1.design_f, perturbation=f_, N=t1.N, n_models=t1.M,
+                         top1_vs_top2_z=t1.z_boot, top1_vs_top2_k=t1.k_ver, top1_vs_top2_kN=t1.k_ver / t1.N, top1_vs_top2_p_flip=t1.p_flip_boot,
+                         top1_loses_k=best.k_ver, top1_loses_rival_rank=best.rb + 1, top1_loses_kN=best.k_ver / best.N,
+                         top1_loses_z=best.z_boot, top1_loses_Q=best.Q, top1_loses_F=best.F))
+    pd.DataFrame(rows).to_csv(f"{REPO}/top1_conclusions.csv", index=False, float_format="%.6g")
+    # per dataset x family x z-stratum summary
+    r2 = real[(real.gap > 0) & np.isfinite(real.k_ver)].copy()
+    r2["zbin"] = pd.cut(r2.z_fisher, [0, 1, 2, 4, 8, np.inf], right=False, labels=["[0,1)", "[1,2)", "[2,4)", "[4,8)", "[8,inf)"])
+    g = r2.groupby(["dataset", "design_f", "family", "zbin"], observed=True)
+    s = g.agg(n_pairs=("k_ver", "size"), N=("N", "first"), z_med=("z_boot", "median"), k_med=("k_ver", "median"), k_q25=("k_ver", lambda v: v.quantile(.25)),
+              k_q75=("k_ver", lambda v: v.quantile(.75)), kN_med=("k_ver", lambda v: (v / r2.loc[v.index, "N"]).median()),
+              Q_med=("Q", "median"), Q_null_med=("Q_null", "median"), klin_over_k_med=("k_lin", lambda v: (v / r2.loc[v.index, "k_ver"]).median())).reset_index()
+    # null-predicted k*: the same-graph parametric-bootstrap replicates' k* (itself found by the same search) in the same z stratum, and
+    # the per-pair ratio of real k* to the null curve at the pair's z (median over pairs, bootstrap over pairs)
+    nl = null[(null.gap > 0) & np.isfinite(null.k_ver) & (null.k_ver > 0)].copy()
+    nl["zbin"] = pd.cut(nl.z_fisher, [0, 1, 2, 4, 8, np.inf], right=False, labels=["[0,1)", "[1,2)", "[2,4)", "[4,8)", "[8,inf)"])
+    ng = nl.groupby(["dataset", "family", "zbin"], observed=True).k_ver.agg(k_null_med="median", k_null_q25=lambda v: v.quantile(.25), k_null_q75=lambda v: v.quantile(.75), n_null_pairs="size").reset_index()
+    r2["k_null_pred"] = r2.Q_null * r2.gap / r2.gmax   # null-predicted k* of this very pair: its own gap and g_max, the null's Q at its z
+    r2["k_ratio"] = r2.k_ver / r2.k_null_pred          # = Q / Q_null
+    rg = np.random.default_rng(0)
+    def ratio_ci(v):
+        v = v.dropna().to_numpy()
+        if len(v) < 5:
+            return pd.Series(dict(k_ratio_med=np.nan, k_ratio_lo=np.nan, k_ratio_hi=np.nan))
+        b = [np.median(rg.choice(v, len(v))) for _ in range(300)]
+        return pd.Series(dict(k_ratio_med=np.median(v), k_ratio_lo=np.percentile(b, 2.5), k_ratio_hi=np.percentile(b, 97.5)))
+    rr = r2.groupby(["dataset", "family", "zbin"], observed=True).k_ratio.apply(ratio_ci).unstack().reset_index()
+    npred = r2.groupby(["dataset", "family", "zbin"], observed=True).k_null_pred.median().rename("k_null_pred_med").reset_index()
+    s = s.merge(npred, on=["dataset", "family", "zbin"], how="left").merge(ng, on=["dataset", "family", "zbin"], how="left").merge(rr, on=["dataset", "family", "zbin"], how="left")
+    s.rename(columns={"design_f": "design"}).to_csv(f"{REPO}/fragility_by_z.csv", index=False, float_format="%.6g")
+    # dataset-level Delta = mean over pairs in declared z-range of log Q - log Q_null, jackknife over models
+    drows = []
+    for (d_, f_), x in real.groupby(["dataset", "family"]):
+        x = x[(x.z_fisher >= ZLO) & (x.z_fisher <= ZHI) & np.isfinite(x.Q) & np.isfinite(x.Q_null) & (x.k_ver > 0)]
+        if len(x) < 5:
+            continue
+        v = np.log(x.Q.values) - np.log(x.Q_null.values)
+        models_ = np.unique(np.r_[x.a.values, x.b.values])
+        jk = np.array([v[(x.a.values != m) & (x.b.values != m)].mean() for m in models_ if ((x.a.values != m) & (x.b.values != m)).sum() > 0])
+        se = np.sqrt((len(jk) - 1) / len(jk) * ((jk - jk.mean()) ** 2).sum()) if len(jk) > 1 else np.nan
+        drows.append(dict(dataset=d_, design=x.design_f.iloc[0], perturbation=f_, N=x.N.iloc[0], n_pairs=len(x), delta_logQ=v.mean(), se_jackknife_models=se,
+                          lo=v.mean() - 1.96 * se, hi=v.mean() + 1.96 * se, Q_real_med=x.Q.median(), Q_null_med=x.Q_null.median()))
+    pd.DataFrame(drows).to_csv(f"{REPO}/real_minus_null.csv", index=False, float_format="%.6g")
+    print("datasets", real.dataset.nunique(), "rows", len(real))
+
+
+if __name__ == "__main__":
+    main()

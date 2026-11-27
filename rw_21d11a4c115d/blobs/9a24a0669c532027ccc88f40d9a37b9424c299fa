@@ -1,0 +1,102 @@
+# Results and the conditions they hold under (experiment-repo, as of commit after 077ae91)
+
+Every number below is read from a file in `results/` (file named in brackets). Primary design: grouped 10-fold by model family (21 / 247-column MTEB multi / 79 HELM
+models), fixed 30 % target columns, greedy A-optimal selector, FA predictor unless said otherwise; intervals are family-clustered bootstrap (B=2000, seed 0).
+Metrics are RMSE on the original standardised scale. Transform (identity or logit) was chosen on training folds by held-out likelihood:
+helm_mmlu logit, mteb_eng identity, mteb_multi logit [`transform.csv`]. Departures from the Brief are in `code/DEVIATIONS.md`.
+
+## H2: greedy A vs random, grid average over k=1..min(10,N/2) [`gap.csv`, `robustness.csv`]
+* Gap in RMSE (greedy A minus random), CI: helm_mmlu -0.044 [-0.065, -0.026] (-7.6 % of random); mteb_eng -0.038 [-0.058, -0.013] (-6.1 %);
+  mteb_multi -0.076 [-0.085, -0.066] (-11.3 %). The CI excludes 0 on all three; the pre-registered margin (gap >= 10 % of random RMSE) is met only on mteb_multi.
+* Same sign on random and time-forward splits (gap.csv, exploratory rows). Under the non-chosen transform on mteb_eng (logit) the gap shrinks to -2.6 %
+  [`robustness.csv`]; so the result depends on the transform choice there.
+* Adaptive (per-model, local-A) selection in the identity space [`adaptive.csv`]: against greedy A the RMSE gain is nil on mteb_eng (FA +0.0003, CI [-0.010, 0.016]),
+  helm_mmlu (FA -0.005, CI [-0.010, 0.003]) and small on mteb_multi (FA -0.014 [-0.030, -0.005]; kNN -0.008 [-0.014, -0.003]). Greedy A is within about
+  0.01 RMSE of the adaptive rule everywhere.
+
+## H1 and k* [`h1.csv`, `kstar.csv`, `closure.csv`]
+* Headline k* (90 % closure to the leave-one-benchmark-out reference, grouped): helm_mmlu 1 (CI 1-2, "dominated by general factor"); mteb_eng 9 (CI 3-31, "above window");
+  mteb_multi 30 = grid maximum (CI 8-31, "above window"). Time-forward split: mteb_eng 30 (31.6 % of bootstrap draws censored), mteb_multi 15.
+* k* is fragile on the two MTEB matrices: intervals are wide, depend on the threshold, the predictor (mteb_eng FA-only 20 vs headline 9) and, on mteb_multi,
+  on the transform (identity gives 15, logit is censored beyond the grid for FA). Report k* with its CI and censoring share, never as a point value.
+* Per-benchmark skill at k=3 and 10 [`per_benchmark_skill.csv`]: median skill of FA with greedy A is 0.83 / 0.84 (helm_mmlu), 0.73 / 0.83 (mteb_eng), 0.75 / 0.80 (mteb_multi);
+  the lower tail is heavy on MTEB (16-17 % of benchmarks below 0.5 at k=10; a few benchmarks below 0, i.e. worse than the column mean).
+
+## H4 theory check (Risk formula against measured held-out error) [`theory_gap.csv`, `theory_shape.csv`, `coherence.csv`]
+* Median relative gap on the reducible part: synthetic true model 0.5 %; synthetic fitted 20 % (M=60 columns: 27 %) falling to 6.5 % at M=250 and 1.5 % at M=2000;
+  parametric bootstrap from the fitted real models 16-24 %; real data 36 % (mteb_multi), 47 % (mteb_eng), 69 % (helm_mmlu). H4 (<= 15 % real, <= 10 % synthetic fitted)
+  therefore **fails on real data** and on fitted synthetic data at small M; it holds at M >= 250 synthetic.
+* The gap is mostly a roughly constant offset (about 0.08 in squared standardised units at k_max on the real tier): the k-dependent part is predicted much better (median relative
+  gap 2-6 % bootstrap tier, 3-8 % real tier on the MTEB matrices, 23 % on helm_mmlu; correlation of predicted and measured curves above 0.997).
+* Coherence, sampled submodularity ratio and the heuristic greedy bound are in `coherence.csv`; gamma-hat is an upper bound on the true ratio, so no rigorous
+  lower-bound guarantee is claimed for the target-weighted objective.
+
+## Matrix-Chernoff bound for random selection [`bound_check.csv`, `DERIVATIONS.md`]
+* The sufficient k from the with-replacement source bound (eps 0.5, eta 0.1), with loadings fitted on all rows at the median fold rank of the main runs (r = 4 / 6 / 2), is
+  459 (synthetic N=60, r=4), 506 (mteb_eng, N=70), 742 (mteb_multi, N=247) and 171 (helm_mmlu, N=57): vacuous at every k that can be run (the Chernoff value is 1.0 in all 35 rows).
+  With the rank chosen on the full pool instead (5 / 6 / 1; sensitivity rows, `rank_source` column) the values are 551 / 742 / 57; only that helm_mmlu fit (r=1) is non-vacuous (8 rows).
+  Without replacement the empirical violation share is never above the Chernoff value (35 of 35 rows), which is trivially true since that value is 1.0; the without-replacement
+  extension is checked numerically only, not proved. The risk bound B(0.5) is below the measured mean reducible risk at k <= 3 on mteb_eng (equal at k=5) and k <= 8 on mteb_multi,
+  above it from k=1 on helm_mmlu, and 2.7 (mteb_eng) / 1.6 (mteb_multi) / 3.2 (synthetic) times loose at k=30 (helm_mmlu 2.7 at k=20).
+  The Jensen lower bound on random-selection risk holds in every row (35 of 35). The qualitative C5 prediction (random-minus-greedy gap shrinks with k and with coherence) rests on `coherence.csv`, not on the bound.
+
+## Paired comparisons and bias check [`paired_comparisons.csv`, `bias_check.csv`]
+* `paired_comparisons.py` (same test models, family-clustered paired bootstrap B=2000, seed 0; greedy A, factor model). Grouped minus random split at k=3 (RMSE difference, CI):
+  mteb_eng +0.012 [-0.023, 0.058] (2.0 %); mteb_multi +0.012 [0.000, 0.023] (2.1 %); helm_mmlu +0.067 [0.003, 0.106] (14.2 %). Time-forward minus grouped on the *same* 56 / 53 test models:
+  at k=3 mteb_eng +0.060 [-0.027, 0.129] (9.0 %), mteb_multi +0.112 [0.068, 0.156] (17.9 %); grid average +0.065 [0.020, 0.106] (10.2 %) and +0.089 [0.048, 0.130] (14.0 %).
+  The unpaired time-forward RMSE (0.729 / 0.740) is on a different, later test set than grouped; the paired figures above are the penalty for the later-release split on the same models.
+* Factor model minus other predictors, grid average, greedy A: ridge -0.000 / +0.006 / +0.013, LW +0.005 / +0.006 / +0.011, kNN +0.026 / +0.017 / -0.195, best simple +0.010 / +0.007 / -0.006
+  (mteb_eng / mteb_multi / helm_mmlu; positive = factor model worse). On the MTEB pools the factor model is slightly worse than ridge/LW/best simple (CIs mostly exclude 0; helm_mmlu CIs include 0 except kNN).
+* `bias_check.py`: signed error (predicted minus observed, original standardised units) at k=3, greedy A, grouped, by quintile of the model's score. Stratified by the full-row mean (includes the targets;
+  as in `bias.csv`, reproduced to within 0.015) the strongest quintile is -0.103 / -0.089 / -0.028 (mteb_eng / mteb_multi / helm_mmlu). Data simulated from the factor model fitted to each pool
+  (a correct model, 30 replicates) give -0.039 / -0.035 / -0.043 in the same quintile: roughly 40 % of the MTEB bias is the conditioning artefact (regression to the mean). Stratified by the mean of the observed
+  S scores (which a correct model conditions on) the strongest quintile is still -0.058 [-0.150, 0.021] / -0.070 [-0.105, -0.028] / -0.003, so the MTEB bias is not entirely an artefact.
+  Time-forward, strongest quintile: -0.284 (mteb_eng), -0.156 (mteb_multi).
+
+## Sparse history (C6) [`history_sweep.csv`, `history_smallest.csv`]
+* Smallest setting within 10 % of full-history RMSE (point; CI-upper in the file): history fraction mteb_eng 0.25 (CI-upper 0.5), mteb_multi 0.5, helm_mmlu 1.0
+  (none smaller); random missing cells down to density 0.5 on all three (helm_mmlu CI-upper 0.7); no tried density under the weak-model missingness pattern (down to 0.3).
+* Not run on the union matrix (overlap too small, below).
+
+## Sparse leaderboard matrix (review M1) [`sparse_subsets.csv`, `sparse_curves.csv`, `sparse_refs.csv`, `sparse_gap.csv`, `sparse_closure.csv`, `sparse_kstar.csv`, `sparse_run_info.csv`]
+Protocol (`bmk/sparse.py::run_sparse`, `run_sparse.py`; aggregation `aggregate_sparse.py`): the MTEB score matrix with its real missing cells (NaN in `results/data_out/sparse_*.npz`),
+grouped (family-held-out) 10-fold over all models; training columns need >= 10 observed training cells and are standardised on their observed training cells; identity transform.
+A model is tested if it has >= 30 observed cells in the subset. For each tested model and each of 3 random partitions: T = random round(0.3 |O|) of its observed cells (targets),
+C = O \ T (candidates), O = its observed cells. Selectors pick k benchmarks from C (greedy A on the factor-model covariance restricted to C u T; random: 30 draws per k); the
+rest of C is not used by the predictor (as in the dense protocol). Predictors: `colmean`; `fa` = masked-EM factor model (rank by inner 5-fold masked marginal likelihood, one-SE rule,
+`fit_fa_masked`) conditioning on the selected cells; `pw` = pairwise-complete correlation matrix, PSD-clipped and shrunk toward I (shrink in {.02,...,.4} chosen on training rows);
+`softimpute` = masked Soft-Impute fold-in (lambda chosen on training cells). `std_rmse` = sqrt of the mean over tested models of per-model MSE, on the standardised
+training-column scale. `gap` = std_rmse(greedy A) - std_rmse(random), same predictor. LOBO analogue (`sparse_refs.csv`): predict T from all of C with `fa` and with `pw`; `lobo` is the lower
+of the two (its source is in the `lobo_source` row), so closure C(k) = (colmean - err_k)/(colmean - lobo) can exceed 1 when a selected set beats the LOBO of the other predictor.
+`kstar` = smallest k on the grid {1,2,3,4,5,6,8,10,12,15,20} with closure >= level, censored when never reached (CI codes a never-reached bootstrap replicate as 21).
+Intervals: family-clustered bootstrap, B=2000, seed 0. 3 partitions x 30 random draws x 10 folds.
+
+Subsets [`sparse_subsets.csv`]: `eng_full` = all MTEB(eng) models x tasks seen by >= 20 models (445 x 335, 21 % observed, median 60 observed cells per model, 337 models tested);
+`eng_d30/d50/d70` = greedy trimming of English tasks and models to density 0.30 / 0.50 / 0.70 (332x295, 268x176, 226x134; 215-332 tested models, median 103-117 observed cells);
+`all_d30/d50` = same on all MTEB tasks (331x705, 236x517; median 181 / 308 cells).
+Because C holds at most 70 % of a model's observed cells (about 20-30 for the English subsets), the grid stops at k=20; k=30 is not available for most tested models.
+
+* Greedy A beats random at every k on every subset, for `fa` and `pw` (gap CI excludes 0 in all cells except pw at k=20 on eng_full, CI [-0.105, 0.005]). Gap at k=3, `fa` (CI):
+  eng_full -0.067 [-0.090,-0.045]; eng_d30 -0.067 [-0.094,-0.044]; eng_d50 -0.058 [-0.080,-0.047]; eng_d70 -0.047 [-0.074,-0.018]; all_d30 -0.156 [-0.205,-0.116]; all_d50 -0.335 [-0.629,-0.092] (-24 % of random).
+  With 10 % of the random error as the pre-registered margin it is met at k=3 only on all_d30, all_d50 (and at k=1 on eng_d70 fa, -12 %); on the English subsets the gap at k=3 is 6-7 % of random.
+* Closure at k=3, greedy A (`fa` / `pw`): eng_full 0.76 / 0.79; eng_d30 0.79 / 0.79; eng_d50 0.78 / 0.78; eng_d70 0.80 / 0.80; all_d30 0.75 / 0.78; all_d50 0.72 / 0.71 (CIs +-0.05-0.10, `sparse_closure.csv`).
+  Random with `pw`: 0.66, 0.65, 0.68, 0.74, 0.59, 0.55; with `fa` 0.60, 0.63, 0.66, 0.73, 0.35, -0.08 (the last two with wide CIs).
+* k*(0.9), greedy A `pw`: eng_full 6, eng_d30 8, eng_d50 12, eng_d70 8, all_d30 10, all_d50 20 (never reached before 20 with `fa` on eng_d50 and all_d50, all_d50 `pw` k*=20); random `pw`:
+  20, censored (>20), 20, 15, censored, censored; random with `fa` is censored on every subset. CIs of k* are wide (e.g. eng_full pw greedy [3, >20]); the claim carried is the ordering greedy A < random, not a value of k*.
+* Best predictor handling missing cells: `fa` is best or tied at k <= 5, `pw` slightly better at k >= 8 (e.g. eng_d70 k=20 std_rmse 0.544 fa vs 0.516 pw); both are far better than `colmean`
+  (eng_d70: 1.086) and `softimpute` (0.82-1.04 at k=3-20, weak because the fold-in shrinks cells it cannot see). Greedy A + `fa` at k=3 is 0.65-1.05 vs colmean 1.09-1.37.
+* Reading for the paper: the headline from this experiment is "greedy A-optimal selection beats random on the sparse matrix, closure about 0.7-0.8 at k=3 and about 0.9 by k=8-12 (pw) for densities 0.3-0.7, and the
+  advantage does not vanish at density 0.3"; across k=1..20 it is 1.6-12 % of random RMSE on the English subsets (dense mteb_eng: 6 %), 4-24 % on the all-task subsets (dense mteb_multi: 11 %). It is **not** tested for density < 0.21 or for test models with < 30 observed cells.
+* Conditions: identity transform only (no logit selection on sparse runs); different task sets from the dense pools, so RMSE levels are not comparable to the dense results; std_rmse levels (1.0-1.4 for colmean) are
+  higher than in the dense runs because test models are tested on their own random observed cells and column means ignore each model's overall level; the LOBO reference is itself noisy (CI +-0.4), so closure is
+  noisier than the gap.
+
+## Small panels and the union matrix [`small_panels*.csv`, `union_overlap.csv`] (descriptive only, no k*, no H1/H2/H4 verdict)
+* HELM Lite (10 scenarios), HELM Capabilities (5) and a 25-model x 16-benchmark union of HELM Lite and Open LLM Leaderboard (12 families) are case studies with N < 12;
+  the name-matching rule and the exclusion of ambiguous names are in `union_overlap.py`. Overlaps: 25 models in HELM Lite and Open LLM Leaderboard, 23 with LiveBench,
+  72 models in at least two sources; the complete-case union used is the 25 x 16 block above.
+
+## Conditions to carry into the text
+* Every statement is about standardised RMSE on held-out families; "closure" is relative to the LOBO reference, not to the noise floor.
+* The in-sample optimistic reference and the oracle selector are test-leaking and appear only as labelled bounds.
+* MTEB matrices are dense pools chosen by us (see `datasets.csv`); HELM MMLU has a binomial sampling floor [`helm_mmlu_binomial_floor.csv`].

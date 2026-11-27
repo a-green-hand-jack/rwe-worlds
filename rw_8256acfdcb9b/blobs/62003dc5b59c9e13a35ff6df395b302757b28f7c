@@ -1,0 +1,10 @@
+import sys,json,time,urllib.request
+ids=sys.argv[1:]
+for i in ids:
+    u=f"https://api.semanticscholar.org/graph/v1/paper/arXiv:{i}?fields=title,venue,year,referenceCount,publicationVenue"
+    for t in range(5):
+        try:
+            r=json.load(urllib.request.urlopen(u,timeout=30)); print(i,json.dumps(r)); break
+        except Exception as e:
+            print(i,'err',e); time.sleep(5*(t+1))
+    time.sleep(2)

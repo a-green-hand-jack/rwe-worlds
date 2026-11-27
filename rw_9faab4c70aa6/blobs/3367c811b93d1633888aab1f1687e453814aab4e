@@ -1,0 +1,40 @@
+"""Tab 1 (setup and matrix facts): booktabs tabular fragment (needs packages booktabs, array) from matrix_facts.parquet (+ config_space text of gap_vs_n_real).
+Every number is read from a file. Compute rows come from matrix_tokens.json and real_tool_draws.parquet; the world-charged CPU-hours and the matrix wall time are in no file and are not drawn.
+usage: python tables/src/tab1.py RESULTS_DIR OUT.tex"""
+import json
+import sys
+import pandas as pd
+
+
+def main(rd, out):
+    m = pd.read_parquet(f"{rd}/matrix_facts.parquet").iloc[0]
+    g = pd.read_parquet(f"{rd}/gap_vs_n_real.parquet").iloc[0]
+    assert m.pool == g.pool and m.model == g.model
+    print("Tab 1 data:", m.pool, "|", m.model, "| pool_size", int(m.pool_size), "| K", int(m.K), "| sigma_theta interval:", m.sigma_theta_ci_kind,
+          "| delta_leak probe items:", int(m.delta_leak_n_items), "| compute column present:", "compute" in m.index)
+    tk = json.load(open(f"{rd}/matrix_tokens.json"))
+    dr = pd.read_parquet(f"{rd}/real_tool_draws.parquet")
+    print("Tab 1 compute:", tk, "| C8 draws:", len(dr), "| seconds sum/mean:", round(dr.seconds.sum()), round(dr.seconds.mean()), "| lm_calls:", int(dr.lm_calls.sum()))
+    f3 = lambda x: f"{x:.3f}"; f2 = lambda x: f"{x:.2f}"
+    rows = [
+        ("Model", m.model.replace("_", r"\_"), ""),
+        ("Item pool", f"{int(m.pool_size):,} MMLU-Pro items".replace(",", r"\,"), ""),
+        ("Configurations $K$", f"{int(m.K)}", g.config_space.replace(" (K=128)", "").replace("x", r"$\times$")),
+        ("Configuration accuracy", f"mean {f3(m.acc_mean)}, range {f3(m.acc_min)}--{f3(m.acc_max)}", ""),
+        (r"True spread $\sigma_\theta$", f"{f3(m.sigma_theta)} ({f3(m.sigma_theta_lo)}--{f3(m.sigma_theta_hi)})", "split-half estimate, free of sampling noise; 95\\% pool-bootstrap interval"),
+        ("Item-level correlation", f"mean {f2(m.mean_pairwise_item_corr)} (quartiles {f2(m.pairwise_corr_q25)}, {f2(m.pairwise_corr_q50)}, {f2(m.pairwise_corr_q75)})", "correctness of two configurations over the items, all pairs"),
+        ("Letter-bias share", f2(m.letter_bias_share), r"share of $\sigma_\theta^2$ removed by correcting each configuration's letter prior"),
+        ("Variance share by factor", f"cue {f2(m.factor_variance_share_cue)}, label {f2(m.factor_variance_share_label)}, instruction {f2(m.factor_variance_share_instruction)}, demo set {f2(m.factor_variance_share_demo_set)}",
+         "main effects on the variance of configuration accuracy"),
+        (r"Leakage $\Delta_{\mathrm{leak}}$", f"{f2(m.delta_leak)} ({f2(m.delta_leak_lo)}--{f2(m.delta_leak_hi)})", f"gain in accuracy on an item shown in its own prompt; {int(m.delta_leak_n_items)} probe items, bootstrap interval"),
+        ("Compute, matrix", f"{tk['cells']:,}".replace(",", r"\,") + " (item, configuration) cells", f"{tk['forwarded_tokens'] / 1e6:.2f} million tokens forwarded with prefix and item caching ({tk['uncached_tokens'] / 1e6:.1f} million as stand-alone prompts)"),
+        ("Compute, real tool", f"{len(dr)} draws, " + f"{dr.seconds.mean():,.0f}".replace(",", r"\,") + " s each", f"{int(dr.lm_calls.sum()):,}".replace(",", r"\,") + " calls of the language model, " + f"{dr.seconds.sum():,.0f}".replace(",", r"\,") + " s summed wall time"),
+    ]
+    L = [r"{\setlength{\tabcolsep}{3pt}", r"\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.26\linewidth}>{\raggedright\arraybackslash}p{0.31\linewidth}>{\raggedright\arraybackslash}p{0.37\linewidth}@{}}", r"\toprule", r"Quantity & Value & Note \\", r"\midrule"]
+    L += [f"{a} & {b} & {c} \\\\" for a, b, c in rows]
+    L += [r"\bottomrule", r"\end{tabular}}"]
+    open(out, "w").write("\n".join(L) + "\n")
+
+
+if __name__ == "__main__":
+    main(*sys.argv[1:3])

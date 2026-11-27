@@ -1,0 +1,133 @@
+"""Fig. 4: scope map. The headline quantity k*(eps), with eps stated as a fraction of each condition's own floor, and the floor
+beside it, across the conditions the sweeps vary; and the placement of the real matrix on the synthetic ladder (pre-set rule).
+
+usage: python3 -m figtab.make_fig4 RESULTS_DIR OUT.pdf     (repo root as cwd)
+Reads RESULTS_DIR/{ct_kstar.csv, ct_curves.csv, scope_ct_kstar.csv, scope_ct_curves.csv, ladder/ladder_placement.json,
+olb/ct_kstar.csv, olb/ct_curves.csv}.
+Hold-out rows (G, S, T) come from the 50-split headline files (models eligible at k = 109); the sweep rows from the 20-split
+sweep files (G folds 0-3, 67 models); the two are different samples, so the reference row of the sweeps is drawn as its own row.
+"""
+import sys, json, pathlib
+import numpy as np, pandas as pd
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from matplotlib.ticker import FixedLocator, FuncFormatter
+from figtab import style, provenance, check_pdf
+
+res = pathlib.Path(sys.argv[1]); out = sys.argv[2]
+style.apply(); C = style.COLORS
+ks = pd.read_csv(res / "ct_kstar.csv"); cc = pd.read_csv(res / "ct_curves.csv")
+ok = pd.read_csv(res / "olb/ct_kstar.csv"); oc = pd.read_csv(res / "olb/ct_curves.csv")
+sk = pd.read_csv(res / "scope_ct_kstar.csv"); sc = pd.read_csv(res / "scope_ct_curves.csv")
+lad = json.load(open(res / "ladder/ladder_placement.json"))
+NEVER = 9999
+
+# rows: (label, source, key); an empty label with None is a gap between groups
+HOLD = [("held-out groups (G)", "G"), ("strongest quarter held out (S)", "S"), ("newest models held out (T)", "T")]
+OLB = [("Open LLM: families (G)", "G"), ("Open LLM: strongest (S)", "S")]
+SWEEP = [("reference (all data)", "ref"), ("50% of training models", "M50"), ("25% of training models", "M25"),
+         ("70% of training cells", "dens70"), ("50% of training cells", "dens50"), ("30% of training cells", "dens30"),
+         ("logit-transformed scores", "logit"), ("75-benchmark task suite", "suite"), ("10 task types as benchmarks", "types")]
+rows = []   # dict(label, group, floor, unit, k05, k025) with (k, lo, hi)
+for lab_, sp in HOLD:
+    n = int(ks[(ks.split == sp) & (ks.subset == "fixed")].n_models.iloc[0])
+    r = {}
+    for nm, e in (("k025", "frac_0.25"), ("k05", "frac_0.5")):
+        x = ks[(ks.split == sp) & (ks.subset == "fixed") & (ks.epsilon_name == e)].iloc[0]
+        r[nm] = (x.k_emp, x.k_emp_lo, x.k_emp_hi)
+    fl = cc[(cc.split == sp) & (cc.subset == "fixed") & (cc.method == "S6+P5") & (cc.k == 109)].floor_raw.iloc[0]
+    rows.append(dict(label=f"{lab_}, {n} models", group="hold-out", floor=fl, unit="pts", **r))
+for lab_, sp in OLB:
+    n = int(ok[(ok.split == sp) & (ok.subset == "fixed")].n_models.iloc[0])
+    r = {}
+    for nm, e in (("k025", "frac_0.25"), ("k05", "frac_0.5")):
+        x = ok[(ok.split == sp) & (ok.subset == "fixed") & (ok.epsilon_name == e)].iloc[0]
+        r[nm] = (x.k_emp, x.k_emp_lo, x.k_emp_hi)
+    o = oc[(oc.split == sp) & (oc.subset == "fixed") & (oc.method == "S6+P5")]
+    rows.append(dict(label=f"{lab_}, {n:,} models", group="olb", floor=o.floor_raw.iloc[0], unit="pts", **r))
+for lab_, cd in SWEEP:
+    r = {}
+    for nm, f in (("k025", 0.25), ("k05", 0.5)):
+        x = sk[(sk.cond == cd) & np.isclose(sk.eps_fraction_of_floor, f)].iloc[0]
+        r[nm] = (x.k_star, x.lo, x.hi)
+    fl = sc[sc.cond == cd].floor.iloc[0]
+    rows.append(dict(label=lab_, group="sweep", floor=fl, unit="logit" if cd == "logit" else "pts", **r))
+GROUPS = ["hold-out", "olb", "sweep"]
+ypos, y = [], 0.0
+for i, r in enumerate(rows):
+    if i and r["group"] != rows[i - 1]["group"]: y += 0.8
+    ypos.append(y); y += 1
+first = {g: [i for i, r in enumerate(rows) if r["group"] == g][0] for g in GROUPS}
+last = {g: [i for i, r in enumerate(rows) if r["group"] == g][-1] for g in GROUPS}
+GCOL = {"hold-out": C["other"], "olb": C["other2"], "sweep": C["designed"]}
+KMAX = 109; XR = (0.8, 190)
+
+fig = plt.figure(figsize=(style.VENUE["text_in"], 5.2))
+gs = fig.add_gridspec(2, 3, height_ratios=[2.9, 1.0], width_ratios=[1.3, 1.0, 1.0])
+axf = fig.add_subplot(gs[0, 0]); ax25 = fig.add_subplot(gs[0, 1], sharey=axf); ax50 = fig.add_subplot(gs[0, 2], sharey=axf)
+axl = fig.add_subplot(gs[1, :])
+
+def forest(axp, key, letter, title):
+    for r, y in zip(rows, ypos):
+        k, lo, hi = r[key]
+        col = GCOL[r["group"]]
+        hi_p = XR[1] if hi >= NEVER else hi
+        axp.plot([lo, hi_p], [y, y], color=col, lw=1.4, solid_capstyle="butt")
+        if hi >= NEVER:
+            axp.plot([hi_p], [y], marker=">", color=col, ms=3.5, ls="none")
+        axp.plot([k], [y], marker="o", mfc="white" if r["label"].startswith("reference") else col, mec=col, ms=4, ls="none", zorder=3)
+    axp.set_xscale("log"); axp.set_xlim(*XR)
+    axp.xaxis.set_major_locator(FixedLocator([1, 3, 10, 32, 100])); axp.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}")); axp.minorticks_off()
+    axp.set_xlabel(f"{letter} {title}")
+    axp.axvline(KMAX, color="#BBBBBB", lw=0.6, ls=":")
+    axp.grid(axis="y", visible=False)
+
+# (a) floor
+for r, y in zip(rows, ypos):
+    col = GCOL[r["group"]]
+    if r["unit"] == "pts":
+        axf.plot([r["floor"]], [y], marker="s", color=col, ms=4, ls="none", mfc="white" if r["label"].startswith("reference") else col)
+    else:
+        axf.text(0.5, y, f"{r['floor']:.2f} logit units", ha="left", va="center", fontsize=style.VENUE["min_pt"])
+axf.set_xlim(0, 11); axf.set_xlabel("(a) floor, RMSE (points)"); axf.grid(axis="y", visible=False)
+forest(ax25, "k025", "(b)", "k* at 0.25 × floor")
+forest(ax50, "k05", "(c)", "k* at 0.5 × floor")
+axf.set_yticks(ypos); axf.set_yticklabels([r["label"] for r in rows]); axf.set_ylim(ypos[-1] + 0.6, -1.0)
+def note(g, txt): axf.text(0.1, (ypos[last[g]] + ypos[last[g] + 1]) / 2 + 0.05 if last[g] + 1 < len(rows) else 0, txt, ha="left", va="center")
+axf.text(0.1, -0.75, "MTEB held-out: 50 splits", ha="left", va="center")
+note("hold-out", "Open LLM: 50 splits, k \u2264 13")
+note("olb", "MTEB sweeps: 67 models, 20 splits")
+for axp in (ax25, ax50): plt.setp(axp.get_yticklabels(), visible=False); axp.tick_params(axis="y", length=0)
+
+
+# (d) ladder placement
+diag = [("calib", "calibration\n(mean)"), ("calib_med", "calibration\n(median)"), ("kurt", "residual\nkurtosis"),
+        ("rescorr", "residual\ncorrelation"), ("het", "heterosced-\nasticity"), ("link", "link\ncurvature")]
+rungs = [("L0_correct", "L0 correct model"), ("L0_decaying_spectrum", "L0, decaying spectrum"), ("L1_saturating_link", "L1 saturating link"),
+         ("L2_heavy_tails", "L2 heavy tails"), ("L3_heteroscedastic_ceiling", "L3 heteroscedastic ceiling"), ("L4_correlated_residuals", "L4 correlated residuals")]
+for i, (rk, rl) in enumerate(rungs):
+    dg = lad["rungs"][rk]["diagnostics"]
+    for j, (dk, _) in enumerate(diag):
+        ins = dg[dk]["inside"]
+        axl.plot([j], [i], marker="o", ms=5.5, mfc=C["theory"] if ins else "white", mec=C["theory"], ls="none")
+axl.set_xlim(-0.5, len(diag) - 0.5); axl.set_ylim(len(rungs) - 0.4, -0.6)
+axl.set_yticks(range(len(rungs))); axl.set_yticklabels([r[1] for r in rungs])
+axl.set_xticks(range(len(diag))); axl.set_xticklabels([d[1] for d in diag])
+axl.xaxis.set_ticks_position("top"); axl.xaxis.set_label_position("bottom")
+axl.tick_params(axis="x", length=0, pad=2); axl.tick_params(axis="y", length=0)
+for s_ in axl.spines.values(): s_.set_visible(False)
+axl.grid(False)
+placed = lad["placed_on"]
+axl.set_xlabel(f"(d) MTEB diagnostic inside (filled) or outside (open) the rung's [5%, 95%] range;\nplacement by the pre-set rule (all six inside): {placed}", labelpad=2)
+fig.savefig(out)
+
+used = [res / f for f in ("ct_kstar.csv", "ct_curves.csv", "scope_ct_kstar.csv", "scope_ct_curves.csv", "ladder/ladder_placement.json", "olb/ct_kstar.csv", "olb/ct_curves.csv")]
+provenance.write(out, used, {
+    "rows": [{"label": r["label"], "floor": float(r["floor"]), "unit": r["unit"], "k_star_0.25_floor": [float(x) for x in r["k025"]],
+              "k_star_0.5_floor": [float(x) for x in r["k05"]]} for r in rows],
+    "holdout_source": "ct_kstar.csv (epsilon_name frac_0.25, frac_0.5 = that fraction of the subset's mean floor RMSE), subset fixed; floor = ct_curves.csv floor_raw, S6+P5, k=109",
+    "olb_source": "olb/ct_kstar.csv (frac_0.25, frac_0.5), olb/ct_curves.csv floor_raw S6+P5; k grid 1,2,3,5,8,13 (N=39), 9999 = not reached",
+    "sweep_source": "scope_ct_kstar.csv, scope_ct_curves.csv (G folds 0-3, 20 splits, 67 models); k grid ends at 32 (the 10-task-type condition: 1, 2, 3, 5); 9999 = not reached",
+    "ladder_placed_on": placed, "ladder_n_seeds": lad["n_seeds"], "script": "figtab/make_fig4.py"}, root=res)
+print(check_pdf.check(out))

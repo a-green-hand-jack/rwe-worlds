@@ -1,0 +1,72 @@
+"""Shared figure style: one place for widths, type sizes and the colour/marker assignment.
+
+Widths and the smallest type size come from the venue's requirements; the values below are
+from venue.json (NeurIPS 2026: text width 5.5 in, no figure minimum; the venue notes recommend >= 7 pt, 8 pt preferred; 8 pt is used).
+Figures are drawn at the width the paper places them at, so type is never rescaled.
+"""
+import json
+import pathlib
+
+import matplotlib as mpl
+
+_HERE = pathlib.Path(__file__).parent
+_VENUE = {"textwidth_in": 5.5, "columnwidth_in": 5.5, "min_pt": 8.0}  
+if (_HERE / "venue.json").exists():
+    _VENUE.update(json.loads((_HERE / "venue.json").read_text()))
+
+TEXTWIDTH = _VENUE["textwidth_in"]
+COLWIDTH = _VENUE["columnwidth_in"]
+MIN_PT = _VENUE["min_pt"]
+
+# Okabe-Ito (colour-blind safe). Colour follows the entity, never its rank; every entity
+# also has a marker and a line style so identity is never colour alone.
+ESTIMATORS = {
+    "DM":            dict(color="#000000", marker="s", ls=":"),
+    "HT/Hajek":      dict(color="#999999", marker="v", ls=":"),
+    "Chin":          dict(color="#0072B2", marker="o", ls="-"),
+    "+count":        dict(color="#56B4E9", marker="^", ls="-"),
+    "+2-hop":        dict(color="#009E73", marker="D", ls="-"),
+    "+interaction":  dict(color="#CC79A7", marker="P", ls="-"),
+    "Tier A":        dict(color="#E69F00", marker="X", ls="--"),
+    "Oracle":        dict(color="#D55E00", marker="*", ls="-."),
+}
+FAMILIES = {  # graph families
+    "SBM": "#0072B2", "ER": "#56B4E9", "BA": "#D55E00", "WS": "#009E73",
+    "Stanford3": "#CC79A7", "ego-Facebook": "#E69F00",
+}
+BIAS_COLOR, SD_COLOR = "#D55E00", "#0072B2"  # bias vs spread parts of the error
+
+
+def apply():
+    mpl.rcParams.update({
+        "font.family": "serif", "mathtext.fontset": "cm",
+        "font.size": MIN_PT, "axes.labelsize": MIN_PT, "axes.titlesize": MIN_PT,
+        "xtick.labelsize": MIN_PT, "ytick.labelsize": MIN_PT,
+        "legend.fontsize": MIN_PT, "figure.titlesize": MIN_PT,
+        "axes.spines.top": False, "axes.spines.right": False,
+        "axes.linewidth": 0.6, "lines.linewidth": 1.3, "lines.markersize": 4,
+        "grid.linewidth": 0.4, "grid.alpha": 0.4, "axes.grid": True,
+        "figure.dpi": 150, "savefig.bbox": "tight", "savefig.pad_inches": 0.02,
+        "pdf.fonttype": 42, "ps.fonttype": 42,  # embed TrueType, no Type-3
+    })
+
+
+def check_min_type(fig, min_pt=MIN_PT):
+    """Fail if any text artist in fig is below the venue's smallest size."""
+    bad = [(t.get_text(), t.get_fontsize()) for t in fig.findobj(mpl.text.Text)
+           if t.get_text().strip() and t.get_fontsize() < min_pt - 1e-6]
+    if bad:
+        raise ValueError(f"text below {min_pt}pt: {bad[:5]}")
+
+
+def save(fig, path, width=TEXTWIDTH - 0.04, tol_pt=0.5, **kw):
+    """Save fig so that the cropped PDF is exactly `width` inches wide, i.e. it is placed at 1:1 and the type keeps its size.
+    The figure width is adjusted until the tight bounding box (axis labels, outside legends included) has that width."""
+    for _ in range(8):
+        bb = fig.get_tightbbox(fig.canvas.get_renderer())
+        w = bb.width + 2 * mpl.rcParams["savefig.pad_inches"]
+        if abs(w - width) * 72 < tol_pt:
+            break
+        fig.set_figwidth(fig.get_figwidth() + (width - w))
+    fig.savefig(path, **kw)
+    return fig.get_figwidth()

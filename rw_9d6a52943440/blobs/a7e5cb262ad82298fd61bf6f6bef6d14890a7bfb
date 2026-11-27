@@ -1,0 +1,48 @@
+"""C4b: RMSE ratio to uniform|mean at n = 100 versus the number of source models M (family bootstrap, geometric mean over non-thin benchmarks).
+usage: python3 -I scripts/04_msrc.py results/raw results/raw_msrc results"""
+import os
+for v in ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS"):
+    os.environ[v] = "1"
+import sys, pickle, pathlib, glob, re
+import numpy as np, pandas as pd
+
+raw, rawm, out = map(pathlib.Path, sys.argv[1:4])
+tg = pd.read_csv(out / "targets.csv").set_index(["bench", "split"])
+B = 2000
+rng = np.random.default_rng(1)
+cells = {}        # (bench, split, M) -> (fam, {method: e2 per target})
+msrc = {}
+for f in sorted(glob.glob(str(rawm / "*__*_M*.pkl"))) + sorted(glob.glob(str(raw / "*__*.pkl"))):
+    m = re.search(r"__(interp|extrap)(?:_M(\d+))?\.pkl$", f)
+    if not m: continue
+    D = pickle.load(open(f, "rb")); recs = [r for r in D["records"] if r["n"] == 100]
+    if not recs: continue
+    sp, b = m.group(1), recs[0]["bench"]
+    fam = np.concatenate([r["fam"] for r in recs])
+    E2 = {k: np.concatenate([((r["preds"][k].astype(np.float64) - r["true"][None]) ** 2).mean(0) for r in recs])
+          for k in recs[0]["preds"] if k.split("|")[0] in ("uniform", "strat", "pps", "balanced") and "fixed:" not in k}
+    M = int(m.group(2)) if m.group(2) else 0          # 0 = all sources
+    cells[(b, sp, M)] = (fam, E2, len(D["records"][0].get("tgt", [])))
+rows = []
+for sp in ("interp", "extrap"):
+    for M in sorted({k[2] for k in cells}):
+        benches = [b for (b, s, mm) in cells if s == sp and mm == M and not tg.loc[(b, sp), "thin"]]
+        if not benches: continue
+        methods = sorted(set.intersection(*[set(cells[(b, sp, M)][1]) for b in benches]))
+        L = {m: [] for m in methods}; pt = {m: [] for m in methods}
+        for b in benches:
+            fam, E2, _ = cells[(b, sp, M)]
+            ufam, inv = np.unique(fam, return_inverse=True); F = len(ufam)
+            C = rng.multinomial(F, np.ones(F) / F, size=B).astype(float)
+            cnt = np.bincount(inv, minlength=F).astype(float)
+            den = C @ cnt
+            rm = {m: np.sqrt((C @ np.bincount(inv, E2[m], minlength=F)) / den) for m in methods}
+            for m in methods:
+                L[m].append(np.log(rm[m] / rm["uniform|mean"]))
+                pt[m].append(np.log(np.sqrt(E2[m].mean() / E2["uniform|mean"].mean())))
+        for m in methods:
+            g = np.exp(np.mean(np.stack(L[m]), 0))
+            rows.append(dict(split=sp, M=M, method=m, geomean_ratio=float(np.exp(np.mean(pt[m]))), ci_lo=np.percentile(g, 2.5),
+                             ci_hi=np.percentile(g, 97.5), n_bench=len(benches)))
+pd.DataFrame(rows).to_csv(out / "msrc.csv", index=False)
+print("done", len(rows))

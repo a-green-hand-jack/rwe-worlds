@@ -1,0 +1,25 @@
+\section{Setting and estimands}
+\label{sec:setting}
+
+\paragraph{Search, report, verify.}
+A benchmark pool of $N$ items and a declared space of $K$ configurations $\cfg$ (instruction wording, answer format, demonstrations) are given.
+A search draws a set $S$ of $n$ items, evaluates $B\le K$ configurations on $S$, and returns the configuration $\chat$ with the highest score on $S$.
+Writing $\hat A_S(\cfg)$ for the accuracy of $\cfg$ on $S$ and $\theta(\cfg)$ for its accuracy over the pool, the \emph{naive report} is $\hat A_S(\chat)$ and the \emph{gap} is $\hat A_S(\chat)-\theta(\chat)$.
+Because $\chat$ is the maximiser of $B$ noisy scores, the gap has positive expectation even when no configuration is better than another; how large it is, and what drives it, is the question.
+
+\paragraph{Fresh-item truth.}
+The target of every number from the real LLM is the gap \emph{for this pool as the population}.
+$S$ is a uniform random subset of an i.i.d.\ pool, so the pool items outside $S$ are fresh given $S$, and $\theta(\chat)$ is measured as the accuracy of $\chat$ on them.
+The statement is not about MMLU-Pro at large, about other models, or about configuration spaces other than the one searched.
+Because the fresh items are finite, the measured $\theta(\chat)$ carries sampling noise of its own; it has zero mean and enters every reported gap as a stated noise floor.
+When $n$ is a large share of the pool the draws of $S$ overlap strongly and finite-population effects matter; we flag those cells.
+
+\paragraph{Three estimands.}
+Reporting protocols claim different things, and are scored on their own claim.
+(i)~The accuracy $\theta(\chat)$ of the configuration actually deployed: claimed by the naive report, by lower bounds, and by a held-out split report (whose $\chat$ is chosen on fewer items and is a different configuration).
+(ii)~The expected accuracy $\EE\,\theta(\chat)$ of the search procedure: claimed by nested cross-validation and optimism bootstrap.
+(iii)~A common yardstick at equal total item budget $N_{\mathrm{tot}}$: how often a point report overstates $\theta(\chat)$, the coverage and tightness of one-sided lower bounds at equal nominal level, and the true accuracy lost by spending items on reporting instead of search.
+
+\paragraph{Effective number of configurations.}
+Configurations that differ in wording are far from independent, so the nominal $K$ overstates how many competitors the maximum is taken over.
+We define $\Keff$ operationally as the number of independent configurations whose expected maximum of standardised Gaussian scores equals that of the observed, correlated configurations (computed from the item-level covariance of the search log), and write $\sigmatheta$ for the standard deviation of the true accuracies $\theta(\cfg)$ across configurations.

@@ -1,0 +1,24 @@
+"""Predicted-vs-measured excess width panel, shared by fig2_prop.py (standalone) and fig4_breakeven.py (panel inside Fig 3)."""
+import style
+
+
+def draw(ax, df):
+    from common import CFG
+    df = df[df.estimator.isin(CFG["prop_estimators"]) & df.pred_excess_width.notna()].copy()   # estimators without a closed form have nothing to compare
+    # unit-free: excess width as a fraction of the floor width, so real and synthetic cells share one axis
+    for c in ("pred_excess_width", "meas_excess_width", "meas_excess_width_lo", "meas_excess_width_hi"):
+        df[c] = df[c] / df["pred_width_floor"]
+    for i, (e, g) in enumerate(df.groupby("estimator")):
+        lab, col, mkr = style.method_style(e)[:3]
+        ax.errorbar(g.pred_excess_width, g.meas_excess_width,
+                    yerr=[g.meas_excess_width - g.meas_excess_width_lo, g.meas_excess_width_hi - g.meas_excess_width],
+                    fmt=mkr, color=col, ms=3.5, lw=0.6, capsize=1.2, label=lab, mfc=col)
+        real = g[g.group == "reference_grid"]          # hollow = real dataset, filled = synthetic
+        ax.plot(real.pred_excess_width, real.meas_excess_width, mkr, ms=2.2, mfc="white", mec=col, mew=0.6)
+    lim = max(df.pred_excess_width.max(), df.meas_excess_width_hi.max()) * 1.05
+    lo = min(0, df.meas_excess_width_lo.min()) * 1.05
+    ax.plot([lo, lim], [lo, lim], color="k", lw=0.7, ls="--", zorder=0)
+    ax.set_xlim(lo, lim); ax.set_ylim(lo, lim)
+    ax.set_aspect("equal")
+    ax.set_xlabel("predicted excess width / floor width")
+    ax.set_ylabel("measured excess width / floor width")

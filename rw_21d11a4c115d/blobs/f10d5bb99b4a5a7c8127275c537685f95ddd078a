@@ -1,0 +1,9 @@
+import re,sys,html
+t=open('raw/index2024.html',encoding='utf8').read()
+rows=re.findall(r'href="(/paper_files/paper/2024/hash/[0-9a-f]+-Abstract-Conference.html)">([^<]*)',t)
+rows=[(u,html.unescape(x)) for u,x in rows]
+kw=re.compile(r'(matrix completion|low-rank|latent factor|item response|efficient evaluation|benchmark|evaluat|scaling law|predict(ing|ability)|experimental design|active (learning|sampling)|cold-start|submodular|greedy|CUR |leverage score|sensor|feature selection|subset selection|coreset|anchor)',re.I)
+sel=[(u,x) for u,x in rows if kw.search(x)]
+print(len(rows),len(sel))
+import json;json.dump(sel,open('raw/cand2024.json','w'))
+for u,x in sel: print(x)

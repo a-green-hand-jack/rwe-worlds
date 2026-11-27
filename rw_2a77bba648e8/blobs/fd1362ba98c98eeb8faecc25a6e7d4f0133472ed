@@ -1,0 +1,12 @@
+{
+ "script": "analysis/make_diag.py",
+ "code_commit": "1b5328ec14a261e28463578a5171e44729fa0bcb",
+ "seed": 20261125,
+ "n_draws": "3000 per run (synthetic graphs: 10 graph draws x 300 assignments; real graphs: 1 graph x 3000 assignments); bootstrap and coverage on a subset",
+ "date": "2026-11-26",
+ "description": "exact variance decomposition: base, misfit, noise, cross",
+ "n_runs": 121,
+ "n_cells": 2178,
+ "n_part1_rows": 372400,
+ "bootstrap_B": 2000
+}

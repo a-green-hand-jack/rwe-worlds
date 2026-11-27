@@ -1,0 +1,23 @@
+\section{Experimental setup}
+\label{sec:setup}
+
+\paragraph{Data.}
+We use the 13 binary item-by-model score matrices released with~\citep{zhang2025miss} (MIT licence): seven from the Open LLM Leaderboard v2~\citep{fourrier2024olleaderboard} (ARC-Challenge~\citep{clark2018arc}, BBH~\citep{suzgun2023bbh}, GPQA~\citep{rein2024gpqa}, IFEval~\citep{zhou2023ifeval}, MMLU-Pro~\citep{wang2024mmlupro}, MuSR~\citep{sprague2024musr}, MATH Lvl~5~\citep{hendrycks2021math}) and six from HELM~\citep{liang2023helm} (the OpenBookQA task, called CommonSense in the files~\citep{mihaylov2018openbookqa}, GSM8K~\citep{cobbe2021gsm8k}, LegalBench~\citep{guha2023legalbench}, MATH~\citep{hendrycks2021math}, MedQA~\citep{jin2021medqa}, MMLU~\citep{hendrycks2021mmlu}).
+After dropping repeated model names and rows identical to an earlier row, a benchmark has between $79$ and $427$ models and between $437$ and $12{,}032$ items (Table~\ref{tab:audit}, appendix).
+The benchmarks share models and families, so they are not 13 independent replications.
+
+\paragraph{Protocol.}
+For every benchmark and each split of Section~\ref{sec:method}, every method receives only the source matrix, selects $n$ items, and sees the target's answers on them; its estimate is scored against the target's true full score.
+All estimators of one design use the same subset draws and one subset serves all targets of a draw; designs draw independently, so a ratio to uniform sampling compares RMSEs over the same targets, not paired errors.
+A design is drawn ten times per fold and $n$ (forty for extrapolation), anchor selection five times (ten), information-top selection is deterministic and CAT runs once per target.
+The grid is $n\in\{10,25,50,100,200,400\}$ with $n\le N/2$.
+The primary endpoint, written down before any code ran, is the RMSE of a method divided by that of uniform sampling with the sample mean at $n=100$ on the same targets, aggregated over benchmarks by the geometric mean, with a 95\% bootstrap interval over target families (resampled within each benchmark).
+A (benchmark, split) with fewer than $10$ targets or $5$ independent families is thin and left out of the primary aggregate.
+As $n=100$ is $18\%$ of the items of IFEval and under $1\%$ of MMLU-Pro, a second endpoint fixes $n/N=2\%$.
+Ordering is scored by Spearman and Kendall correlations per fold and draw, top-decile precision, and pairwise accuracy as a function of the true gap.
+
+\paragraph{Methods compared.}
+We compare 7 designs and the estimators of Section~\ref{sec:method}: calibrated regression and, for each of IRT, kNN and ridge, a model, a plug-in and a difference estimator (104 combinations with diagnostics).
+The anchor-point, tinyBenchmarks-style (anchor design with IRT plug-in) and metabench-style (information-top design with calibrated-regression or IRT model estimators) methods are our re-implementations of their selection and prediction steps; Appendix~\ref{app:public} runs the published code on part of the splits.
+The protocol, the primary endpoint, the three main splits and the first grid were written down before any code ran; the sensitivity splits, stratified sampling as a second baseline and further estimators were added afterwards.
+The best of the combinations, where named, was chosen after the outcomes; our claims are about method classes.

@@ -1,0 +1,22 @@
+import fitz,re,sys
+for f in sys.argv[1:]:
+    d=fitz.open(f); txt=[p.get_text() for p in d]
+    # reference start page
+    ref=None
+    for i,t in enumerate(txt):
+        if re.search(r'^\s*(References|REFERENCES)\s*$',t,re.M): ref=i;break
+    # find main end: page of references heading; main text ends on that page (maybe partial)
+    main=txt[:ref+1] if ref is not None else txt
+    full="\n".join(txt)
+    mt="\n".join(main)
+    figs=sorted(set(int(x) for x in re.findall(r'^Figure (\d+)[.:]',mt,re.M)))
+    tabs=sorted(set(int(x) for x in re.findall(r'^Table (\d+)[.:]',mt,re.M)))
+    # references count: split at heading
+    m=re.search(r'^\s*(References|REFERENCES)\s*$',full,re.M)
+    refs=full[m.end():] if m else ''
+    # end of refs at Appendix heading
+    a=re.search(r'^\s*(A\.|Appendix|APPENDIX)\s',refs,re.M)
+    ncites=len(re.findall(r'\(\d{4}[a-z]?\)\.|\b(19|20)\d\d[a-z]?\.\s',refs))
+    # words in main text before refs heading
+    pre=full[:m.start()] if m else full
+    print(f,'pages',len(d),'refpage',(ref+1 if ref is not None else None),'figs',figs,'tabs',tabs,'words_before_refs',len(pre.split()))

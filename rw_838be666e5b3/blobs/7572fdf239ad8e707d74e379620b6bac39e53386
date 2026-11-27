@@ -1,0 +1,74 @@
+"""Fig 5 (C7): regime map. One marker per cell: outcome of one method vs PPI++ from the CI of the paired ratio and validity.
+gain: valid and ratio CI upper bound < gain_ub (0.95); no gain: valid and CI inside the no-gain margin or containing 1;
+worse: valid and CI lower bound above the no-gain margin (> 1.02); undecided: valid, CI neither inside the margin nor below 0.95; invalid: the method misses the win rule; all fail: PPI++ misses it too.
+Colour and marker shape both code the outcome. Rows are scenarios (the groups of analysis), x is labels n (log)."""
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
+import style, schema, captions
+from common import CFG, nice
+
+style.apply()
+cells = schema.load("cells.csv")
+run, nr = schema.drop_not_run(cells)
+run = run[run.exp.isin(["E3", "E7"]) & (run.tier == "T1") & (run.construction == CFG["primary_construction"])]
+m = CFG["regime_method"]
+key = ["dataset", "pop_name", "n", "group"]
+pp = run[run.method == "ppipp"]
+if pp.duplicated(key).any():
+    raise SystemExit("cells.csv: more than one PPI++ row per (dataset, pop_name, n, group); the regime map needs one")
+ref = pp.set_index(key).valid
+g = run[(run.method == m) & run.group.isin(["reference_grid", "stress_monotone_transform", "selected_labeling", "shift", "rare"])].copy()
+mg = CFG["margin"]
+def outcome(r):
+    refv = ref.get((r.dataset, r.pop_name, r.n, r.group), np.nan)
+    if r.valid != 1:
+        return "all fail" if refv == 0 else "invalid"
+    if r.ratio_hi < mg["gain_ub"]: return "gain"
+    if r.ratio_lo > mg["no_gain"][1]: return "worse"
+    if r.ratio_lo >= mg["no_gain"][0] and r.ratio_hi <= mg["no_gain"][1]: return "no gain"
+    return "undecided"
+g["outcome"] = g.apply(outcome, axis=1)
+S = {"gain": (style.OI["green"], "o"), "no gain": ("#999999", "s"), "worse": (style.OI["orange"], "^"), "undecided": ("#ffffff", "D"),
+     "invalid": (style.OI["verm"], "X"), "all fail": ("#000000", "X")}
+panels = [("Reference grid and transformed outcomes", ["reference_grid", "stress_monotone_transform"]),
+          ("Failure cells: selected labelling, shift, rare events", ["selected_labeling", "shift", "rare"])]
+def rowlabel(r):
+    if r.group == "selected_labeling":
+        return f"{nice(r.dataset.split('_sel-')[0])}, sel. on {r.pop_name.split('sel-')[1].split('_')[0]}"
+    if r.group == "rare":
+        base = "synthetic" if r.dataset.startswith("syn_") else nice(r.dataset.split("_prev")[0])
+        return f"{base}, prevalence {100 * r.truth:.1f}%"
+    if r.group == "shift":
+        return "plankton shift"
+    return nice(r.dataset)
+nrow = [len(p[["dataset", "pop_name"]].drop_duplicates()) for p in (g[g.group.isin(pn[1])] for pn in panels)]
+fig, axs = plt.subplots(1, 2, figsize=(style.FULL_W, 0.165 * max(nrow) + 0.85), gridspec_kw={"width_ratios": [1, 1]})
+for ax, (title, groups) in zip(axs, panels):
+    p = g[g.group.isin(groups)].copy()
+    p["row"] = p.apply(rowlabel, axis=1)
+    order = list(dict.fromkeys(p.assign(gi=p.group.map(groups.index)).sort_values(["gi", "row"]).row))
+    for i, lab in enumerate(order):
+        for _, r in p[p.row == lab].iterrows():
+            col, mk = S[r.outcome]
+            ax.plot(r.n, i, marker=mk, color=col, ms=5, ls="none", mec="k", mew=0.4)
+    ax.set_yticks(range(len(order))); ax.set_yticklabels(order, fontsize=style.FONT)
+    ax.set_ylim(len(order) - 0.4, -0.7)
+    ax.set_xscale("log")
+    ax.set_xlabel("labels $n$")
+    ax.set_title(title, fontsize=style.FONT, loc="left")
+    ax.grid(axis="x", lw=0.3, color="#dddddd")
+    ax.grid(False, axis="y")
+fig.legend(handles=[Line2D([], [], marker=mk, color=c, ls="none", ms=5, mec="k", mew=0.4, label=k) for k, (c, mk) in S.items() if k in set(g.outcome)],
+           ncol=6, loc="lower center", fontsize=style.FONT, handletextpad=0.2, columnspacing=1.2, frameon=False)
+fig.tight_layout(rect=(0, 0.07, 1, 1), w_pad=1.0)
+style.save(fig, "fig_regime_map")
+cnt = g.outcome.value_counts().to_dict()
+absent = [k for k in S if k not in cnt]
+hl = schema.load("headline.csv")
+hl = hl[(hl.tier == "T1") & (hl.classification != hl.classification_vs_unclip)]
+unclip_note = (" The reference is the package PPI++ (`ppi-python` 0.2.3, which clips the estimated tuning to [0, 1]). Against the unclipped PPI++ the class of the headline arm changes in " +
+               (f"{len(hl)} headline cell(s) (headline.csv): " + "; ".join(f"{nice(r.dataset)} n={int(r.n)}: {r.classification} to {r.classification_vs_unclip}" for r in hl.itertuples()) if len(hl) else "no headline cell") + ".")
+captions.write("figures", "fig_regime_map", "C7: regime map of gain / no gain / worse / invalid, including cells where every method fails.",
+    f"one marker per cell: outcome of the headline T1 arm ({nice(m)}, config regime_method) against PPI++ at the same n; left, the nine real sets at every n of the reference grid and the monotone-transform stress sets; right, the failure cells (labels selected on X, Y or f; plankton shift; rare events). Cells by outcome: {cnt}." + (f" No cell is classed {absent} and those markers are left out of the legend." if absent else "") + unclip_note,
+    "green circle = valid and the CI upper bound of the paired ratio below 0.95; grey square = valid and the CI inside the pre-fixed no-gain margin [0.98, 1.02]; orange triangle = valid and longer, CI above 1.02; white diamond = valid, CI neither inside the margin nor below 0.95; red cross = the arm misses the pre-registered win rule (coverage); black cross = PPI++ misses it too (at small n the PPI++ Wald interval itself under-covers, so a red or black cross there is partly the reference's failure).", run)

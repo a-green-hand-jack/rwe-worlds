@@ -1,0 +1,17 @@
+"""Smallest text size in a figure PDF, in points as printed at the placed width.
+
+usage: check_fonts.py FIG.pdf MIN_PT [PLACED_WIDTH_IN]
+Figures are exported at their placed width, so the scale is 1; if PLACED_WIDTH_IN differs from the
+PDF's width, sizes are scaled by their ratio. Exit 1 if any span is below MIN_PT; also reports non-embedded / Type 3 fonts.
+"""
+import sys, fitz
+pdf, minpt = sys.argv[1], float(sys.argv[2])
+doc = fitz.open(pdf); page = doc[0]
+scale = float(sys.argv[3]) * 72 / page.rect.width if len(sys.argv) > 3 else 1.0
+sizes = [(s["size"] * scale, s["text"]) for b in page.get_text("dict")["blocks"] if b["type"] == 0
+         for l in b["lines"] for s in l["spans"] if s["text"].strip()]
+bad = [(round(z, 2), t) for z, t in sizes if z < minpt - 0.05]
+fonts = {f[3]: f[2] for f in page.get_fonts()}
+print(f"{pdf}: {len(sizes)} text spans, min {min(z for z,_ in sizes):.2f} pt, fonts {fonts}")
+if any("Type3" in t for t in fonts.values()): print("Type 3 font present"); sys.exit(1)
+if bad: print("below minimum:", bad[:10]); sys.exit(1)

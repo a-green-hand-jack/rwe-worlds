@@ -1,0 +1,41 @@
+"""E7 failure cells: (a) plankton covariate/label shift 2013 -> 2014, (b) non-MCAR labeling.
+usage: python exp7_fail.py PART PROCS  (PART: shift | select | rare)"""
+import sys
+from common import *
+
+part, procs = sys.argv[1], int(sys.argv[2])
+cells = []
+if part == "shift":
+    d = np.load(os.path.join(DATA_DIR, "plankton.npz"))
+    pop = ShiftPool("plankton_shift", d["Y"], d["Yhat"], d["Y_unlabeled"], d["Yhat_unlabeled"])
+    for n in (200, 1000, 5000):
+        cells.append(dict(id=f"plankton_shift_n{n}_N10000", pop=pop, n=n, N=10000, R=2000, cfg=T1_CFG))
+elif part == "rare":
+    from scipy.optimize import brentq
+    def prev_of(a, b=1.5):
+        ug, w = np.polynomial.hermite_e.hermegauss(200)
+        from scipy.special import expit
+        return (w * expit(a + b * ug)).sum() / w.sum()
+    for p in (0.01, 0.02, 0.05):
+        a = brentq(lambda a: prev_of(a) - p, -12, 2)
+        pop = synth_binary(round(a, 3), 1.5, 0.5)
+        for n in (100, 300, 1000):
+            cells.append(dict(id=f"rare_synth_p{p}_n{n}_N8000", pop=pop, n=n, N=8000, R=5000, cfg=T1_CFG))
+    for nm in ("galaxies", "plankton"):
+        base = load_pool(nm)
+        for p in (0.02, 0.05):
+            pop = RarePool(base, p)
+            for n in (100, 300, 1000):
+                cells.append(dict(id=f"rare_{pop.name}_n{n}_N8000", pop=pop, n=n, N=8000, R=5000, cfg=T1_CFG))
+else:
+    T2 = dict(T1_CFG, T2=True, gbm=True, safe_among=["linear", "spline", "isotonic"])
+    for nm, sels in (("galaxies", ["f", "Y"]), ("census_healthcare", ["f", ("X", 0), "Y"]), ("gene_expression", ["f", "Y"])):
+        pool = load_pool(nm)
+        for s in sels:
+            pop = SelectPool(pool, s, 1.0)
+            cfg = T2 if (nm == "census_healthcare") else T1_CFG
+            cells.append(dict(id=pop.name + "_n500_N10000", pop=pop, n=500, N=10000, R=1000 if cfg is T2 else 2000, cfg=cfg))
+    for s in ("f", "Y"):
+        pop = SelectPool(Pool("quad_c0.2", *synth_quad(0.8, 0.2, 0.6).arrays(300000)), s, 1.0)
+        cells.append(dict(id=pop.name + "_n500_N10000", pop=pop, n=500, N=10000, R=2000, cfg=T1_CFG))
+run_grid("exp7", cells, procs)

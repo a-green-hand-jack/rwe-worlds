@@ -1,0 +1,44 @@
+# fig_headroom_ladder
+
+**Claim carried:** C2: where the gain over PPI++ is zero, small or large, per dataset.
+
+**Shows:** per dataset at its headline n, mean interval width of each step of the ladder divided by PPI++ width (same draws), with the 95% CI of the paired ratio; hollow marker = the method misses the pre-registered win rule (coverage) in that cell; 'n/a' = step not defined for that dataset; a triangle at the top edge = ratio above the plotted range (value printed; the labels-only interval is 1.2-2.9 times PPI++). Floor = the model-based predicted ratio of the standard deviations (bar; no interval, no coverage) and, beside it, the same floor in measured-width units (hollow diamond; headline.csv `floor_ratio_measured`); neither is a bound, both are estimates within a class of calibrators, and neither is a method. 'PPI++ unclipped' is PPI++ with the same estimated tuning but without the package's clip of it to [0, 1] (`ppi-python` 0.2.3), on the same draws, as a ratio to the package PPI++.
+
+**How to read:** grey band = pre-fixed no-gain margin [0.98, 1.02], dashed = gain threshold 0.95 (the CI upper bound must lie below it); the large marker is the headline arm 'Selected' and 'Selected + X' for T2. below the line at 1 = shorter than PPI++; a CI that contains 1 = no detectable difference; hollow = width is not credited. A double dagger above a headline arm marks a cell in which neither the package PPI++ nor the unclipped PPI++ passes the coverage rule (5 cells: alphafold T1; alphafold T2; census income T1; census income T2; forest T1), so the reference line is itself an undercovering interval there.
+
+**Computed on** (from the rows drawn):
+- datasets/scenarios: alphafold, ballots, census_education, census_healthcare, census_income, forest, galaxies, gene_expression, plankton
+- n: 200, 500
+- N: 1000, 10000, 5000, 8000
+- tier: T1, T2
+- methods: calib_spline, floor, labels_z, ppi, ppipp, ppipp_unclip, select, select_x
+- constructions: wald
+- sampling: labeled_only_resample, with_replacement
+- base seeds: 20282720.0, 20427675.0, 20553373.0, 20925496.0, 20934733.0, 21033679.0, 21198254.0, 21243444.0, 21252651.0
+- code commits: 146848fb9a8459fac152ed67ffd429c934ecc49c, 5e11b915d25abfdb3dc37480525a5cacb80b16f3, 6f99f30de39c59b831bb041e788a7237805185d3, a9410fce44393d31c3b463367f1f030ae77538a4, ad7837e0dc29e00931d59f3d15e2d3bd85546126, f7cde9586b0286b709e013b3a70a4e33d56cceb1
+- n (and N) per dataset: alphafold n=500 (N=8000); ballots n=500 (N=5000); census_education n=500 (N=10000); census_healthcare n=500 (N=10000); census_income n=500 (N=10000); forest n=200 (N=1000); galaxies n=500 (N=10000); gene_expression n=500 (N=10000); plankton n=500 (N=10000)
+- Monte-Carlo repetitions per row: min 2000, max 5000
+- rows: 67
+
+**Placement:** natural size 6.53 in wide, 4.58 in tall; the smallest type is 7 pt at that size (column 3.25 in, text block 6.75 in). Intended for a `figure*`; include it at `width=6.53in` or up to the full width of its float, never narrower (scaling by s gives 7s pt).
+
+**Ratio drawn per rung** (width / PPI++ width, min to max over the datasets that have the rung; the plotted axis is 0.9 to 1.15, larger values are drawn as the triangle with the value):
+- Labels (labels_z): 1.152 to 2.857 over 9 datasets
+- PPI (ppi): 0.999 to 1.053 over 9 datasets
+- PPI++ (ppipp): 1.000 to 1.000 over 9 datasets
+- PPI++ unclipped (ppipp_unclip): 0.977 to 1.002 over 9 datasets
+- Calibrated $f$ (calib_spline): 0.971 to 1.020 over 9 datasets
+- Selected (select): 0.971 to 1.007 over 9 datasets
+- Selected + $X$ (select_x): 0.993 to 1.009 over 4 datasets
+- Floor (floor): 0.993 to 1.004 over 9 datasets
+
+**Headline arm (select) per dataset** (paired ratio to package PPI++ with 95% CI and the pre-fixed class; the same against the unclipped PPI++; the floor in both units; coverage of the selected interval; pre-fixed valid flag):
+- alphafold (n=500): r = 1.000 [1.000, 1.000] (no gain), against unclipped PPI++ 0.998 [0.997, 0.998] (no gain); floor 0.998 (asymptotic), 0.998 (measured units); coverage 0.945, valid = 1
+- ballots (n=500): r = 1.000 [1.000, 1.001] (no gain), against unclipped PPI++ 1.000 [1.000, 1.001] (no gain); floor 1.003 (asymptotic), 1.007 (measured units); coverage 0.946, valid = 1
+- census educ. (n=500): r = 1.005 [1.005, 1.005] (no gain), against unclipped PPI++ 1.005 [1.004, 1.005] (no gain); floor 0.997 (asymptotic), 1.000 (measured units); coverage 0.947, valid = 1
+- census health (n=500): r = 1.003 [1.003, 1.004] (no gain), against unclipped PPI++ 1.003 [1.003, 1.003] (no gain); floor 0.997 (asymptotic), 1.000 (measured units); coverage 0.948, valid = 1
+- census income (n=500): r = 0.992 [0.991, 0.993] (no gain), against unclipped PPI++ 1.008 [1.007, 1.008] (no gain); floor 0.995 (asymptotic), 1.000 (measured units); coverage 0.939, valid = 0
+- forest (n=200): r = 1.007 [1.007, 1.007] (no gain), against unclipped PPI++ 1.006 [1.006, 1.007] (no gain); floor 1.004 (asymptotic), 1.010 (measured units); coverage 0.943, valid = 0
+- galaxies (n=500): r = 1.003 [1.002, 1.003] (no gain), against unclipped PPI++ 1.002 [1.002, 1.002] (no gain); floor 1.000 (asymptotic), 1.001 (measured units); coverage 0.943, valid = 1
+- gene expr. (n=500): r = 0.971 [0.971, 0.971] (small / undecided), against unclipped PPI++ 0.994 [0.994, 0.995] (no gain); floor 0.993 (asymptotic), 0.967 (measured units); coverage 0.955, valid = 1
+- plankton (n=500): r = 1.001 [1.000, 1.001] (no gain), against unclipped PPI++ 1.000 [1.000, 1.001] (no gain); floor 1.001 (asymptotic), 1.002 (measured units); coverage 0.951, valid = 1

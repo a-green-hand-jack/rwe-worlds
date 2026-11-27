@@ -1,0 +1,43 @@
+"""Per-draw normalised errors (tau_hat - tau)/tau of the core SBM cells, at noise m = 0.5, for distribution plots and paired ratios.
+usage: make_draws.py OUT.parquet RAWDIR   (reads core_SBM_*.pkl)"""
+import glob
+import os
+import subprocess
+import sys
+import json
+
+import numpy as np
+import pandas as pd
+
+sys.path.insert(0, os.path.dirname(__file__))
+import agg  # noqa: E402
+
+EST = ["dm", "hajek75", "chin", "inter", "or_known", "or_fit"]
+M = 0.5
+
+
+def main(out, rawdir):
+    frames = []
+    for f in sorted(glob.glob(os.path.join(rawdir, "core_SBM_*.pkl"))):
+        run = agg.Run(f)
+        G, R = run.G, run.R
+        gi, ai = np.meshgrid(np.arange(G), np.arange(R), indexing="ij")
+        for j, (mname, s) in enumerate(run.cols):
+            for est in EST:
+                x = run.err(est, j, M)
+                if x is None:
+                    continue
+                frames.append(pd.DataFrame(dict(run_id=run.id, mechanism=mname, s=s, sigma=M, estimator=est, graph_draw=gi.ravel().astype(np.int16),
+                                                assign_draw=ai.ravel().astype(np.int16), err=x.ravel().astype(np.float32))))
+        print("draws", run.id, flush=True)
+    df = pd.concat(frames, ignore_index=True)
+    for c in ("run_id", "mechanism", "estimator"):
+        df[c] = df[c].astype("category")
+    df.to_parquet(out)
+    commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, cwd=os.path.dirname(__file__)).stdout.strip()
+    json.dump(dict(script="analysis/make_draws.py", code_commit=commit, n_rows=len(df), note="same graph/assignment draw indices across estimators (paired); err normalised by tau"),
+              open(out.replace(".parquet", ".meta.json"), "w"), indent=1)
+
+
+if __name__ == "__main__":
+    main(*sys.argv[1:])

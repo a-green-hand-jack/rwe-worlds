@@ -1,0 +1,28 @@
+"""E1/E2/E4(synthetic): proposition check, break-even and N-sweep on known-truth populations.
+usage: python exp1_synth.py PART PROCS   (PART in A,B,C)"""
+import sys
+from common import *
+T1_CFG = dict(T1_CFG, oracle=True)
+
+part, procs = sys.argv[1], int(sys.argv[2])
+cells = []
+if part == "A":   # quadratic family: Delta = 2c^2 closed form; n/N = 1/8
+    for c in (0.0, 0.05, 0.1, 0.2, 0.5):
+        pop = synth_quad(alpha=0.8, c=c, sigma=0.6)
+        for n in (25, 50, 100, 200, 400, 800, 1600):
+            cells.append(dict(id=f"A_c{c}_n{n}", pop=pop, n=n, N=8 * n, R=3000, cfg=T1_CFG))
+elif part == "B":  # calibration shapes
+    pops = [synth_shape("tanh"), synth_shape("sin"),
+            synth_binary(prev_logit=-1.0, slope=1.5, kappa=0.5),
+            synth_binary(prev_logit=-4.5, slope=1.5, kappa=0.5)]
+    for pop in pops:
+        for n in (100, 400, 1600):
+            cells.append(dict(id=f"B_{pop.name}_n{n}", pop=pop, n=n, N=8 * n, R=3000 if "a-4.5" not in pop.name else 5000, cfg=T1_CFG))
+elif part == "C":  # N sweep n = 400, includes N ~ n
+    pop = synth_quad(alpha=0.8, c=0.2, sigma=0.6)
+    for N in (400, 1200, 4000, 16000):
+        cells.append(dict(id=f"C_c0.2_n400_N{N}", pop=pop, n=400, N=N, R=3000, cfg=T1_CFG))
+    pop = synth_quad(alpha=0.8, c=0.0, sigma=0.6)
+    for N in (400, 1200, 4000, 16000):
+        cells.append(dict(id=f"C_c0.0_n400_N{N}", pop=pop, n=400, N=N, R=3000, cfg=T1_CFG))
+run_grid("exp1", cells, procs)

@@ -1,0 +1,10 @@
+# Which benchmarks to run for a new model
+
+Delivery root of the paper. Layout (owner in `.forgejo/CODEOWNERS`):
+
+- `paper/` LaTeX sources of the paper (`main.tex`, sections, appendix, checklist); the document is built by the system from `paper/main.tex`.
+- `venue/` the venue's official template files and checklist template.
+- `refs/` the verified bibliography (`refs.bib`).
+- `figtab/` figures and table fragments the paper includes, with their generating scripts and provenance sidecars.
+- `code/` all analysis code and the reproduction notes (`code/README.md`: environment, data versions, seeds, commands, run times, which script makes each table and figure).
+- `results/` the result files the figures, tables and numbers of the paper are computed from.

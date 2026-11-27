@@ -1,0 +1,51 @@
+"""Fig. 3: per design (median over its data sets, band = range across data sets): fraction of CI-separated pairs (published view) whose conclusion survives b alterations, with random deletion /
+outcome change (P_flip) as the noise reference. (A) b as a share of N (counts differ by dataset, N is in Table 1);
+(B) b in standard-error units, the cross-dataset axis. One perturbation family per file (--family, default delete)."""
+import argparse, os, matplotlib; matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
+from style import setup, fig_size, design_style, plain_log
+from common import load, write_prov
+
+ap = argparse.ArgumentParser(); ap.add_argument("--data", required=True); ap.add_argument("--out", required=True)
+ap.add_argument("--family", default="delete"); ap.add_argument("--sep-def", default="published"); ap.add_argument("--subset", default="separated")
+a = ap.parse_args(); setup(); os.makedirs(a.out, exist_ok=True)
+prov = {"inputs": {}, "dropped": {}, "family": a.family, "sep_def": a.sep_def, "subset": a.subset}
+df = load(a.data, "survival_curves.csv", ["dataset", "design", "synthetic", "perturbation", "sep_def", "subset", "axis", "b_se", "b_frac",
+                                          "curve", "frac_surviving", "lo", "hi"], prov)
+df = df[(df.perturbation == a.family) & (df.sep_def == a.sep_def) & (df.subset == a.subset)]
+if df.empty:
+    raise SystemExit("fig3: no rows for this family / sep_def / subset: figure not built")
+df = df[df.curve.isin(["adversarial", f"random_{a.family}"])]
+prov["datasets"] = sorted(df.dataset.unique()); prov["n_datasets_drawn"] = int(df.dataset.nunique())
+prov["n_datasets_by_design"] = {d: int(g.dataset.nunique()) for d, g in df.groupby("design")}
+IQR_FROM = 10
+prov["curve_summary"] = f"per design: median over its data sets at each grid point; band = interquartile range across the design's data sets if it has >= {IQR_FROM} data sets, else min-max range (no band for one data set)"
+prov["band_by_design"] = {d: "none" if n == 1 else ("IQR" if n >= IQR_FROM else "min-max range") for d, n in prov["n_datasets_by_design"].items()}
+prov["interval_method"] = "none drawn: the per-pair Wilson intervals of the file are not shown; the band is spread across data sets"
+w, h = fig_size("text", 0.42)
+fig, axes = plt.subplots(1, 2, figsize=(w, h), sharey=True)
+des = [d for d in ("crowd", "llm_judge", "expert", "sports") if (df.design == d).any()] + sorted(set(df.design) - {"crowd", "llm_judge", "expert", "sports"})
+for ax, axis, xc, scale, xl in ((axes[0], "frac", "b_frac", 100.0, r"alterations $b$ (% of $N$)"), (axes[1], "se", "b_se", 1.0, r"alterations $b$ in SE units")):
+    for d in des:
+        st = design_style(d)
+        for c in ("adversarial", f"random_{a.family}"):
+            g = df[(df.axis == axis) & (df.design == d) & (df.curve == c)].dropna(subset=[xc])
+            # the grid is shared by every data set of the file (checked: one distinct grid per axis)
+            p = g.pivot_table(index=xc, columns="dataset", values="frac_surviving").sort_index()
+            adv = c == "adversarial"; x = p.index.values * scale
+            ax.plot(x, p.median(axis=1), color=st["color"], ls="-" if adv else ":", lw=1.2 if adv else 0.9)
+            if adv and p.shape[1] > 1:
+                lo, hi = (p.quantile(0.25, axis=1), p.quantile(0.75, axis=1)) if p.shape[1] >= IQR_FROM else (p.min(axis=1), p.max(axis=1))
+                ax.fill_between(x, lo, hi, color=st["color"], alpha=0.15, lw=0)
+            prov.setdefault("grid_points", {})[f"{axis}/{d}/{c}"] = [int(p.shape[0]), int(p.shape[1])]
+    ax.set_xscale("log"); plain_log(ax); ax.set_xlabel(xl); ax.set_ylim(-0.02, 1.02)
+axes[0].set_ylabel("fraction still separated")
+for ax, t in zip(axes, ("(A)", "(B)")): ax.set_title(t, loc="left", pad=2)
+nd = prov["n_datasets_by_design"]
+hs = [Line2D([], [], color="k", ls="-", lw=1.2, label="search: smallest alteration found"),
+      Line2D([], [], color="k", ls=":", lw=0.9, label="random " + ("deletion" if a.family == "delete" else "outcome changes"))]
+hs += [Line2D([], [], color=design_style(d)["color"], lw=1.4, label=f"{design_style(d)['label']}, {nd[d]} data set" + ("s" if nd[d] != 1 else "")) for d in des]
+fig.legend(handles=hs, loc="outside lower center", ncol=2, handletextpad=0.4, columnspacing=1.0)
+name = "fig3" if a.family == "delete" else f"fig3_{a.family}"
+fig.savefig(os.path.join(a.out, f"{name}.pdf")); write_prov(a.out, name, prov)

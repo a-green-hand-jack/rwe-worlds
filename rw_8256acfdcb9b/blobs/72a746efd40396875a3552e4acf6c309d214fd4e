@@ -1,0 +1,20 @@
+\paragraph{Shapley attribution and its estimators.}
+SHAP casts feature attribution as the Shapley value of a value function that removes features \citep{lundberg2017}; the value function may be marginal or conditional \citep{chen2020,sundararajan2020,kumar2020}, and removal-based explanations share this structure \citep{covert2020removal}.
+Model-agnostic estimation is randomised: Kernel SHAP and its unbiased variant with variance and convergence estimates \citep{covert2021}, permutation and antithetic sampling \citep{mitchell2022}, Leverage SHAP with guarantees \citep{musco2025}, regression-adjusted Monte Carlo \citep{witter2025regadj} and SHAP-IQ \citep{fumagalli2023}; \citet{chen2023algorithms} survey the algorithms.
+Tree ensembles admit a deterministic algorithm \citep{lundberg2020trees}.
+These works report the error to the exact Shapley value, usually in $\ell_2$ and averaged over instances, at chosen budgets.
+To our knowledge, in the sources we reviewed, they do not ask whether one run at a deployment budget supports the conclusion a reader draws from it for a given instance, or whether the run can detect its own failure.
+
+\paragraph{Top-$k$ identification.}
+Whether an estimated ordering yields the right top-$k$ is asked from the estimator side: Shapley bandits for top-$k$ identification \citep{kolpaczki2021bandits} and antithetic sampling for top-$k$ Shapley identification \citep{kolpaczki2025antithetic} design algorithms with sampling guarantees.
+We instead measure deployed default estimators on trained tabular models and map the conditions under which one run identifies the right features.
+\citet{covert2021} already give within-run variance and convergence detection, so what we add to the single-run check is its validation against the top-$k$ conclusion.
+\citet{huang2023} question what Shapley values say about a model; we only bound scope by holding the value function fixed.
+
+\paragraph{Disagreement and robustness.}
+\citet{krishna2022} and \citet{neely2021} study disagreement between explanation methods; \citet{alvarez2018} and \citet{ghorbani2019fragile} study sensitivity to input perturbation; \citet{visani2022lime} study LIME stability under resampling; \citet{yuan2022} study background size for deep models.
+We fix the model, the value function and the instance, and isolate the explainer's own randomness against an exact reference, then compare it with background and retraining noise.
+
+\paragraph{Multiplicity as a yardstick.}
+Predictive multiplicity and the Rashomon set \citep{marx2020,fisher2019,dong2020cloud} give the variability between equally accurate models; ShapleyVIC \citep{shapleyvic2022} applies this to Shapley importance.
+We use it as a noise floor for explainer noise, not as the target.

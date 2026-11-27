@@ -1,0 +1,48 @@
+"""Appendix A1: sensitivity of the headline share (share of instances with P_c^eps >= threshold) to the definition choices, at the reference
+budget of each cell (shap default 2d+2048 where it samples, else the largest sampling budget; figstyle.ref_budget), shap KernelExplainer.
+Columns: eps in {0, .02, .05, .1} at threshold .9, k=3; threshold .8/.95 at eps .05; k=1/5 at eps .05, threshold .9; l1_reg auto and num_features(10) at
+the same budget (eps .05, k=3, threshold .9; '--' = not run at that budget). Entries are percentages; CIs are in the .csv.
+Usage: python tabA1_sensitivity.py DATA_DIR OUT_PREFIX
+"""
+import argparse, json, os, sys
+import numpy as np, pandas as pd
+_here = os.path.dirname(os.path.abspath(__file__))
+for _d in (_here, os.path.join(_here, "..", "figs")):   # figstyle.py: next to this script (delivered layout) or in ../figs (repo layout)
+    sys.path.insert(0, _d)
+import figstyle as fs
+
+ap = argparse.ArgumentParser(); ap.add_argument("data"); ap.add_argument("out"); ap.add_argument("--estimator", default="shap_kernel"); ap.add_argument("--l1", default="False")
+a = ap.parse_args()
+S, p1 = fs.load(a.data, "sensitivity"); C, p2 = fs.load(a.data, "cells")
+fs.require(S, ["dataset", "model", "estimator", "l1_reg", "budget_m", "kind", "eps", "threshold", "R", "share", "ci_lo", "ci_hi"], "sensitivity")
+ref = fs.ref_budget(C, a.estimator, a.l1)
+COLS = [("$\\epsilon$=0", a.l1, "topk3", 0.0, 0.9), ("0.02", a.l1, "topk3", 0.02, 0.9), ("0.05", a.l1, "topk3", 0.05, 0.9), ("0.1", a.l1, "topk3", 0.1, 0.9),
+        ("$\\tau$=.8", a.l1, "topk3", 0.05, 0.8), (".95", a.l1, "topk3", 0.05, 0.95),
+        ("$k$=1", a.l1, "topk1", 0.05, 0.9), ("$k$=5", a.l1, "topk5", 0.05, 0.9),
+        ("auto", "auto", "topk3", 0.05, 0.9), ("nf(10)", "num_features(10)", "topk3", 0.05, 0.9)]
+def get(r, l1, kind, eps, thr):
+    q = S[(S.dataset == r.dataset) & (S.model == r.model) & (S.estimator == a.estimator) & (S.l1_reg == l1) & (S.budget_m == r.budget_m) &
+          (S.kind == kind) & np.isclose(S.eps, eps) & np.isclose(S.threshold, thr)]
+    return q.iloc[0] if len(q) else None
+rows, lines = [], []
+prev = None
+for ds in fs.DATASET_TITLE:
+    for m in fs.MODELS:
+        r = ref[(ref.dataset == ds) & (ref.model == m)]
+        if r.empty: continue
+        r = r.iloc[0]; cells = []
+        for name, l1, kind, eps, thr in COLS:
+            q = get(r, l1, kind, eps, thr)
+            cells.append("--" if q is None else f"{100*q.share:.0f}")
+            if q is not None: rows.append(dict(dataset=ds, model=m, budget_m=r.budget_m, R=q.R, column=name, l1_reg=l1, kind=kind, eps=eps, threshold=thr, share=q.share, ci_lo=q.ci_lo, ci_hi=q.ci_hi, n_instances=q.n_instances if "n_instances" in q else np.nan))
+        if prev is not None and ds != prev: lines.append("\\addlinespace")
+        lines.append(f"{fs.DATASET_TITLE[ds] if ds != prev else ''} & {m.upper()} & {int(r.budget_m)} & " + " & ".join(cells) + " \\\\")
+        prev = ds
+hdr = ("Dataset & Model & $m$ & " + " & ".join(c[0] for c in COLS) + " \\\\")
+out = ["{\\footnotesize\\setlength{\\tabcolsep}{3pt}", "\\begin{tabular}{@{}llr" + "r" * len(COLS) + "@{}}", "\\toprule", hdr, "\\midrule"] + lines + ["\\bottomrule", "\\end{tabular}}"]
+os.makedirs(os.path.dirname(a.out) or ".", exist_ok=True)
+open(a.out + ".tex", "w").write("\n".join(out) + "\n"); pd.DataFrame(rows).to_csv(a.out + ".csv", index=False)
+json.dump({"table": os.path.basename(a.out), "inputs": fs.inputs([p1, p2]),
+           "note": f"{a.estimator}, l1_reg={a.l1} unless the column names another; reference budget per cell (default 2d+2048 where it samples, R>1, else the largest sampling budget); share of instances in %; "
+                   "eps = tolerance of P_c^eps (0 = strict P_c), tau = threshold on the per-instance P_c^eps, k = top-k; instance-bootstrap CIs in the csv"},
+          open(a.out + ".json", "w"), indent=1)

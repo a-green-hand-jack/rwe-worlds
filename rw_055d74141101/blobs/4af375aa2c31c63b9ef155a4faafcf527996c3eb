@@ -1,0 +1,29 @@
+{
+ "inputs": {
+  "positive_control.csv": {
+   "sha256": "b38f2f53d8f932ca5aa2510017b3358181296ff21e8eab2a09d5b28759b25dea",
+   "rows": 68,
+   "perturbation": [
+    "delete",
+    "flip"
+   ],
+   "n_boot": [
+    "200"
+   ],
+   "synthetic": [
+    "1"
+   ],
+   "N_range": [
+    3355,
+    57477
+   ]
+  }
+ },
+ "points_delta": 80,
+ "synthetic": true,
+ "graphs": [
+  "mtbench_human",
+  "arena55k"
+ ],
+ "cells": 68
+}

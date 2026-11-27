@@ -1,0 +1,13 @@
+\begin{tabular}{@{}lllccc@{}}
+\toprule
+& Mechanism & Treatment part of $Y_i$ & DM bias & SNR & noise share \\
+\midrule
+0 & null (no interference) & $z_i$ & $-0.001$ & $0.80$ & $0.23$ \\
+(a) & linear in fraction & $(1-s)\,z_i + s\,f_i$ & $-0.50$ & $0.25$ & $0.20$ \\
+(b) & linear in count & $(1-s)\,z_i + s\,c_i/\bar d$ & $-0.50$ & $0.25$ & $0.20$ \\
+(c) & saturating & $(1-s)\,z_i + s\,g(f_i)$, $g=\frac{1-e^{-3f}}{1-e^{-3}}$ & $-0.50$ & $0.24$ & $0.20$ \\
+(d) & threshold & $(1-s)\,z_i + s\,\mathbf 1[f_i\ge 0.6]$ & $-0.50$ & $0.37$ & $0.18$ \\
+(e) & diffusion, 30 steps & $(1-s)\sum_{k\le 30} s^k (W^k z)_i$ & $-0.49$ & $0.24$ & $0.20$ \\
+(f) & direct $\times$ exposure & $(1-s)\,z_i + \tfrac s2 f_i + \tfrac s2 z_i f_i$ & $-0.38$ & $0.36$ & $0.21$ \\
+\bottomrule
+\end{tabular}

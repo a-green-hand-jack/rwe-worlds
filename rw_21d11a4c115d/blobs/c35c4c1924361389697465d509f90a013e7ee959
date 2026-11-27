@@ -1,0 +1,51 @@
+"""Fig. 1: the setting (schematic, no numbers) and the headline k-curve (data: closure C(k), greedy A + factor model, grouped K-fold)."""
+import argparse
+import numpy as np
+import style, venue
+from data import load
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle, FancyArrowPatch
+
+p = argparse.ArgumentParser()
+p.add_argument("--results", required=True); p.add_argument("--out", default="out")
+p.add_argument("--datasets", nargs="+", default=["mteb_eng", "mteb_multi", "helm_mmlu"])
+p.add_argument("--selector", default="greedyA"); p.add_argument("--predictor", default="fa"); p.add_argument("--split", default="grouped")
+p.add_argument("--draft", action="store_true")
+a = p.parse_args()
+v = venue.get(a.draft)
+size = style.setup(v["TEXT_WIDTH_IN"], v["MIN_FONT_PT"], aspect=0.40)
+clo, p1 = load(a.results, "closure"); ks, p2 = load(a.results, "kstar")
+fig, (sx, ax) = plt.subplots(1, 2, figsize=size, width_ratios=[1.15, 1])
+
+# ---- schematic: history matrix, k run columns, the rest to predict
+M, N = 6, 10
+run = [1, 4, 7]                      # columns the evaluator runs (illustration of which, not data)
+B = style.COLORS[a.selector]
+for i in range(M):
+    for j in range(N):
+        sx.add_patch(Rectangle((j, M - i), 0.9, 0.9, fc=("#cfe3f3" if j in run else "#ececec"), ec="white", lw=0.5))
+for j in range(N):                   # the new model's row
+    sel = j in run
+    sx.add_patch(Rectangle((j, -0.4), 0.9, 0.9, fc=B if sel else "white", ec=B if sel else "0.6", lw=0.9))
+    if not sel:
+        sx.text(j + 0.45, 0.05, "?", ha="center", va="center", color="0.3", fontweight="bold")
+sx.text(-0.3, M / 2 + 0.5, "history:\n$M$ models", ha="right", va="center")
+sx.text(N / 2, M + 1.3, "$N$ benchmarks", ha="center", va="bottom")
+sx.text(-0.3, 0.05, "new model", ha="right", va="center")
+sx.annotate("run these $k$\n(chosen from history)", xy=(4.45, -0.6), xytext=(4.45, -2.2), ha="center", va="top",
+            arrowprops=dict(arrowstyle="-", color=B, lw=0.8), color=B)
+sx.text(N + 0.1, 0.05, "predict the\nother $N-k$", ha="left", va="center", color="0.3")
+sx.set_xlim(-3.3, N + 2.9); sx.set_ylim(-3.6, M + 2.2); sx.set_aspect("equal"); sx.axis("off")
+
+# ---- inset: closure vs k, one line per data regime
+for ds in a.datasets:
+    e = clo[(clo.dataset == ds) & (clo.split == a.split) & (clo.selector == a.selector) & (clo.predictor == a.predictor)].sort_values("k")
+    ax.plot(e.k, e.C_lobo, color=style.DATASET_COLORS[ds], marker="o", ms=2.8, lw=1.0, label=style.DATASET_SHORT[ds])
+ax.axhline(0.9, color="0.35", lw=0.8, ls="--")
+ax.text(1.0, 0.905, "0.9", color="0.35", va="bottom", ha="left")
+ax.set_xscale("log"); tk = [1, 2, 3, 5, 10, 30]; ax.set_xticks(tk); ax.set_xticklabels([str(x) for x in tk]); ax.xaxis.set_minor_locator(plt.NullLocator())
+ax.set_xlabel("benchmarks run, $k$"); ax.set_ylabel("closure $C(k)$"); ax.legend(loc="lower right", handlelength=1.6)
+ax.set_ylim(None, 1.0); ax.set_title("greedy A + factor model, new families", loc="left")
+print(style.save(fig, "fig1_overview", a.out, dict(claim="setting + C1 headline", inputs={x: style.sha(x) for x in (p1, p2)}, selector=a.selector,
+                                                   predictor=a.predictor, split=a.split, design="fixed",
+                                                   schematic="no data; which columns are highlighted is illustrative", draft=a.draft)))

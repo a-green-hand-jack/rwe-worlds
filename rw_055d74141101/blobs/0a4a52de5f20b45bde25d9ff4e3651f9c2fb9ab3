@@ -1,0 +1,35 @@
+"""SYNTHETIC check of the random-deletion flip probability P_flip(f) against Phi(-z*sqrt((1-f)/f)) (conditional on the
+observed sample) and the Brief's Phi(-z*sqrt(1-f)).  usage: 04b_synthetic_pflip.py"""
+import os, sys
+import numpy as np, pandas as pd
+from scipy.stats import norm
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src")); sys.path.insert(0, os.path.dirname(__file__))
+import btlib as B, analysis as A
+from core01 import OUT
+from importlib import import_module
+make_instance = import_module("04_synthetic").make_instance
+rnd = import_module("02_random").random_counts
+
+rows = []
+for N in (8000, 32000):
+    for density in (1.0, 0.25):
+        rng = np.random.default_rng([11, N, int(density * 100)])
+        g, cnt, th_true = make_instance(30, N, density, 0.0, rng)
+        th, H = B.fit(g, cnt, return_H=True)
+        Hinv = np.linalg.inv(H)
+        order = np.argsort(-th)
+        pairs = [(order[r], order[s]) for r in range(30) for s in range(r + 1, 30)]
+        z = np.array([(th[x] - th[y]) / np.sqrt(B.make_d(30, x, y) @ Hinv @ B.make_d(30, x, y)) for x, y in pairs])
+        sel = [i for i in np.argsort(z) if 0.3 < z[i] < 6][::6]
+        for f in (0.05, 0.1, 0.2, 0.3, 0.5, 0.7, 0.9):
+            k = int(round(f * cnt.sum()))
+            gaps = np.empty((400, len(sel)))
+            for r in range(400):
+                th2 = B.fit(g, rnd(cnt.astype(np.int64), k, "delete", rng).astype(float), theta0=th)
+                gaps[r] = [th2[pairs[i][0]] - th2[pairs[i][1]] for i in sel]
+            for j, i in enumerate(sel):
+                rows.append(dict(N=N, density=density, f=f, z=z[i], p_flip=(gaps[:, j] <= 0).mean(), n_draw=400,
+                                 formula_conditional=norm.cdf(-z[i] * np.sqrt((1 - f) / f)), formula_brief=norm.cdf(-z[i] * np.sqrt(1 - f))))
+        print(N, density, flush=True)
+os.makedirs(f"{OUT}/synthetic", exist_ok=True)
+pd.DataFrame(rows).to_parquet(f"{OUT}/synthetic/pflip_check.parquet")

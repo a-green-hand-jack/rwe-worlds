@@ -1,0 +1,37 @@
+"""Recompute the bootstrap-derived columns (se_boot, se_boot_cmp, p_flip_boot, z_boot) and the model table of a finished core unit
+with the current Prepared (compact cluster ids).  Needed because the first version of Prepared counted empty clusters (clusters of
+battles outside a sub-sample) in the resample size, which inflated the cluster-bootstrap SE of the single-turn Arena units by ~8%.
+k*, gap, z_fisher and the null are unaffected.  Same seeds as core01.py.  usage: 01b_refresh_boot.py UNIT [UNIT...]"""
+import os, sys
+import numpy as np, pandas as pd
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src")); sys.path.insert(0, os.path.dirname(__file__))
+import analysis as A
+from core01 import OUT, get
+
+
+def refresh(unit):
+    fn = f"{OUT}/core/{unit.replace(':', '_')}.parquet"
+    r = pd.read_parquet(fn)
+    boot, seed = int(r.boot.iloc[0]), int(r.seed.iloc[0])
+    P = A.Prepared(get(unit))
+    tb = P.bootstrap_theta(boot, np.random.default_rng(seed), by="cluster")
+    tbi = P.bootstrap_theta(boot, np.random.default_rng(seed + 1), by="comparison")
+    ga = tb[:, r.a.values] - tb[:, r.b.values]
+    gi = tbi[:, r.a.values] - tbi[:, r.b.values]
+    r["se_boot"], r["se_boot_cmp"] = ga.std(0, ddof=1), gi.std(0, ddof=1)
+    r["p_flip_boot"], r["p_flip_boot_cmp"] = (ga <= 0).mean(0), (gi <= 0).mean(0)
+    r["z_boot"] = r.gap / r.se_boot
+    r["ncl"] = P.ncl
+    r.to_parquet(fn)
+    mfn = fn.replace(".parquet", ".models.parquet")
+    mt = pd.read_parquet(mfn)
+    rank_boot = np.argsort(np.argsort(-tb, axis=1), axis=1)
+    mt["se_boot"] = tb.std(0, ddof=1)
+    mt["rank_lo"], mt["rank_hi"] = np.percentile(rank_boot, 2.5, axis=0) + 1, np.percentile(rank_boot, 97.5, axis=0) + 1
+    mt.to_parquet(mfn)
+    print(unit, "refreshed, ncl", P.ncl, flush=True)
+
+
+if __name__ == "__main__":
+    for u in sys.argv[1:]:
+        refresh(u)

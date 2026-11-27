@@ -1,0 +1,12 @@
+#!/bin/bash
+# OLB sensitivity to the grouping (PREREG 4l, written before it is run): the held-out groups are uploaders (717) instead of family stems (475); G split only, S0 and S6 x P5, 50 shared splits, same k grid and rank grid.
+# usage: BASE=/abs/workdir bash 44_olb_uploader.sh   (BASE/data = copy of the OLB data dir with models.csv `org` replaced by 'up:'+uploader; results in BASE/res)
+export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
+export MC_KGRID=1,2,3,5,8,13 MC_RANKS=1,2,3,4,6,8,12,16
+cd "$(dirname "$0")"
+D=$BASE/data; W=$BASE/work; O=$BASE/work/ct
+LIST=$( for f in 0 1 2 3 4 5 6 7 8 9; do echo "G $f"; done )
+echo "$LIST" | xargs -P 4 -L 1 sh -c "python3 -u state.py $D $W \$0 \$1"
+echo "$LIST" | xargs -P 4 -L 1 sh -c "python3 -u 21_eval_ct.py $D $W \$0 \$1 $O S6 ct 50"
+python3 24_aggregate_ct.py $D $O $BASE/res ct
+echo HUTIAN_WAKE: olb uploader groups done

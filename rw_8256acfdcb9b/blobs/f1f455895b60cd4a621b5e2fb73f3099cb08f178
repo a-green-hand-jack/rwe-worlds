@@ -1,0 +1,7 @@
+{
+ "table": "tab1_design",
+ "inputs": {
+  "results/tables/cells.csv": "3266aaca4ea1f015193d53732614c8a75bfce1c998cbbf0b28dfb88aeb155ed3"
+ },
+ "note": "estimator=shap_kernel; l1_reg=False; one row per dataset x model; evals include background rows; superscript x: the default budget enumerates all coalitions (exact, deterministic, R=1); R = repeats at the sampling budgets (range where cells differ); n = explained instances"
+}

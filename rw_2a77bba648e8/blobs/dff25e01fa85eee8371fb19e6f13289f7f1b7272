@@ -1,0 +1,93 @@
+"""Fig 5 (C4): RMSE of each estimator relative to difference in means (DM), by information tier, at the core cell.
+Dot = RMSE(estimator) / RMSE(DM) (log axis, < 1 is better than DM), bar = 95% paired bootstrap interval, one dot per
+mechanism (colour and marker). Rows are grouped by tier: G (generic, graph known), A (data-adaptive), O (oracle form).
+Tier G and Tier A rows are from `tierA_cells.csv` (same 200 assignment draws per run for every estimator, so the ratios are paired);
+HT/Hajek and the Tier O rows are from `ratios.parquet` (3000 draws of the same run, a different draw set) and are drawn open.
+Cell: core SBM n~3000, d=20, p=1/2, s=1/2, sigma=0.5 (Bernoulli).
+Usage: fig5_tiers.py RESULTS_DIR OUT_DIR [--run A_SBM_n3000_d20_p0.5]
+"""
+import argparse
+import pathlib
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+import common
+import style
+
+ap = argparse.ArgumentParser()
+ap.add_argument("data"); ap.add_argument("out")
+ap.add_argument("--d", type=int, default=20); ap.add_argument("--p", type=float, default=0.5)
+ap.add_argument("--s", type=float, default=0.5); ap.add_argument("--sigma", type=float, default=0.5)
+a = ap.parse_args()
+style.apply()
+data = pathlib.Path(a.data)
+_, meta = common.load(a.data, "ratios")
+M = list("abcdef")
+tA = pd.read_csv(data / "tierA_cells.csv")
+tA = tA[(tA.run_id == f"A_SBM_n3000_d{a.d}_p{a.p:g}") & np.isclose(tA.s, a.s) & tA.mechanism.isin(M)]
+rat, _ = common.load(a.data, "ratios")
+rr = rat[(rat.run_id == f"core_SBM_n3000_d{a.d}_p{a.p:g}") & np.isclose(rat.sigma, a.sigma) & np.isclose(rat.s, a.s)]
+
+# (row label, tier, source, estimator code in that source)
+ROWS = [("Chin regression", "G", "A", "chin"), ("+ quadratic", "G", "A", "quad"), ("+ spline", "G", "A", "spline"),
+        ("+ count", "G", "A", "count"), ("+ 2-hop", "G", "A", "hop2"), ("+ interaction", "G", "A", "inter"),
+        ("HT/Hajek (h=0.75)", "G", "R", "HT/Hajek"),
+        ("lasso selection", "A", "A", "A_lasso"), ("ridge", "A", "A", "A_ridge"), ("random forest", "A", "A", "A_rf"),
+        ("gradient boosting", "A", "A", "A_hgb"), ("adaptive-threshold Hajek", "A", "A", "A_ada"),
+        ("oracle form, true parameters", "O", "R", "Oracle"), ("oracle form, fitted $\\rho$", "O", "R", "Oracle (fitted)")]
+out = []
+for lab, tier, src, est in ROWS:
+    for m in M:
+        if src == "A":
+            r = tA[(tA.estimator == est) & (tA.mechanism == m)]
+            v = (r.log_ratio_vs_dm.iloc[0], r.log_ratio_vs_dm_lo.iloc[0], r.log_ratio_vs_dm_hi.iloc[0]) if len(r) else None
+        else:
+            r = rr[(rr.estimator == est) & (rr.mechanism == m)]
+            v = (r.log_ratio.iloc[0], r.log_ratio_lo.iloc[0], r.log_ratio_hi.iloc[0]) if len(r) else None
+        if v is not None and np.isfinite(v[0]):
+            out.append(dict(row=lab, tier=tier, source="tierA_cells.csv (200 draws)" if src == "A" else "ratios.parquet (3000 draws)",
+                            mechanism=m, ratio=np.exp(v[0]), lo=np.exp(v[1]), hi=np.exp(v[2])))
+df = pd.DataFrame(out)
+
+PLACED = 0.9  # fraction of the text width the paper places this figure at (type is 8 pt only at 1:1)
+fig, ax = plt.subplots(figsize=(style.TEXTWIDTH, 3.3))
+ypos = {}; y = 0.0
+for i, (lab, tier, src, est) in enumerate(ROWS):
+    if i and tier != ROWS[i - 1][1]:
+        y += 0.6
+    ypos[lab] = y; y += 1.0
+off = np.linspace(-0.3, 0.3, len(M))
+for lab, tier, src, est in ROWS:
+    for k, m in enumerate(M):
+        r = df[(df.row == lab) & (df.mechanism == m)]
+        if not len(r):
+            continue
+        r = r.iloc[0]
+        yy = ypos[lab] + off[k]
+        c = common.MECH_COLOR[m]
+        ax.plot([r.lo, r.hi], [yy, yy], color=c, lw=0.8, solid_capstyle="butt", zorder=2)
+        ax.plot(r.ratio, yy, marker=common.MECH_MARK_U[m], ms=3.4, color=c, mfc="white" if src == "R" else c, mew=0.8, ls="", zorder=3)
+ax.axvline(1, color="k", lw=0.8, ls=":")
+ax.set_xscale("log"); ax.set_xticks([0.125, 0.25, 0.5, 1, 2, 4]); ax.set_xticklabels(["1/8", "1/4", "1/2", "1", "2", "4"]); ax.minorticks_off()
+ax.set_xlim(0.085, 6.5)
+ax.set_yticks(list(ypos.values())); ax.set_yticklabels(list(ypos.keys())); ax.invert_yaxis()
+ax.grid(axis="y", visible=False)
+ax.set_xlabel("RMSE relative to difference in means (log scale; $<1$ better than DM)")
+# tier labels on the right
+for tier, name in [("G", "Tier G"), ("A", "Tier A"), ("O", "Tier O")]:
+    ys = [ypos[l] for l, t, *_ in ROWS if t == tier]
+    ax.annotate(name, xy=(1.01, (min(ys) + max(ys)) / 2), xycoords=("axes fraction", "data"), rotation=-90, va="center", ha="left",
+                fontsize=style.MIN_PT, annotation_clip=False)
+for tier in ("A", "O"):
+    ys = [ypos[l] for l, t, *_ in ROWS if t == tier]
+    ax.axhline(min(ys) - 0.8, color="0.7", lw=0.6)
+from matplotlib.lines import Line2D
+h = [Line2D([], [], color=common.MECH_COLOR[m], marker=common.MECH_MARK_U[m], ms=3.4, lw=0.8) for m in M]
+h.append(Line2D([], [], color="0.3", marker="o", mfc="white", ls="", ms=3.4))
+fig.legend(h, M + ["open: 3000-draw set"], loc="lower center", ncol=7, frameon=False, bbox_to_anchor=(0.45, -0.085),
+           columnspacing=0.9, handletextpad=0.3, handlelength=1.5)
+style.check_min_type(fig)
+o = common.out_dir(meta, a.out)
+style.save(fig, o / "fig5_tiers.pdf", width=PLACED * (style.TEXTWIDTH - 0.04)); df.to_csv(o / "fig5_tiers.csv", index=False)

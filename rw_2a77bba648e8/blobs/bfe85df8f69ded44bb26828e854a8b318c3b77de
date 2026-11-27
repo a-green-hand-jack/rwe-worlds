@@ -1,0 +1,8 @@
+\section{Discussion}
+\label{sec:discussion}
+
+\paragraph{Limitations.}
+\emph{Simulated outcomes.} Six mechanisms, four smooth in exposure, with Gaussian noise. \emph{Graph range.} The $d$ exponent rests on three degrees. \emph{Estimators.} Causal message passing was not run and one small graph neural network only on 13 cells; the adaptive H\'ajek estimator is simplified.
+
+\paragraph{Implications.}
+Regression adjustment pays when spillover is large and the response smooth; report the leverage $L$ and the spillover share. Agreement with richer specifications is not evidence of small bias, and the default interval cannot be trusted when the response may be curved or thresholded; widening it by a bound on the bias covers only by width.

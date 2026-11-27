@@ -1,0 +1,40 @@
+# Data contract: what each figure and table reads
+
+`experiment-repo` (analysis) supplies result tables; `figtab-repo` draws them. One tidy CSV per item, UTF-8,
+header row, one row per (dataset x conclusion x ...) as below. Every row carries enough to say what it was
+computed on. Columns marked * are required; extra columns are ignored by the plotting code.
+
+Common columns (every file):
+- `dataset`* short id (e.g. `arena55k`, `arena55k_gpt4judge`, `mtbench_human`, `mtbench_gpt4`, `nba_2005`)
+- `design`* one of `crowd`, `expert`, `llm_judge`, `sports` (extra values allowed, they get a neutral colour)
+- `synthetic`* 0/1; synthetic rows are drawn hollow / hatched and labelled in the legend
+- `N`* comparisons after preprocessing (ties counted as stated in the paper)
+- `cost_unit`, `perturbation` (`delete`|`flip`|`insert`), `seed_set`, `n_boot` (kept for provenance, shown in appendix)
+
+| File | Item | One row per | Columns read (* = required) |
+|---|---|---|---|
+| `fragility_conclusions.csv` (exists) | Fig. 1B | dataset x pair x perturbation | `dataset`*, `design`*, `perturbation`*, `z_fisher`*, `Q`*, `Q_null`* |
+| `fragility_by_z.csv` (exists) | Fig. 1A, Table 2 | dataset x family x z stratum | `zbin`*, `family`*, `n_null_pairs`*, `k_med`*, `k_q25`*, `k_q75`*, `k_null_med`*, `k_null_q25`*, `k_null_q75`* (Fig. 1A: median and IQR of the real k* against the null's at the same z; the real pair's own gap and g_max do not enter) |
+| `real_minus_null.csv` (exists) | Fig. 4A | dataset x family | `dataset`*, `design`*, `perturbation`*, `delta_logQ`*, `lo`*, `hi`*, `n_pairs`* |
+| `matched_contrasts.csv` (script exists, no result yet) | Fig. 4B (optional panel) | contrast x member x family | `contrast`*, `perturbation`*, `is_reference`*, `paired_diff`*, `paired_lo`*, `paired_hi`* (reference minus member of Delta; reference rows have none), optional `design`; read from the schema `10_tables_more.py` writes |
+| `fragility_by_z.csv`, `top1_conclusions.csv` (exist) | Table 2 | dataset x family x z-stratum | `dataset`, `family`, `zbin`, `n_pairs`, `z_med`, `k_med`, `kN_med`, `Q_med`, `Q_null_med`; top-1: `top1_vs_top2_z/k/kN` |
+| `datasets_computed.csv` (exists) | Table 1 | dataset | `dataset`, `design`, `N`, `n_models`, `density`, `tie_rate` |
+| `survival_curves.csv` (script exists, no result yet) | Fig. 3 | dataset x perturbation x sep_def x subset x axis x b x curve | `dataset`*, `design`*, `synthetic`*, `perturbation`*, `sep_def`* (`published` is drawn), `subset`* (`separated` is drawn), `axis`* (`frac` panel A, `se` panel B), `b_frac`*, `b_se`*, `curve`* (`adversarial`, `random_delete`, `random_flip`), `frac_surviving`*, `lo`*, `hi`*; intervals drawn only for few datasets |
+| `fragility_vs_N.csv` | Fig. 2 (= panel C of the Outline's Fig. 1) | dataset x subsample size x stat | `n_sub`*, `stat`* (`kN` = k*/n, `F_over_z`), `value`*, `lo`*, `hi`* |
+| `search_quality.csv` | Fig. 5, Table 5 | method x conclusion class | `method`*, `k_ratio_to_best`*, `flipped_at_half_k`*, `flipped_at_k`* (and anchor columns `k_first_order`, `k_exact_refit`, `k_lower`, `k_upper` for Fig. 5) |
+| `positive_control.csv` | Fig. 6 | graph x departure x size x family (SYNTHETIC) | `graph`*, `departure`*, `size`*, `perturbation`*, `delta_mean`*, `pooled_lo`*, `pooled_hi`*, `se_ratio_cluster_med`*, `n_replicates`*, `replicates_run`* |
+| `predictive_rule.csv` (script exists, no result yet) | Table 3 | term x scheme x family | `term`*, `coef`*, `lo`*, `hi`*, `heldout_scheme`* (`none (full fit)` rows = coefficients), `n_heldout_units`*, `perturbation`*, `heldout_err`, `n_units` |
+| `sensitivity.csv` | Table 4 | check x dataset | `check`*, `dataset`*, `statistic`*, `value`*, `lo`, `hi`, `baseline_value` |
+
+Fig. 1 draws pairs inside the declared z range [1, 8] only (`z_fisher`); the equivalence band is exp(+-0.15), copied from the
+pre-analysis note into `margins.json`. Table 2 takes `--datasets` and `--family` for the main-text subset and always also writes `tab2_full_delete.tex` and `tab2_full_flip.tex`.
+
+Rules I hold myself to: uncertainty is drawn only from the `lo`/`hi` columns supplied (no intervals computed in
+the plotting code); axis ranges are never clipped silently (values outside are reported by the generator);
+a row with `synthetic=1` is never drawn without the synthetic marker. A file that is missing means the figure
+is not built; I do not substitute.
+Each generator `make_figN.py` takes `--data DIR --out DIR` and writes `figN.pdf` plus `figN.provenance.json`
+(input file sha256, row counts, rows dropped and why).
+
+| `se_ratio.csv` | Table 2 (dataset heading row) | dataset | `dataset`, `real_ratio_cluster_med/q25/q75`, `null_ratio_cmp_med` |
+| `predictive_rule.csv` reference rows | Table 3 | term x family | `heldout_rmse_ref[<ref>][all_units]`, `heldout_sq_err_diff(<ref>-base)[all_units]`, with `lo`, `hi` |

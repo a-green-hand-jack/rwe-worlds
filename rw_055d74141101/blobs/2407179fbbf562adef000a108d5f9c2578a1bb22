@@ -1,0 +1,94 @@
+"""Search quality (claim C6): (a) exhaustive exact minima on tiny problems vs the searchers and the LP relaxation;
+(b) LP-relaxation (lower-bound candidate) vs verified upper bound on real small data sets (MT-Bench, small NBA seasons,
+8-model Arena sub-graph).  usage: 03_search_validity.py [--tiny 30]"""
+import argparse, os, sys, time
+import numpy as np, pandas as pd
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src")); sys.path.insert(0, os.path.dirname(__file__))
+import btlib as B, datasets as D, analysis as A, exact as E
+from core01 import OUT
+
+
+def rows_for(P, fam, label, rng, npairs, lp=True, restarts=4):
+    ty = B.Types(P.g, fam)
+    th = P.theta
+    order = np.argsort(-th)
+    pairs = [(order[r], order[s]) for r in range(P.M) for s in range(r + 1, P.M)]
+    idx = rng.choice(len(pairs), min(npairs, len(pairs)), replace=False)
+    out = []
+    for i in idx:
+        a, b = pairs[i]
+        d = B.make_d(P.M, a, b)
+        r1 = B.kstar(P.g, ty, P.cnt, d, th, method="iterlin")
+        r2 = B.kstar(P.g, ty, P.cnt, d, th, method="fw")
+        row = dict(label=label, family=fam, a=a, b=b, N=P.N, M=P.M, gap=r1["gap0"], k_lin=r1["k_lin"], k_iterlin=r1["k_ver"], k_fw=r2["k_ver"])
+        if lp and np.isfinite(r1["k_ver"]) and r1["k_ver"] > 0:
+            v, _ = E.relaxed_min(P.g, ty, P.cnt, a, b, th, restarts=restarts, rng=rng)
+            row["lp_relax"] = v
+        out.append(row)
+    return out
+
+
+def sub_prepared(d, keep_models, nsub, rng):
+    """sub-problem: keep some models, then subsample nsub comparisons"""
+    names = [d["names"][m] for m in keep_models]
+    mm = {m: i for i, m in enumerate(keep_models)}
+    ok = np.array([(a in mm) and (b in mm) for a, b in zip(d["ci"], d["cj"])])
+    idx = np.where(ok)[0]
+    if nsub is not None and nsub < len(idx):
+        idx = rng.choice(idx, nsub, replace=False)
+    dd = dict(name="sub", design=d["design"], names=names, ci=np.array([mm[x] for x in d["ci"][idx]]),
+              cj=np.array([mm[x] for x in d["cj"][idx]]), s=d["s"][idx], cluster=np.arange(len(idx)))
+    return A.Prepared(dd)
+
+
+def main():
+    ap = argparse.ArgumentParser(); ap.add_argument("--tiny", type=int, default=30); ap.add_argument("--seed", type=int, default=0)
+    a = ap.parse_args()
+    rng = np.random.default_rng(a.seed)
+    os.makedirs(f"{OUT}/search", exist_ok=True)
+    # (a) tiny exact anchors
+    mt = D.mtbench()["human"]
+    tiny = []
+    t0 = time.time()
+    for rep in range(a.tiny):
+        models = sorted(rng.choice(6, 3 if rep % 2 == 0 else 4, replace=False))
+        P = sub_prepared(mt, models, int(rng.integers(30, 70)), rng)
+        for fam in ("delete", "flip"):
+            ty = B.Types(P.g, fam)
+            order = np.argsort(-P.theta)
+            ia, ib = order[0], order[-1] if rep % 3 == 0 else order[1]
+            d = B.make_d(P.M, ia, ib)
+            r1 = B.kstar(P.g, ty, P.cnt, d, P.theta, method="iterlin")
+            r2 = B.kstar(P.g, ty, P.cnt, d, P.theta, method="fw")
+            if not np.isfinite(r1["k_ver"]) or r1["k_ver"] == 0 or r1["k_ver"] > (7 if P.M == 4 else 9):
+                continue
+            kx, _ = E.exhaustive(P.g, ty, P.cnt, d, int(r1["k_ver"]))
+            v, _ = E.relaxed_min(P.g, ty, P.cnt, ia, ib, P.theta, restarts=4, rng=rng)
+            tiny.append(dict(rep=rep, family=fam, M=P.M, N=P.N, gap=r1["gap0"], k_lin=r1["k_lin"], k_iterlin=r1["k_ver"], k_fw=r2["k_ver"],
+                             k_exact=kx, lp_relax=v))
+        print("tiny", rep, round(time.time() - t0), flush=True)
+    pd.DataFrame(tiny).to_parquet(f"{OUT}/search/tiny_exact.parquet")
+    # (b) LP sandwich on real small problems
+    rows = []
+    for key in ("human", "gpt4"):
+        P = A.Prepared(D.mtbench()[key])
+        for fam in ("delete", "flip"):
+            rows += rows_for(P, fam, f"mtbench_{key}", rng, 15)
+    for y in D.nba_years():
+        d = D.nba(y)
+        if len(d["names"]) <= 9:
+            P = A.Prepared(d)
+            for fam in ("delete", "flip"):
+                rows += rows_for(P, fam, f"nba{y}", rng, 10)
+    ar = D.arena55k()
+    top8 = np.argsort(-A.Prepared(ar).theta)[:8]
+    for rep in range(2):
+        P = sub_prepared(ar, list(rng.choice(64, 8, replace=False)), None, rng)
+        for fam in ("delete", "flip"):
+            rows += rows_for(P, fam, f"arena_sub8_{rep}", rng, 10)
+    pd.DataFrame(rows).to_parquet(f"{OUT}/search/lp_sandwich.parquet")
+    print("done", flush=True)
+
+
+if __name__ == "__main__":
+    main()

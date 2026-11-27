@@ -1,0 +1,281 @@
+"""Writes numbers.tex: every number quoted in the running text of the paper, computed from ../results/*.csv.
+Usage: python3 -I make_numbers.py [RESULTS_DIR] > numbers.tex   (run from paper/; the output is committed because the build is LaTeX only)
+The margin is read from ../figures/margins.json (PREANALYSIS rev 2)."""
+import json, os, sys
+import numpy as np
+import pandas as pd
+
+here = os.path.dirname(os.path.abspath(__file__))
+res = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "..", "results")
+rd = lambda f: pd.read_csv(os.path.join(res, f))
+margin = json.load(open(os.path.join(here, "..", "figures", "margins.json")))["delta_logQ"]
+
+out = {}
+def put(name, value, fmt=None):
+    v = value if fmt is None else fmt.format(value)
+    out[name] = ("\\ensuremath{-}" + v[1:]) if isinstance(v, str) and v.startswith("-") else v
+def f2(x): return f"{x:.2f}"
+def f3(x): return f"{x:.3f}"
+def thou(n): return f"{int(n):,}".replace(",", "\\,")
+
+ds = rd("datasets.csv")
+put("nSets", len(ds)); put("nNBA", int((ds.design == "sports").sum()))
+put("nJudges", int(ds.dataset.str.startswith("arena_judge_").sum()))
+put("nConclusions", thou((ds.n_models * (ds.n_models - 1) // 2).sum()))
+put("deltaMargin", margin, "{:.2f}")
+put("ratioMargin", np.exp(margin), "{:.2f}")
+
+# C1 and C4: Delta against the same-graph null
+rn = rd("real_minus_null.csv")
+rn["equiv"] = (rn.lo > -margin) & (rn.hi < margin)
+rn["beyond"] = (rn.lo > margin) | (rn.hi < -margin)
+rn["ex0"] = (rn.lo > 0) | (rn.hi < 0)
+put("nDeltaSets", rn.dataset.nunique()); put("nDeltaRows", len(rn))
+put("nEquiv", int(rn.equiv.sum())); put("nInconc", int((~rn.equiv & ~rn.beyond).sum())); put("nBeyond", int(rn.beyond.sum()))
+put("nExZero", int(rn.ex0.sum()))
+put("nExZeroPos", int((rn.ex0 & (rn.delta_logQ > 0)).sum())); put("nExZeroNeg", int((rn.ex0 & (rn.delta_logQ < 0)).sum()))
+put("deltaMax", rn.delta_logQ.max(), "{:.3f}"); put("deltaMin", rn.delta_logQ.min(), "{:.3f}")
+put("ratioDeltaMax", np.exp(rn.delta_logQ.max()), "{:.2f}"); put("ratioDeltaMin", np.exp(rn.delta_logQ.min()), "{:.2f}")
+a = rn[(rn.dataset == "arena55k") & (rn.perturbation == "flip")].iloc[0]
+put("arenaFlipDelta", a.delta_logQ, "{:.3f}"); put("arenaFlipLo", a.lo, "{:.3f}"); put("arenaFlipHi", a.hi, "{:.3f}")
+put("arenaFlipRatio", np.exp(a.delta_logQ), "{:.2f}")
+a = rn[(rn.dataset == "arena55k") & (rn.perturbation == "delete")].iloc[0]
+put("arenaDelDelta", a.delta_logQ, "{:.3f}"); put("arenaDelLo", a.lo, "{:.3f}"); put("arenaDelHi", a.hi, "{:.3f}")
+for des, tag in (("crowd", "Crowd"), ("llm_judge", "Judge"), ("sports", "Sports")):
+    for p, ptag in (("delete", "Del"), ("flip", "Flip")):
+        g = rn[(rn.design == des) & (rn.perturbation == p)]
+        put(f"delta{tag}{ptag}Min", g.delta_logQ.min(), "{:.3f}"); put(f"delta{tag}{ptag}Max", g.delta_logQ.max(), "{:.3f}")
+        put(f"delta{tag}{ptag}Med", g.delta_logQ.median(), "{:.3f}")
+inc = rn[~rn.equiv]
+def _pretty(n):
+    n = n.replace("mtbench_gpt4_matched", "MT-Bench GPT-4 matched").replace("mtbench_gpt4", "MT-Bench GPT-4").replace("mtbench_human", "MT-Bench expert")
+    return "NBA " + n.split("_")[1] if n.startswith("nba_") else n
+_names = {"delete": "deletion", "flip": "flip"}
+put("incList", "; ".join(_names.get(p, p) + ": " + ", ".join(_pretty(d) for d in g.dataset) for p, g in inc.groupby("perturbation")))
+put("medWidthBig", (rn[rn.N > 10000].hi - rn[rn.N > 10000].lo).median(), "{:.2f}")
+put("medWidthSports", (rn[rn.design == "sports"].hi - rn[rn.design == "sports"].lo).median(), "{:.2f}")
+mt = rn[rn.dataset == "mtbench_human"]
+put("mtHumanPairs", int(mt.n_pairs.iloc[0]))
+
+mc = rd("matched_contrasts.csv")
+nr = mc[(mc.is_reference == 0) & mc.contrast.str.startswith("arena_crowd_vs_judge")]
+put("nMatchedJudges", nr.contrast.nunique()); put("nPairedRows", len(nr))
+put("nPairedEquiv", int((nr.equivalence == "equivalent").sum()))
+put("pairedAbsMax", nr.paired_diff.abs().max(), "{:.3f}")
+exz = nr[(nr.paired_lo > 0) | (nr.paired_hi < 0)]
+put("nPairedExZero", len(exz)); put("pairedExZeroAbsMax", exz.paired_diff.abs().max(), "{:.3f}")
+put("pairedExZeroEndMax", exz[["paired_lo", "paired_hi"]].abs().max().max(), "{:.3f}")
+put("matchedBoot", int(mc.n_boot.iloc[0])); put("matchedPairs", int(nr.n_pairs.iloc[0]))
+m1 = mc[(mc.contrast == "mtbench_human_vs_mtbench_gpt4_matched") & (mc.is_reference == 0)].set_index("perturbation")
+for p, tag in (("delete", "Del"), ("flip", "Flip")):
+    put(f"mtPaired{tag}", m1.loc[p, "paired_diff"], "{:.3f}"); put(f"mtPaired{tag}Lo", m1.loc[p, "paired_lo"], "{:.3f}")
+    put(f"mtPaired{tag}Hi", m1.loc[p, "paired_hi"], "{:.3f}"); put(f"mtPaired{tag}Verdict", m1.loc[p, "equivalence"])
+put("mtMatchedPairs", int(m1.loc["delete", "n_pairs"]))
+nm = mc[(mc.contrast == "arena_crowd_vs_arena_single") & (mc.is_reference == 1)]
+put("singleDelDelta", nm[nm.perturbation == "delete"].dQ_real_minus_null.iloc[0], "{:.3f}")
+put("singleFlipDelta", nm[nm.perturbation == "flip"].dQ_real_minus_null.iloc[0], "{:.3f}")
+
+# C1 scale: Q and k* at the pair level, and equal-N scaling
+bz = rd("fragility_by_z.csv")
+put("nBootCore", int(rd("datasets_computed.csv").n_boot.min()))
+vn = rd("fragility_vs_N.csv")
+ss = rd("scaling_slopes.csv")
+put("nScaleUnits", ss.dataset.nunique())
+put("slopeKNMin", ss.slope_log_kN.min(), "{:.2f}"); put("slopeKNMax", ss.slope_log_kN.max(), "{:.2f}")
+put("expNMin", ss.exponent_k_vs_N.min(), "{:.2f}"); put("expNMax", ss.exponent_k_vs_N.max(), "{:.2f}")
+
+# top-1 vs top-2
+t1 = rd("top1_conclusions.csv"); t = t1[t1.perturbation == "delete"]
+put("topShareLow", (t.top1_vs_top2_z < 2).mean() * 100, "{:.0f}")
+put("topNLow", int((t.top1_vs_top2_z < 2).sum())); put("topN", len(t))
+for d, tag in (("arena55k", "Arena"), ("arena_single", "Single")):
+    for p, ptag in (("delete", "Del"), ("flip", "Flip")):
+        r = t1[(t1.dataset == d) & (t1.perturbation == p)].iloc[0]
+        put(f"top{tag}{ptag}K", int(r.top1_vs_top2_k))
+    put(f"top{tag}Z", r.top1_vs_top2_z, "{:.2f}")
+put("topArenaPflip", t1[(t1.dataset == "arena55k")].top1_vs_top2_p_flip.iloc[0], "{:.2f}")
+
+# C3 survival: budget at which half of the CI-separated pairs are lost (% of N), median over the data sets of a design
+sv = rd("survival_curves.csv")
+def half(g, col):
+    g = g.sort_values(col); x = g[col].values; y = g.frac_surviving.values
+    if y.min() > 0.5: return np.nan
+    i = int(np.argmax(y <= 0.5))
+    if i == 0: return x[0]
+    x0, x1, y0, y1 = np.log(x[i - 1]), np.log(x[i]), y[i - 1], y[i]
+    return float(np.exp(x0 + (0.5 - y0) * (x1 - x0) / (y1 - y0)))
+rows = []
+for (d, p), g in sv[sv.curve == "adversarial"].groupby(["dataset", "perturbation"]):
+    gf = g[g.axis == "frac"]; gs = g[g.axis == "se"]
+    rows.append(dict(dataset=d, p=p, design=g.design.iloc[0], pct=100 * half(gf, "b_frac"), se=half(gs, "b_se")))
+h = pd.DataFrame(rows)
+for des, tag in (("crowd", "Crowd"), ("llm_judge", "Judge"), ("expert", "Expert"), ("sports", "Sports")):
+    for p, ptag in (("delete", "Del"), ("flip", "Flip")):
+        g = h[(h.design == des) & (h.p == p)]
+        put(f"half{tag}{ptag}Pct", g.pct.median(), "{:.2g}"); put(f"half{tag}{ptag}Se", g.se.median(), "{:.1f}")
+    put(f"nSurv{tag}", h[(h.design == des) & (h.p == "delete")].dataset.nunique())
+allhalf = [h[(h.design == d) & (h.p == p)].se.median() for d in ("crowd", "llm_judge", "expert", "sports") for p in ("delete", "flip")]
+put("halfSeLo", min(allhalf), "{:.0f}"); put("halfSeHi", max(allhalf), "{:.0f}")
+rnd = sv[sv.curve.str.startswith("random")]
+put("randSurvMin", rnd.frac_surviving.min(), "{:.2f}"); put("randBudgetMax", 100 * rnd[rnd.axis == "frac"].b_frac.max(), "{:.0f}")
+
+# C5 predictive rule
+pr = rd("predictive_rule.csv")
+for p, tag in (("delete", "Del"), ("flip", "Flip")):
+    g = pr[pr.perturbation == p]
+    for term, nm_ in (("log_z", "Z"), ("log_N", "N")):
+        r = g[g.term == term].iloc[0]
+        put(f"coef{nm_}{tag}", r.coef, "{:.2f}"); put(f"coef{nm_}{tag}Lo", r.lo, "{:.2f}"); put(f"coef{nm_}{tag}Hi", r.hi, "{:.2f}")
+    put(f"nFitPairs{tag}", thou(g.n_pairs_fit.iloc[0])); put(f"nUnits{tag}", int(g.n_units.iloc[0]))
+    put(f"nHeld{tag}", int(g[g.term == "heldout_rmse_design_model"].n_heldout_units.iloc[0]))
+    put(f"rmseDesign{tag}", g[g.term == "heldout_rmse_design_model"].heldout_err.iloc[0], "{:.2f}")
+    put(f"rmseBase{tag}", g[g.term == "heldout_sq_err_diff(base-design)"].heldout_err.iloc[0], "{:.2f}")
+    r = g[g.term == "heldout_sq_err_diff(base-design)"].iloc[0]
+    put(f"gain{tag}", r.coef, "{:.4f}"); put(f"gain{tag}Lo", r.lo, "{:.4f}"); put(f"gain{tag}Hi", r.hi, "{:.4f}")
+    r = g[g.term == "heldout_sq_err_diff(base-design)_ridge"].iloc[0]
+    put(f"gainRidge{tag}", r.coef, "{:.4f}"); put(f"gainRidge{tag}Lo", r.lo, "{:.4f}"); put(f"gainRidge{tag}Hi", r.hi, "{:.4f}")
+    put(f"nBetter{tag}", int(g[g.term == "n_heldout_units_where_design_better"].coef.iloc[0]))
+    lo = g[g.term.str.startswith("heldout_rmse_base[")]
+    put(f"rmseOutMin{tag}", lo.heldout_err.min(), "{:.2f}"); put(f"rmseOutMax{tag}", lo.heldout_err.max(), "{:.2f}")
+    put(f"rmseOutMinF{tag}", np.exp(lo.heldout_err.min()), "{:.1f}"); put(f"rmseOutMaxF{tag}", np.exp(lo.heldout_err.max()), "{:.1f}")
+    for des, dtag in (("crowd", "Crowd"), ("expert", "Expert"), ("llm_judge", "Judge"), ("sports", "Sports")):
+        put(f"rmseOut{dtag}{tag}", g[g.term == f"heldout_rmse_base[{des}]"].heldout_err.iloc[0], "{:.2f}")
+    put(f"rmseDesignF{tag}", np.exp(g[g.term == "heldout_rmse_design_model"].heldout_err.iloc[0]), "{:.2f}")
+
+# C5 reference predictors (leave-one-data-set-out, all units)
+for p, tag in (("delete", "Del"), ("flip", "Flip")):
+    g = pr[(pr.perturbation == p) & pr.term.str.endswith("[all_units]")]
+    for ref, nm_ in (("intercept_only", "Int"), ("log_z_only", "LogZ"), ("base_model", "Base"), ("first_order_rescaled", "First"), ("null_mean", "NullMean")):
+        put(f"refRmse{nm_}{tag}", g[g.term == f"heldout_rmse_ref[{ref}][all_units]"].coef.iloc[0], "{:.2f}")
+    r = g[g.term == "heldout_sq_err_diff(null_mean-base)[all_units]"].iloc[0]
+    put(f"nullMeanGain{tag}", r.coef, "{:.4f}"); put(f"nullMeanGain{tag}Lo", r.lo, "{:.4f}"); put(f"nullMeanGain{tag}Hi", r.hi, "{:.4f}")
+    r = g[g.term == "heldout_sq_err_diff(first_order_rescaled-base)[all_units]"].iloc[0]
+    put(f"firstGain{tag}", r.coef, "{:.4f}"); put(f"firstGain{tag}Lo", r.lo, "{:.4f}"); put(f"firstGain{tag}Hi", r.hi, "{:.4f}")
+put("refFBaseDel", np.exp(float(out["refRmseBaseDel"])), "{:.1f}"); put("refFBaseFlip", np.exp(float(out["refRmseBaseFlip"])), "{:.1f}")
+put("nHeldAll", int(pr[pr.term.str.endswith("[all_units]")].n_heldout_units.iloc[0]))
+
+# SE ratio and noise against the adversary's budget
+sr = rd("se_ratio.csv")
+for d, nm_ in (("crowd", "Crowd"), ("expert", "Expert"), ("llm_judge", "Judge"), ("sports", "Sports")):
+    g = sr[sr.design == d]
+    put(f"seRatio{nm_}", g.real_ratio_cluster_med.median(), "{:.2f}")
+    put(f"seDesEff{nm_}", g.design_effect_cluster.median(), "{:.1f}")
+    put(f"seNull{nm_}", g.null_ratio_cmp_med.median(), "{:.2f}")
+put("seOverNullMin", sr.real_over_null_cmp.min(), "{:.2f}"); put("seOverNullMax", sr.real_over_null_cmp.max(), "{:.2f}")
+rf = rd("random_vs_formula.csv")
+rf = rf[(rf.z_fisher_range == "1-8") & (rf.budget_over_kstar == 1) & rf.scope.str.startswith("design:")]
+for d, nm_ in (("crowd", "Crowd"), ("expert", "Expert"), ("llm_judge", "Judge"), ("sports", "Sports")):
+    r = rf[(rf.scope == f"design:{d}") & (rf.perturbation == "delete")].iloc[0]
+    put(f"fqOverAdvMin{nm_}", r.fq_over_adv_min, "{:.0f}")
+    put(f"randMeasMax{nm_}", r.measured_max, "{:.2f}")
+for d, nm_ in (("crowd", "Crowd"), ("expert", "Expert"), ("llm_judge", "Judge"), ("sports", "Sports")):
+    r = rf[(rf.scope == f"design:{d}") & (rf.perturbation == "delete")].iloc[0]
+    put(f"fqOverAdvMed{nm_}", r.fq_over_adv_median, "{:.0f}")
+put("fqOverAdvMinAll", rf[rf.perturbation == "delete"].fq_over_adv_min.min(), "{:.0f}")
+
+# synthetic calibration (all rows synthetic)
+sc = rd("synthetic_calibration.csv")
+def sg(q, p, setting=None):
+    g = sc[(sc.quantity == q) & (sc.perturbation == p)]
+    if setting is not None: g = g[g.setting == setting]
+    return g.value.iloc[0]
+for p, tag in (("delete", "Del"), ("flip", "Flip")):
+    put(f"synZ{tag}", sg("exponent_log_z", p), "{:.2f}"); put(f"synN{tag}", sg("exponent_log_N", p), "{:.2f}")
+    put(f"synResid{tag}", sg("residual_sd_log_k", p), "{:.2f}")
+    put(f"synLogQ{tag}", sg("mean_log_Q", p, "all configurations"), "{:.2f}")
+    put(f"synKlin{tag}", sg("k_lin_over_k_ver_median", p), "{:.2f}")
+    put(f"synSdMean{tag}", sg("instance_sd_mean_log_Q_mean_over_configs", p), "{:.3f}")
+    put(f"synSdMax{tag}", sg("instance_sd_mean_log_Q_max_over_configs", p), "{:.3f}")
+    qs = sc[(sc.quantity == "mean_log_Q") & (sc.perturbation == p) & (sc.setting != "all configurations")].value
+    put(f"synLogQMin{tag}", qs.min(), "{:.2f}"); put(f"synLogQMax{tag}", qs.max(), "{:.2f}")
+    put(f"synFit{tag}Rows", thou(sc[(sc.quantity == "exponent_log_z") & (sc.perturbation == p)].n.iloc[0]))
+put("synPairRows", thou(sg("pair_rows_total", "both")))
+put("synRmseCond", sg("pflip_rmse_conditional_formula", "delete"), "{:.3f}"); put("synRmseBrief", sg("pflip_rmse_brief_formula", "delete"), "{:.3f}")
+put("synBiasBrief", sg("pflip_bias_brief_formula", "delete"), "{:.3f}")
+put("synCells", int(sc[sc.quantity == "pflip_rmse_conditional_formula"].n.iloc[0])); put("synDraws", int(sg("pflip_draws_per_cell", "delete")))
+put("synTinyMatch", int(sg("tiny_exact_match_iterated", "both")))
+
+# C6 search comparison
+sq = rd("search_quality.csv"); al = sq[sq.scope == "all_datasets"]
+put("nSearchConcl", int(al.n_conclusions.iloc[0]))
+for p, tag in (("delete", "Del"), ("flip", "Flip")):
+    g = al[al.perturbation == p].set_index("method")
+    put(f"oneshotAtK{tag}", 100 * g.loc["oneshot", "flipped_at_k"], "{:.0f}")
+    put(f"oneshotAtHalf{tag}", 100 * g.loc["oneshot", "flipped_at_half_k"], "{:.1f}")
+    put(f"residRatio{tag}", g.loc["residual", "k_ratio_to_best"], "{:.0f}")
+    put(f"residUnreach{tag}", 100 * g.loc["residual", "share_unreachable"], "{:.0f}")
+    put(f"randAtK{tag}", 100 * g.loc["random", "flipped_at_k"], "{:.2f}")
+    put(f"linRatio{tag}", g.loc["first_order", "k_ratio_to_best"], "{:.2f}")
+    per = sq[(sq.method == "oneshot") & (sq.perturbation == p) & (sq.scope != "all_datasets")]
+    put(f"oneshotMin{tag}", 100 * per.flipped_at_k.min(), "{:.0f}"); put(f"oneshotMax{tag}", 100 * per.flipped_at_k.max(), "{:.0f}")
+ex = sq[sq.method == "iterated_vs_exact"]; ex = ex[ex.perturbation == "both"].iloc[0]
+put("nTinyExact", int(ex.n_conclusions)); put("tinyExactShare", 100 * ex.flipped_at_k, "{:.0f}")
+ex = sq[sq.method == "iterated_vs_exact"]
+put("nTinyDel", int(ex[ex.perturbation == "delete"].n_conclusions.iloc[0])); put("nTinyFlip", int(ex[ex.perturbation == "flip"].n_conclusions.iloc[0]))
+lp = sq[sq.method == "lp_candidate_over_upper"]
+put("lpMin", lp.k_ratio_to_best.min(), "{:.2f}"); put("lpMax", lp.k_ratio_to_best.max(), "{:.2f}")
+pl = sq[sq.method == "planted_vs_known"]
+put("nPlanted", int(pl.n_conclusions.iloc[0])); put("plantedMin", pl.k_ratio_to_best.min(), "{:.2f}")
+rs = sq[sq.method == "restarts_vs_standard"]; put("nRestarts", int(rs.n_conclusions.iloc[0]))
+put("restartsBetterDel", 100 * rs[rs.perturbation == "delete"].flipped_at_k.iloc[0], "{:.0f}"); put("restartsBetterFlip", 100 * rs[rs.perturbation == "flip"].flipped_at_k.iloc[0], "{:.0f}")
+
+# sensitivity
+se = rd("sensitivity.csv")
+c2 = se[se.statistic.str.contains("search with costs")]
+put("costTwoMin", c2.value.min(), "{:.2f}"); put("costTwoMax", c2.value.max(), "{:.2f}")
+nt = se[(se.check == "ties_dropped")]
+put("noTiesDel", nt[nt.perturbation == "delete"].value.iloc[0], "{:.3f}"); put("noTiesFlip", nt[nt.perturbation == "flip"].value.iloc[0], "{:.3f}")
+put("noTiesFlipHi", nt[nt.perturbation == "flip"].hi.iloc[0], "{:.3f}"); put("noTiesFlipLo", nt[nt.perturbation == "flip"].lo.iloc[0], "{:.3f}")
+tn = se[se.dataset.str.startswith("mtbench_gpt4@")]
+put("mtTurnDelMax", tn[tn.perturbation == "delete"].hi.max(), "{:.2f}")
+
+pv = lambda f: json.load(open(os.path.join(here, "..", "figures", "out", f)))
+put("figOneStrata", pv("fig1.provenance.json")["strata_drawn_A"]); put("figOnePairs", thou(pv("fig1.provenance.json")["pairs_drawn_B"]))
+
+# positive control (synthetic; MT-Bench human graph and Arena-55k, both complete)
+pc = rd("positive_control.csv")
+mb = pc[pc.graph == "mtbench_human"]
+put("ctlDeltaMax", mb.delta_mean.abs().max(), "{:.3f}")
+put("ctlLoMin", mb.pooled_lo.min(), "{:.2f}"); put("ctlHiMax", mb.pooled_hi.max(), "{:.2f}")
+put("ctlDesEffMax", mb.design_effect_cluster.max(), "{:.1f}")
+put("ctlSeNone", mb[mb.departure == "none"].se_ratio_cluster_med.iloc[0], "{:.2f}")
+put("ctlSeMax", mb.se_ratio_cluster_med.max(), "{:.2f}")
+put("ctlSeOther", mb[~mb.departure.isin(["none", "overdisp"])].se_ratio_cluster_med.max(), "{:.2f}")
+put("ctlPairs", mb[mb.departure == "none"].n_pairs_mean.iloc[0], "{:.1f}")
+put("ctlRepMax", int(mb.replicates_run.max())); put("ctlDetected", int(mb.detected.sum()))
+put("ctlCells", len(mb))
+ar = pc[(pc.graph == "arena55k") & (pc.departure == "none") & (pc.perturbation == "flip")].iloc[0]
+put("arenaCtlNull", int(ar.n_null)); put("arenaCtlFlip", ar.delta_mean, "{:.3f}"); put("arenaCtlLo", ar.pooled_lo, "{:.3f}"); put("arenaCtlHi", ar.pooled_hi, "{:.3f}")
+put("arenaCtlRep", int(ar.replicates_run))
+aa = pc[pc.graph == "arena55k"]
+put("arenaCtlCells", len(aa)); put("arenaCtlDetected", int(aa.detected.sum()))
+put("arenaCtlHiMax", aa.pooled_hi.max(), "{:.3f}"); put("arenaCtlLoMin", aa.pooled_lo.min(), "{:.3f}")
+put("arenaCtlDesEffMax", aa.design_effect_cluster.max(), "{:.2f}")
+put("arenaCtlSeMax", aa.se_ratio_cluster_med.max(), "{:.2f}")
+put("arenaCtlSeNone", aa[aa.departure == "none"].se_ratio_cluster_med.iloc[0], "{:.2f}")
+put("arenaCtlSePos", aa[(aa.departure == "position") & (aa["size"] == aa[aa.departure == "position"]["size"].max())].se_ratio_cluster_med.iloc[0], "{:.2f}")
+put("arenaCtlDelNone", aa[(aa.departure == "none") & (aa.perturbation == "delete")].delta_mean.iloc[0], "{:.3f}")
+put("arenaCtlDelMax", aa[aa.perturbation == "delete"].delta_mean.max(), "{:.3f}")
+put("arenaCtlFlipMax", aa[aa.perturbation == "flip"].delta_mean.max(), "{:.3f}")
+lab = {"none": "none", "overdisp": "overdispersion", "position": "position bias", "cyclic": "cyclic component", "pairdev": "pair-specific"}
+def ctl_table(g, fname):
+    gr = pc[pc.graph == g]
+    rows = []
+    for dep in ("none", "overdisp", "position", "cyclic", "pairdev"):
+        for sz in sorted(gr[gr.departure == dep]["size"].unique()):
+            d = gr[(gr.departure == dep) & (gr["size"] == sz)].set_index("perturbation")
+            c = lambda k: "%s [%s, %s]" % tuple(("%.3f" % v).replace("-0.000", "0.000").replace("-", "$-$") for v in (d.loc[k, "delta_mean"], d.loc[k, "pooled_lo"], d.loc[k, "pooled_hi"]))
+            r = d.iloc[0]
+            rows.append("%s & %s & %d & %.1f & %.2f & %s & %s \\\\" % (lab[dep], "--" if dep == "none" else "%.2f" % sz, r.n_replicates, r.design_effect_cluster, r.se_ratio_cluster_med, c("delete"), c("flip")))
+    with open(os.path.join(here, fname), "w") as f:
+        f.write("% generated by make_numbers.py from ../results/positive_control.csv; do not edit\n")
+        f.write("\\begin{tabular}{llrrrll}\n\\toprule\n departure & size & reps & design effect & SE ratio & $\\Delta$ deletion & $\\Delta$ flip \\\\\n\\midrule\n")
+        f.write("\n".join(rows) + "\n\\bottomrule\n\\end{tabular}\n")
+ctl_table("mtbench_human", "control_table.tex")
+ctl_table("arena55k", "control_table_arena.tex")
+
+with open(os.path.join(here, "numbers.tex"), "w") as f:
+    f.write("% generated by make_numbers.py from ../results; do not edit\n")
+    for k, v in out.items():
+        f.write("\\newcommand{\\%s}{%s}\n" % (k, v))
+print(f"{len(out)} macros")

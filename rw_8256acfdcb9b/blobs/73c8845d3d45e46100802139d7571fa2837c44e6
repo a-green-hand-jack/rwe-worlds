@@ -1,0 +1,34 @@
+{\footnotesize\setlength{\tabcolsep}{2pt}
+\begin{tabular}{@{}llrcccc@{}}
+\toprule
+Dataset & Model & $d$ & Q1 & Q2 & Q3 & Q4 \\
+\midrule
+German Credit & LR & 20 & 3.3k [3.3k, 3.3k] & 3.3k [3.3k, 3.3k] & 3.3k [3.3k, 3.3k] & 3.3k [3.3k, 3.3k] \\
+ & RF & 20 & 6.5k [3.3k, 6.5k] & 6.5k [3.3k, 6.5k] & 3.3k [3.3k, 6.5k] & 6.5k [3.3k, 6.5k] \\
+ & GBM & 20 & 6.5k [3.3k, 51k] & 6.5k [3.3k, 6.5k] & 6.5k [6.5k, 6.5k] & 3.3k [3.3k, 6.5k] \\
+ & MLP & 20 & 3.3k [3.3k, 6.5k] & 6.5k [6.5k, 13k] & 6.5k [3.3k, 6.5k] & 6.5k [3.3k, 6.5k] \\
+\addlinespace
+ACS Employment & LR & 16 & 3.3k [3.3k, 3.3k] & 3.3k [1.7k, 3.3k] & 3.3k [3.3k, 3.3k] & 3.3k [3.3k, 3.3k] \\
+ & RF & 16 & 6.5k [6.5k, 6.5k] & 6.5k [6.5k, 51k] & 6.5k [3.3k, 6.5k] & 6.5k [3.3k, 13k] \\
+ & GBM & 16 & 3.3k [3.3k, 6.5k] & 3.3k [3.3k, 3.3k] & 3.3k [3.3k, 6.5k] & 3.3k [3.3k, 3.3k] \\
+ & MLP & 16 & 6.5k [3.3k, 13k] & 3.3k [3.3k, 6.5k] & 6.5k [3.3k, 6.5k] & 3.3k [3.3k, 6.5k] \\
+\addlinespace
+ACS Income & LR & 10 & $\le$2.6k & $\le$2.6k & $\le$2.6k & $\le$2.6k \\
+ & RF & 10 & 5.2k [2.6k, 5.2k] & 5.2k [2.6k, 5.2k] & 5.2k [2.6k, 7.7k] & $\le$2.6k \\
+ & GBM & 10 & $\le$2.6k & $\le$2.6k & $\le$2.6k & $\le$2.6k \\
+ & MLP & 10 & $\le$2.6k & $\le$2.6k & $\le$2.6k & $\le$2.6k \\
+\addlinespace
+Pima & LR & 8 & 1.3k [1.3k, 1.3k] & 1.3k [1.3k, 1.3k] & 1.3k [1.3k, 1.3k] & 1.3k [1.3k, 1.3k] \\
+ & RF & 8 & 2.0k [1.3k, 2.0k] & 1.3k [1.3k, 2.0k] & 1.3k [1.3k, 2.0k] & 1.3k [1.3k, 1.3k] \\
+ & GBM & 8 & 1.3k [1.3k, 2.0k] & 2.0k [1.3k, 3.3k] & 2.0k [1.3k, 2.0k] & 1.3k [1.3k, 1.3k] \\
+ & MLP & 8 & 1.3k [1.3k, 3.3k] & 2.0k [1.3k, 3.3k] & 2.0k [1.3k, 3.3k] & 1.3k [1.3k, 1.3k] \\
+\addlinespace
+GMSC & LR & 10 & $\le$2.6k & $\le$2.6k & $\le$2.6k & $\le$2.6k \\
+ & RF & 10 & 5.2k [2.6k, 7.7k] & $\le$2.6k & 7.7k [5.2k, 7.7k] & 5.2k [2.6k, 7.7k] \\
+ & GBM & 10 & $\le$2.6k & $\le$2.6k & $\le$2.6k & $\le$2.6k \\
+ & MLP & 10 & $\le$2.6k & $\le$2.6k & $\le$2.6k & $\le$2.6k \\
+\midrule
+\multicolumn{7}{@{}l@{}}{$d$ is descriptive: default-budget evidence exists for two populations ($d$=20, 16) only,} \\
+\multicolumn{7}{@{}l@{}}{so rows differing in $d$ also differ in data and model fit; this is not a $d$ effect.} \\
+\bottomrule
+\end{tabular}}

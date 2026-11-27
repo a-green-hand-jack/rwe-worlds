@@ -1,0 +1,4 @@
+% not run: E3 census_healthcare_n500_N10000 n=500 nan (not run: no stored result when the table was built)
+% not run: E3 census_income_n500_N10000 n=500 nan (not run: no stored result when the table was built)
+% not run: E3 census_education_n500_N10000 n=500 nan (not run: no stored result when the table was built)
+% not run: E3 alphafold_n500_N8000 n=500 nan (not run: no stored result when the table was built)

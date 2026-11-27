@@ -1,0 +1,114 @@
+"""Loaders: each returns a dict(name, design, names, ci, cj, s, cluster) of comparisons.
+
+s is the score of model ci against cj (1 win, .5 tie, 0 loss); cluster is the resampling unit.
+Raw data live under DATA (default /hutian/data), never in the repository.
+"""
+import json
+import os
+import numpy as np
+import pandas as pd
+
+DATA = os.environ.get("BT_DATA", "/hutian/data")
+
+
+def _index(a, b, min_n=0):
+    allm = pd.concat([pd.Series(a), pd.Series(b)])
+    vc = allm.value_counts()
+    names = sorted(vc[vc >= min_n].index)
+    ix = {m: i for i, m in enumerate(names)}
+    return names, ix
+
+
+def _pack(name, design, A, B, s, cl, min_n=0, extra=None):
+    A, B, s, cl = map(lambda v: np.asarray(v), (A, B, s, cl))
+    names, ix = _index(A, B, min_n)
+    keep = np.array([(a in ix) and (b in ix) and a != b for a, b in zip(A, B)])
+    ci = np.array([ix[a] for a in A[keep]])
+    cj = np.array([ix[b] for b in B[keep]])
+    out = dict(name=name, design=design, names=names, ci=ci, cj=cj, s=s[keep].astype(float),
+               cluster=pd.factorize(cl[keep])[0])
+    if extra is not None:
+        out["extra"] = {k: np.asarray(v)[keep] for k, v in extra.items()}
+    return out
+
+
+def arena55k(min_n=0):
+    a = pd.read_csv(f"{DATA}/arena55k/train.csv")
+    s = np.where(a.winner_tie == 1, 0.5, np.where(a.winner_model_a == 1, 1.0, 0.0))
+    # cluster: identical prompt text (repeated prompts are not independent)
+    return _pack("arena55k", "crowd", a.model_a, a.model_b, s, a.prompt, min_n,
+                 extra=dict(id=a.id.values))
+
+
+def potsawee_judges(min_n=0, which=None):
+    """Same battles as arena55k restricted to the 49,938 single-turn ones, one comparison set per LLM judge
+    (position-averaged probabilities, hard argmax label), plus the crowd labels on the identical battles."""
+    base = arena55k(min_n)
+    ids = base["extra"]["id"].astype(np.int64)
+    d = json.load(open(f"{DATA}/potsawee/train.single-turn.json"))
+    keep_ids = np.array([int(x["id"]) for x in d])
+    in_set = np.isin(ids, keep_ids)
+    out = {}
+    crowd = dict(base)
+    for k in ("ci", "cj", "s", "cluster"):
+        crowd[k] = base[k][in_set]
+    crowd["extra"] = {"id": ids[in_set]}
+    crowd["name"], crowd["design"] = "arena55k_single", "crowd"
+    out["crowd"] = crowd
+    pos = {int(i): n for n, i in enumerate(crowd["extra"]["id"])}
+    judges = sorted(f[:-6] for f in os.listdir(f"{DATA}/potsawee/prob-avg"))
+    for j in judges if which is None else which:
+        s = np.full(len(pos), np.nan)
+        with open(f"{DATA}/potsawee/prob-avg/{j}.jsonl") as f:
+            for line in f:
+                r = json.loads(line)
+                n = pos.get(int(r["id"]))
+                if n is None:
+                    continue
+                pr = r["winner_pred"]
+                s[n] = 1.0 if pr == "A" else (0.0 if pr == "B" else 0.5)
+        ok = ~np.isnan(s)
+        o = dict(crowd)
+        for k in ("ci", "cj", "cluster"):
+            o[k] = crowd[k][ok]
+        o["s"] = s[ok]
+        o["name"], o["design"] = f"judge:{j}", "llm-judge"
+        o["extra"] = {"id": crowd["extra"]["id"][ok]}
+        out[j] = o
+    return out
+
+
+def mtbench(turn=None):
+    """Human (expert+author) and GPT-4 judgments; matched on (question, unordered pair, turn)."""
+    h = pd.read_parquet(f"{DATA}/mtbench/human.parquet")
+    g = pd.read_parquet(f"{DATA}/mtbench/gpt4_pair.parquet")
+    if turn is not None:
+        h, g = h[h.turn == turn], g[g.turn == turn]
+    def sc(w):
+        return np.where(w == "model_a", 1.0, np.where(w == "model_b", 0.0, 0.5))  # 'tie (inconsistent)' = tie
+    hs, gs = sc(h.winner.values), sc(g.winner.values)
+    cell = lambda d: d.question_id.astype(str) + "|" + d.turn.astype(str) + "|" + np.where(
+        d.model_a < d.model_b, d.model_a + "|" + d.model_b, d.model_b + "|" + d.model_a)
+    hc, gc = cell(h).values, cell(g).values
+    out = {}
+    out["human"] = _pack("mtbench_human", "expert", h.model_a, h.model_b, hs, h.question_id,
+                         extra=dict(cell=hc, judge=h.judge.values, turn=h.turn.values))
+    out["gpt4"] = _pack("mtbench_gpt4", "llm-judge", g.model_a, g.model_b, gs, g.question_id,
+                        extra=dict(cell=gc, turn=g.turn.values))
+    # matched: GPT-4 restricted to cells that humans judged
+    m = np.isin(gc, hc)
+    out["gpt4_matched"] = _pack("mtbench_gpt4_matched", "llm-judge", g.model_a.values[m], g.model_b.values[m],
+                                gs[m], g.question_id.values[m], extra=dict(cell=gc[m]))
+    return out
+
+
+def nba(year, league="NBA", playoffs=False):
+    n = pd.read_csv(f"{DATA}/nba/nbaallelo.csv")
+    n = n[(n._iscopy == 0) & (n.is_playoffs == int(playoffs)) & (n.lg_id == league) & (n.year_id == year)]
+    s = np.where(n.game_result == "W", 1.0, 0.0)
+    return _pack(f"nba{year}", "sports", n.fran_id, n.opp_fran, s, n.game_id)
+
+
+def nba_years(league="NBA"):
+    n = pd.read_csv(f"{DATA}/nba/nbaallelo.csv", usecols=["year_id", "lg_id", "is_playoffs"])
+    return sorted(n[(n.lg_id == league) & (n.is_playoffs == 0)].year_id.unique())

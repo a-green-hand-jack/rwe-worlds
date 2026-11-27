@@ -1,0 +1,55 @@
+"""Table 2 (guidance, the objective's central question): for each dataset x model, the minimum budget (model evaluations per run) at which
+P_c^eps (eps = 0.05) >= 0.9 holds for >= 90% of the instances of an exact-margin quartile (shap KernelExplainer, l1_reg=False, the sampling
+budget grid; cells whose default budget is exact enumeration have no such grid and are absent). Entry = point value with its instance-bootstrap
+CI, or "n.r." when not reached in the grid (then the largest budget tried is given). Built only from analysis's guidance.csv.
+Usage: python tab2_guidance.py DATA_DIR OUT_PREFIX [--criterion pc_eps|pc_exact]
+"""
+import argparse, json, os, sys
+import numpy as np, pandas as pd
+_here = os.path.dirname(os.path.abspath(__file__))
+for _d in (_here, os.path.join(_here, "..", "figs")):   # figstyle.py: next to this script (delivered layout) or in ../figs (repo layout)
+    sys.path.insert(0, _d)
+import figstyle as fs
+
+ap = argparse.ArgumentParser(); ap.add_argument("data"); ap.add_argument("out")
+ap.add_argument("--criterion", default="pc_eps", choices=["pc_eps", "pc_exact"])
+ap.add_argument("--estimator", default="shap_kernel"); ap.add_argument("--l1", default="False")
+a = ap.parse_args()
+g, p1 = fs.load(a.data, "guidance")
+g = g[(g.estimator == a.estimator) & (g.l1_reg == a.l1)].copy()
+fs.require(g, ["criterion"], "guidance")
+g = g[g.criterion == a.criterion]
+fs.require(g, ["dataset", "model", "d", "margin_bin", "margin_lo", "margin_hi", "min_evals", "ci_lo", "ci_hi", "not_reached_in_grid", "max_evals_tried", "label"], "guidance")
+bins = g.drop_duplicates("margin_bin").sort_values("margin_lo")[["margin_bin"]]
+def si(x):  # compact: 12k, 1.2M
+    x = float(x)
+    return f"{x/1e6:.1f}M" if x >= 1e6 else f"{x/1e3:.0f}k" if x >= 1e4 else f"{x/1e3:.1f}k" if x >= 1e3 else f"{x:.0f}"
+def cell(r):
+    if bool(r.not_reached_in_grid): s = f"n.r.\\,($>${si(r.max_evals_tried)})"
+    else:
+        lo = "$\\le$" if r.label.startswith("at smallest") else ""   # reached at the smallest budget tried: an upper bound
+        s = f"{lo}{si(r.min_evals)}" + ("" if lo else f" [{si(r.ci_lo)}, {si(r.ci_hi)}]" if np.isfinite(r.ci_hi) else f" [{si(r.ci_lo)}, n.r.]")
+    return s
+out = ["{\\footnotesize\\setlength{\\tabcolsep}{2pt}", "\\begin{tabular}{@{}llr" + "c" * len(bins) + "@{}}", "\\toprule",
+       "Dataset & Model & $d$ & " + " & ".join(f"{b.margin_bin}" for b in bins.itertuples()) + " \\\\", "\\midrule"]
+rows, prev = [], None
+for ds in fs.DATASET_TITLE:
+    for m in fs.MODELS:
+        t = g[(g.dataset == ds) & (g.model == m)]
+        if t.empty: continue
+        if prev is not None and ds != prev: out.append("\\addlinespace")
+        cells = []
+        for b in bins.itertuples():
+            q = t[t.margin_bin == b.margin_bin]
+            cells.append(cell(q.iloc[0]) if len(q) else "--")
+            rows += q.to_dict("records")
+        out.append(f"{fs.DATASET_TITLE[ds] if ds != prev else ''} & {m.upper()} & {int(t.d.iloc[0])} & " + " & ".join(cells) + " \\\\")
+        prev = ds
+out += ["\\midrule", "\\multicolumn{7}{@{}l@{}}{$d$ is descriptive: default-budget evidence exists for two populations ($d$=20, 16) only,} \\\\",
+        "\\multicolumn{7}{@{}l@{}}{so rows differing in $d$ also differ in data and model fit; this is not a $d$ effect.} \\\\", "\\bottomrule", "\\end{tabular}}"]
+os.makedirs(os.path.dirname(a.out) or ".", exist_ok=True)
+open(a.out + ".tex", "w").write("\n".join(out) + "\n"); pd.DataFrame(rows).to_csv(a.out + ".csv", index=False)
+json.dump({"table": os.path.basename(a.out), "inputs": fs.inputs([p1]),
+           "scope": "d is descriptive for these populations, not a d effect (Outline rev 6): default-budget evidence is two populations (d=20, d=16); intervals resample instances of one trained model per cell.",
+           "note": "entries are model evaluations (background rows included); n.r. = not reached within the grid (largest budget tried in brackets); <= = reached at the smallest budget of the grid (true minimum may be lower); CI = instance bootstrap as supplied by analysis; criterion: "+a.criterion+", estimator "+a.estimator+" l1_reg="+a.l1},
+          open(a.out + ".json", "w"), indent=1)

@@ -1,0 +1,89 @@
+"""Fig. 1: error vs k on held-out groups (split G), common target set, designed vs random-k vs baselines, and the paired gain.
+
+usage: python3 -m figtab.make_fig1 RESULTS_DIR OUT.pdf [SUBSET]    (run with the repo root as cwd)
+Reads RESULTS_DIR/{ct_curves.csv,ct_contrast.csv,ct_kstar.csv,ct_excess_curve_ct_G_<subset>.csv,ct_run_meta.json} only.
+SUBSET = fixed (headline: the models eligible at k_max, the same at every k) or all.
+"""
+import sys, json, pathlib
+import numpy as np, pandas as pd
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from figtab import style, provenance, check_pdf
+
+res = pathlib.Path(sys.argv[1]); out = sys.argv[2]
+subset = sys.argv[3] if len(sys.argv) > 3 else "fixed"
+style.apply(); C = style.COLORS
+cur = pd.read_csv(res / "ct_curves.csv"); con = pd.read_csv(res / "ct_contrast.csv")
+ks = pd.read_csv(res / "ct_kstar.csv"); meta = json.load(open(res / "ct_run_meta.json"))
+ex = pd.read_csv(res / f"ct_excess_curve_ct_G_{subset}.csv")
+g = cur[(cur.split == "G") & (cur["subset"] == subset)]
+c = con[(con.split == "G") & (con["subset"] == subset) & (con.inf == "P5")]
+N = int(g.N.iloc[0]); n_models = int(g.n_models_at_k.min()); n_groups = int(g.n_groups.min())
+m = lambda name: g[g.method == name].sort_values("k")
+c6 = c[c.rule == "S6"].sort_values("k")
+
+fig, (a, e, b) = plt.subplots(1, 3, figsize=(style.VENUE["text_in"], 2.4), gridspec_kw={"width_ratios": [1, 1, 1]})
+TICKS = [1, 3, 8, 20, 50, 109]
+def xk(ax, tag):
+    ax.set_xscale("log"); ax.set_xticks(TICKS); ax.set_xticklabels([str(k) for k in TICKS]); ax.minorticks_off()
+    ax.set_xlabel(tag + " benchmarks run $k$")
+
+# (a) error vs k on the common target set
+d6, d0 = m("S6+P5"), m("S0+P5")
+a.plot(m("S0+P0").k, m("S0+P0").rmse_raw, color=C["other"], ls=":", label="benchmark mean")
+mo = m("S0+P1")
+a.plot(mo.k, mo.rmse_raw, color=C["meanoffset"], ls=style.LINESTYLES["meanoffset"], marker="^", label="random-$k$, mean-offset")
+a.fill_between(d0.k, d0.lo, d0.hi, color=C["random"], alpha=0.25, lw=0)
+a.plot(d0.k, d0.rmse_raw, color=C["random"], ls="--", marker="s", label="random-$k$, factor (S0+P5)")
+a.fill_between(d6.k, d6.lo, d6.hi, color=C["designed"], alpha=0.2, lw=0)
+a.plot(d6.k, d6.rmse_raw, color=C["designed"], marker="o", label="designed, factor (S6+P5)")
+a.plot(d6.k, d6.t1_rmse_raw, color=C["theory"], ls="-.", label="T1 prediction (S6)")
+a.plot(d6.k, d6.floor_raw, color=C["floor"], lw=0.9, label="floor (all of $C$ run)")
+xk(a, "(a)"); a.set_ylim(0, 17.5); a.set_ylabel("RMSE on target set $T$ (points)")
+sec = a.secondary_xaxis("top", functions=(lambda k: k / N, lambda r: r * N))
+sec.set_xscale("log"); sec.set_xticks([0.01, 0.1]); sec.set_xticklabels(["0.01", "0.1"]); sec.minorticks_off(); sec.set_xlabel("fraction of the benchmarks run, $k/N$", labelpad=2)
+sec.spines["top"].set_visible(True)
+
+# (b) the same curves as excess over each model's own floor, read sideways for k*(eps)
+e.fill_between(d0.k, d0.excess_lo, d0.excess_hi, color=C["random"], alpha=0.25, lw=0)
+e.plot(d0.k, d0.excess_raw, color=C["random"], ls="--", marker="s")
+e.fill_between(ex.k, ex.excess_emp_lo, ex.excess_emp_hi, color=C["designed"], alpha=0.2, lw=0)
+e.plot(ex.k, ex.excess_emp, color=C["designed"], marker="o")
+e.plot(ex.k, ex.excess_t1, color=C["theory"], ls="-.")
+eps = {"delta_T": ("$\\delta$", "#555555"), "2delta_T": ("2$\\delta$", "#555555"),
+       "delta_floor": ("$\\delta$ floor", "#888888"), "2delta_floor": ("2$\\delta$ floor", "#888888")}
+kk = ks[(ks.split == "G") & (ks["subset"] == subset)].set_index("epsilon_name")
+for name, (lab, col) in eps.items():
+    r = kk.loc[name]
+    e.axhline(r.epsilon, color=col, lw=0.6, ls=(0, (1, 1.5)))
+    e.text(1.0, r.epsilon, lab, transform=e.get_yaxis_transform(), ha="left", va="center", color=col)
+    if r.k_emp >= 9999: continue
+    lo, hi = r.k_emp_lo, min(r.k_emp_hi, 109)     # 9999 upper bound = never reached: drawn to the axis end
+    e.plot([lo, hi], [r.epsilon] * 2, color=C["designed"], lw=2.0, solid_capstyle="butt")
+    e.plot([r.k_emp], [r.epsilon], marker="D", color="white", mec=C["designed"], mew=0.9, ms=3.5)
+xk(e, "(b)"); e.set_yscale("log"); e.set_ylim(0.07, 9)
+e.set_yticks([0.1, 0.3, 1, 3]); e.set_yticklabels(["0.1", "0.3", "1", "3"]); e.minorticks_off()
+e.set_ylabel("excess over floor (points)")
+
+# (c) paired gain of design over random-k, with T1's predicted gain
+x = c6.k.values
+b.axhline(0, color="black", lw=0.5)
+dl = c6.delta_floor.mean(); dp = c6.delta.mean()
+b.axhspan(-dl, dl, color="#BBBBBB", alpha=0.35, lw=0, label="margin $\\pm\\delta$ floor")
+b.axhspan(-dp, dp, color="#555555", alpha=0.45, lw=0, label="margin $\\pm\\delta$")
+b.fill_between(x, c6.lo90, c6.hi90, color=C["designed"], alpha=0.25, lw=0)
+b.plot(x, c6.gain_mean, color=C["designed"], marker="o", label="gain S0$-$S6, 90% CI")
+alt = c[c.rule.isin(["S1", "S2", "S4"])].groupby("k").gain_mean.max()
+b.plot(alt.index, alt.values, color=C["other2"], lw=0.9, ls="--", label="best of S1, S2, S4 at each $k$")
+b.plot(x, c6.t1_predicted_gain, color=C["theory"], ls="-.", label="T1 predicted gain")
+xk(b, "(c)"); b.set_ylabel("gain over random-$k$ (points)")
+ha, la = a.get_legend_handles_labels(); hb, lb = b.get_legend_handles_labels()
+fig.legend(ha + hb, la + lb, loc="outside lower center", ncol=3, handlelength=1.8, columnspacing=1.0, labelspacing=0.25)
+fig.savefig(out)
+provenance.write(out, [res / f for f in ("ct_curves.csv", "ct_contrast.csv", "ct_kstar.csv", "ct_run_meta.json", f"ct_excess_curve_ct_G_{subset}.csv")],
+                 {"split": "G (group-held-out), common target set (50 C/T splits)", "subset": subset, "N": N,
+                  "n_models_in_subset": n_models, "n_groups_in_subset": n_groups,
+                  "n_heldout_models_in_split": meta["n_heldout_models"]["G"], "bootstrap": f"group bootstrap B={meta['B']}, 90% bounds",
+                  "script": "figtab/make_fig1.py"})
+print(check_pdf.check(out))

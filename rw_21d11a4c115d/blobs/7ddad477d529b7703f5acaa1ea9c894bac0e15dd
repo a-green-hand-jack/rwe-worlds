@@ -1,0 +1,7 @@
+{
+ "table": "table4_theory",
+ "inputs": {
+  "theory_gap.csv": "e24b65ae87b7",
+  "theory_shape.csv": "b9797158ddff"
+ }
+}

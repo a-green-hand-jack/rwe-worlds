@@ -1,0 +1,116 @@
+"""Item x configuration matrix harness (CPU).
+
+A configuration = (group g, suffix variant m).
+  group  g: demonstration set + option-labelling style  -> part of the *prefix/item* text
+  suffix m: instruction wording x answer cue            -> text *after* the item
+Prompt = [chat header + demos]  [item: question + options]  [instruction + assistant header + cue]
+The KV cache of the prefix is computed once per group, that of the item once per (group,item),
+and all M suffix variants of that (group,item) are run as one batch on a copy of the cache.
+Each cell = letter log-probs over the valid options (direct answer, no sampling).
+"""
+import os, copy, time, json
+import numpy as np, pandas as pd, torch
+from transformers import AutoTokenizer, AutoModelForCausalLM
+
+LETTERS = "ABCDEFGHIJ"
+HF = os.environ.get("HF_ROOT", "/hutian/work/hf")      # local copy of the Hugging Face cache (data + model)
+MMLU = HF + "/hub/datasets--TIGER-Lab--MMLU-Pro/snapshots/b189ec765aa7ed75c8acfea42df31fdae71f97be/data/"
+MODELS = {"qwen2.5-1.5b": HF + "/hub/models--Qwen--Qwen2.5-1.5B-Instruct/snapshots/989aa7980e4cf806f80c7fef2b1adb7bc71aa306"}
+
+SYSTEM = "You are a helpful assistant."
+HEAD = "<|im_start|>system\n" + SYSTEM + "<|im_end|>\n<|im_start|>user\n"
+TAIL = "<|im_end|>\n<|im_start|>assistant\n"
+
+INSTR = [  # instruction wording (placed after the question and options)
+    "Choose the correct option.",
+    "Answer the multiple-choice question above with the letter of the correct option.",
+    "Which option is correct? Respond with a single letter.",
+    "Think carefully about the question, then give only the letter of the best answer.",
+    "Select the best answer from the options.",
+    "You are an expert in this subject. Pick the right option and reply with its letter only.",
+    "Read the question and the options. State the letter of the one correct option.",
+    "Give the letter corresponding to the correct answer.",
+]
+CUES = ["The answer is (", "Answer: "]  # assistant-side cue; letters scored after it
+
+def load_data():
+    t = pd.read_parquet(MMLU + "test-00000-of-00001.parquet")
+    return t
+
+def fmt_item(question, options, label):
+    if label == "dot":
+        opts = "\n".join(f"{LETTERS[i]}. {o}" for i, o in enumerate(options))
+    else:  # "paren"
+        opts = "\n".join(f"({LETTERS[i]}) {o}" for i, o in enumerate(options))
+    return f"Question: {question}\nOptions:\n{opts}\n\n"
+
+def fmt_demo(row, label):
+    return fmt_item(row["question"], list(row["options"]), label).rstrip("\n") + f"\nAnswer: ({row['answer']})\n\n"
+
+class Harness:
+    def __init__(self, model_key="qwen2.5-1.5b", threads=4):
+        torch.set_num_threads(threads)
+        path = MODELS[model_key]
+        self.tok = AutoTokenizer.from_pretrained(path)
+        self.model = AutoModelForCausalLM.from_pretrained(path, dtype=torch.float32).eval()
+        ids = []
+        for L in LETTERS:
+            a = self.tok.encode(L, add_special_tokens=False); b = self.tok.encode(" " + L, add_special_tokens=False)
+            assert len(a) == 1 and len(b) == 1
+            ids.append((a[0], b[0]))
+        self.letter_ids = torch.tensor(ids)  # (10,2)
+
+    def enc(self, s):
+        return self.tok.encode(s, add_special_tokens=False)
+
+    def suffix_ids(self, variants):
+        """variants: list of (instr_idx, cue_idx) -> list of token-id lists."""
+        out = []
+        for ii, ci in variants:
+            out.append(self.enc(INSTR[ii] + TAIL + CUES[ci]))
+        return out
+
+    @torch.no_grad()
+    def run_group(self, demo_text, label, items, variants, log=None):
+        """items: DataFrame rows (question, options). Returns logp array (n_items, M, 10) of letter
+        log-probs (logsumexp over bare/space-prefixed token), -inf for invalid options."""
+        m = self.model
+        pre = self.enc(HEAD + demo_text)
+        suf = self.suffix_ids(variants)
+        M = len(suf); Ls = [len(s) for s in suf]; Lmax = max(Ls)
+        pad = self.tok.pad_token_id
+        suf_ids = torch.full((M, Lmax), pad, dtype=torch.long)
+        for j, s in enumerate(suf): suf_ids[j, :len(s)] = torch.tensor(s)
+        last = torch.tensor([l - 1 for l in Ls])
+        base = m(torch.tensor([pre]), use_cache=True).past_key_values
+        P = len(pre)
+        out = np.full((len(items), M, 10), -np.inf, dtype=np.float32)
+        for r, row in enumerate(items.itertuples()):
+            it = self.enc(fmt_item(row.question, list(row.options), label))
+            base = m(torch.tensor([it]), past_key_values=base, use_cache=True).past_key_values
+            cache = copy.deepcopy(base)
+            cache.batch_repeat_interleave(M)
+            T = P + len(it)
+            am = torch.ones(M, T + Lmax, dtype=torch.long)
+            for j, l in enumerate(Ls): am[j, T + l:] = 0
+            h = m.model(input_ids=suf_ids, attention_mask=am, past_key_values=cache, use_cache=True).last_hidden_state
+            lg = m.lm_head(h[torch.arange(M), last]).float()          # lm_head on the M scored positions only
+            lp = torch.log_softmax(lg, -1)
+            two = lp[:, self.letter_ids]  # (M,10,2)
+            lps = torch.logsumexp(two, -1).numpy()
+            nopt = len(row.options)
+            out[r, :, :nopt] = lps[:, :nopt]
+            base.crop(-len(it))
+            if log and r % 10 == 0: log(r, len(items))
+        return out
+
+    @torch.no_grad()
+    def full_forward_cell(self, demo_text, label, row, variant):
+        """Reference: one cell as a single un-cached sequence (for validating run_group)."""
+        suf = self.suffix_ids([variant])[0]
+        ids = self.enc(HEAD + demo_text) + self.enc(fmt_item(row.question, list(row.options), label)) + suf
+        lg = self.model(torch.tensor([ids])).logits[0, -1].float()
+        lp = torch.log_softmax(lg, -1)
+        lps = torch.logsumexp(lp[self.letter_ids], -1).numpy()
+        out = np.full(10, -np.inf, dtype=np.float32); n = len(row.options); out[:n] = lps[:n]
+        return out

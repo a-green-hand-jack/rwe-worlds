@@ -1,0 +1,76 @@
+"""C1 structure: spectrum of the filtered matrix, three effective-rank estimators (prereg G), CV error vs rank, coverage matrix.
+usage: python 09_structure.py <data_dir> <work_dir> <out_dir>"""
+import os, sys, glob, pickle, json, numpy as np, pandas as pd
+sys.path.insert(0, os.path.dirname(__file__))
+from common import *
+from fa import fit_fa, complete
+
+data_dir, work, out = sys.argv[1:4]
+Y, mods, tasks, et = load_matrix(data_dir)
+M, N = Y.shape; mask = ~np.isnan(Y)
+mu, sd = standardise(Y); Z = (Y - mu) / sd
+
+def pairwise_corr(Zm, mk):
+    Zf = np.where(mk, Zm, 0.0); mf = mk.astype(float)
+    n = mf.T @ mf; sxy = Zf.T @ Zf
+    sx = Zf.T @ mf; sy = sx.T; sxx = (Zf ** 2).T @ mf; syy = sxx.T
+    num = sxy - sx * sy / np.maximum(n, 1)
+    den = np.sqrt(np.maximum(sxx - sx ** 2 / np.maximum(n, 1), 1e-12) * np.maximum(syy - sy ** 2 / np.maximum(n, 1), 1e-12))
+    C = num / den; np.fill_diagonal(C, 1.0); return np.nan_to_num(C)
+
+def spectrum(C):
+    return np.sort(np.linalg.eigvalsh(C))[::-1]
+
+res = {}
+ev = spectrum(pairwise_corr(Z, mask))
+# (i) parallel analysis: permute observed entries within each column
+rng = np.random.default_rng(SEED)
+perm = []
+for _ in range(200):
+    Zp = np.full_like(Z, np.nan)
+    for j in range(N):
+        o = np.where(mask[:, j])[0]; Zp[o, j] = Z[rng.permutation(o), j]
+    perm.append(spectrum(pairwise_corr(np.nan_to_num(Zp), mask)))
+perm = np.array(perm); pa95 = np.percentile(perm, 95, axis=0)
+r_pa = int((ev > pa95).sum()) if True else 0
+r_pa = int(np.argmax(~(ev > pa95))) if (~(ev > pa95)).any() else N     # leading run of exceedances
+# (ii) noise-edge estimator without a permutation null: Gavish-Donoho optimal hard threshold with unknown noise
+# (tau = omega(beta) * median singular value) on the mean-imputed standardised matrix (beta = M/N <= 1); the Marchenko-Pastur
+# edge of the pairwise-complete correlation matrix is not used because that matrix is not positive semidefinite.
+beta = M / N
+omega = 0.56 * beta ** 3 - 0.95 * beta ** 2 + 1.82 * beta + 1.43
+sv = np.linalg.svd(np.where(mask, Z, 0.0), compute_uv=False)
+tau = omega * np.median(sv); r_mp = int((sv > tau).sum()); edge = float(tau ** 2 / M)   # edge in eigenvalue units of (1/M) Z'Z
+sig2 = float(np.median(sv) ** 2 / M)
+ratio = N / M
+# (iii) CV rank from stage A (inner CV, 'loo' reveal, standardised MSE, mean over folds)
+cvrows = []
+for f in sorted(glob.glob(os.path.join(work, "state", "G_*.pkl"))):
+    st = pickle.load(open(f, "rb"))
+    for r in RANKS: cvrows.append(dict(fold=st["fold"], rank=r, mse=st["inner"][(r, "loo")]))
+cv = pd.DataFrame(cvrows)
+cvs = cv.groupby("rank").mse.agg(["mean", "std", "count"]).reset_index()
+cvs["rmse"] = np.sqrt(cvs["mean"]); cvs["lo"] = np.sqrt(cvs["mean"] - 1.645 * cvs["std"] / np.sqrt(cvs["count"])); cvs["hi"] = np.sqrt(cvs["mean"] + 1.645 * cvs["std"] / np.sqrt(cvs["count"]))
+cvs[["rank", "rmse", "lo", "hi"]].to_csv(os.path.join(out, "fig2_cv_vs_rank.csv"), index=False)
+r_cv = int(cvs.loc[cvs["mean"].idxmin(), "rank"])
+# imputation sensitivity: spectrum of column-mean-imputed matrix and of an EM-FA completed matrix (rank = r_cv)
+Zmean = np.where(mask, Z, 0.0); ev_mean = np.sort(np.linalg.eigvalsh(np.corrcoef(Zmean.T)))[::-1]
+fit = fit_fa(Z, max(r_cv, 2)); Zc = complete(Z, fit); ev_em = np.sort(np.linalg.eigvalsh(np.corrcoef(Zc.T)))[::-1]
+def pa_on_complete(Zfull):
+    pm = []
+    for _ in range(100):
+        Zp = np.column_stack([rng.permutation(Zfull[:, j]) for j in range(N)]); pm.append(np.sort(np.linalg.eigvalsh(np.corrcoef(Zp.T)))[::-1])
+    p95 = np.percentile(np.array(pm), 95, axis=0); e = np.sort(np.linalg.eigvalsh(np.corrcoef(Zfull.T)))[::-1]
+    return int(np.argmax(~(e > p95))) if (~(e > p95)).any() else N
+r_pa_mean = pa_on_complete(Zmean); r_pa_em = pa_on_complete(Zc)
+pd.DataFrame(dict(index=np.arange(1, N + 1), eigenvalue=ev, pa95=pa95, noise_edge_gd=edge, eig_meanimputed=ev_mean, eig_emcompleted=ev_em)).to_csv(os.path.join(out, "fig2_spectrum.csv"), index=False)
+est = pd.DataFrame([dict(estimator="parallel_analysis_pairwise", r=r_pa), dict(estimator="gavish_donoho_threshold", r=r_mp), dict(estimator="cv_inner_group_loo", r=r_cv),
+                    dict(estimator="parallel_analysis_meanimputed", r=r_pa_mean), dict(estimator="parallel_analysis_em_completed", r=r_pa_em)])
+est.to_csv(os.path.join(out, "fig2_rank_estimates.csv"), index=False)
+types = tasks.type.values
+order = np.lexsort((np.arange(N), types)); morder = np.argsort(-mask.sum(1))
+pd.DataFrame(mask[np.ix_(morder, order)].astype(int), index=mods.model.values[morder], columns=tasks.task.values[order]).to_csv(os.path.join(out, "fig2_coverage.csv"))
+pd.DataFrame(dict(task=tasks.task.values[order], type=types[order])).to_csv(os.path.join(out, "fig2_task_types.csv"), index=False)
+json.dump(dict(sigma2_mp=float(sig2), mp_edge=float(edge), ratio=ratio, var_explained_top=[float(x / ev.sum()) for x in ev[:12]], eig_top=[float(x) for x in ev[:12]], pa95_top=[float(x) for x in pa95[:12]]),
+          open(os.path.join(out, "fig2_summary.json"), "w"), indent=1)
+print(est); print(cvs[["rank", "rmse"]]); print(ev[:12].round(2), pa95[:12].round(2), edge)

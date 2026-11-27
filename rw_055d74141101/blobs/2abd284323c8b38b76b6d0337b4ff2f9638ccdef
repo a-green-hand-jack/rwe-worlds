@@ -1,0 +1,32 @@
+"""Published-view confidence intervals: 95% percentile cluster-bootstrap intervals of every model score (same bootstrap
+draws as core01.py: seed 0, B=500) and of every pair gap.  Output $BT_RESULTS/ci/<unit>.pairs.parquet with, per ordered pair
+(a above b): sep_published (lo_a > hi_b), sep_gap (percentile 2.5 of gap > 0), and model table with CI.
+usage: 02b_ci.py UNIT [--boot 500] [--seed 0]"""
+import argparse, os, sys
+import numpy as np, pandas as pd
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src")); sys.path.insert(0, os.path.dirname(__file__))
+import analysis as A
+from core01 import OUT, get
+
+
+def main():
+    ap = argparse.ArgumentParser(); ap.add_argument("unit"); ap.add_argument("--boot", type=int, default=500); ap.add_argument("--seed", type=int, default=0)
+    a = ap.parse_args()
+    P = A.Prepared(get(a.unit))
+    tb = P.bootstrap_theta(a.boot, np.random.default_rng(a.seed), by="cluster")
+    lo, hi = np.percentile(tb, 2.5, axis=0), np.percentile(tb, 97.5, axis=0)
+    order = np.argsort(-P.theta)
+    rows = []
+    for r in range(P.M):
+        for s in range(r + 1, P.M):
+            x, y = order[r], order[s]
+            g = tb[:, x] - tb[:, y]
+            rows.append(dict(unit=a.unit, a=x, b=y, ra=r, rb=s, sep_published=bool(lo[x] > hi[y]), sep_gap=bool(np.percentile(g, 2.5) > 0)))
+    os.makedirs(f"{OUT}/ci", exist_ok=True)
+    pd.DataFrame(rows).to_parquet(f"{OUT}/ci/{a.unit.replace(':', '_')}.pairs.parquet")
+    pd.DataFrame(dict(model=P.names, theta=P.theta, lo=lo, hi=hi)).to_parquet(f"{OUT}/ci/{a.unit.replace(':', '_')}.models.parquet")
+    print(a.unit, "ci done", flush=True)
+
+
+if __name__ == "__main__":
+    main()

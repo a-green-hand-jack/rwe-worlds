@@ -1,0 +1,43 @@
+"""Synthetic score matrices with known rank/noise and a misspecification ladder (C4, C6).
+generate(...) returns standardised-scale scores for M models x N benchmarks plus the truth."""
+import numpy as np
+
+LEVELS = ["L0_correct", "L1_saturating_link", "L2_heavy_tails", "L3_heteroscedastic_ceiling", "L4_correlated_residuals"]
+COMBINED = "L5_link_tails_ceiling"      # pre-specified combination (PREREG Deviation 4h): L2 noise, L3 ceiling heteroscedasticity, then the L1 link
+
+def loadings(N, r, regime, rng, snr=8.0):
+    """regime 'separated': r factors with equal strength, eigenvalues >> noise; 'decaying': strength ~ i^-0.8 over `r` factors (r large)."""
+    V = rng.standard_normal((N, r)) / np.sqrt(N)
+    if regime == "separated":
+        s = np.full(r, snr)
+    else:
+        s = snr * (np.arange(1, r + 1) ** -0.8) * 2.0
+    V = V * s[None] * np.sqrt(1.0)
+    return V
+
+def generate(M, N, r, regime, level, seed, snr=8.0, noise_lo=0.3, noise_hi=1.0):
+    rng = np.random.default_rng(seed)
+    V = loadings(N, r, regime, rng, snr=snr)
+    # per-benchmark noise sd chosen so the total variance is ~ unit-scale multiples: psi_j in [noise_lo, noise_hi]^2 * mean signal var
+    sig_var = (V ** 2).sum(1)
+    psi = (rng.uniform(noise_lo, noise_hi, N) ** 2) * sig_var.mean() * 0.35
+    z = rng.standard_normal((M, r)); mu = rng.standard_normal(N)
+    signal = z @ V.T
+    eps = rng.standard_normal((M, N)) * np.sqrt(psi)[None]
+    if level in ("L2_heavy_tails", COMBINED):
+        eps = rng.standard_t(3, (M, N)) * np.sqrt(psi / 3.0)[None]          # t3 scaled to the same variance
+    if level in ("L3_heteroscedastic_ceiling", COMBINED):
+        lat = signal + mu[None]; c = (lat - np.quantile(lat, 0.5, axis=0)) / (lat.std(0) + 1e-9)
+        eps = eps * (1 + 1.5 * np.clip(c, 0, None))
+    if level == "L4_correlated_residuals":
+        n_cl = max(N // 12, 2); cl = rng.integers(0, n_cl, N)
+        shared = rng.standard_normal((M, n_cl)) * np.sqrt(psi.mean() * 0.8)
+        eps = eps * np.sqrt(0.5) + shared[:, cl]
+    Y = mu[None] + signal + eps
+    if level in ("L1_saturating_link", COMBINED):
+        sc = Y.std(0); Y = 2.5 * np.tanh(Y / (1.2 * sc[None] + 1e-9)) * sc[None]       # bounded, saturating link
+    return dict(Y=Y, V=V, psi=psi, mu=mu)
+
+def standardise_cols(Y, ref=None):
+    ref = Y if ref is None else ref
+    m, s = ref.mean(0), ref.std(0); return (Y - m) / s, m, s

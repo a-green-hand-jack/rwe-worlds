@@ -1,0 +1,32 @@
+# Review of the Outline rev 4, section 8 (the story as the results settled it)
+
+Reviewer: idea-review-repo. Read: Outline rev 4 (story-repo wiki, f6a5e61), Brief rev 4, and `code/RESULTS.md` and `code/DEVIATIONS.md` of experiment-repo at 7d323b1 (numbers below are read from there; I did not rerun anything).
+Novelty note, as in every review: I did not search for, open or read the published study the objective forbids; novelty is judged only against the adjacent literature in `prior_work.md`.
+
+## Verdict
+Rev 2/3 adopted all my earlier points. Section 8 is an honest and well-bounded story: it says H1 is supported on no pool, H4 fails in level, the selector's gain is modest and shared, and the coherence explanation fails. Every figure I checked in section 8 matches RESULTS.md. No change of direction. Five points would make the claims safer against a reviewer; Q1-Q3 first.
+
+## Q1. The sparse-matrix greedy-vs-random result may be a coverage effect (needs one extra baseline)
+In the sparse study (RESULTS.md, "Sparse leaderboard matrix") random draws pick from the candidate set C, which includes benchmarks seen by few training models; greedy A on the fitted factor covariance will tend to avoid columns whose loadings are poorly estimated or whose training cells are few. So "greedy A beats random at every k" can mean "choosing well-observed benchmarks beats choosing thinly observed ones", not "information-based selection helps". Ask `experiment-repo` for a **coverage-matched random** baseline (random draw restricted to, or weighted by, the number of observed training cells per benchmark) and a "most-observed-k" selector, on the same partitions. If greedy still beats those, the finding is stronger and is the paper's most leaderboard-like result; if not, section 8 must say the gain is coverage, not information. Also state in the text that the 10% margin was fixed for the dense H2 test, and the sparse results are exploratory (six subsets built greedily to a density target, "one choice among many" per DEVIATIONS 14).
+
+## Q2. The one pool that meets the H2 margin is the one whose transform choice is contested
+Section 8 says greedy meets the 10% margin "on one pool of three". That pool is mteb_multi (-11.3%), where the likelihood and the held-out error disagree on the transform (DEVIATIONS 9), logit was chosen, and k* depends on the transform (identity 15, logit censored). On mteb_eng the gap falls from -6.1% to -2.6% under the other transform. Say in the text that the margin verdict is transform-dependent, and give the identity-transform gap for all three pools next to the chosen one in the main-text table or in one sentence, not only in the appendix robustness rows. The pre-registered rule decides the primary result; the sensitivity is part of what a reader needs to weigh it.
+
+## Q3. The strongest-model bias: carry the artefact check
+Section 8 says "the strongest are predicted too low". RESULTS.md (bias_check) finds that about 40% of the MTEB bias is regression to the mean from stratifying on a mean that includes the targets; stratified by the mean of the observed S scores, MTEB-multi is still -0.070 [-0.105, -0.028], MTEB-eng -0.058 [-0.150, 0.021] (interval includes 0), HELM MMLU about 0. The sentence should say: bias exists on MTEB-multi after the correction, is not distinguishable from zero on MTEB-eng and absent on HELM MMLU; the time-forward strongest quintile (-0.28 / -0.16) is the larger, and also less clean, effect. Do not state the bias as a general finding.
+
+## Q4. H4 "gives the curve's shape": do not use the correlation of 0.997
+Two monotone decreasing curves correlate near 1 almost regardless of fit, so a correlation above 0.997 does not support "tracks the shape". The informative figures are the k-dependent part's median relative gap (2-6% bootstrap tier, 3-8% real tier on MTEB, 23% on HELM MMLU, which RESULTS.md reports) and the constant offset (about 0.08 in squared units). Use those in the text. Also say which of H4's two causes the offset is (floor underestimated: in-sample residual taken as D, versus estimation error in W), if experiment-repo can tell; if not, say it is unexplained.
+
+## Q5. Wording of the headline k* and of "no coherence explanation"
+- The headline k* is the minimum over predictors, with mteb_eng 9 (CI 3-31) against 20 for the factor model alone; mteb_multi is at the grid maximum 30 with CI 8-31. The abstract should give "about nine or more, uncertain" (or the censored form), and the sentence that a minimum of noisy estimates is biased low should sit next to it, as Brief rev 4 requires.
+- The Chernoff condition is vacuous at k <= 30 (sufficient k 171-742), so it cannot be offered as explanation of anything about the empirical gap. Keep the theory as a stated, checked, vacuous-at-these-sizes result, and say the empirical cause of "random is close to greedy" (k small relative to N, one dominant factor on HELM MMLU) is a hypothesis, not a finding. Section 8 already says "B's explanation fails"; make sure the abstract and discussion do too.
+
+## What is strong now
+- The plan answers the objective: k benchmarks, inference of the rest, closeness of inferred to measured, on the primary MTEB data and a second regime.
+- Comparisons are on equal terms: one fixed target set, paired grid, family-clustered intervals with the detectable gap stated, selectors and predictors in one grid.
+- Negative and mixed outcomes are named in advance and now reported as such; story rules forbid claims beyond results.
+- The sparse-matrix study and the shift measurements (paired, same models) are the most reusable parts for an evaluator; Q1 would make the first of them hard to dismiss.
+
+## Owners
+Q1: experiment-repo (baseline) then story-repo/report (wording). Q2-Q5: story-repo for the story, report for the text, with experiment-repo confirming each number.

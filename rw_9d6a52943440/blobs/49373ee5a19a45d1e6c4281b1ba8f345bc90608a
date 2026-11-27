@@ -1,0 +1,17 @@
+\section{Extended related work}
+\label{app:related}
+
+This section adds to Section~\ref{sec:related} how each line of work relates to what we run.
+
+\paragraph{Methods for few-item benchmark prediction.}
+Anchor points~\citep{vivek2024anchor} are run as the \emph{anchor} design with the weighted mean or with model-based estimators; tinyBenchmarks~\citep{maiapolo2024tiny} corresponds to the anchor design with an IRT plug-in, in our own implementation of the IRT fitter; metabench~\citep{kipnis2025metabench} corresponds to information-top selection with the calibrated-regression or IRT model estimator, again without its generalized additive model.
+Adaptive selection that targets the ability of the model~\citep{hofmann2025fluid,balkir2026confident} is represented by the IRT-CAT design, whose items differ per target and which is therefore scored under a different protocol.
+The assessor on reference instances~\citep{pacchiardi2024100}, active evaluation acquisition~\citep{li2025active} and SubLIME~\citep{saranathan-etal-2025-sublime} train a neural or learned predictor and are not run; statements in this paper do not extend to them.
+Multi-prompt evaluation~\citep{maiapolo2024prompteval} estimates a performance distribution across prompt variants with a model-based estimator, which is another setting; ONEBench~\citep{ghosh2024onebench} aggregates sparse sample-level measurements; and efficient benchmarking~\citep{perlitz-etal-2024-efficient} reduces cost by shrinking items or configurations rather than by predicting.
+What these have in common is that the target is read off a model fitted on source models and that evidence for them is mostly on held-out models that resemble the sources.
+Our contribution relative to them is the comparison under three target splits, including targets above every source, with one primary endpoint fixed in advance and uncertainty clustered by model family, and the accounting of variance and bias that separates what the sources can reduce from what the design controls.
+
+\paragraph{Survey sampling and prediction-powered inference.}
+The difference estimator in Section~\ref{sec:method} is the generalized-regression estimator of model-assisted survey sampling~\citep{sarndal1992model} with a power-tuned weight as in prediction-powered inference~\citep{angelopoulos2023ppi,angelopoulos2023ppiplus}; we claim its application to this setting, the choice of the source-side predictor and the analysis of when it helps, not the estimator.
+Active statistical inference~\citep{zrnic2024active} also draws labelled points with probabilities that follow a model's uncertainty; our PPS design with a positivity floor is the analogue, with the sources' disagreement on an item in place of one model's uncertainty.
+Active testing~\citep{kossen2021active} and sample-efficient evaluation~\citep{yilmaz2021sample} choose items for estimating a test loss by importance sampling with a surrogate; prediction-powered ranking~\citep{chatzi2024prediction} ranks models from human preferences, which is the closest to our ordering analysis; and precise subgroup accuracy~\citep{fogliato-etal-2024-precise} combines direct and regression estimates under a bias--variance trade-off.

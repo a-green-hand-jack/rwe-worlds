@@ -1,0 +1,9 @@
+#!/bin/sh
+# Venue: Type 1 fonts only. Lists the fonts of every delivered figure PDF and fails on anything that is not Type 1.
+cd "${FIGTAB_OUT:-$(dirname "$0")/..}" || exit 1
+rc=0
+for f in figures/*.pdf; do
+  bad=$(pdffonts "$f" | tail -n +3 | awk '$2 != "Type" || $3 != "1" {print}')
+  if [ -n "$bad" ]; then echo "NOT TYPE 1: $f"; echo "$bad"; rc=1; else echo "$f: $(pdffonts "$f" | tail -n +3 | wc -l) fonts, all Type 1, all embedded: $(pdffonts "$f" | tail -n +3 | awk '$5 != "yes"' | wc -l) not embedded"; fi
+done
+exit $rc

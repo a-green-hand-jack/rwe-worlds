@@ -1,0 +1,19 @@
+check,dataset,design,synthetic,perturbation,statistic,value,lo,hi,baseline_value,baseline_lo,baseline_hi,n_pairs,median_Q,baseline_median_Q
+ties_dropped,arena55k@noties,crowd,0,delete,delta_logQ_real_minus_null,-0.0244681,-0.0328613,-0.0162968,-0.0109929,-0.0166643,-0.00494594,1036,1.1058,1.11047
+ties_dropped,arena55k@noties,crowd,0,flip,delta_logQ_real_minus_null,-0.016385,-0.0272068,-0.0059945,0.0562711,0.0464334,0.0675083,1036,1.1471,1.14612
+mtbench_turn1,mtbench_gpt4@t1,llm_judge,0,delete,delta_logQ_real_minus_null,0.0700164,0.0313514,0.10086,,,,7,0.894725,
+mtbench_turn1,mtbench_gpt4@t1,llm_judge,0,flip,delta_logQ_real_minus_null,-0.0128745,-0.0386121,0.00714251,,,,7,1.07329,
+mtbench_turn2,mtbench_gpt4@t2,llm_judge,0,delete,delta_logQ_real_minus_null,0.10799,0.046749,0.1823,,,,6,0.903739,
+mtbench_turn2,mtbench_gpt4@t2,llm_judge,0,flip,delta_logQ_real_minus_null,-0.0114954,-0.0323056,0.0128218,,,,6,1.11084,
+mtbench_turn1,mtbench_human@t1,expert,0,delete,delta_logQ_real_minus_null,0.00158158,-0.0228165,0.0281275,-0.00471454,-0.0273234,0.0161926,7,0.876372,0.833743
+mtbench_turn1,mtbench_human@t1,expert,0,flip,delta_logQ_real_minus_null,0.00905299,-0.00804685,0.0291031,-0.000240352,-0.0068584,0.00576805,7,1.05871,1.05644
+mtbench_turn2,mtbench_human@t2,expert,0,delete,delta_logQ_real_minus_null,-0.0175399,-0.0448719,0.0164272,-0.00471454,-0.0273234,0.0161926,5,0.823988,0.833743
+mtbench_turn2,mtbench_human@t2,expert,0,flip,delta_logQ_real_minus_null,0.00260268,-0.00727665,0.0123888,-0.000240352,-0.0068584,0.00576805,5,1.0596,1.05644
+flip_cost2_win_to_loss,arena55k,crowd,0,flip,"median cost-2 k*/k* (re-priced unit-cost solution; verified upper bound, lower bound is 1)",2,2,2,1,,,41,,
+flip_cost2_win_to_loss,arena55k,crowd,0,flip,"median cost-2 k*/k* (search with costs, min with re-priced; verified upper bound, lower bound is 1)",1.97761,1.97003,1.98246,1,,,41,,
+flip_cost2_win_to_loss,mtbench_gpt4,llm_judge,0,flip,"median cost-2 k*/k* (re-priced unit-cost solution; verified upper bound, lower bound is 1)",2,2,2,1,,,15,,
+flip_cost2_win_to_loss,mtbench_gpt4,llm_judge,0,flip,"median cost-2 k*/k* (search with costs, min with re-priced; verified upper bound, lower bound is 1)",1.97872,1.91498,1.99,1,,,15,,
+flip_cost2_win_to_loss,mtbench_human,expert,0,flip,"median cost-2 k*/k* (re-priced unit-cost solution; verified upper bound, lower bound is 1)",2,2,2,1,,,15,,
+flip_cost2_win_to_loss,mtbench_human,expert,0,flip,"median cost-2 k*/k* (search with costs, min with re-priced; verified upper bound, lower bound is 1)",1.94065,1.89836,1.99023,1,,,15,,
+flip_cost2_win_to_loss,nba_2005,sports,0,flip,"median cost-2 k*/k* (re-priced unit-cost solution; verified upper bound, lower bound is 1; no ties in this unit, every flip costs 2, so 2 by construction)",2,2,2,1,,,41,,
+flip_cost2_win_to_loss,nba_2005,sports,0,flip,"median cost-2 k*/k* (search with costs, min with re-priced; verified upper bound, lower bound is 1; no ties in this unit, every flip costs 2, so 2 by construction)",2,2,2,1,,,41,,

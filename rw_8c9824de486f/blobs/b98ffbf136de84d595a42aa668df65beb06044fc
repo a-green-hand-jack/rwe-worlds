@@ -1,0 +1,48 @@
+"""Stage A2: hyperparameters of the baselines by the same inner group CV (equal terms), P6 fit and S3 ordering per fold.
+usage: python state2.py <data_dir> <work_dir> <split> <fold>"""
+import os, sys, pickle, numpy as np
+sys.path.insert(0, os.path.dirname(__file__))
+from common import *
+from fa import fit_fa, complete, posterior_row
+from baselines import *
+
+RIDGE = [0.01, 0.1, 1.0, 10.0]; KNN = [5, 10, 20, 40]; SOFT = [0.001, 0.003, 0.01, 0.03, 0.1, 0.3]    # soft-impute lambda as a fraction of the top singular value
+
+def main():
+    data_dir, work, split, fold = sys.argv[1:5]; fold = int(fold)
+    Y, mods, tasks, et = load_matrix(data_dir)
+    st = pickle.load(open(os.path.join(work, "state", f"{split}_{fold}.pkl"), "rb"))
+    train, mu, sd = st["train"], st["mu"], st["sd"]
+    Ztr = (Y[train] - mu) / sd; mk = ~np.isnan(Ztr); groups = mods.org.values[train]
+    rng = np.random.default_rng(SEED + 777 + fold + sum(map(ord, split)))
+    fo = inner_group_folds(groups); r12 = st["best_rank"][12]
+    s_top = np.linalg.svd(np.where(mk, Ztr, 0.0), compute_uv=False)[0]
+    sc = {}
+    for f in np.unique(fo):
+        tr = np.where(fo != f)[0]; va = np.where(fo == f)[0]
+        fit = fit_fa(Ztr[tr], r12); Xc = complete(Ztr[tr], fit)
+        p2 = {l: p2_fit(Xc, l) for l in RIDGE}
+        top_in = np.linalg.svd(np.where(mk[tr], Ztr[tr], 0.0), compute_uv=False)[0]
+        p4 = {c: soft_impute(Ztr[tr], c * top_in) for c in SOFT}
+        for m in va:
+            obs = np.where(mk[m])[0]
+            if len(obs) < 3: continue
+            for k in K_GRID:
+                S = rng.choice(obs, min(k, len(obs) - 1), replace=False); T = np.setdiff1d(obs, S); y = Ztr[m, S]
+                for l in RIDGE: sc.setdefault(("P2", k, l), []).append(np.mean((p2_predict(p2[l], S, y)[T] - Ztr[m, T]) ** 2))
+                for K in KNN: sc.setdefault(("P3", k, K), []).append(np.mean((p3_predict(Ztr[tr], mk[tr], S, y, K)[T] - Ztr[m, T]) ** 2))
+                for c in SOFT: sc.setdefault(("P4", k, c), []).append(np.mean((p4_predict(p4[c], S, y)[T] - Ztr[m, T]) ** 2))
+    best = {}
+    for P, grid in (("P2", RIDGE), ("P3", KNN), ("P4", SOFT)):
+        for k in K_GRID: best[(P, k)] = min(grid, key=lambda g: np.mean(sc[(P, k, g)]))
+    # final objects on all training models
+    fit12 = st["fits"][r12]; Xc = complete(Ztr, fit12)
+    p2 = {l: p2_fit(Xc, l) for l in RIDGE}; p4 = {c: soft_impute(Ztr, c * s_top) for c in SOFT}
+    p6 = p6_fit(Ztr, fit12, np.nanmean(Y[train], 0), sd, mk)
+    order = s3_order(Ztr, mk, fit12, kmax=32)
+    out = dict(best=best, cv={k: float(np.mean(v)) for k, v in sc.items()}, p2=p2, p4=p4, p6=p6, s3_order=order, r12=r12)
+    pickle.dump(out, open(os.path.join(work, "state", f"{split}_{fold}_b.pkl"), "wb"))
+    print(split, fold, "tuned", {k: v for k, v in best.items() if k[1] in (3, 12, 32)}, flush=True)
+
+if __name__ == "__main__":
+    main()

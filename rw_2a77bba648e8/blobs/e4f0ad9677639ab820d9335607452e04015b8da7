@@ -1,0 +1,78 @@
+"""Table 1 (C0): the six interference mechanisms and their calibration check, at the core cell (SBM, n~3000, d=20, p=1/2, sigma=0.5).
+One row per mechanism at s = 0.5 (plus the s = 0 null): treatment part of the outcome, measured DM bias, SNR, noise share of the
+Chin variance. Writes the main-text table `t1_mechanisms.tex` and the appendix table over all s (`t1_calibration_full.tex`).
+The mechanism definitions are those of `mech.py` (analysis code); the numbers are `calibration.csv`, nothing is computed here.
+Usage: t1_mechanisms.py RESULTS_DIR OUT_DIR [--s 0.5]
+"""
+import argparse
+import pathlib
+
+import numpy as np
+import pandas as pd
+
+import common
+
+ap = argparse.ArgumentParser()
+ap.add_argument("data"); ap.add_argument("out")
+ap.add_argument("--s", type=float, default=0.5)
+a = ap.parse_args()
+cal, meta = common.load(a.data, "calibration")
+cal["mechanism"] = cal.mechanism.astype(str)
+o = common.out_dir(meta, a.out)
+
+DEF = {  # treatment part of the outcome Y_i = a_i + (this) + noise; z_i own treatment, f_i treated-neighbour fraction, c_i count
+    "0": ("null (no interference)", r"$z_i$"),
+    "a": ("linear in fraction", r"$(1-s)\,z_i + s\,f_i$"),
+    "b": ("linear in count", r"$(1-s)\,z_i + s\,c_i/\bar d$"),
+    "c": ("saturating", r"$(1-s)\,z_i + s\,g(f_i)$, $g=\frac{1-e^{-3f}}{1-e^{-3}}$"),
+    "d": ("threshold", r"$(1-s)\,z_i + s\,\mathbf 1[f_i\ge 0.6]$"),
+    "e": ("diffusion, 30 steps", r"$(1-s)\sum_{k\le 30} s^k (W^k z)_i$"),
+    "f": (r"direct $\times$ exposure", r"$(1-s)\,z_i + \tfrac s2 f_i + \tfrac s2 z_i f_i$"),
+}
+
+
+def num(x, nd=2):
+    return f"${x:.{nd}f}$".replace("$-", "$-")
+
+
+def sci(x):
+    m, e = f"{x:.0e}".split("e")
+    return f"${m}\\times10^{{{int(e)}}}$"
+
+
+rows = []
+for m, (nm, tex) in DEF.items():
+    r = cal[(cal.mechanism == m) & np.isclose(cal.s, 0.0 if m == "0" else a.s)]
+    assert len(r) == 1, (m, len(r))
+    r = r.iloc[0]
+    lab = "0" if m == "0" else f"({m})"
+    rows.append((lab, nm, tex, r))
+t = ["\\begin{tabular}{@{}lllccc@{}}", "\\toprule",
+     "& Mechanism & Treatment part of $Y_i$ & DM bias & SNR & noise share \\\\", "\\midrule"]
+for lab, nm, tex, r in rows:
+    nd = 3 if lab == "0" else 2
+    t.append(f"{lab} & {nm} & {tex} & {num(r.dm_bias, nd)} & {num(r.snr)} & {num(r.noise_var_share)} \\\\")
+t += ["\\bottomrule", "\\end{tabular}"]
+(o / "t1_mechanisms.tex").write_text("\n".join(t) + "\n")
+pd.DataFrame([dict(mechanism=m, s=r.s, tau=r.tau, dm_bias=r.dm_bias, snr=r.snr, noise_var_share=r.noise_var_share) for m, _, _, r in rows]).to_csv(
+    o / "t1_mechanisms.csv", index=False)
+# facts for the caption, taken from the table
+with open(o / "t1_mechanisms_caption_facts.txt", "w") as fh:
+    fh.write(f"tau (exact GATE), all columns: {cal.tau.min():.6f} to {cal.tau.max():.6f}\n")
+    fh.write(f"max null_check_error (correct form, sigma=0, no baseline): {cal.null_check_error.max():.2e}\n")
+    fh.write(f"s = {a.s}; SNR = Var(treatment part)/Var(noise) at sigma = 0.5 with baseline SD 1; noise share = share of Var(tau_hat_Chin) that is outcome noise\n")
+
+# appendix: all (mechanism, s)
+t = ["\\begin{tabular}{@{}lccccccc@{}}", "\\toprule",
+     "mech. & $s$ & $\\tau$ & direct part & DM bias & SNR & noise share & SD of $Y$ \\\\", "\\midrule"]
+prev = None
+for _, r in cal.iterrows():
+    lab = "0" if r.mechanism == "0" else f"({r.mechanism})"
+    if prev is not None and r.mechanism != prev:
+        t.append("\\addlinespace[2pt]")
+    prev = r.mechanism
+    t.append(f"{lab if r.mechanism != '0' else lab} & {r.s:g} & {r.tau:.4f} & {r.tau_direct:.2f} & {num(r.dm_bias, 3)} & {num(r.snr)} & "
+             f"{num(r.noise_var_share)} & {r.sd_noise_free_outcome:.3f} \\\\")
+t += ["\\bottomrule", "\\end{tabular}"]
+(o / "t1_calibration_full.tex").write_text("\n".join(t) + "\n")
+cal.to_csv(o / "t1_calibration_full.csv", index=False)

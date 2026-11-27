@@ -1,0 +1,64 @@
+"""Fig. 3 (claim C2): paired gap (selector minus random), family-clustered bootstrap CI, one column per data regime.
+
+Top row: grid-averaged gap (k = 1..min(10, N/2)) for each selector with the primary predictor (factor model); greedy A is the
+single pre-registered comparison, the others are exploratory, the oracle is test-leaking. The pre-registered margin is
+10% of the random-draw error. Bottom row: per-k gap of greedy A (primary), description only. Negative = better than random.
+"""
+import argparse, numpy as np
+import style, venue
+from data import load
+import matplotlib.pyplot as plt
+
+p = argparse.ArgumentParser()
+p.add_argument("--results", required=True); p.add_argument("--out", default="out")
+p.add_argument("--datasets", nargs="+", default=["mteb_eng", "mteb_multi", "helm_mmlu"])
+p.add_argument("--split", default="grouped"); p.add_argument("--design", default="fixed"); p.add_argument("--predictor", default="fa")
+p.add_argument("--selectors", nargs="+", default=["greedyA", "greedyD", "kmedoids", "onefactor", "maxvar", "pivqr", "leverage", "oracle"])
+p.add_argument("--draft", action="store_true")
+a = p.parse_args()
+v = venue.get(a.draft)
+size = style.setup(v["TEXT_WIDTH_IN"], v["MIN_FONT_PT"], aspect=0.62)
+g, p1 = load(a.results, "gap")
+g = g[(g.split == a.split) & (g.design == a.design) & (g.predictor == a.predictor)]
+isavg = g.k.astype(str) == "grid_avg"
+fig, axs = plt.subplots(2, len(a.datasets), figsize=size, squeeze=False, height_ratios=[1.35, 1])
+meta = {}
+rows = list(reversed(a.selectors))
+for j, ds in enumerate(a.datasets):
+    ax, bx = axs[0, j], axs[1, j]
+    d = g[(g.dataset == ds) & isavg].set_index("selector")
+    prim = d.loc["greedyA"]
+    rand_rmse = prim.gap / prim.rel_gap_to_random          # grid-averaged RMSE of random draws
+    margin = -0.10 * rand_rmse
+    ax.axvline(0, color="0.3", lw=0.8)
+    ax.axvline(margin, color="0.3", lw=0.9, ls="--")
+    for i, s in enumerate(rows):
+        r = d.loc[s]
+        hollow = s == "oracle"
+        ax.errorbar(r.gap, i, xerr=[[r.gap - r.ci_lo], [r.ci_hi - r.gap]], fmt=style.MARKERS[s], ms=4.5 if s == "greedyA" else 3.6,
+                    color=style.COLORS[s], mfc="white" if hollow else style.COLORS[s], mew=0.9, lw=1.6 if s == "greedyA" else 0.9, capsize=1.5)
+    ax.set_yticks(range(len(rows)))
+    ax.set_yticklabels([style.SHORT_LABELS[s] if j == 0 else "" for s in rows])
+    ax.set_ylim(-0.6, len(rows) - 0.4); ax.grid(axis="y", alpha=0)
+    ax.set_xlabel("gap to random, std. RMSE")
+    n = g[(g.dataset == ds)].iloc[0]
+    ax.set_title(f"{style.DATASET_SHORT[ds]}\n" + f"greedy A: ${100*prim.rel_gap_to_random:.1f}$%")
+    per = g[(g.dataset == ds) & ~isavg & (g.selector == "greedyA")].copy(); per["k"] = per.k.astype(int); per = per.sort_values("k")
+    bx.axhline(0, color="0.3", lw=0.8)
+    bx.errorbar(per.k, per.gap, yerr=[per.gap - per.ci_lo, per.ci_hi - per.gap], fmt="o-", ms=3, lw=1.0, color=style.COLORS["greedyA"], capsize=1.5)
+    bx.set_xscale("log"); bx.set_xticks([1, 2, 3, 5, 10, 20]); bx.set_xticklabels(["1", "2", "3", "5", "10", "20"])
+    bx.xaxis.set_minor_locator(plt.NullLocator()); bx.set_xlabel("benchmarks run, $k$")
+    if j == 0:
+        bx.set_ylabel("greedy A $-$ random")
+    meta[ds] = dict(grid_avg={s: dict(gap=float(d.loc[s].gap), ci=[float(d.loc[s].ci_lo), float(d.loc[s].ci_hi)],
+                                      comparison=d.loc[s].comparison) for s in a.selectors},
+                    random_rmse_grid_avg=float(rand_rmse), margin=float(margin), ks=[int(x) for x in per.k])
+for j in range(len(a.datasets)):
+    axs[0, j].set_xlim(min(axs[0, k_].get_xlim()[0] for k_ in range(len(a.datasets))), max(axs[0, k_].get_xlim()[1] for k_ in range(len(a.datasets))))
+    axs[1, j].sharey(axs[1, 0])
+from matplotlib.lines import Line2D
+fig.legend([Line2D([], [], color="0.3", lw=0.9, ls="--"), Line2D([], [], color=style.COLORS["oracle"], marker="*", mfc="white", ls="", ms=5)],
+           ["pre-registered margin: 10% of random error", "oracle: best of sampled sets, uses test columns"],
+           loc="outside lower center", ncol=2, columnspacing=1.5)
+print(style.save(fig, "fig3_gap", a.out, dict(claim="C2", inputs={p1: style.sha(p1)}, split=a.split, design=a.design, predictor=a.predictor,
+                                              primary_comparison="greedyA minus random, grid average k=1..min(10,N/2)", panels=meta, draft=a.draft)))

@@ -1,0 +1,57 @@
+"""Bootstrap bands for the bias-by-position (Fig. 3) and pairwise-accuracy (Fig. 6) results.
+bias: mean signed error per (split, n, method, pos_bin) pooled over non-thin benchmarks, family bootstrap inside each benchmark (2000 replicates).
+pairwise: accuracy per (split, n, method, gap_bin) pooled over non-thin benchmarks (weights = pairs); bootstrap over benchmarks (pairs of
+targets from different families do not factor over families), so the band is coarse (<= 13 units).
+usage: python3 -I scripts/05_bands.py results/raw/target_level.parquet results"""
+import os
+for v in ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS"):
+    os.environ[v] = "1"
+import sys, pathlib, importlib.util
+import numpy as np, pandas as pd
+root = pathlib.Path(__file__).resolve().parents[1]; sys.path.insert(0, str(root / "src"))
+from bpred import data
+
+tl_path, out = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
+NPOS = int(os.environ.get("N_POS", 100))
+B = 2000
+rng = np.random.default_rng(2)
+tg = pd.read_csv(out / "targets.csv").set_index(["bench", "split"])
+spec = importlib.util.spec_from_file_location("run", root / "scripts" / "02_run.py")
+run = importlib.util.module_from_spec(spec); spec.loader.exec_module(run)
+labels = ["<-1sd", "-1..0", "0..1", "1..2", "2..3", ">3sd"]
+tl = pd.read_parquet(tl_path, filters=[("n", "==", NPOS)])
+tl = tl[~tl.method.str.contains("fixed:")]
+acc = {}     # (split, method, bin) -> [num(B), den(B), sum bias, count, benchmarks]
+for (b, sp), g in tl.groupby(["bench", "split"]):
+    if tg.loc[(b, sp), "thin"]: continue
+    D = data.get(b); Y = D["Y"]; names = list(D["names"])
+    pos = {}
+    for fi, (si, ti) in enumerate(run.make_folds(Y, D["families"], sp)):
+        sc = Y[si].mean(1)
+        for t in ti: pos[(fi, names[t])] = (Y[t].mean() - sc.mean()) / (sc.std() + 1e-9)
+    g = g.assign(pos=[pos[(f, t)] for f, t in zip(g.fold, g.target_model)])
+    g["bin"] = np.digitize(g.pos, [-1, 0, 1, 2, 3])
+    ufam, fi = np.unique(g.family, return_inverse=True); g["fi"] = fi
+    F = len(ufam); C = rng.multinomial(F, np.ones(F) / F, size=B).astype(float)
+    for (m, k), h in g.groupby(["method", "bin"]):
+        sm = np.bincount(h.fi, h.bias, minlength=F); c = np.bincount(h.fi, minlength=F).astype(float)
+        e = acc.setdefault((sp, m, k), [np.zeros(B), np.zeros(B), 0.0, 0.0, 0])
+        e[0] += C @ sm; e[1] += C @ c; e[2] += sm.sum(); e[3] += c.sum(); e[4] += 1
+    print("bias", b, sp, flush=True)
+res = []
+for (sp, m, k), (num, den, s_, c_, nb) in acc.items():
+    bb = num / np.maximum(den, 1)
+    res.append(dict(split=sp, n=NPOS, method=m, pos_bin=labels[k], bias=s_ / c_, ci_lo=np.percentile(bb, 2.5), ci_hi=np.percentile(bb, 97.5),
+                    n_bench=nb, k=int(c_)))
+pd.DataFrame(res).to_csv(out / "bias_bands.csv", index=False)
+pw = pd.read_csv(out / "pairwise.csv.gz"); pw = pw[pw.n == NPOS]
+pw = pw.merge(tg.reset_index()[["bench", "split", "thin"]], on=["bench", "split"]); pw = pw[~pw.thin]
+res = []
+for (sp, m, gb), h in pw.groupby(["split", "method", "gap_bin"]):
+    w = h.pairs.values.astype(float); a = h.acc.values; r_ = h.ref_acc.values; U = len(h)
+    idx = rng.integers(0, U, size=(B, U))
+    bo = (w[idx] * a[idx]).sum(1) / w[idx].sum(1)
+    res.append(dict(split=sp, n=NPOS, method=m, gap_bin=gb, acc=(w * a).sum() / w.sum(), ref_acc=(w * r_).sum() / w.sum(),
+                    ci_lo=np.percentile(bo, 2.5), ci_hi=np.percentile(bo, 97.5), n_bench=U, pairs=int(w.sum())))
+pd.DataFrame(res).to_csv(out / "pairwise_bands.csv", index=False)
+print("done")

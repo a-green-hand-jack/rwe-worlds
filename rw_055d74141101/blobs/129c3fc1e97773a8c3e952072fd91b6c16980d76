@@ -1,0 +1,107 @@
+{\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{longtable}{p{1.95in}rrrrrr}
+\toprule
+family: method & $k/k_{\mathrm{ref}}$ [95\% CI] & @$0.5k^*$ & @$k^*$ & @$2k^*$ & unreach. & n \\
+\midrule
+\endfirsthead
+\toprule
+family: method & $k/k_{\mathrm{ref}}$ [95\% CI] & @$0.5k^*$ & @$k^*$ & @$2k^*$ & unreach. & n \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\multicolumn{7}{l}{\textit{Arena-55k}} \\
+delete: random, equal budget & -- & 0.000546 & 0.000383 & 0.00104 & -- & 61 \\
+delete: delete-largest-residual & 17.7 [15.4, 24.5] & 0.0164 & 0.0164 & -- & 0.23 & 61 \\
+delete: one-shot influence top-$k$ & 1 & 0.0164 & 0.672 & -- & 0 & 61 \\
+delete: iterated linearisation + refit & 1 & 0.0164 & 1 & -- & 0 & 61 \\
+delete: iterated + Frank--Wolfe (best of two) & 1 & 0.0164 & 1 & -- & 0 & 61 \\
+delete: first-order prediction $k_{\mathrm{lin}}/k^*$ & 1.25 [1.15, 1.47] & -- & -- & -- & 0 & 61 \\
+flip: random, equal budget & -- & 0.000765 & 0.000874 & 0.0018 & -- & 61 \\
+flip: delete-largest-residual & 19.4 [15.9, 24.8] & 0 & 0 & -- & 0.295 & 61 \\
+flip: one-shot influence top-$k$ & 1 & 0.0328 & 0.902 & -- & 0 & 61 \\
+flip: iterated linearisation + refit & 1 & 0.0328 & 1 & -- & 0 & 61 \\
+flip: iterated + Frank--Wolfe (best of two) & 1 & 0.0328 & 1 & -- & 0 & 61 \\
+flip: first-order prediction $k_{\mathrm{lin}}/k^*$ & 0.958 [0.942, 0.982] & -- & -- & -- & 0 & 61 \\
+\multicolumn{7}{l}{\textit{Arena single-turn}} \\
+delete: random, equal budget & -- & 0.00109 & 0.00071 & 0.00131 & -- & 61 \\
+delete: delete-largest-residual & 18.7 [13.2, 28.1] & 0 & 0 & -- & 0.148 & 61 \\
+delete: one-shot influence top-$k$ & 1 & 0.0164 & 0.705 & -- & 0 & 61 \\
+delete: iterated linearisation + refit & 1 & 0.0164 & 1 & -- & 0 & 61 \\
+delete: iterated + Frank--Wolfe (best of two) & 1 & 0.0164 & 1 & -- & 0 & 61 \\
+delete: first-order prediction $k_{\mathrm{lin}}/k^*$ & 1.23 [1.15, 1.38] & -- & -- & -- & 0 & 61 \\
+flip: random, equal budget & -- & 0.00169 & 0.00191 & 0.00393 & -- & 61 \\
+flip: delete-largest-residual & 19.6 [12.5, 22.7] & 0 & 0 & -- & 0.262 & 61 \\
+flip: one-shot influence top-$k$ & 1 & 0.0164 & 0.951 & -- & 0 & 61 \\
+flip: iterated linearisation + refit & 1 & 0.0164 & 1 & -- & 0 & 61 \\
+flip: iterated + Frank--Wolfe (best of two) & 1 & 0.0164 & 1 & -- & 0 & 61 \\
+flip: first-order prediction $k_{\mathrm{lin}}/k^*$ & 0.976 [0.958, 0.986] & -- & -- & -- & 0 & 61 \\
+\multicolumn{7}{l}{\textit{MT-Bench GPT-4}} \\
+delete: random, equal budget & -- & 0 & 0 & 0 & -- & 15 \\
+delete: delete-largest-residual & 1.74 [1.62, 2.04] & 0 & 0 & -- & 0 & 15 \\
+delete: one-shot influence top-$k$ & 1 [1, 1.05] & 0 & 0.6 & -- & 0 & 15 \\
+delete: iterated linearisation + refit & 1 & 0 & 1 & -- & 0 & 15 \\
+delete: iterated + Frank--Wolfe (best of two) & 1 & 0 & 1 & -- & 0 & 15 \\
+delete: first-order prediction $k_{\mathrm{lin}}/k^*$ & 1.91 [1.74, 2.57] & -- & -- & -- & 0.533 & 15 \\
+flip: random, equal budget & -- & 0 & 0 & 0 & -- & 15 \\
+flip: delete-largest-residual & 2.31 [1.88, 4.07] & 0 & 0.0667 & -- & 0 & 15 \\
+flip: one-shot influence top-$k$ & 1 & 0 & 0.8 & -- & 0 & 15 \\
+flip: iterated linearisation + refit & 1 & 0 & 0.867 & -- & 0 & 15 \\
+flip: iterated + Frank--Wolfe (best of two) & 1 & 0 & 1 & -- & 0 & 15 \\
+flip: first-order prediction $k_{\mathrm{lin}}/k^*$ & 0.695 [0.548, 0.888] & -- & -- & -- & 0 & 15 \\
+\multicolumn{7}{l}{\textit{MT-Bench human}} \\
+delete: random, equal budget & -- & 0 & 0 & 0 & -- & 15 \\
+delete: delete-largest-residual & 2.15 [1.89, 2.52] & 0 & 0 & -- & 0 & 15 \\
+delete: one-shot influence top-$k$ & 1 [1, 1.04] & 0 & 0.533 & -- & 0 & 15 \\
+delete: iterated linearisation + refit & 1 & 0 & 1 & -- & 0 & 15 \\
+delete: iterated + Frank--Wolfe (best of two) & 1 & 0 & 1 & -- & 0 & 15 \\
+delete: first-order prediction $k_{\mathrm{lin}}/k^*$ & 1.58 [1.3, 2.57] & -- & -- & -- & 0.267 & 15 \\
+flip: random, equal budget & -- & 0 & 0 & 0 & -- & 15 \\
+flip: delete-largest-residual & 2.79 [1.4, 5.88] & 0 & 0 & -- & 0 & 15 \\
+flip: one-shot influence top-$k$ & 1 [1, 1.03] & 0 & 0.6 & -- & 0 & 15 \\
+flip: iterated linearisation + refit & 1 & 0 & 1 & -- & 0 & 15 \\
+flip: iterated + Frank--Wolfe (best of two) & 1 & 0 & 1 & -- & 0 & 15 \\
+flip: first-order prediction $k_{\mathrm{lin}}/k^*$ & 0.843 [0.782, 0.947] & -- & -- & -- & 0 & 15 \\
+\multicolumn{7}{l}{\textit{all datasets}} \\
+delete: random, equal budget & -- & 0.000658 & 0.000439 & 0.000943 & -- & 152 \\
+delete: delete-largest-residual & 14.5 [11.3, 17] & 0.00658 & 0.00658 & -- & 0.151 & 152 \\
+delete: one-shot influence top-$k$ & 1 & 0.0132 & 0.664 & -- & 0 & 152 \\
+delete: iterated linearisation + refit & 1 & 0.0132 & 1 & -- & 0 & 152 \\
+delete: iterated + Frank--Wolfe (best of two) & 1 & 0.0132 & 1 & -- & 0 & 152 \\
+delete: first-order prediction $k_{\mathrm{lin}}/k^*$ & 1.3 [1.21, 1.44] & -- & -- & -- & 0.0789 & 152 \\
+flip: random, equal budget & -- & 0.000987 & 0.00112 & 0.0023 & -- & 152 \\
+flip: delete-largest-residual & 15.2 [10.2, 18.3] & 0 & 0.00658 & -- & 0.224 & 152 \\
+flip: one-shot influence top-$k$ & 1 & 0.0197 & 0.882 & -- & 0 & 152 \\
+flip: iterated linearisation + refit & 1 & 0.0197 & 0.987 & -- & 0 & 152 \\
+flip: iterated + Frank--Wolfe (best of two) & 1 & 0.0197 & 1 & -- & 0 & 152 \\
+flip: first-order prediction $k_{\mathrm{lin}}/k^*$ & 0.953 [0.941, 0.961] & -- & -- & -- & 0 & 152 \\
+\multicolumn{7}{l}{\textit{tiny exact mtbench subproblems}} \\
+delete: iterated vs exhaustive minimum & 1 & -- & 1 & -- & -- & 23 \\
+delete: Frank--Wolfe vs exhaustive minimum & 1 & -- & 1 & -- & -- & 23 \\
+delete: LP relaxation (lower-bound candidate) / exhaustive minimum & 1 & -- & -- & -- & -- & 23 \\
+flip: iterated vs exhaustive minimum & 1 & -- & 1 & -- & -- & 30 \\
+flip: Frank--Wolfe vs exhaustive minimum & 1 & -- & 1 & -- & -- & 30 \\
+flip: LP relaxation (lower-bound candidate) / exhaustive minimum & 1 & -- & -- & -- & -- & 30 \\
+both: iterated vs exhaustive minimum & 1 & -- & 1 & -- & -- & 53 \\
+both: Frank--Wolfe vs exhaustive minimum & 1 & -- & 1 & -- & -- & 53 \\
+both: LP relaxation (lower-bound candidate) / exhaustive minimum & 1 & -- & -- & -- & -- & 53 \\
+\multicolumn{7}{l}{\textit{lp sandwich arena sub8}} \\
+delete: lp\_candidate\_over\_upper & 0.926 [0.675, 2.08] & -- & -- & -- & -- & 16 \\
+flip: lp\_candidate\_over\_upper & 0.725 [0.591, 0.905] & -- & -- & -- & -- & 16 \\
+\multicolumn{7}{l}{\textit{lp sandwich mtbench gpt}} \\
+delete: lp\_candidate\_over\_upper & 0.98 [0.929, 0.993] & -- & -- & -- & -- & 15 \\
+flip: lp\_candidate\_over\_upper & 0.997 [0.992, 0.998] & -- & -- & -- & -- & 15 \\
+\multicolumn{7}{l}{\textit{lp sandwich mtbench human}} \\
+delete: lp\_candidate\_over\_upper & 0.988 [0.962, 0.997] & -- & -- & -- & -- & 15 \\
+flip: lp\_candidate\_over\_upper & 0.996 [0.991, 1] & -- & -- & -- & -- & 15 \\
+\multicolumn{7}{l}{\textit{lp sandwich nba}} \\
+delete: lp\_candidate\_over\_upper & 0.963 [0.952, 0.977] & -- & -- & -- & -- & 137 \\
+flip: lp\_candidate\_over\_upper & 0.907 [0.89, 0.944] & -- & -- & -- & -- & 137 \\
+\multicolumn{7}{l}{\textit{search at scale arena55k}} \\
+delete: randomised restarts vs standard search & 1 & -- & 0.05 & -- & -- & 40 \\
+delete: search on planted instances / known undo path & 0.993 [0.941, 1] & -- & 1 & -- & -- & 20 \\
+flip: randomised restarts vs standard search & 1 & -- & 0 & -- & -- & 40 \\
+flip: search on planted instances / known undo path & 1 & -- & 1 & -- & -- & 20 \\
+\end{longtable}
+}

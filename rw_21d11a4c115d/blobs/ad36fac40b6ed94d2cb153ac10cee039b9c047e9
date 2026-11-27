@@ -1,0 +1,52 @@
+"""Numerical check of the matrix-Chernoff statement for random selection (idea-repo/theory_sources.md; derived and checked in DERIVATIONS.md).
+Per matrix (model fitted on all rows in the chosen transform space; plus one synthetic model with known parameters), with b_j = D_j^-1/2 w_j, A = sum_j b_j b_j' = W' D^-1 W,
+leverage l_j = b_j' A^-1 b_j, coherence mu = N max_j l_j / r, and S drawn uniformly WITHOUT replacement (the case the paper uses; the source bound is for with-replacement draws):
+  q(S)       = lambda_min( A^-1/2 (sum_{j in S} b_j b_j') A^-1/2 ) / (k/N)         (the bound says q >= 1-eps with the probability below)
+  p_viol     = share of draws with q <= 1-eps       vs   p_chernoff = min(1, r exp(-eps^2 k / (2 mu r)))   (Tropp 2012, Remark 5.3 with R = l_max)
+  k_suff     = 2 mu r log(r/eta) / eps^2            (sufficient k from the source bound; compared with N)
+  risk bound: on the unrun set U, reducible risk tr(W_U Sigma_post W_U')/|U| vs  B(eps) = tr(W (I + (1-eps)(k/N) A)^-1 W') / |U|  (the bound holds on the event q >= 1-eps;
+              eps = 0 is the expected-matrix surrogate and is not a guarantee).
+  Jensen: E_S tr(W Sigma_post(S) W')/N >= tr(W (I + (k/N) A)^-1 W')/N (operator convexity of the inverse), checked in the last two columns.
+Rank used: 'median_fold_rank' = median over the ten grouped outer folds of the rank the main runs used (r_eff in results/raw/<ds>__grouped__fixed.pkl), the model the paper's other
+numbers refer to; 'pool_selected_rank' = rank chosen by the inner-CV rule on the full pool (sensitivity; it differs from the fold median on MTEB-Eng and HELM MMLU).
+'chernoff_nonvacuous' = p_chernoff < 1 at that k.
+python3 bound_check.py <results_raw> <data_out> <results>"""
+import sys, os, pickle, numpy as np, pandas as pd
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+sys.path.insert(0, os.path.dirname(__file__))
+from bmk.protocol import fit_fold, make_transform
+rawd, dout, resd = sys.argv[1:4]
+EPS, ETA, NDR = 0.5, 0.1, 2000
+rng = np.random.default_rng(321)
+def synth_params(rng, N=60, r=4):     # same generator as theory.py
+    W = np.zeros((N, r)); W[:, 0] = 0.85 + 0.1 * rng.standard_normal(N)
+    for l in range(1, r): W[:, l] = rng.standard_normal(N) * 0.4 / l
+    D = rng.uniform(0.08, 0.25, N); return W, D
+
+def check(name, W, D, rows, rank_source=''):
+    N, r = W.shape; B = W / np.sqrt(D)[:, None]; A = B.T @ B
+    ev, U = np.linalg.eigh(A); Ah = U @ np.diag(ev ** -0.5) @ U.T; Bt = B @ Ah
+    l = (Bt ** 2).sum(1); mu = N * l.max() / r; ksuff = 2 * mu * r * np.log(r / ETA) / EPS ** 2
+    for k in [k for k in (1, 2, 3, 5, 8, 10, 15, 20, 30) if k <= N // 2]:
+        q, red, allr = [], [], []
+        c0, c = 0.0, (1 - EPS) * k / N
+        Binv0 = np.linalg.inv(np.eye(r) + (k / N) * A); Binv = np.linalg.inv(np.eye(r) + c * A)
+        for _ in range(NDR):
+            S = rng.choice(N, k, replace=False); Um = np.setdiff1d(np.arange(N), S)
+            q.append(np.linalg.eigvalsh(Bt[S].T @ Bt[S])[0] / (k / N))
+            Sp = np.linalg.inv(np.eye(r) + B[S].T @ B[S]); red.append(np.einsum('ij,jk,ik->', W[Um], Sp, W[Um]) / len(Um)); allr.append(np.einsum('ij,jk,ik->', W, Sp, W) / N)
+        q = np.array(q); red = np.array(red); nU = N - k
+        bnd = lambda Bi: np.einsum('ij,jk,ik->', W, Bi, W) / nU
+        rows.append((name, rank_source, N, r, mu, ksuff, k, np.percentile(q, 5), np.median(q), float((q <= 1 - EPS).mean()), min(1.0, r * np.exp(-EPS ** 2 * k / (2 * mu * r))), r * np.exp(-EPS ** 2 * k / (2 * mu * r)) < 1,
+                     red.mean(), red.max(), bnd(Binv0), bnd(Binv), float((red <= bnd(Binv)).mean()), float(np.mean(allr)), np.einsum('ij,jk,ik->', W, Binv0, W) / N))
+rows = []
+for ds in ['mteb_eng', 'mteb_multi', 'helm_mmlu']:
+    X = np.load(f"{dout}/{ds}.npz", allow_pickle=True)['X']; M, N = X.shape
+    X = make_transform(X, pd.read_csv(f"{resd}/transform.csv").set_index('dataset').loc[ds, 'chosen'])[0](X)
+    rmed = int(np.median([i['r_eff'] for i in pickle.load(open(f"{rawd}/{ds}__grouped__fixed.pkl", 'rb'))['info']]))
+    F = fit_fold(X, np.arange(M), [rmed], 7, r_fixed=rmed); check(ds, F['W'], F['D'], rows, 'median_fold_rank')
+    F = fit_fold(X, np.arange(M), [x for x in (1, 2, 3, 4, 5, 6, 8, 10, 12) if x <= N // 3], 7); check(ds, F['W'], F['D'], rows, 'pool_selected_rank')
+W, D = synth_params(np.random.default_rng(5)); check('synthetic_N60_r4', W, D, rows, 'true')
+pd.DataFrame(rows, columns=['dataset', 'rank_source', 'N', 'r', 'coherence_mu', 'k_sufficient_eps0.5_eta0.1', 'k', 'q_p05', 'q_median', 'p_violation_eps0.5', 'p_chernoff_eps0.5', 'chernoff_nonvacuous',
+                            'reducible_risk_mean', 'reducible_risk_max', 'bound_eps0', 'bound_eps0.5', 'share_draws_below_bound_eps0.5', 'all_columns_risk_mean', 'jensen_lower_bound']).to_csv(f"{resd}/bound_check.csv", index=False)
+print(pd.read_csv(f"{resd}/bound_check.csv").round(3).to_string())

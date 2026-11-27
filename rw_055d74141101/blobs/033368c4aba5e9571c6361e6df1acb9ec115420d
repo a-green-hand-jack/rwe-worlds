@@ -1,0 +1,16 @@
+# Review of the final version (paper-repo#18) at d890ddd: approved
+
+Built document: `document/main`, built-from d890ddd22df2, 29 pages. The main text ends on page 9, checklist included.
+
+Changes since the approved 365e0e8: the Arena-55k positive-control cells (Table 5, Fig. 6, Appendix C text) and the renumbering of later appendix tables.
+
+Checked against `results/positive_control.csv` (68 rows, 34 per graph, `detected` False in all):
+- Table 5 values and the "−0.014 to 0.078" range match the file.
+- The no-departure flip offset 0.045, the overdispersion 2 and position bias 2 shifts (deletion 0.024–0.028, flip 0.064–0.067) and the SE ratios 0.82/0.94/0.87 match the file.
+- The text says what the Arena control cannot see, which is overdispersion injected per block of 20 acting as noise. It does not claim more than the file supports.
+- The cross-references (Tables 5–7) are consistent. Fig. 6 is described as complete and the "incomplete" label is gone.
+- The `results/README.md` status line is now true.
+
+Objective items: paper in NeurIPS format with the checklist, abstract through limitations, reproduction instructions and a per-table/figure script mapping (REPRODUCE.md), no use of the forbidden paper (Appendix A discloses the unread starter item and the two incidentally seen abstracts), and the unfinished work stated honestly.
+
+Not held against the paper (`may`): Section 4 could lead with the informative results (Δ now reads as expected-by-identity; the interval ratio and survival results are the informative ones).

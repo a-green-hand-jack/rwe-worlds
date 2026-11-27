@@ -1,0 +1,136 @@
+{
+ "inputs": {
+  "datasets.csv": {
+   "sha256": "00b007727c959e554573a9882c7ee20a057515e116ee7a14c38522896b2315df",
+   "rows": 91,
+   "dataset": [
+    "arena55k",
+    "arena_judge_Athene-70B",
+    "arena_judge_Hermes-3-Llama-3.1-70B",
+    "arena_judge_Meta-Llama-3-70B-Instruct",
+    "arena_judge_Meta-Llama-3-8B",
+    "arena_judge_Meta-Llama-3-8B-Instruct",
+    "arena_judge_Mistral-7B-Instruct-v0.1",
+    "arena_judge_Mistral-7B-Instruct-v0.2",
+    "arena_judge_Mistral-7B-OpenOrca",
+    "arena_judge_Mixtral-8x7B-Instruct-v0.1",
+    "arena_judge_OpenHermes-2-Mistral-7B",
+    "arena_judge_OpenHermes-2.5-Mistral-7B",
+    "arena_judge_Qwen2-72B-Instruct",
+    "arena_judge_StableBeluga-7B",
+    "arena_judge_Starling-LM-7B-alpha",
+    "arena_judge_dolphin-2.1-mistral-7b",
+    "arena_judge_dolphin-2.5-mixtral-8x7b",
+    "arena_judge_zephyr-7b-beta",
+    "arena_single",
+    "mtbench_gpt4",
+    "mtbench_gpt4_matched",
+    "mtbench_human",
+    "nba_1947",
+    "nba_1948",
+    "nba_1949",
+    "nba_1950",
+    "nba_1951",
+    "nba_1952",
+    "nba_1953",
+    "nba_1954",
+    "nba_1955",
+    "nba_1956",
+    "nba_1957",
+    "nba_1958",
+    "nba_1959",
+    "nba_1960",
+    "nba_1961",
+    "nba_1962",
+    "nba_1963",
+    "nba_1964",
+    "nba_1965",
+    "nba_1966",
+    "nba_1967",
+    "nba_1968",
+    "nba_1969",
+    "nba_1970",
+    "nba_1971",
+    "nba_1972",
+    "nba_1973",
+    "nba_1974",
+    "nba_1975",
+    "nba_1976",
+    "nba_1977",
+    "nba_1978",
+    "nba_1979",
+    "nba_1980",
+    "nba_1981",
+    "nba_1982",
+    "nba_1983",
+    "nba_1984",
+    "nba_1985",
+    "nba_1986",
+    "nba_1987",
+    "nba_1988",
+    "nba_1989",
+    "nba_1990",
+    "nba_1991",
+    "nba_1992",
+    "nba_1993",
+    "nba_1994",
+    "nba_1995",
+    "nba_1996",
+    "nba_1997",
+    "nba_1998",
+    "nba_1999",
+    "nba_2000",
+    "nba_2001",
+    "nba_2002",
+    "nba_2003",
+    "nba_2004",
+    "nba_2005",
+    "nba_2006",
+    "nba_2007",
+    "nba_2008",
+    "nba_2009",
+    "nba_2010",
+    "nba_2011",
+    "nba_2012",
+    "nba_2013",
+    "nba_2014",
+    "nba_2015"
+   ],
+   "design": [
+    "crowd",
+    "expert",
+    "llm_judge",
+    "sports"
+   ],
+   "n_boot": [
+    "500"
+   ],
+   "synthetic": [
+    "0"
+   ],
+   "N_range": [
+    192,
+    57477
+   ]
+  }
+ },
+ "versions": {
+  "crowd": [
+   "HF lmarena-ai/arena-human-preference-55k @ 18c2983"
+  ],
+  "expert": [
+   "HF lmsys/mt_bench_human_judgments @ f7d2896"
+  ],
+  "llm_judge": [
+   "HF lmsys/mt_bench_human_judgments @ f7d2896",
+   "HF potsawee/chatbot-arena-llm-judges @ 638a7e3 (+ arena-55k @ 18c2983)"
+  ],
+  "sports": [
+   "GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv"
+  ]
+ },
+ "rows_grouped": {
+  "datasets": 91,
+  "table_rows": 7
+ }
+}

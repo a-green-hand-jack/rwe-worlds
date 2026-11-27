@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Robustness of the anchor design to a stronger k-means (n_init = 10, max_iter = 300 instead of 1 / 25); n = 100, anchor only.
+cd "$(dirname "$0")/.."
+for b in commonsense gsm math med_qa mmlu arc_challenge ifeval; do
+  for s in interp extrap; do
+    ht-resource run local-compute --cwd "$PWD" --cpus 1 --memory 6000 --note "kmstrong-$b-$s" -- \
+      env BPRED_KMEANS=strong python3 -I -u scripts/02_run.py "$b" "$s" --draws 10 --d 2 --ngrid 100 --designs anchor \
+      --no-cat --tag _kmstrong --out results/raw_kmstrong > /dev/null
+  done
+done

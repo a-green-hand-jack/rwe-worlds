@@ -1,0 +1,116 @@
+"""Result tables (instance level) from the stored runs. One row per cell x instance x conclusion kind.
+
+A *cell* is (dataset, model, estimator, l1_reg, budget_m). Every function that turns stored runs into a number the
+paper reports lives here or in derive.py; REPRODUCE.md maps each table to the script that calls them.
+"""
+import glob, os, re, json
+import numpy as np
+import pandas as pd
+from scipy.stats import rankdata
+from . import metrics as M, pipeline as P
+
+B = P.B_DEF
+KEY_RE = re.compile(r"^(shap_noreg|shap_auto|shap_nf10|unb|perm)_(\d+)$")
+EST = {"shap_noreg": ("shap_kernel", "False"), "shap_auto": ("shap_kernel", "auto"), "shap_nf10": ("shap_kernel", "num_features(10)"),
+       "unb": ("kernel_paired", "NA"), "perm": ("permutation_antithetic", "NA")}
+KS = (1, 3, 5)
+EPS_COLS = {0.02: "n_correct_tol_e002", 0.05: "n_correct_tol", 0.1: "n_correct_tol_e010"}
+
+
+def m_eff(estimator, m, d):
+    """number of non-trivial coalition evaluations actually made by one run at nominal budget m."""
+    if estimator == "permutation_antithetic":
+        return 2 * (d - 1) * max(1, m // (2 * (d - 1)))
+    return min(m, (1 << d) - 2)
+
+
+def evals_per_run(estimator, m, d):
+    """Evaluation unit of Outline 3a: (non-trivial coalitions + the empty coalition) x B rows, plus the explained point."""
+    return (m_eff(estimator, m, d) + 1) * B + 1
+
+
+def _sig(mask):
+    return (mask * (1 << np.arange(mask.shape[1]))).sum(1)
+
+
+def run_metrics(est, ref):
+    """Per-run decision metrics of the (R,d) run matrix against the exact reference. Returns dict of columns by kind."""
+    R, d = est.shape
+    out = {}
+    ec = est - est.mean(1, keepdims=True)
+    rc = ref - ref.mean()
+    den = np.linalg.norm(ec, axis=1) * np.linalg.norm(rc)
+    pear = np.divide(ec @ rc, den, out=np.zeros(R), where=den > 0)
+    rk = rankdata(np.abs(est), axis=1)
+    rk = rk - rk.mean(1, keepdims=True)
+    rkr = rankdata(np.abs(ref)) - rankdata(np.abs(ref)).mean()
+    den = np.linalg.norm(rk, axis=1) * np.linalg.norm(rkr)
+    spear = np.divide(rk @ rkr, den, out=np.zeros(R), where=den > 0)
+    rl2 = np.linalg.norm(est - ref, axis=1) / np.linalg.norm(ref)
+    agg = dict(mean_pearson=float(pear.mean()), mean_spearman_abs=float(np.nanmean(spear)), mean_rel_l2=float(rl2.mean()), med_rel_l2=float(np.median(rl2)),
+               mean_sq_rel_l2=float((rl2 ** 2).mean()))
+    for k in KS:
+        if k >= d:
+            continue
+        row = dict(k=k, margin_gk=M.margin(ref, k))
+        row["n_correct"] = int(M.correct_exact(est, ref, k).sum())
+        for e, col in EPS_COLS.items():
+            ok, nx = M.correct_tol(est, ref, k, e)
+            row[col] = int(ok.sum())
+            if e == 0.05:
+                row["tol_group_size"] = nx
+        sg = _sig(M.topk_mask(est, k))
+        _, c = np.unique(sg, return_counts=True)
+        row["n_pairs_agree"] = int((c * (c - 1) // 2).sum())
+        row["n_pairs"] = R * (R - 1) // 2
+        out[f"topk{k}"] = row
+    rel = np.abs(ref) >= 0.1 * np.abs(ref).max()
+    out["sign"] = dict(k=-1, margin_gk=np.nan, n_correct=int((np.sign(est[:, rel]) == np.sign(ref[rel])).all(1).sum()),
+                       n_pairs_agree=np.nan, n_pairs=R * (R - 1) // 2)
+    return out, agg
+
+
+def instance_rows(ds, kind, i, seed=0):
+    d_ = P.cell_dir(ds, seed)
+    r = np.load(os.path.join(d_, f"inst_{kind}_{i:04d}.npz"))
+    files = [r]
+    ef = os.path.join(d_, f"ext_{kind}_{i:04d}.npz")
+    if os.path.exists(ef):
+        files.append(np.load(ef))
+    ref = r["phi"]
+    d = len(ref)
+    rows = []
+    items = []
+    for f in files:
+        for key in f.files:
+            mt = KEY_RE.match(key)
+            if mt:
+                items.append((mt.group(1), int(mt.group(2)), f[key]))
+    if "shap_default_exact" in r.files:  # d <= 10: shap default (2d+2048 >= 2^d-2) enumerates everything: deterministic
+        items.append(("shap_noreg", int(r["shap_default_budget"]), r["shap_default_exact"][None, :]))
+    for pref, m, est in items:
+        estimator, l1 = EST[pref]
+        km, agg = run_metrics(est, ref)
+        for kd, row in km.items():
+            if kd == "sign":
+                gk = np.nan
+            row = dict(row)
+            row.update(dataset=ds, model=kind, estimator=estimator, l1_reg=l1, budget_m=m, instance_id=i, kind=kd, R=est.shape[0], d=d,
+                       evals_per_run=evals_per_run(estimator, m, d), m_eff=m_eff(estimator, m, d), **agg)
+            rows.append(row)
+    return rows
+
+
+def build_instance_level(datasets=None, seed=0):
+    rows = []
+    for ds in datasets or P.N_INST:
+        for kind in P.KINDS:
+            files = sorted(glob.glob(os.path.join(P.cell_dir(ds, seed), f"inst_{kind}_*.npz")))
+            for f in files:
+                if f.endswith(".tmp.npz"):
+                    continue
+                i = int(re.search(r"_(\d+)\.npz$", f).group(1))
+                rows += instance_rows(ds, kind, i, seed)
+    df = pd.DataFrame(rows)
+    df["flat_group"] = df["tol_group_size"] > 1
+    return df

@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# C4b: error vs number of source models M (n = 100, no cat); outputs in results/raw_msrc/<bench>__<split>_M<M>.pkl
+cd "$(dirname "$0")/.."
+for b in commonsense gsm math med_qa mmlu legalbench arc_challenge gpqa ifeval musr openllm_math bbh mmlu_pro; do
+  for s in interp extrap; do
+    for m in 10 30 100; do
+      ht-resource run local-compute --cwd "$PWD" --cpus 1 --memory 6000 --note "$b-$s-M$m" -- \
+        python3 -I -u scripts/02_run.py "$b" "$s" --draws 10 --d 2 --ngrid 100 --designs uniform,strat,pps,balanced \
+        --no-cat --msrc $m --tag _M$m --out results/raw_msrc > /dev/null
+    done
+  done
+done

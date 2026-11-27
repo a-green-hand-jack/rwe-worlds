@@ -1,0 +1,153 @@
+"""Stage C: aggregate stage-B rows into the result files (curves, contrast, k*, Table 1).
+Group bootstrap: resample held-out org groups with replacement (B=5000), statistic = mean over models (equal weight per model).
+usage: python 08_aggregate.py <data_dir> <res_dir> <out_dir>"""
+import os, sys, glob, json, numpy as np, pandas as pd
+sys.path.insert(0, os.path.dirname(__file__))
+from common import *
+
+B = 5000
+data_dir, res_dir, out = sys.argv[1:4]
+os.makedirs(out, exist_ok=True)
+Y, mods, tasks, et = load_matrix(data_dir)
+N = Y.shape[1]
+org = mods.org.values
+
+def load(tag="main"):
+    fs = sorted(glob.glob(os.path.join(res_dir, f"*_{tag}.parquet")))
+    return pd.concat([pd.read_parquet(f) for f in fs], ignore_index=True)
+
+def per_model(df, cols):
+    """mean over draws -> one row per (split, rule, inf, k, model)"""
+    g = df.groupby(["split", "rule", "inf", "k", "model"], sort=False)
+    return g[cols + ["n_targets", "runset"]].mean().reset_index()
+
+def boot_idx(groups, rng, B=B):
+    ug, inv = np.unique(groups, return_inverse=True)
+    return ug, inv, rng.integers(0, len(ug), size=(B, len(ug)))
+
+def boot_mean(vals, groups, rng_seed):
+    """vals: per-model array; returns point, lo90, hi90, replicate array"""
+    rng = np.random.default_rng(rng_seed)
+    ug, inv, draws = boot_idx(groups, rng)
+    gs = np.bincount(inv, weights=vals, minlength=len(ug)); gn = np.bincount(inv, minlength=len(ug)).astype(float)
+    reps = gs[draws].sum(1) / gn[draws].sum(1)
+    return vals.mean(), np.percentile(reps, 5), np.percentile(reps, 95), reps, (np.percentile(reps, 2.5), np.percentile(reps, 97.5))
+
+def main():
+    df = load("main")
+    for tag in ("extra", "s6s"):
+        if glob.glob(os.path.join(res_dir, f"*_{tag}.parquet")): df = pd.concat([df, load(tag)], ignore_index=True)
+    cols = ["rmse_raw", "mae_raw", "rmse_std", "floor_raw", "spearman", "delta_mean", "floorj_mean", "t1_rmse_raw", "t1_floor_raw", "cost_sel"]
+    pm = per_model(df, cols)
+    pm["org"] = mods.org.values[pm.model.values]
+    ho = {s: set(pm[pm.split == s].model) for s in pm.split.unique()}
+    n_ho = {s: len(v) for s, v in ho.items()}
+    n_groups = {s: len(set(org[list(v)])) for s, v in ho.items()}
+    kmax = max(K_GRID)
+    # ---- Table 1: coverage filter + splits
+    cov = pd.read_csv(os.path.join(data_dir, "coverage_filter.csv"))
+    cov["missing_rate"] = np.nan
+    cov.to_csv(os.path.join(out, "table1_filter.csv"), index=False)
+    pd.DataFrame([dict(split=s, n_models_heldout=n_ho[s], n_groups_heldout=n_groups[s],
+                       n_train_models=int(len(Y) - n_ho[s]) if s == "S" else np.nan) for s in sorted(n_ho)]).to_csv(os.path.join(out, "table1_splits.csv"), index=False)
+    json.dump(dict(M=int(Y.shape[0]), N=int(N), cells=int((~np.isnan(Y)).sum()), missing_rate=float(np.isnan(Y).mean()), n_groups=int(len(set(org)))),
+              open(os.path.join(out, "table1_shape.json"), "w"))
+    curves = []
+    for s in sorted(n_ho):
+        subsets = {"all": None}
+        if s == "G":
+            subsets["fixed_kmax"] = set(mods.index[mods.runset > kmax])
+        for sub, keep in subsets.items():
+            for (rule, inf, name) in [("S6", "P5", "S6+P5"), ("S0", "P5", "S0+P5"), ("S0", "P1", "S0+P1 (mean-offset)"), ("S6", "P1", "S6+P1"),
+                                      ("S0", "P0", "S0+P0 (benchmark mean)"), ("S1", "P5", "S1+P5"), ("S2", "P5", "S2+P5"), ("S4", "P5", "S4+P5"),
+                                      ("S5", "P5", "S5+P5"), ("S6r", "P5", "S6r+P5"), ("S6c", "P5", "S6c+P5"),
+                                      ("S6u", "P5", "S6u+P5"), ("S6s", "P5", "S6s+P5"), ("S3", "P5", "S3+P5"), ("S7", "P5", "S7+P5"), ("S3", "P1", "S3+P1"), ("S7", "P1", "S7+P1"), ("S6u", "P1", "S6u+P1")]\
+                                     + [(sel, p, f"{sel}+{p}") for sel in ("S0", "S6") for p in ("P2", "P3", "P4", "P6")]:
+                for k in K_GRID:
+                    d = pm[(pm.split == s) & (pm.rule == rule) & (pm.inf == inf) & (pm.k == k)]
+                    if keep is not None: d = d[d.model.isin(keep)]
+                    if len(d) < 3: continue
+                    g = d.org.values
+                    rr = boot_mean(d.rmse_raw.values, g, 1000 + k)
+                    rs = boot_mean(d.rmse_std.values, g, 2000 + k)
+                    re_ = boot_mean((d.rmse_raw - d.floor_raw).values, g, 5000 + k)   # excess over the model's own all-others floor on the same targets
+                    row = dict(split=s, subset=sub, method=name, k=k, N=N, n_models_at_k=len(d), n_excluded_at_k=n_ho[s] - len(d) if sub == "all" else int(len(keep & ho[s]) - len(d)),
+                               n_groups=len(set(g)), rmse_raw=rr[0], lo=rr[1], hi=rr[2], rmse_std=rs[0], lo_std=rs[1], hi_std=rs[2], excess_raw=re_[0], excess_lo=re_[1], excess_hi=re_[2],
+                               mae_raw=d.mae_raw.mean(), spearman=np.nanmean(d.spearman), floor_raw=d.floor_raw.mean(),
+                               t1_rmse_raw=d.t1_rmse_raw.mean(), t1_floor_raw=d.t1_floor_raw.mean())
+                    if rule == "S0":
+                        dd = df[(df.split == s) & (df.rule == "S0") & (df.inf == inf) & (df.k == k)]
+                        if keep is not None: dd = dd[dd.model.isin(keep)]
+                        pdraw = dd.groupby("draw").rmse_raw.mean()
+                        row.update(rand_q10=np.percentile(pdraw, 10), rand_q90=np.percentile(pdraw, 90), rand_sd=pdraw.std())
+                    curves.append(row)
+    cur = pd.DataFrame(curves); cur.to_csv(os.path.join(out, "curves_rms.csv"), index=False)
+    # ---- primary contrast + verdicts
+    rows = []; kst = []
+    for s in sorted(n_ho):
+        for sub in (["all", "fixed_kmax"] if s == "G" else ["all"]):
+            keep = set(mods.index[mods.runset > kmax]) if sub == "fixed_kmax" else None
+            for k in K_GRID:
+                a = pm[(pm.split == s) & (pm.rule == "S0") & (pm.inf == "P5") & (pm.k == k)].set_index("model")
+                b = pm[(pm.split == s) & (pm.rule == "S6") & (pm.inf == "P5") & (pm.k == k)].set_index("model")
+                idx = a.index.intersection(b.index)
+                if keep is not None: idx = idx.intersection(list(keep))
+                if len(idx) < 3: continue
+                gain = (a.loc[idx, "rmse_raw"] - b.loc[idx, "rmse_raw"]).values           # >0: design better
+                g = org[idx.values]
+                w = b.loc[idx, "n_targets"].values
+                delta = float(np.average(b.loc[idx, "delta_mean"], weights=w)); dfl = 0.25 * float(np.average(b.loc[idx, "floorj_mean"], weights=w))
+                m, lo, hi, reps, (lo95, hi95) = boot_mean(gain, g, 3000 + k)
+                gx = ((a.loc[idx, "rmse_raw"] - a.loc[idx, "floor_raw"]) - (b.loc[idx, "rmse_raw"] - b.loc[idx, "floor_raw"])).values   # same, on excess over floor
+                mx, lox, hix, _, _ = boot_mean(gx, g, 6000 + k)
+                def verdict(dl):
+                    if lo > dl: return "design helps"
+                    if hi < -dl: return "random better"
+                    if lo > -dl and hi < dl: return "random matches"
+                    return "undecided"
+                dd = df[(df.split == s) & (df.rule == "S0") & (df.inf == "P5") & (df.k == k) & (df.model.isin(idx))]
+                sdraw = dd.groupby("draw").rmse_raw.mean().std()
+                rows.append(dict(split=s, subset=sub, k=k, N=N, n_models=len(idx), n_groups=len(set(g)), gain_mean=m, diff_mean=-m, gain_excess=mx, gain_excess_lo90=lox, gain_excess_hi90=hix, lo90=lo, hi90=hi, lo95=lo95, hi95=hi95,
+                                 delta=delta, Delta=delta, delta_floor=dfl, verdict=verdict(delta), verdict_floor=verdict(dfl), rand_draw_sd=sdraw,
+                                 gain_over_draw_sd=m / sdraw if sdraw > 0 else np.nan, frac_models_design_better=float((gain > 0).mean())))
+    con = pd.DataFrame(rows); con.to_csv(os.path.join(out, "contrast_S6_vs_S0_rms.csv"), index=False)
+    # ---- k*(epsilon): excess over the all-others floor, S6+P5, empirical and T1-predicted
+    for s in sorted(n_ho):
+        for sub in (["all", "fixed_kmax"] if s == "G" else ["all"]):
+            keep = set(mods.index[mods.runset > kmax]) if sub == "fixed_kmax" else None
+            ks, ex_models, preds = [], {}, {}
+            for k in K_GRID:
+                b = pm[(pm.split == s) & (pm.rule == "S6") & (pm.inf == "P5") & (pm.k == k)].set_index("model")
+                if keep is not None: b = b[b.index.isin(list(keep))]
+                if len(b) >= 3: ex_models[k] = b
+            if not ex_models: continue
+            common = sorted(set.intersection(*[set(b.index) for b in ex_models.values()])) if sub == "fixed_kmax" else None
+            kk = sorted(ex_models)
+            dl_all = np.mean([np.average(ex_models[k].delta_mean, weights=ex_models[k].n_targets) for k in kk])
+            dfl_all = 0.25 * np.mean([np.average(ex_models[k].floorj_mean, weights=ex_models[k].n_targets) for k in kk])
+            reps_ex, reps_pred, pt_ex, pt_pred = [], [], [], []
+            for k in kk:
+                b = ex_models[k]; g = b.org.values
+                e = (b.rmse_raw - b.floor_raw).values; p = (b.t1_rmse_raw - b.t1_floor_raw).values
+                r1 = boot_mean(e, g, 4000 + k); r2 = boot_mean(p, g, 4000 + k)   # same seed -> same resampled groups when sets coincide
+                reps_ex.append(r1[3]); reps_pred.append(r2[3]); pt_ex.append(r1[0]); pt_pred.append(r2[0])
+            reps_ex = np.array(reps_ex); reps_pred = np.array(reps_pred); pt_ex = np.array(pt_ex); pt_pred = np.array(pt_pred)
+            curve = pd.DataFrame(dict(split=s, subset=sub, k=kk, excess_emp=pt_ex, excess_emp_lo=np.percentile(reps_ex, 5, axis=1), excess_emp_hi=np.percentile(reps_ex, 95, axis=1),
+                                      excess_t1=pt_pred, excess_t1_lo=np.percentile(reps_pred, 5, axis=1), excess_t1_hi=np.percentile(reps_pred, 95, axis=1)))
+            curve.to_csv(os.path.join(out, f"excess_curve_rms_{s}_{sub}.csv"), index=False)
+            def kstar(curv, eps):
+                ok = np.where(curv <= eps)[0]; return kk[ok[0]] if len(ok) else np.inf
+            for name, eps in [("delta", dl_all), ("2delta", 2 * dl_all), ("delta_floor", dfl_all), ("2delta_floor", 2 * dfl_all)]:
+                emp = kstar(pt_ex, eps); pred = kstar(pt_pred, eps)
+                reps_k = np.array([kstar(reps_ex[:, i], eps) for i in range(reps_ex.shape[1])], float)
+                pr_k = np.array([kstar(reps_pred[:, i], eps) for i in range(reps_pred.shape[1])], float)
+                kst.append(dict(split=s, subset=sub, epsilon_name=name, epsilon=eps, k_emp=emp, k_emp_lo=np.percentile(reps_k, 5), k_emp_hi=np.percentile(reps_k, 95),
+                                frac_boot_never=float(np.isinf(reps_k).mean()), k_pred=pred, k_pred_lo=np.percentile(pr_k, 5), k_pred_hi=np.percentile(pr_k, 95),
+                                n_groups=int(len(set(org[ex_models[kk[0]].index.values]))), N=N, note="grid steps; inf = not reached on the grid"))
+    pd.DataFrame(kst).replace([np.inf], 9999).to_csv(os.path.join(out, "kstar_rms.csv"), index=False)
+    json.dump(dict(B=B, resampling_unit="org group (held-out groups)", seed_note="boot seeds 1000+k..4000+k; fold seed %d" % SEED, k_grid=K_GRID, random_draws=D_RANDOM,
+                   n_heldout_models=n_ho, n_heldout_groups=n_groups, git="see git log"), open(os.path.join(out, "run_meta.json"), "w"), indent=1)
+    print(con.groupby(["split", "subset"]).size()); print(pd.DataFrame(kst).to_string())
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,24 @@
+"""Table 2 (data audit, appendix). Reads results/audit.csv.
+usage: python3 figures/scripts/table2_audit.py CODE_DIR OUT_TEX   -> tables/table2_audit.tex"""
+import sys
+import pandas as pd
+
+root, out = sys.argv[1], sys.argv[2]
+df = pd.read_csv(f"{root}/results/audit.csv")
+assert df["binary"].all(), "non-binary matrix in audit"
+# file names of the data repository are used as labels: the task does not say which dataset each HELM file is
+NAMES = {b: b.replace("_", r"\_") for b in df["bench"]}
+L = [r"\begin{tabular}{llrrrrrr}", r"\toprule",
+     r"Benchmark & Suite & Items $N$ & Models & Families & Full score min / med / max (\%) & Constant items & Dup.\ dropped \\",
+     r"\midrule"]
+prev = None
+for _, r in df.iterrows():
+    if prev is not None and r.suite != prev:
+        L.append(r"\midrule")
+    prev = r.suite
+    fam = str(r.n_families) if r.families_known else r"{\small unknown}"
+    L.append(f"{NAMES[r.bench]} & {r.suite} & {r.N:,} & {r.M} & {fam} & "
+             f"{100*r.min_score:.1f} / {100*r.median_score:.1f} / {100*r.max_score:.1f} & {r.const_items} & "
+             f"{r.dropped_dup_name + r.dropped_dup_row} \\\\")
+L += [r"\bottomrule", r"\end{tabular}"]
+open(out, "w").write("\n".join(L) + "\n")

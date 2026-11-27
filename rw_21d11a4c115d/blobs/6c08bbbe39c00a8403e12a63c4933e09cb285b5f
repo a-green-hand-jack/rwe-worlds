@@ -1,0 +1,43 @@
+\documentclass{article}
+\usepackage{neurips_2026}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\renewcommand{\ttdefault}{pcr}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{amsfonts,amsmath,amssymb,amsthm}
+\usepackage{nicefrac}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\graphicspath{{../figures/}}
+\newtheorem{proposition}{Proposition}
+\newtheorem{lemma}{Lemma}
+
+\title{Which $k$ Benchmarks to Run? Predicting a New Model's Remaining Benchmark Scores from a Few}
+\author{Anonymous Author(s)}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Running a new language model on every benchmark is costly, yet leaderboards hold many earlier scores. We ask which $k$ benchmarks to run on a new model so that its remaining scores can be inferred, and how large $k$ must be. We study factor-model prediction with greedy Bayesian A-optimal selection (it chooses benchmarks one at a time to minimise the average posterior variance of the unrun scores) under a protocol that holds out whole model families and uses paired, family-clustered intervals, on dense blocks of MTEB embedding-model results and the 57 subjects of HELM MMLU, and on MTEB matrices with missing cells; we do not test suites of benchmarks for generative language models. Three benchmarks close 81--96\% of the gap between the column-mean predictor and a leave-one-benchmark-out predictor, but 90\% needs one benchmark on HELM MMLU and about nine or more on MTEB, uncertain and biased low. Greedy selection beats random selection by 6--11\% of the error, mostly at $k\le3$, and meets our pre-specified 10\% margin on one pool of three; in an exploratory run with 21--70\% of cells observed it closes 0.71--0.80 of the gap at $k=3$ (pairwise-correlation predictor), against 0.55--0.74 for random. Later models are predicted worse. A closed-form risk follows the shape of the error curve on MTEB but is 36--69\% off in level.
+\end{abstract}
+
+\input{sections/intro}
+\input{sections/related}
+\input{sections/protocol}
+\input{sections/method}
+\input{sections/theory}
+\input{sections/experiments}
+\input{sections/discussion}
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+
+\appendix
+\input{sections/appendix}
+
+\input{checklist}
+\end{document}

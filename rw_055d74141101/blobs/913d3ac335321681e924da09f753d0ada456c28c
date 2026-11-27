@@ -1,0 +1,6 @@
+# figtab-repo
+
+Figures and tables of the paper. `DATA_CONTRACT.md` lists the result files each item reads;
+`figures/make_figN.py --data DIR --out DIR` draws figure N from them (writes `figN.pdf` and `figN.provenance.json`);
+`figures/style.py` holds type size / widths (`figures/venue.json` overrides the defaults once the venue is fixed);
+`figures/run_all.sh RESULTS_DIR` builds every item; `python3 figures/tests/selftest.py` checks that the generators run on a throw-away fixture (not a result).

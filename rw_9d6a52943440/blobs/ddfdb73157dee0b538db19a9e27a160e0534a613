@@ -1,0 +1,69 @@
+"""Table 11 (appendix): published anchor code on our splits, and a check of our IRT settings, n = 100.
+usage: python3 figures/scripts/table11_public.py CODE_DIR OUT_FILE
+Reads results/public_baselines.csv (block 1) and results/dsweep.csv (block 2). Entry = geometric mean over benchmarks of the
+RMSE ratio to uniform x mean on the same targets; one run per cell, no intervals. Stage A: 7 benchmarks (extrapolation: one fold,
+interpolation: five folds); stage B: the 6 benchmarks without MMLU-Pro (one fold per split). Block 2: extrapolation fold, the
+6 benchmarks of stage B; config d2 = main run (2 latent dimensions, default prior), d10 = 10 dimensions, d2w = 2 dimensions with a
+wide ability prior; the wide-prior columns use the `irtw` estimators (precision 0.01 here, 0.1 in Table 10).
+"""
+import sys
+import numpy as np
+import pandas as pd
+sys.path.insert(0, __file__.rsplit("/", 1)[0])
+import common
+
+R = common.Results(sys.argv[1]); out = sys.argv[2]
+pb = R.csv("public_baselines.csv"); ds = R.csv("dsweep.csv")
+gm = lambda x: float(np.exp(np.log(x).mean()))
+COLS = [("A", "extrap"), ("A", "interp"), ("B", "extrap"), ("B", "interp")]
+PUB = [("tb-anchor-correct", r"tinyBenchmarks anchors (correct.), weighted"), ("ap-weighted", r"Anchor Points, weighted"),
+       ("tb-anchor-irt", r"tinyBenchmarks anchors (IRT), weighted"), ("tb-pirt-correct", r"p-IRT on correctness anchors"),
+       ("tb-pirt-irt", r"p-IRT on IRT anchors")]
+OURS = [("anchor|mean", r"anchor $\times$ mean"), ("anchor|irt-plugin", r"anchor $\times$ IRT plug-in"),
+        ("anchor|diff-irt", r"anchor $\times$ diff. IRT"), ("strat|mean", r"stratified $\times$ mean")]
+
+
+def val(m, st, sp):
+    g = pb[(pb.method == m) & (pb.stage == st) & (pb.split == sp)]
+    return f"{gm(g.ratio_uniform_mean):.2f}" if len(g) else "--"
+
+
+def head(t, k=5):
+    return rf"\multicolumn{{{k}}}{{l}}{{\emph{{{t}}}}} \\"
+
+
+L = [r"\begin{tabular}{lcccc}", r"\toprule",
+     r" & \multicolumn{2}{c}{stage A (7 benchmarks)} & \multicolumn{2}{c}{stage B (6 benchmarks)} \\",
+     r"\cmidrule(lr){2-3}\cmidrule(lr){4-5}",
+     r"Method & extrapolation & interpolation & extrapolation & interpolation \\", r"\midrule",
+     head("Published code")]
+L += [" & ".join([name] + [val(m, *c) for c in COLS]) + r" \\" for m, name in PUB]
+L += [r"\midrule", head("Ours, same cells")]
+L += [" & ".join([name] + [val(m, *c) for c in COLS]) + r" \\" for m, name in OURS]
+L.append(r"\midrule")
+nb = [str(pb[(pb.stage == st) & (pb.split == sp)].bench.nunique()) for st, sp in COLS]
+fo = [str(int(pb[(pb.stage == st) & (pb.split == sp)].folds.iloc[0])) for st, sp in COLS]
+L.append(" & ".join(["Benchmarks"] + nb) + r" \\")
+L.append(" & ".join(["Folds run"] + fo) + r" \\")
+t1 = "\n".join(L)
+
+ex = ds[ds.split == "extrap"]
+C2 = [("d2", "irt", r"2 dim., default prior"), ("d10", "irt", r"10 dim., default prior"),
+      ("d2w", "irtw", r"2 dim., wide prior"), ("d10", "irtw", r"10 dim., wide prior")]
+
+
+def v2(design, est, cfg, kind):
+    m = ("irtw-" if kind == "irtw" else "irt-") + est
+    g = ex[(ex.design == design) & (ex.method == m) & (ex.config == cfg)]
+    assert len(g) == 6 or not len(g), (design, m, cfg, len(g))
+    return f"{gm(g.ratio_uniform_mean):.2f}" if len(g) else "--"
+
+
+M = [r"\midrule", head(r"Our IRT estimators, extrapolation fold, the six stage-B benchmarks"),
+     " & " + " & ".join(r"\shortstack{" + c[2].replace(", ", r",\\") + "}" for c in C2) + r" \\", r"\midrule"]
+for design, dn in [("anchor", "anchor"), ("uniform", "uniform")]:
+    for est, en in [("model", "IRT model"), ("plugin", "IRT plug-in")]:
+        M.append(" & ".join([rf"{dn} $\times$ {en}"] + [v2(design, est, c[0], c[1]) for c in C2]) + r" \\")
+M += [r"\bottomrule", r"\end{tabular}"]
+t2 = "\n".join(M)
+open(out, "w").write("\\begingroup\\scriptsize\\setlength{\\tabcolsep}{2pt}\n" + t1 + "\n" + t2 + "\n\\endgroup\n")

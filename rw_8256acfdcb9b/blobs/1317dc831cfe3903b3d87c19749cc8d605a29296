@@ -1,0 +1,41 @@
+"""R1 runs from the stored exact tables. usage: r1_certificate.py OUT_DIR [R]
+Writes OUT_DIR/certificate_raw.parquet: per dataset x model x instance x m x j, the certificate run (2m coalitions) and the run-twice pair (m each)."""
+import sys, os, glob, re, time
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+import numpy as np, pandas as pd
+from multiprocessing import Pool
+from shapreliab import pipeline as P, r1, metrics as M
+
+out = sys.argv[1]
+R = int(sys.argv[2]) if len(sys.argv) > 2 else 100
+K = 3
+
+
+def ladder(d):
+    """competitor budgets m; the certificate run has 2m <= 2^d - 2 coalitions"""
+    return [m for m in (16, 32, 64, 128, 256, 512, 1024, 2048) if 2 * m <= (1 << d) - 2 and (d <= 10 or m >= 64)]
+
+
+def one(args):
+    ds, kind, i = args
+    r = np.load(os.path.join(P.cell_dir(ds, 0), f"inst_{kind}_{i:04d}.npz"))
+    d = len(r["phi"])
+    rows = r1.instance_records(r["v"], r["phi"], d, ladder(d), R, [0, i, P.KINDS.index(kind), 31], K)
+    g = M.margin(r["phi"], K)
+    for row in rows:
+        row.update(dataset=ds, model=kind, instance_id=i, d=d, margin_gk=g)
+    return rows
+
+
+if __name__ == "__main__":
+    jobs = []
+    for ds in P.N_INST:
+        for kind in P.KINDS:
+            for f in sorted(glob.glob(os.path.join(P.cell_dir(ds, 0), f"inst_{kind}_*.npz"))):
+                if not f.endswith(".tmp.npz"):
+                    jobs.append((ds, kind, int(re.search(r"_(\d+)\.npz$", f).group(1))))
+    t0 = time.time()
+    with Pool(4) as p:
+        res = p.map(one, jobs, chunksize=4)
+    pd.DataFrame([r for rr in res for r in rr]).to_parquet(os.path.join(out, "certificate_raw.parquet"), index=False)
+    print("done", round(time.time() - t0), "s", len(jobs), "instance-models")

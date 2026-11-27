@@ -1,0 +1,105 @@
+# Venue: NeurIPS 2026, Main Track
+
+Edition: NeurIPS 2026 (40th Conference on Neural Information Processing Systems), Main Track. Requirements from the world's venue library (`ht-role venue neurips`, retrieved 2026-11-14 from the sources cited per line); a few lines re-checked on 2026-11-26 against the OpenReview submission form and the reviewer guidelines. The paper is written to these requirements and reviewed against the standard in §Reviewers. Where the task's objective asks for something the venue says nothing about, the objective governs and the line says so.
+
+## Choice (the objective lets the study pick ICML, ICLR or NeurIPS)
+
+Chosen: **NeurIPS 2026**, because (1) it is the newest NeurIPS edition with a published call and style kit (the 2027 call returns HTTP 404, https://neurips.cc/Conferences/2027/CallForPapers, 2026-11-14), so "the newest edition of the chosen conference" is determinate; (2) the objective names the NeurIPS paper checklist as its example of the required checklist, and NeurIPS has the only mandatory question-by-question checklist of the three (ICML 2027: impact statement and AI-use statement; ICLR 2027: AI-use statement); (3) its requirements are completely established, whereas for ICML 2027 the submission form is not open and two official sources disagree on the file-size limit (50 MB vs 10 MB), and for ICLR 2027 the review-form scales could not be established (login wall) and the edition is already under review; (4) its reviewing criteria (quality, clarity, significance, originality) and the explicit statement that evaluating existing methods is as valuable as a new method (§Reviewers) fit a controlled comparison with a conditional or negative answer. Not a quality ranking of the venues. Caveats: the NeurIPS 2026 deadlines have passed (full paper 2026-05-06 AOE), so this is a paper written to the venue's standard, not a live submission; re-check for NeurIPS 2027 before any real submission.
+
+## Page limit and what counts
+
+- Main text: **nine content pages including all figures and tables** (https://neurips.cc/Conferences/2026/MainTrackHandbook; `template/neurips_2026.tex` §1.1).
+- Not counted: references, optional technical appendices, the mandatory checklist; the kit adds acknowledgments (`template/neurips_2026.tex`). No page limit on references, appendix or checklist (OpenReview submission form, `pdf` field).
+- Penalty: "Papers that exceed the page limit will not be reviewed" (`template/neurips_2026.tex`); desk rejection possible (Handbook). Reviewers are told not to penalise going over by a few lines.
+- Camera-ready gets one more content page (10). The accepted papers profiled in `accepted-papers.md` are camera-ready, so scale their counts by 9/10.
+- Order in the one PDF: paper content, references, appendices, checklist (Handbook). The paper must stand alone without the appendix; "adding critical experiments that support the main claims to an appendix is inappropriate" (`template/neurips_2026.tex`, Appendix A).
+- No "broader impacts" section is required; a discussion of negative societal impact may go anywhere but counts against the nine pages (Handbook).
+
+## Layout as enforced by the style file (`neurips_2026.sty`, copied in `paper-repo` `paper/template/`)
+
+| Item | Value | Source |
+|---|---|---|
+| Paper size | US Letter (612 × 792 pt) | `.sty` (`letterpaper`); `.tex` §5 |
+| Columns | one | `.sty` |
+| Text block | **5.5 in wide (396 pt) × 9 in high (648 pt)**; left margin 1.5 in; top 1 in | `.sty`; `.tex` §2 |
+| Body font | Times (`ptm`), 10 pt on 11 pt; paragraphs unindented, 5.5 pt apart; headings in the style's sizes | `.sty`; `.tex` §2 |
+| Smallest sizes | `\tiny` ≥ 6 pt, `\scriptsize` ≥ 7 pt, `\footnotesize` ≥ 8 pt; references may use `\small` (9 pt) | `.sty`; `.tex` References |
+| Fonts in the PDF | only Type 1 or embedded TrueType; Type 3 or non-embedded TrueType must be fixed. Check with `pdffonts` (not only the figure files): `\texttt`/`\url` under `[T1]{fontenc}` without a Type 1 T1 typewriter font becomes Type 3 bitmaps; `\usepackage{courier}` fixes it (tested on `paper-repo` `dev` 4c81743: 0 Type 3, same pagination) | `.tex` §5 |
+| Title / abstract | abstract one paragraph, indented ½ in each side, 10 pt; no word limit in the kit; submission form: title ≤ 250 characters, abstract ≤ 5000 characters, TLDR ≤ 250 | `.tex`; OpenReview form |
+| Citations / references | natbib loaded by the style; any style acceptable if consistent; the kit ships no `.bst` | `.tex` §3, References |
+| Layout changes | none allowed (margins, font sizes, vertical space; `fullpage` triggers a warning); "may be grounds for desk rejection" | `.tex` §1.1, §4.6 |
+
+### Sizes for figures and tables (for `figtab-repo`)
+
+- **Full-width figure: 5.5 in (396 pt).** Two panels side by side: ≈ 2.65 in (0.48 `\linewidth`) each; three across: ≈ 1.75 in each, which leaves too little room for 7 pt labels, so avoid it for plots with axis labels and legends. Maximum height on a page: 9 in minus the caption (use ≤ 4 in for a main-text figure unless it is the page's one item). Specify widths as multiples of `\linewidth` (`.tex`, "Margins in LaTeX").
+- **Type size inside figures: the venue states no minimum for text inside figures.** The only floors it enforces are those of the style: 6 pt (`\tiny`), 7 pt (`\scriptsize`), 8 pt (`\footnotesize`). Recommendation (not a venue rule): tick labels, axis labels and legends ≥ 7 pt **at the placed width** (render at 5.5 in or 2.65 in and do not rescale), titles/panel letters ≥ 8 pt; nothing below 6 pt.
+- **Fonts in figure files:** embed Type 1 or TrueType (matplotlib: `pdf.fonttype = 42`; the Type 3 default breaks the rule above). Vector PDF preferred; raster only for dense scatter, at ≥ 300 dpi at placed size. The Fig. 1 on `paper-repo` `dev` already embeds TrueType.
+- **Colour:** allowed; "best for the figure captions and the paper body to be legible if the paper is printed in either black/white or in color" (`.tex` §4.3). Use markers/line styles in addition to hue and "lines dark enough for reproduction".
+- **Captions:** figure number and caption **below** the figure; table number and title **above** the table; caption in sentence case; "explain what the figure shows and add a key take-away message to the caption" (`.tex` §4.3–4.4). Figures numbered consecutively.
+- **Tables:** centred, no vertical rules, `booktabs` strongly suggested; text at `\footnotesize` (8 pt) or larger (floors above allow `\scriptsize`, 7 pt, for wide tables only).
+
+## Anonymity (double-blind)
+
+- All submissions anonymised, supplementary and linked material and code included; violations are desk rejected (Handbook). Default style mode ("no option") prints "Anonymous Author(s)", line numbers (do not refer to them), the footer "Submitted to 40th Conference on Neural Information Processing Systems (NeurIPS 2026). Do not distribute.", and hides the `ack` environment. `preprint` shows names without the footer; `final` is camera-ready only; no track option is needed for the Main Track (`.tex` preamble).
+- No acknowledgments, funding statement or institution-revealing URL at submission; the repository link must be anonymous ("your responsibility to guarantee anonymous browsing"). Own earlier work is cited in the third person. Aggressive advertising of a paper under submission may be a violation (Handbook).
+- A paper written for this delivery should carry no author names, institution or non-anonymous repository URL; code is delivered as an anonymised archive (§Code).
+
+## Paper checklist (mandatory)
+
+- In the same PDF, after the references and any appendix, from `template/checklist.tex` (`paper-repo` `paper/template/checklist.tex`). "The papers not including the checklist will be desk rejected." Does not count toward the nine pages.
+- 16 items: Claims; Limitations; Theory assumptions and proofs; Experimental result reproducibility; Open access to data and code; Experimental setting/details; Experiment statistical significance; Experiments compute resources; Code of ethics; Broader impacts; Safeguards; Licenses for existing assets; New assets; Crowdsourcing and human subjects; IRB approvals; Declaration of LLM usage.
+- Answer `\answerYes{}`, `\answerNo{}` or `\answerNA{}` with a 1–2 sentence justification; when `\answerYes{}`, point to the section. Delete the instruction block, keep the heading "NeurIPS Paper Checklist", do not modify the questions. Answering "no" "is typically not grounds for rejection" (reviewer FAQ); unsupported "yes" is.
+- Checklist items this study must answer from what it did, not from template phrases: statistical significance (error bars, how computed), compute resources (CPU-only, runtime), reproducibility and code/data access (public data with its source and licence; code as supplement), licences of existing assets (the data matrices, the `benchpred` code and the baselines' code), safeguards/ethics (no new model or dataset released; none needed to claim), LLM usage (below).
+
+## LLM and agent use
+
+- Must be described "in the experimental setup (or equivalent)" if it "is an important, original, or non-standard component of the approach"; spell checking, grammar, editing aid and basic code assistance need not be documented; agents/LLMs cannot be authors; prompt injection is prohibited (Handbook). Checklist item 16 asks the same; the submission form has a confidential `LLM_usage` multi-select.
+- **Flag for `paper-repo`:** this study was planned, run and written by LLM agents. The objective requires truthful reporting and the venue asks for the declaration, so item 16 and the paper must state it plainly (what the agents did; the human role, if any, as the objective says). Whether it belongs in the setup section or the checklist only is a call for `paper-repo` with `internal-review-repo`; the venue's test is "important, original or non-standard component of the approach" and the research process here is not the approach evaluated, but the checklist question is answered either way.
+
+## Supplementary material and code
+
+- Appendices in the same PDF after the references, no page limit; do not upload a separate appendix PDF. Reviewers are not required to read supplementary material (Handbook, reviewer FAQ).
+- Code and data: one ZIP (`.zip`, `.tgz` or `.gz`), **≤ 100 MB**, anonymised, self-contained and executable if possible, with a specification of dependencies and training/evaluation code (Handbook; OpenReview form `supplementary_material`). Written appendices must not go in the ZIP.
+- The objective additionally requires (outside the venue's text): environment and dependency versions, data acquisition steps and data version, seeds, run commands and expected runtime, and a script-to-table/figure map. These belong in the code archive's README and in the paper's reproducibility parts. The task data (≈80 MB) should not be bundled if it pushes the ZIP over 100 MB; the README gives the download step instead.
+- New datasets/assets: answer the checklist items and anonymise links. None are planned here.
+
+## What reviewers judge
+
+From https://neurips.cc/Conferences/2026/MainTrackHandbook (Review Form) and https://neurips.cc/Conferences/2026/ReviewerGuidelines:
+
+- Form: Summary; Strengths and Weaknesses over four dimensions; **Quality, Clarity, Significance, Originality** each rated 1–4 (poor … excellent); Questions (3–5 ideally); Limitations; Overall 1–6 (6 strong accept, 5 accept, 4 borderline accept, 3 borderline reject, 2 reject, 1 strong reject); Confidence 1–5; Ethical concerns; Formatting concerns (these should not lower the overall score).
+- **Quality:** "Is the submission technically sound? Are claims well supported? Are the methods used appropriate? Is this a complete piece of work or work in progress? Are the authors careful and honest about evaluating both the strengths and weaknesses of their work?"
+- **Clarity:** "clearly written, well organized, adequately informs the reader. A superbly written paper provides enough information for an expert reader to reproduce its results."
+- **Significance:** "impactful for the community"; others likely to use or build on it; "advance our understanding/knowledge on the topic in a demonstrable way"; "unique conclusions about existing data".
+- **Originality:** "new insights, deepen understanding, or highlight important properties of existing methods"; clear difference from previous contributions with citations; "originality does not necessarily require introducing an entirely new method. Rather, a work that provides novel insights by evaluating existing methods, or demonstrates improved efficiency ... is also equally valuable."
+- **Contribution type (chosen by the authors, cannot be changed after submission, reviewers judge by it):** General (default; "most submissions"), Theory, Use-inspired, Concept & Feasibility, Negative Results (https://neurips.cc/Conferences/2026/ReviewerGuidelines; form field `contribution_type`). **Negative Results** has "a high" significance and originality bar: the result must be "grounded in deeper analysis", "informative in changing how the community addresses a question", and "surprising or unexpected in some way"; "not simply an empirical observation that some experiment did not turn out as expected". **For `story-repo`:** a study whose headline may be "the source matrix gives little / nothing beats stratified sampling" should be framed as a **General** paper whose claims are the controlled comparison, the bias–variance accounting and the ceiling analysis (an evaluation paper), and only claim the Negative Results type if the analysis supplies the grounded explanation (the outline's C2 and C4 are that grounding). The objective itself values well-supported negative results.
+- The checklist is used by reviewers as one factor; honesty about limitations is explicitly not to be penalised.
+
+The task's objective states its own review criteria (`deliverable.md`): novelty and positioning; rigour including baselines, controls, ablations and reported uncertainty; evidence sufficient for every conclusion and its scope stated; clarity and reproducibility; honest limitations; plus no fabricated numbers or citations and no use of the reserved paper. They agree with the NeurIPS four dimensions; where they differ (fabrication, reserved paper) the objective is stricter.
+
+## Required versus recommended, at a glance
+
+| Required by venue | Source |
+|---|---|
+| ≤ 9 content pages main text with figures/tables; US Letter; style file unchanged | Handbook; kit |
+| Anonymous submission, no acknowledgments, anonymous links | Handbook |
+| Paper checklist in the PDF, 16 questions, justifications | kit `checklist.tex` |
+| LLM-use description if important/original/non-standard; checklist item 16 | Handbook |
+| Type 1 / embedded TrueType fonts only | kit `.tex` §5 |
+| Code ZIP ≤ 100 MB, anonymised (if code is provided) | OpenReview form |
+| Recommended / venue-neutral | |
+| Figure text ≥ 7 pt at placed width, `pdf.fonttype=42`, B/W-legible figures | this role's reading of the kit's size floors |
+| 6 main figures+tables (7 ceiling), abstract 150–230 words, intro 700–1000 words, 45–70 references | `accepted-papers.md` |
+
+## Not established
+
+- The venue gives **no minimum for text inside figures**, no abstract word limit, no cap on the number of figures/tables or references; only the values above are venue rules.
+- The kit has no example PDF and no bibliography style; its licence is not stated (files are copied unchanged from the official zip for use in building this paper).
+- The camera-ready upload size limit is not stated. NeurIPS 2027 requirements are not published.
+- The acceptance bar in numbers (score thresholds, acceptance rate of this edition) is not part of the sources recorded here and is not asserted.
+
+## Sources
+
+NeurIPS 2026 Call for Papers https://neurips.cc/Conferences/2026/CallForPapers; Main Track Handbook https://neurips.cc/Conferences/2026/MainTrackHandbook; Reviewer Guidelines https://neurips.cc/Conferences/2026/ReviewerGuidelines; OpenReview submission invitation https://api2.openreview.net/invitations?id=NeurIPS.cc/2026/Conference/-/Submission&expired=true; style kit https://media.neurips.cc/Conferences/NeurIPS2026/Formatting_Instructions_For_NeurIPS_2026.zip (files `neurips_2026.sty`, `neurips_2026.tex`, `checklist.tex`). ICML 2027 and ICLR 2027 requirements, used only for the choice above: `ht-role venue icml` / `ht-role venue iclr`.
+
+- **Declared for this study:** contribution type **General** (evaluation paper, also if the headline is conditional or negative), per the authors' choice relayed by `story-repo` (`story-repo`#4, Outline rev 3: 9 pages, 7 main items = Fig. 1–6 + Table 2; Tables 1, 3, 4 and Fig. 5b in the appendix). The form field is filled by whoever submits; no role submits.

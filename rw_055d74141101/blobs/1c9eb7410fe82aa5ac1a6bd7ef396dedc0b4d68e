@@ -1,0 +1,321 @@
+"""Bradley-Terry fits on pair-aggregated counts, influence, and alteration search.
+
+Comparison outcomes are aggregated per model pair (a<b) into counts
+[a wins, b wins, tie]; BT-MLE counts a tie as half a win to each side (Arena
+convention).  Every alteration of one comparison changes these counts by a
+fixed vector, so a perturbation is an integer vector over alteration *types*
+(pair x kind) with capacities, and a refit costs ~1 ms.
+"""
+import numpy as np
+
+LAM = 1e-4  # ridge on theta (pseudo-comparison units); fixes the scale-free direction
+
+
+def sigmoid(x):
+    return 0.5 * (1.0 + np.tanh(0.5 * x))
+
+
+class Graph:
+    """Pair structure of a comparison data set (counts are kept apart)."""
+
+    def __init__(self, M, pa, pb):
+        self.M, self.pa, self.pb = M, np.asarray(pa), np.asarray(pb)
+        self.P = len(self.pa)
+
+    @staticmethod
+    def from_comparisons(M, ci, cj, s):
+        """ci, cj model indices, s score of ci in {0, .5, 1}. Returns (Graph, counts, pair_of_comparison, flip)."""
+        ci, cj, s = np.asarray(ci), np.asarray(cj), np.asarray(s, dtype=float)
+        a, b = np.minimum(ci, cj), np.maximum(ci, cj)
+        sa = np.where(ci < cj, s, 1.0 - s)  # score of the lower-index model
+        key = a * M + b
+        uk, inv = np.unique(key, return_inverse=True)
+        g = Graph(M, uk // M, uk % M)
+        cnt = np.zeros((g.P, 3))
+        np.add.at(cnt, (inv, np.where(sa == 1.0, 0, np.where(sa == 0.0, 1, 2))), 1.0)
+        return g, cnt, inv, sa
+
+
+def fit(g, cnt, theta0=None, lam=LAM, tol=1e-10, maxit=60, return_H=False):
+    """BT-MLE (ties = half wins) by damped Newton. Returns theta (and the Hessian)."""
+    M, pa, pb = g.M, g.pa, g.pb
+    n = cnt.sum(1)
+    w = cnt[:, 0] + 0.5 * cnt[:, 2]
+    th = np.zeros(M) if theta0 is None else theta0.copy()
+    for _ in range(maxit):
+        p = sigmoid(th[pa] - th[pb])
+        r = w - n * p
+        S = np.bincount(pa, r, M) - np.bincount(pb, r, M) - lam * th
+        W = n * p * (1 - p)
+        H = np.zeros((M, M))
+        H[np.arange(M), np.arange(M)] = np.bincount(pa, W, M) + np.bincount(pb, W, M) + lam
+        H[pa, pb] -= W
+        H[pb, pa] -= W
+        step = np.linalg.solve(H, S)
+        m = np.abs(step).max()
+        if m > 4.0:
+            step *= 4.0 / m
+        th = th + step
+        if m < tol:
+            break
+    if return_H:
+        p = sigmoid(th[pa] - th[pb])
+        W = n * p * (1 - p)
+        H = np.zeros((M, M))
+        H[np.arange(M), np.arange(M)] = np.bincount(pa, W, M) + np.bincount(pb, W, M) + lam
+        H[pa, pb] -= W
+        H[pb, pa] -= W
+        return th, H
+    return th
+
+
+# alteration kinds: (name, family, dcount on [a-win, b-win, tie], source pool index)
+KINDS = {
+    "delete": [
+        ("del_a", np.array([-1, 0, 0.0]), 0),
+        ("del_b", np.array([0, -1, 0.0]), 1),
+        ("del_t", np.array([0, 0, -1.0]), 2),
+    ],
+    # non-dominated flips only: b->a, t->a, a->b, t->b (a->t and b->t are dominated, same pool, half the effect)
+    "flip": [
+        ("b2a", np.array([1, -1, 0.0]), 1),
+        ("t2a", np.array([1, 0, -1.0]), 2),
+        ("a2b", np.array([-1, 1, 0.0]), 0),
+        ("t2b", np.array([0, 1, -1.0]), 2),
+    ],
+    # free-choice insertion (lower bound on attacker cost): unlimited capacity
+    "insert": [
+        ("ins_a", np.array([1, 0, 0.0]), -1),
+        ("ins_b", np.array([0, 1, 0.0]), -1),
+        ("ins_t", np.array([0, 0, 1.0]), -1),
+    ],
+}
+
+
+class Types:
+    """Alteration types of one family on one graph: arrays over (pair, kind)."""
+
+    def __init__(self, g, family):
+        ks = KINDS[family]
+        self.g, self.family = g, family
+        self.pair = np.repeat(np.arange(g.P), len(ks))
+        self.dc = np.tile(np.stack([k[1] for k in ks]), (g.P, 1))  # (T,3)
+        self.pool = np.tile(np.array([k[2] for k in ks]), g.P)
+        self.dw = self.dc[:, 0] + 0.5 * self.dc[:, 2]
+        self.dn = self.dc.sum(1)
+        self.nk = len(ks)
+        self.cost = np.ones(len(self.pair))  # cost of one alteration of each type (set by with_cost); budgets k are in these units
+
+    def with_cost(self, per_kind):
+        """Set the cost of each kind (vector over the family's kinds, tiled over pairs)."""
+        self.cost = np.tile(np.asarray(per_kind, float), self.g.P)
+        return self
+
+    def capacity(self, cnt):
+        cap = np.full(len(self.pair), np.inf)
+        m = self.pool >= 0
+        cap[m] = cnt[self.pair[m], self.pool[m]]
+        return cap
+
+    def apply(self, cnt, x):
+        out = cnt.copy()
+        xs = np.asarray(x, dtype=float).reshape(self.g.P, self.nk)
+        for kk in range(self.nk):
+            out += xs[:, kk:kk + 1] * self.dc[kk::self.nk]
+        return out
+
+
+def gap_gamma(g, th, H, d):
+    """gamma_p = d^T H^-1 (e_a - e_b) per pair, for gap direction d."""
+    v = np.linalg.solve(H, d)
+    return v[g.pa] - v[g.pb]
+
+
+def effects(g, ty, th, H, d):
+    """first-order effect on gap = d.theta of one unit of every alteration type (vector over types)."""
+    gam = gap_gamma(g, th, H, d)
+    p = sigmoid(th[g.pa] - th[g.pb])
+    u = ty.dw - ty.dn * p[ty.pair]
+    return gam[ty.pair] * u
+
+
+def fill(eff, cap, k, cost=None):
+    """Integer greedy fill of alteration units up to budget k (in cost units), best effect per unit cost first (capacity-limited).
+    Unit cost (cost=None) is the top-k fill. Returns x and the unspent budget."""
+    c = np.ones(len(eff)) if cost is None else cost
+    order = np.argsort(eff / c)
+    x = np.zeros(len(eff))
+    left = k
+    for t in order:
+        if eff[t] >= 0 or left < c[t]:
+            if eff[t] >= 0:
+                break
+            continue
+        take = min(cap[t], np.floor(left / c[t] + 1e-9))
+        x[t] = take
+        left -= take * c[t]
+    return x, left
+
+
+def make_d(M, x, y):
+    d = np.zeros(M)
+    d[x] = 1.0
+    d[y] = -1.0
+    return d
+
+
+def gap_after(g, ty, cnt, x, th0, d):
+    th = fit(g, ty.apply(cnt, x), theta0=th0)
+    return d @ th, th
+
+
+def iterlin(g, ty, cnt, th0, d, k, T=12):
+    """Iterated re-linearisation: fill by influence at the current refit, repeat; return best (gap, x) seen."""
+    cap = ty.capacity(cnt)
+    th, H = fit(g, cnt, th0, return_H=True)
+    best = (np.inf, None)
+    x = np.zeros(len(cap))
+    seen = set()
+    for it in range(T):
+        # influence at the current perturbed fit (capacity relative to original counts)
+        eff = effects(g, ty, th, H, d)
+        xn, left = fill(eff, cap, k, ty.cost)
+        key = xn.tobytes()
+        if key in seen:
+            break
+        seen.add(key)
+        gp, thn = gap_after(g, ty, cnt, xn, th0, d)
+        if gp < best[0]:
+            best = (gp, xn)
+        # damped move of the linearisation point
+        th, H = fit(g, ty.apply(cnt, xn), thn, return_H=True)
+        if gp <= 0 and it >= 1:
+            break
+    return best
+
+
+def round_fill(xf, cap, k):
+    """Round a fractional allocation with sum k to integers (largest remainders, capacity-respecting)."""
+    x = np.floor(xf + 1e-9)
+    left = int(round(k - x.sum()))
+    if left > 0:
+        frac = xf - x
+        for t in np.argsort(-frac):
+            if left <= 0:
+                break
+            if x[t] + 1 <= cap[t] and frac[t] > 1e-9:
+                x[t] += 1
+                left -= 1
+    return x
+
+
+def frankwolfe(g, ty, cnt, th0, d, k, T=40):
+    """Frank-Wolfe on the continuous relaxation of min_x d.theta(x), sum x = k, 0 <= x <= cap,
+    exact line search by refits; final iterate rounded to integers. Returns best (gap, x) verified by refit."""
+    cap = ty.capacity(cnt)
+    x = np.zeros(len(cap))
+    th, H = fit(g, cnt, th0, return_H=True)
+    gcur = d @ th
+    best = (np.inf, None)
+    for it in range(T):
+        eff = effects(g, ty, th, H, d)
+        s, left = fill(eff, cap, k)
+        if left > 0 and it == 0:
+            return best
+        dirn = s - x
+        if np.abs(dirn).sum() < 1e-9:
+            break
+        cand = []
+        for gam in (1.0, 0.5, 0.25, 0.1, 0.05, 0.02):
+            xn = x + gam * dirn
+            gp, thn = gap_after(g, ty, cnt, xn, th0, d)
+            cand.append((gp, gam, xn, thn))
+        gp, gam, xn, thn = min(cand, key=lambda c: c[0])
+        if gp >= gcur - 1e-9 and it > 0:
+            break
+        x, gcur = xn, gp
+        th, H = fit(g, ty.apply(cnt, x), thn, return_H=True)
+        xr = round_fill(x, cap, k)
+        gr, _ = gap_after(g, ty, cnt, xr, th0, d)
+        if gr < best[0]:
+            best = (gr, xr)
+        if gr <= 0:
+            break
+    return best
+
+
+def search(g, ty, cnt, th0, d, k, method="both", T=12):
+    if method == "iterlin":
+        return iterlin(g, ty, cnt, th0, d, k, T)
+    if method == "fw":
+        return frankwolfe(g, ty, cnt, th0, d, k)
+    a = iterlin(g, ty, cnt, th0, d, k, T)
+    if a[0] <= 0:
+        return a
+    b = frankwolfe(g, ty, cnt, th0, d, k)
+    return b if b[0] < a[0] else a
+
+
+def kstar(g, ty, cnt, d, th0=None, T=12, kmax=None, method="iterlin"):
+    """Smallest k found for which the refit has d.theta <= 0, plus first-order k (no refit) and the search path.
+
+    Returns dict(k_ver (verified upper bound, inf if unreachable), k_lin (first-order), gap0, gmax, x).
+    """
+    if th0 is None:
+        th0 = fit(g, cnt)
+    th, H = fit(g, cnt, th0, return_H=True)
+    gap0 = d @ th
+    if gap0 <= 0:
+        return dict(k_ver=0, k_lin=0, gap0=gap0, gmax=np.nan, x=None)
+    cap = ty.capacity(cnt)
+    eff = effects(g, ty, th, H, d)
+    neg = -eff[eff < 0]
+    gmax = neg.max() if len(neg) else np.nan
+    # first-order k (in cost units): smallest budget whose best-ratio fill sums to the gap
+    cst = ty.cost
+    order = np.argsort(eff / cst)
+    cum, k_lin = 0.0, np.inf
+    kk = 0.0
+    for t in order:
+        if eff[t] >= 0:
+            break
+        c = cap[t]
+        need = (gap0 - cum) / -eff[t]
+        if need <= c:
+            k_lin = kk + need * cst[t]
+            break
+        cum += c * -eff[t]
+        kk += c * cst[t]
+    ctot = (np.where(np.isfinite(cap), cap, 0) * cst)[eff < 0].sum() if ty.family != "insert" else np.inf
+    hi_cap = ctot if kmax is None else min(ctot, kmax)
+    # exponential then bisection on k, each evaluated by iterlin
+    def ok(k):
+        gp, x = search(g, ty, cnt, th0, d, int(k), method, T)
+        return gp <= 0, x
+
+    kl = max(1, int(np.floor(k_lin))) if np.isfinite(k_lin) else 1
+    k = max(1, kl)
+    lo, hi, xhi = 0, None, None
+    while True:
+        k = int(min(k, hi_cap)) if np.isfinite(hi_cap) else int(k)
+        if k < 1:
+            break
+        good, x = ok(k)
+        if good:
+            hi, xhi = k, x
+            break
+        lo = k
+        if np.isfinite(hi_cap) and k >= hi_cap:
+            break
+        k = int(np.ceil(k * 1.5)) + 1
+    if hi is None:
+        return dict(k_ver=np.inf, k_lin=k_lin, gap0=gap0, gmax=gmax, x=None)
+    # smaller than first-order estimate is possible (convexity): search down too if hi at first try
+    while hi - lo > 1:
+        mid = (lo + hi) // 2
+        good, x = ok(mid)
+        if good:
+            hi, xhi = mid, x
+        else:
+            lo = mid
+    return dict(k_ver=hi, k_lin=k_lin, gap0=gap0, gmax=gmax, x=xhi)

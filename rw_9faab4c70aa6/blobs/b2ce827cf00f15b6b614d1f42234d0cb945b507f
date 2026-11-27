@@ -1,0 +1,87 @@
+"""Decisions drawn from reported scores (claim C4): tuned-vs-untuned gains and tuned-A-vs-tuned-B comparisons, against
+explicit nulls (equal-theta synthetic worlds; real subsets of configurations whose pool accuracies lie in a narrow
+window) and against non-null worlds.  One row = (replicate, scenario, comparison, n, budget) aggregated over draws.
+Usage: python run_decisions.py --arm synthetic|real --out FILE.jsonl --workers W [--draws D] [--reps R] [--matrix NPZ]"""
+import sys, os, json, time, argparse, zlib, functools
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "analysis"))
+import numpy as np
+from multiprocessing import Pool
+from core import World
+from decisions import tuned_vs_untuned, a_vs_b
+from run_protocols import _make_world, GRID
+
+NS = (60, 120, 240); BUD_TVU = (20, 100); BUD_AVB = ((20, 20), (100, 20))   # evaluated configs for A and for B
+MATRIX = None
+
+
+@functools.lru_cache(maxsize=2)
+def _world(arm, rep, sigma_theta):
+    return _make_world(arm, dict(rep=rep, sigma_theta=sigma_theta), MATRIX)
+
+
+def window(world, width=0.02):
+    """configurations whose pool accuracy lies in the densest window of the given width (chosen by count only)."""
+    p = world.Y.mean(0); order = np.argsort(p); best = (0, 0)
+    for i in range(len(p)):
+        j = np.searchsorted(p[order], p[order[i]] + width, side="right")
+        if j - i > best[0]: best = (j - i, i, j)
+    return np.sort(order[best[1]:best[2]])
+
+
+def task(a):
+    arm, rep, sig, scen, comp, n, bud, draws, matrix = a
+    global MATRIX; MATRIX = matrix; t0 = time.time()
+    world = _world(arm, rep, sig)
+    cand = np.arange(world.K) if scen != "window" else window(world)
+    if scen == "window" and len(cand) < 20: return (a[1:7], [], 0.0)
+    default = 0 if scen != "window" else int(cand[0])        # config id 0 = pre-specified default; window null: lowest id in window
+    rng = np.random.default_rng([17, rep + 1, int(1000 * (sig or 0)), n, zlib.crc32((scen + comp).encode()) % 1000, sum(bud) if isinstance(bud, tuple) else bud])
+    recs = []
+    for _ in range(draws):
+        if comp == "tuned_vs_untuned":
+            recs.append(tuned_vs_untuned(world, n, default, rng, cand=cand, search_kw=dict(B=bud)))
+        else:
+            recs.append(a_vs_b(world, n, cand, cand, rng, same_S=(comp == "A_vs_B_sameS"), search_kw_A=dict(B=bud[0]), search_kw_B=dict(B=bud[1])))
+    g = lambda k: np.array([r[k] for r in recs], float)
+    row = dict(arm=arm, rep=rep, sigma_theta=sig, scenario=scen, comparison=comp, n=n, budget=str(bud), draws=draws, K_cand=int(len(cand)))
+    if comp == "tuned_vs_untuned":
+        tg = g("true_gain"); null = tg <= 0
+        row.update(mean_true_gain=float(tg.mean()), mean_report_gain=float(g("report_gain").mean()), p_true_gain_le0=float(null.mean()))
+        for k in ("naive", "maxt", "split"):
+            d = g(f"{k}_decl").astype(bool); row.update({f"{k}_declare": float(d.mean()), f"{k}_false_declare": float((d & null).mean())})
+    else:
+        td = g("true_diff"); rd = g("report_diff")
+        row.update(mean_true_diff=float(td.mean()), mean_report_diff=float(rd.mean()), p_A_wins_reported=float(g("A_wins_reported").mean()),
+                   p_A_sig=float(g("A_sig").mean()), p_B_sig=float(g("B_sig").mean()),
+                   p_A_sig_wrong=float((g("A_sig").astype(bool) & (td <= 0)).mean()), p_B_sig_wrong=float((g("B_sig").astype(bool) & (td >= 0)).mean()),
+                   p_flip=float(((rd > 0) != (td > 0))[td != 0].mean()) if (td != 0).any() else None)
+    return a[1:7], [row], time.time() - t0
+
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser(); ap.add_argument("--arm", required=True); ap.add_argument("--out", required=True)
+    ap.add_argument("--workers", type=int, default=4); ap.add_argument("--draws", type=int, default=500)
+    ap.add_argument("--reps", type=int, default=4); ap.add_argument("--matrix", default="data/matrix_Y.npz")
+    ap.add_argument("--quick", action="store_true")
+    a = ap.parse_args()
+    if a.arm == "real":
+        z = np.load(a.matrix); MATRIX = (z["Y"], z["factors"])
+        specs = [(r, None, sc) for r in range(-1, a.reps) for sc in ("all", "window")]
+    else:
+        specs = [(r, s, f"sigma{s}") for s in (0.0, 0.01, 0.03) for r in range(a.reps)]
+    jobs = []
+    for rep, sig, sc in specs:
+        for n in (NS[:1] if a.quick else NS):
+            for b in BUD_TVU: jobs.append((a.arm, rep, sig, sc, "tuned_vs_untuned", n, b))
+            for b in BUD_AVB:
+                for comp in ("A_vs_B_sameS", "A_vs_B_ownS"): jobs.append((a.arm, rep, sig, sc, comp, n, b))
+    done = set()
+    if os.path.exists(a.out):
+        for l in open(a.out):
+            d = json.loads(l); done.add((d["rep"], d["sigma_theta"], d["scenario"], d["comparison"], d["n"], d["budget"]))
+    tasks = [(*j, a.draws if (j[1] >= 0 or a.arm == "synthetic") else 2000, MATRIX) for j in jobs if (j[1], j[2], j[3], j[4], j[5], str(j[6])) not in done]
+    print(f"{len(tasks)} tasks", flush=True); t0 = time.time()
+    with Pool(a.workers) as pool, open(a.out, "a") as f:
+        for key, rows, dt in pool.imap_unordered(task, tasks):
+            for r in rows: f.write(json.dumps(r) + "\n")
+            f.flush(); print(f"done {key} {dt:.0f}s total {time.time()-t0:.0f}s", flush=True)

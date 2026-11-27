@@ -1,0 +1,65 @@
+"""Fig 1 (concept): one instance, R independent runs of the unchanged shap KernelExplainer at its default budget.
+(a) |phi| of the most important features: the 100 runs (dots) around the exact value (black diamond); the dashed line is the exact
+    top-3 / rest boundary (midpoint of the 3rd and 4th exact |phi|).
+(b) the run-to-run gap between the exact 3rd and 4th feature, (|phi_3|-|phi_4|)/max|phi| per run: the top-3 set changes only when it
+    crosses 0; the black line is the exact value (the exact margin). One row per instance in runs_example.
+The instance is fixed by analysis's rule (German Credit, RF, median exact k=3 margin; runs_example_README.txt), not chosen for effect.
+Usage: python fig1_concept.py DATA_DIR OUT_PREFIX [--k 3] [--show 8]
+"""
+import argparse, os, sys
+import numpy as np, pandas as pd
+import matplotlib.pyplot as plt
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import figstyle as fs
+
+ap = argparse.ArgumentParser()
+ap.add_argument("data"); ap.add_argument("out"); ap.add_argument("--k", type=int, default=3); ap.add_argument("--show", type=int, default=8)
+a = ap.parse_args()
+r, p1 = fs.load(a.data, "runs_example")
+fs.require(r, ["dataset", "model", "instance_id", "repeat", "feature", "feature_name", "phi_run", "phi_exact"], "runs_example")
+assert r.dataset.nunique() == 1 and r.model.nunique() == 1
+fs.setup()
+k = a.k
+ids = sorted(r.instance_id.unique())
+fig, axes = plt.subplots(len(ids), 2, figsize=(fs.WIDTH_IN, 0.2 + 1.85 * len(ids)), squeeze=False,
+                         gridspec_kw=dict(width_ratios=[1.35, 1], wspace=0.35, hspace=0.9))
+rng = np.random.default_rng(0)
+plotted, notes = [], []
+for row_i, iid in enumerate(ids):
+    ri = r[r.instance_id == iid]
+    ex = ri.drop_duplicates("feature").assign(ax=lambda d: d.phi_exact.abs()).sort_values("ax", ascending=False).reset_index(drop=True)
+    rank = {f: i + 1 for i, f in enumerate(ex.feature)}
+    tau = 0.5 * (ex.ax[k - 1] + ex.ax[k]); scale = ex.ax.max()
+    margin = (ex.ax[k - 1] - ex.ax[k]) / scale
+    R = ri.repeat.nunique()
+    ri = ri.assign(ax=ri.phi_run.abs())
+    wide = ri.pivot(index="repeat", columns="feature", values="ax")
+    f3, f4 = ex.feature[k - 1], ex.feature[k]
+    gap = (wide[f3] - wide[f4]) / scale                      # run gap between the exact k-th and (k+1)-th features
+    # the run's top-k set equals the exact one iff every exact top-k feature beats every other feature in that run
+    ok = np.array([set(wide.loc[t].sort_values(ascending=False).index[:k]) == set(ex.feature[:k]) for t in wide.index])
+    axa, axb = axes[row_i]
+    show = ex.head(a.show)
+    for i, rw in show.iterrows():
+        v = ri[ri.feature == rw.feature].ax.to_numpy()
+        axa.scatter(i + 1 + rng.uniform(-0.28, 0.28, len(v)), v, s=3, color="#0072B2", alpha=0.45, lw=0, zorder=2)
+        axa.scatter([i + 1], [rw.ax], marker="D", s=14, color="k", zorder=3)
+    axa.axhline(tau, color="#D55E00", lw=0.9, ls=(0, (4, 1.5)))
+    axa.text(a.show + 0.45, tau, f"top-{k} boundary", color="#D55E00", ha="right", va="bottom", fontsize=fs.MIN_PT)
+    axa.set_xticks(range(1, a.show + 1))
+    axa.set_xticklabels([n.replace("_", " ") for n in show.feature_name], rotation=40, ha="right", rotation_mode="anchor")
+    axa.set_xlim(0.4, a.show + 0.6); axa.set_ylabel(r"$|\phi_j|$")
+    axa.set_title(f"({'ab'[0] if row_i == 0 else 'cd'[0]}) instance {iid}: exact margin {margin:.3g}, {R} runs" if len(ids) > 1 else f"(a) one instance, {R} runs", loc="left", fontsize=fs.LABEL_PT)
+    lo, hi = min(gap.min(), 0) - 0.01, max(gap.max(), margin) + 0.01
+    axb.hist(gap, bins=np.linspace(lo, hi, 25), color="#0072B2", alpha=0.8, lw=0)
+    axb.axvline(0, color="#D55E00", lw=0.9, ls=(0, (4, 1.5))); axb.axvline(margin, color="k", lw=1.0)
+    axb.set_xlabel(r"run gap $(|\phi_{(3)}|-|\phi_{(4)}|)/\max|\phi|$"); axb.set_ylabel("runs")
+    axb.set_title(f"({'b' if row_i == 0 else 'd'}) runs with exact top-{k} set: {int(ok.sum())}/{R}", loc="left", fontsize=fs.LABEL_PT)
+    plotted.append(show.assign(panel=f"a{row_i}", instance_id=iid, exact_abs_phi=show.ax, boundary=tau, k=k)[["panel", "instance_id", "feature", "feature_name", "exact_abs_phi", "boundary", "k"]])
+    plotted.append(pd.DataFrame({"panel": f"b{row_i}", "instance_id": iid, "repeat": wide.index, "run_gap": gap.to_numpy(), "exact_gap": margin, "exact_topk_in_run": ok}))
+    notes.append(f"instance {iid}: exact margin {margin:.4f}, runs with exact set {int(ok.sum())}/{R}")
+fig.subplots_adjust(left=0.085, right=0.985, top=0.90 if len(ids) == 1 else 0.95, bottom=0.39 if len(ids) == 1 else 0.17)
+
+fs.save(fig, a.out, pd.concat(plotted), [p1],
+        note=f"{r.dataset.iloc[0]} {r.model.iloc[0]}; k={k}; margin normalised by max|phi|; " + "; ".join(notes) + "; selection rule and estimator/budget: runs_example_README.txt (shap KernelExplainer, l1_reg=auto, m=2088); features with the largest exact |phi| drawn")
+print("; ".join(notes))

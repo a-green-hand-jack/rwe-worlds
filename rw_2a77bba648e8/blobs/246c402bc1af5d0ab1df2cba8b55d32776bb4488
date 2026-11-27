@@ -1,0 +1,8 @@
+{
+ "script": "analysis/claims.py",
+ "code_commit": "a4892dcac8a4990134f99fe12139420ccce84baf",
+ "seed": 20261125,
+ "n_draws": "see cells.meta.json",
+ "date": "2026-11-26",
+ "rows": 324
+}

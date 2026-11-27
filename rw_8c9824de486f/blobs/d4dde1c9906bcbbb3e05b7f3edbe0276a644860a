@@ -1,0 +1,93 @@
+"""Inference baselines P2/P3/P4/P6 and the wrapper selection S3, with their (inner-CV) hyperparameter tuning.
+Adaptations to a new model with k revealed scores are listed in prereg/PREREG.md section H."""
+import numpy as np
+from scipy.optimize import least_squares
+from fa import fit_fa, posterior_row, complete, _estep
+
+# ---------------- P2 ridge on the revealed benchmarks, trained on the EM-FA-completed training matrix
+def p2_fit(Xc, lam):
+    G = Xc.T @ Xc / Xc.shape[0]
+    return dict(G=G, lam=lam)
+
+def p2_predict(m, S, y):
+    G, lam = m["G"], m["lam"]
+    B = np.linalg.solve(G[np.ix_(S, S)] + lam * np.eye(len(S)), G[S, :])
+    return y @ B
+
+# ---------------- P3 kNN over training models
+def p3_predict(Ztr, mask_tr, S, y, K):
+    Zs = Ztr[:, S]; ms = mask_tr[:, S]
+    d = np.where(ms, (Zs - y[None]) ** 2, 0.0).sum(1) / np.maximum(ms.sum(1), 1)
+    d = np.where(ms.sum(1) >= max(1, min(len(S), 2)), d, np.inf)
+    nb = np.argsort(d)[:K]; nb = nb[np.isfinite(d[nb])]
+    if len(nb) == 0: return np.zeros(Ztr.shape[1])
+    w = 1.0 / (d[nb] + 1e-3)
+    X = np.where(mask_tr[nb], Ztr[nb], 0.0); W = mask_tr[nb] * w[:, None]
+    num = (X * w[:, None]).sum(0); den = W.sum(0)
+    return np.where(den > 0, num / np.maximum(den, 1e-12), 0.0)
+
+# ---------------- P4 Soft-Impute (Mazumder et al. 2010); new row by the ALS row update on the fitted right factors
+def soft_impute(Z, lam, n_iter=100, tol=1e-4):
+    mask = ~np.isnan(Z); Z0 = np.where(mask, Z, 0.0); X = np.zeros_like(Z0)
+    for _ in range(n_iter):
+        U, s, Vt = np.linalg.svd(np.where(mask, Z0, X), full_matrices=False)
+        s2 = np.maximum(s - lam, 0.0); Xn = (U * s2) @ Vt
+        if np.linalg.norm(Xn - X) < tol * (np.linalg.norm(X) + 1e-9): X = Xn; break
+        X = Xn
+    q = int((s2 > 0).sum())
+    return dict(B=Vt[:q].T * np.sqrt(s2[:q])[None], lam=lam)
+
+def p4_predict(m, S, y):
+    B, lam = m["B"], m["lam"]
+    if B.shape[1] == 0: return np.zeros(B.shape[0])
+    a = np.linalg.solve(B[S].T @ B[S] + lam * np.eye(B.shape[1]), B[S].T @ y)
+    return B @ a
+
+# ---------------- P6 PC regression with a sigmoid link (adaptation of observational scaling laws): bounded scores y/100 = sigmoid(w'[z;1])
+def p6_fit(Ztr, fit, mu_raw, sd_raw, mask_tr, C=None):
+    mask = mask_tr; M, N = Ztr.shape; r = fit["V"].shape[1]
+    mean, _ = _estep(Ztr, mask, fit["mu"], fit["V"], fit["psi"])
+    Zl = np.concatenate([mean, np.ones((M, 1))], 1)
+    W = np.zeros((N, r + 1))
+    for j in range(N):
+        o = mask[:, j]
+        if o.sum() < r + 3: continue
+        y = np.clip((Ztr[o, j] * sd_raw[j] + mu_raw[j]) / 100.0, 0.005, 0.995)
+        X = Zl[o]
+        w0 = np.linalg.lstsq(X.T @ X + 1e-2 * np.eye(r + 1), X.T @ np.log(y / (1 - y)), rcond=None)[0]
+        f = lambda w: np.concatenate([1 / (1 + np.exp(-(X @ w))) - y, 0.03 * w[:-1]])
+        W[j] = least_squares(f, w0, max_nfev=30).x
+    return dict(W=W, mu_raw=mu_raw, sd_raw=sd_raw)
+
+def p6_predict(m, fit, S, y):
+    z, _ = posterior_row(fit, S, y)
+    p = 1 / (1 + np.exp(-(m["W"][:, :-1] @ z + m["W"][:, -1])))
+    return (100.0 * p - m["mu_raw"]) / m["sd_raw"]
+
+# ---------------- S3 wrapper: greedy forward selection by training-row error of P5 (closed form), ordering over all benchmarks
+def s3_order(Ztr, mask_tr, fit, kmax=32):
+    M, N = Ztr.shape; V, mu, psi = fit["V"], fit["mu"], fit["psi"]; r = V.shape[1]
+    A = V / np.sqrt(psi)[:, None]; E = np.where(mask_tr, (np.nan_to_num(Ztr) - mu[None]) / np.sqrt(psi)[None], 0.0)
+    Y0 = np.where(mask_tr, Ztr, 0.0)
+    inS = np.zeros(N, bool); order = []
+    P = np.tile(np.eye(r), (M, 1, 1)); b = np.zeros((M, r))
+    for step in range(kmax):
+        Pinv = np.linalg.inv(P); z = np.einsum("mab,mb->ma", Pinv, b)
+        base = mu[None] + z @ V.T                                        # M x N predictions with current S
+        score = np.zeros(N)
+        w = mask_tr & ~inS[None]                                         # cells that are still targets
+        for m in range(M):
+            Gm = (V @ Pinv[m]) @ A.T                                     # N x N : v_i' Pinv a_j
+            q = np.einsum("jr,rj->j", A @ Pinv[m], A.T)                  # a_j' Pinv a_j
+            resid = E[m] - A @ z[m]                                      # e_mj - a_j' z
+            coef = np.where(mask_tr[m], resid / (1 + q), 0.0)            # per candidate j
+            pred = base[m][:, None] + Gm * coef[None, :]                 # i x j
+            err = (pred - Y0[m][:, None]) ** 2
+            tot = (w[m][:, None] * err).sum(0)                           # sum over still-target cells i (includes i = j)
+            own = np.where(mask_tr[m] & ~inS, w[m] * (np.diag(pred) - Y0[m]) ** 2, 0.0)   # j's own cell is no longer a target
+            nm = np.where(mask_tr[m], 1.0, 0.0)
+            score += (tot - own) / np.maximum(w[m].sum() - nm, 1)        # per-model MSE averaged over models
+        score = np.where(inS, np.inf, score / M)
+        j = int(np.argmin(score)); order.append(j); inS[j] = True
+        P += mask_tr[:, j][:, None, None] * np.outer(A[j], A[j])[None]; b += mask_tr[:, j][:, None] * (A[j][None] * E[:, j][:, None])
+    return np.array(order)

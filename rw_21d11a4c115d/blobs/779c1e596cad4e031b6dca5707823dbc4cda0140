@@ -1,0 +1,1 @@
+One factor carries most of the variance in all three pools, and the rank chosen by held-out likelihood is small. Left: share of variance per component of the standardised dense-pool matrix (log scale). Right: cumulative share; rings mark the rank $r_{\rm eff}$ of Table~\ref{tab:datasets}.

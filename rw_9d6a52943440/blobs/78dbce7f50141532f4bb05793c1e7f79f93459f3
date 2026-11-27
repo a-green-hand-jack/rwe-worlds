@@ -1,0 +1,125 @@
+"""Check of the re-implemented anchor baselines against independent public code, on our folds and targets (the k-means / k-medoids random states are 0 ... draws-1, not the seeds of our own anchor draws).
+
+usage (the three public repositories are cloned beside each other; see REPRODUCE.md):
+  python3 -I scripts/12_public_baselines.py BENCH SPLIT --pub DIR [--draws 10] [--folds K] [--irt] [--D 10] [--epochs 2000] --out results/raw_public
+
+DIR holds `tb` (https://github.com/felipemaiapolo/tinyBenchmarks), `pyirt` (https://github.com/felipemaiapolo/py-irt, the fork its tutorials
+ask for) and optionally `ap` (https://github.com/rvivek3/AnchorPoints); the packages `kmedoids`, `pyro-ppl`, `pydantic<2`, `typer`, `rich`,
+`toml`, `ordered-set`, `jsonlines` are needed besides ours. Nothing of that code is copied into this repository.
+
+Stage A (no flag), every fold:
+  tb-anchor-correct   tinyBenchmarks tutorial `anchor_points.ipynb`, clustering = 'correct.': sklearn KMeans(n_clusters=n, n_init="auto",
+                      random_state=seed, sample_weight=1/N) on the source models' correctness columns; anchor = item nearest to its centre;
+                      weight = cluster mass; estimate = sum_k weight_k * y_anchor_k (the notebook's `(Y_anchor*anchor_weights).sum()`).
+  ap-weighted         Anchor Points ("Anchor_Points_Weighted" of optimal_valset_validation.py): kmedoids.fasterpam(1 - corr(items over source
+                      models), n, init="random"), cluster = argmax of the correlation to the medoids, weight = cluster size / N;
+                      estimate = sum_k weight_k * y_medoid_k. Items constant over the sources have an undefined correlation and get 0.
+Stage B (--irt), the first K folds: a multidim 2PL fitted with the public py-irt fork on the source models (D dimensions, hierarchical priors,
+  lr 0.1, `--epochs` epochs, seed 42, as in `training_irt.ipynb`; no validation choice of D, no gp-IRT lambda), then
+  tb-anchor-irt       clustering = 'irt' (KMeans on [discrimination, difficulty] of the items), same weights and estimator;
+  tb-pirt-correct, tb-pirt-irt   p-IRT of `estimating_performance.ipynb` for the two anchor sets: BFGS maximum-likelihood ability from the n anchor
+                      answers (their `estimate_ability_parameters`), prediction = (n/N) mean(y_anchor) + (1 - n/N) mean_unseen(item_curve).
+Every method gets `--draws` seeds (KMeans / k-medoids random state) at n = 100; targets and folds are those of 02_run.py. Output: one pickle per
+(bench, split, tag) with records {fold, tgt, true, preds: {method: (R, T)}} comparable to results/raw/*.pkl.
+"""
+import os
+for v in ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS"):
+    os.environ.setdefault(v, "1")
+import sys, argparse, pickle, pathlib, time, subprocess, tempfile, importlib.util
+import numpy as np
+
+HERE = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parent / "src"))
+from bpred import data
+
+spec = importlib.util.spec_from_file_location("run02", HERE / "02_run.py"); run02 = importlib.util.module_from_spec(spec); spec.loader.exec_module(run02)
+
+
+def anchors_from_kmeans(X, n, seed):
+    from sklearn.cluster import KMeans
+    from sklearn.metrics.pairwise import pairwise_distances
+    w = np.ones(X.shape[0]); w /= w.sum()
+    km = KMeans(n_clusters=n, n_init="auto", random_state=seed).fit(X, sample_weight=w)
+    pts = pairwise_distances(km.cluster_centers_, X, metric="euclidean").argmin(axis=1)
+    wt = np.array([w[km.labels_ == c].sum() for c in range(n)])
+    return pts, wt
+
+
+def anchors_ap_weighted(corrs, n, seed):
+    import kmedoids
+    sel = kmedoids.fasterpam(1 - corrs, n, init="random", random_state=seed).medoids
+    members = np.argmax(corrs[sel, :], axis=0)
+    uniq, sizes = np.unique(members, return_counts=True)
+    sizes = list(sizes)
+    for i in range(n):
+        if i not in uniq:
+            sizes.insert(i, 0)
+    return np.asarray(sel), np.asarray(sizes, float) / np.sum(sizes)
+
+
+def fit_irt(Ys, D, epochs, tb, pyirt, work):
+    sys.path.insert(0, str(pathlib.Path(tb) / "tutorials"))
+    from irt import create_irt_dataset, load_irt_parameters
+    ds, mdl = str(work / "d.jsonlines"), str(work / "m") + "/"
+    create_irt_dataset(Ys, ds)
+    code = ("import sys; sys.path.insert(0, %r); from py_irt.cli import app; sys.argv = ['py-irt','train','multidim_2pl',%r,%r,'--dims','%d',"
+            "'--lr','0.1','--epochs','%d','--device','cpu','--priors','hierarchical','--seed','42','--deterministic','--log-every','500']; app()"
+            % (str(pyirt), ds, mdl, D, epochs))
+    subprocess.run([sys.executable, "-I", "-c", code], check=True, stdout=subprocess.DEVNULL)
+    return load_irt_parameters(mdl)
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("bench"); ap.add_argument("split")
+    ap.add_argument("--pub", required=True); ap.add_argument("--draws", type=int, default=10); ap.add_argument("--n", type=int, default=100)
+    ap.add_argument("--folds", type=int, default=99); ap.add_argument("--irt", action="store_true")
+    ap.add_argument("--D", type=int, default=10); ap.add_argument("--epochs", type=int, default=2000)
+    ap.add_argument("--out", default="results/raw_public")
+    a = ap.parse_args()
+    pub = pathlib.Path(a.pub)
+    D_ = data.get(a.bench); Y, fams = D_["Y"], D_["families"]; N = Y.shape[1]; n = a.n
+    folds = run02.make_folds(Y, fams, a.split)[: a.folds]
+    recs, t0 = [], time.time()
+    if a.irt:
+        sys.path.insert(0, str(pub / "tb" / "tutorials"))
+        from irt import estimate_ability_parameters
+        from utils import item_curve
+    for fi, (si, ti) in enumerate(folds):
+        Ys, Yt = Y[si].astype(float), Y[ti].astype(float)
+        preds = {}
+        if not a.irt:
+            corrs = np.nan_to_num(np.corrcoef(Ys, rowvar=False), nan=0.0)
+            for name, sel in (("tb-anchor-correct", lambda r: anchors_from_kmeans(Ys.T, n, r)), ("ap-weighted", lambda r: anchors_ap_weighted(corrs, n, r))):
+                P = []
+                for r in range(a.draws):
+                    pts, wt = sel(r); P.append(Yt[:, pts] @ wt)
+                preds[name] = np.array(P, np.float32)
+        else:
+            with tempfile.TemporaryDirectory() as td:
+                A, B, _ = fit_irt(Ys.astype(int), a.D, a.epochs, pub / "tb", pub / "pyirt", pathlib.Path(td))
+            Xirt = np.vstack((A.squeeze(), B.squeeze().reshape((1, -1)))).T
+            for cl, X in (("correct", Ys.T), ("irt", Xirt)):
+                Pm, Pp = [], []
+                for r in range(a.draws):
+                    pts, wt = anchors_from_kmeans(X, n, r)
+                    if cl == "irt":
+                        Pm.append(Yt[:, pts] @ wt)
+                    unseen = np.setdiff1d(np.arange(N), pts); lam = n / N
+                    out = []
+                    for j in range(Yt.shape[0]):
+                        th = estimate_ability_parameters(Yt[j][pts], A[:, :, pts], B[:, :, pts])
+                        irt_part = item_curve(th, A, B)[0, unseen].mean()
+                        out.append(lam * Yt[j][pts].mean() + (1 - lam) * irt_part)
+                    Pp.append(out)
+                if cl == "irt":
+                    preds["tb-anchor-irt"] = np.array(Pm, np.float32)
+                preds[f"tb-pirt-{cl}"] = np.array(Pp, np.float32)
+        recs.append(dict(bench=a.bench, split=a.split, fold=fi, n=n, N=N, tgt=ti, true=Yt.mean(1), preds=preds, R=a.draws))
+        print(f"{a.bench} {a.split} fold {fi} done {time.time() - t0:.0f}s", flush=True)
+    out = pathlib.Path(a.out); out.mkdir(parents=True, exist_ok=True)
+    pickle.dump(dict(args=vars(a), records=recs, runtime=time.time() - t0), open(out / f"{a.bench}__{a.split}__{'B' if a.irt else 'A'}.pkl", "wb"))
+
+
+if __name__ == "__main__":
+    main()

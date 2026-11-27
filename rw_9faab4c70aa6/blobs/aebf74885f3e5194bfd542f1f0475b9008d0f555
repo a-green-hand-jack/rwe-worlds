@@ -1,0 +1,120 @@
+"""Reporting protocols at equal total item budget N_tot (claims C5, C6), on synthetic worlds (exact theta) or on the
+real item x configuration matrix (truth = accuracy on pool items outside U; pool-bootstrap replicates).
+
+One output row = (replicate, searcher, N_tot, budget B, protocol) aggregated over `draws` draws of U.
+Usage: python run_protocols.py --arm synthetic|real --out FILE.jsonl --workers W [--draws D] [--reps R] [--matrix NPZ]
+Resumable: finished (replicate, cell) tasks found in FILE are skipped."""
+import sys, os, json, time, argparse, zlib, functools
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "analysis"))
+import numpy as np
+from multiprocessing import Pool
+from core import World, gen_synthetic, SEARCHERS
+from semisynth import gen_world
+from protocols import run_protocols
+
+ZC = 1.645          # one-sided 95%: conservative scoring against the noisy fresh-item truth (rule (b))
+GRID = (4, 2, 8, 2)
+# primary cells (random search) and the C6 searcher cells
+CELLS = ([("random", n, B) for n in (60, 120, 240) for B in (20, 100)] +
+         [("hillclimb", n, None) for n in (120, 240)] +
+         [("sh", n, B) for n in (120, 240) for B in (20, 100)])
+
+
+def calibrate_f0(K, n, B):
+    """f0 such that successive halving over K candidates spends ~ B full-S-equivalent evaluations (deterministic)."""
+    lo, hi = 0.0, 1.0; w = World(np.zeros((n, K), np.uint8)); rng = np.random.default_rng(0)
+    for _ in range(14):
+        mid = (lo + hi) / 2
+        c = SEARCHERS["sh"](w, np.arange(n), np.arange(K), rng, f0=mid)[1] / n
+        lo, hi = (mid, hi) if c < B else (lo, mid)
+    return (lo + hi) / 2
+
+
+@functools.lru_cache(maxsize=2)
+def _world(arm, rep, sigma_theta, mid):
+    return _make_world(arm, dict(rep=rep, sigma_theta=sigma_theta), MATRIX)
+
+
+def _make_world(arm, spec, matrix):
+    if arm == "synthetic":
+        rng = np.random.default_rng([7, int(spec["sigma_theta"] * 1000), spec["rep"]])
+        w = gen_synthetic(20000, 0, rng, base=0.3, sigma_theta=max(spec["sigma_theta"], 1e-6), phi=0.5, N_pop=20000, grid=GRID)
+        if spec["sigma_theta"] == 0.0: w.theta = np.full(w.K, w.theta.mean())
+        return w
+    if arm == "semisynthetic":     # matrix = (fitted generator, factor levels); sigma_theta None = fitted spread, else rescaled (0 = null)
+        rng = np.random.default_rng([23, spec["rep"] + 1, int(1000 * (spec.get("sigma_theta") or 0))])
+        return gen_world(matrix[0], 1500, matrix[0]["b"].shape[0], rng, grid_factors=matrix[1], theta_sd=spec.get("sigma_theta"))
+    Y, factors = matrix
+    if spec["rep"] < 0: return World(Y, ids=np.arange(len(Y)), factors=factors)          # the pool itself
+    rng = np.random.default_rng([11, spec["rep"]]); idx = rng.integers(0, len(Y), len(Y))   # pool bootstrap replicate
+    return World(Y[idx], ids=idx, factors=factors)
+
+
+def agg(name, recs, world_exact, pool_n, n_tot, rng):
+    th = np.array([r["theta"] for r in recs]); se = np.array([r["th_se"] for r in recs])
+    rep = np.array([np.nan if r["report"] is None else r["report"] for r in recs])
+    lb = np.array([np.nan if r["lb"] is None else r["lb"] for r in recs])
+    et = np.array([r.get("est_target", np.nan) for r in recs])
+    row = dict(protocol=name, mean_theta=float(th.mean()), cells=float(np.mean([r["cells"] for r in recs])))
+    if not np.isnan(rep).all():
+        tgt = np.where(np.isnan(et), th, et)
+        row.update(mean_report=float(np.nanmean(rep)), bias=float(np.nanmean(rep - tgt)), mae=float(np.nanmean(np.abs(rep - tgt))),
+                   overstate_anti=float(np.mean(rep > tgt)), overstate_cons=float(np.mean(rep > tgt + ZC * se)))
+        if world_exact:  # noisy-truth scoring of the exact arm: how far verification noise moves the criterion
+            noisy = tgt + rng.normal(0, np.sqrt(0.09 / (pool_n - n_tot)), len(tgt))
+            row["overstate_noisy"] = float(np.mean(rep > noisy))
+    if not np.isnan(lb).all():
+        row.update(mean_lb=float(np.nanmean(lb)), slack=float(np.nanmean(th - lb)),
+                   cover_anti=float(np.mean(lb <= th)), cover_cons=float(np.mean(lb <= th + ZC * se)))
+        if world_exact:
+            noisy = th + rng.normal(0, np.sqrt(0.09 / (pool_n - n_tot)), len(th)); row["cover_noisy"] = float(np.mean(lb <= noisy))
+    return row
+
+
+def task(a):
+    arm, spec, cell, draws, matrix = a
+    t0 = time.time(); searcher, n_tot, B = cell
+    global MATRIX; MATRIX = matrix
+    world = _world(arm, spec["rep"], spec.get("sigma_theta"), 0)
+    rng = np.random.default_rng([13, spec["rep"] + 1, int(1000 * (spec.get("sigma_theta") or 0)), n_tot, B or 0, zlib.crc32(searcher.encode()) % 1000])
+    kw = {}
+    if searcher == "random": kw = dict(B=B)
+    if searcher == "sh": kw = dict(search_kw=dict(f0=calibrate_f0(world.K, n_tot, B)))
+    pool_n = world.N if arm == "real" else 1500
+    recs = {}
+    for _ in range(draws):
+        U = world.draw_S(n_tot, rng)
+        out = run_protocols(world, U, rng, searcher=searcher, n_boot=100, **kw)
+        for k, v in out.items(): recs.setdefault(k, []).append(v)
+    rows = [dict(arm=arm, **spec, searcher=searcher, N_tot=n_tot, B=B, draws=draws, **agg(k, v, world.theta is not None, pool_n, n_tot, rng))
+            for k, v in recs.items()]
+    return (spec["rep"], spec.get("sigma_theta"), cell), rows, time.time() - t0
+
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser(); ap.add_argument("--arm", required=True); ap.add_argument("--out", required=True)
+    ap.add_argument("--workers", type=int, default=4); ap.add_argument("--draws", type=int, default=200)
+    ap.add_argument("--reps", type=int, default=6); ap.add_argument("--matrix", default="data/matrix_Y.npz")
+    ap.add_argument("--quick", action="store_true")
+    a = ap.parse_args()
+    cells = CELLS[:2] + CELLS[6:7] + CELLS[8:9] if a.quick else CELLS
+    matrix = None
+    if a.arm == "real":
+        z = np.load(a.matrix); matrix = (z["Y"], z["factors"])
+        specs = [dict(rep=r) for r in range(-1, a.reps)]
+    elif a.arm == "semisynthetic":
+        z = np.load(a.matrix, allow_pickle=True); matrix = (z["fit"].item(), z["factors"])     # from experiments/fit_semisynth.py
+        specs = [dict(rep=r, sigma_theta=s) for s in (0.0, None) for r in range(a.reps)]
+    else:
+        specs = [dict(rep=r, sigma_theta=s) for s in (0.0, 0.01, 0.03) for r in range(a.reps)]
+    done = set()
+    if os.path.exists(a.out):
+        for l in open(a.out):
+            d = json.loads(l); done.add((d["rep"], d.get("sigma_theta"), (d["searcher"], d["N_tot"], d["B"])))
+    tasks = [(a.arm, s, c, a.draws if s["rep"] >= 0 or a.arm == "synthetic" else 2000, matrix) for s in specs for c in cells
+             if (s["rep"], s.get("sigma_theta"), c) not in done]
+    print(f"{len(tasks)} tasks", flush=True); t0 = time.time()
+    with Pool(a.workers) as pool, open(a.out, "a") as f:
+        for key, rows, dt in pool.imap_unordered(task, tasks):
+            for r in rows: f.write(json.dumps(r) + "\n")
+            f.flush(); print(f"done {key} {dt:.0f}s total {time.time()-t0:.0f}s", flush=True)

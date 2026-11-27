@@ -1,0 +1,191 @@
+@article{cawley2010,
+  author = {Cawley, Gavin C. and Talbot, Nicola L. C.},
+  title = {On over-fitting in model selection and subsequent selection bias in performance evaluation},
+  journal = {Journal of Machine Learning Research},
+  volume = {11},
+  pages = {2079--2107},
+  year = {2010}
+}
+@article{tibshirani2009,
+  author = {Tibshirani, Ryan J. and Tibshirani, Robert},
+  title = {A bias correction for the minimum error rate in cross-validation},
+  journal = {The Annals of Applied Statistics},
+  volume = {3},
+  number = {2},
+  pages = {822--829},
+  year = {2009},
+  doi = {10.1214/08-AOAS224}
+}
+@article{rink2025,
+  author = {Rink, Pascal and Brannath, Werner},
+  title = {Post-selection confidence bounds for prediction performance},
+  journal = {Machine Learning},
+  year = {2025},
+  doi = {10.1007/s10994-024-06632-w}
+}
+@article{efron1997,
+  author = {Efron, Bradley and Tibshirani, Robert},
+  title = {Improvements on cross-validation: the .632+ bootstrap method},
+  journal = {Journal of the American Statistical Association},
+  volume = {92},
+  number = {438},
+  pages = {548--560},
+  year = {1997},
+  doi = {10.1080/01621459.1997.10474007}
+}
+@article{bates2023,
+  author = {Bates, Stephen and Hastie, Trevor and Tibshirani, Robert},
+  title = {Cross-validation: what does it estimate and how well does it do it?},
+  journal = {Journal of the American Statistical Association},
+  year = {2023},
+  doi = {10.1080/01621459.2023.2197686}
+}
+@inproceedings{dwork2015stoc,
+  author = {Dwork, Cynthia and Feldman, Vitaly and Hardt, Moritz and Pitassi, Toniann and Reingold, Omer and Roth, Aaron},
+  title = {Preserving statistical validity in adaptive data analysis},
+  booktitle = {Proceedings of the 47th Annual ACM Symposium on Theory of Computing (STOC)},
+  year = {2015}
+}
+@article{dwork2015science,
+  author = {Dwork, Cynthia and Feldman, Vitaly and Hardt, Moritz and Pitassi, Toniann and Reingold, Omer and Roth, Aaron},
+  title = {The reusable holdout: Preserving validity in adaptive data analysis},
+  journal = {Science},
+  volume = {349},
+  number = {6248},
+  pages = {636--638},
+  year = {2015},
+  doi = {10.1126/science.aaa9375}
+}
+@inproceedings{blum2015,
+  author = {Blum, Avrim and Hardt, Moritz},
+  title = {The Ladder: A reliable leaderboard for machine learning competitions},
+  booktitle = {Proceedings of the 32nd International Conference on Machine Learning (ICML)},
+  year = {2015}
+}
+@inproceedings{roelofs2019,
+  author = {Roelofs, Rebecca and Fridovich-Keil, Sara and Miller, John and Shankar, Vaishaal and Hardt, Moritz and Recht, Benjamin and Schmidt, Ludwig},
+  title = {A meta-analysis of overfitting in machine learning},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year = {2019}
+}
+@inproceedings{recht2019,
+  author = {Recht, Benjamin and Roelofs, Rebecca and Schmidt, Ludwig and Shankar, Vaishaal},
+  title = {Do {ImageNet} classifiers generalize to {ImageNet}?},
+  booktitle = {Proceedings of the 36th International Conference on Machine Learning (ICML)},
+  year = {2019}
+}
+@article{andrews2024,
+  author = {Andrews, Isaiah and Kitagawa, Toru and McCloskey, Adam},
+  title = {Inference on winners},
+  journal = {The Quarterly Journal of Economics},
+  volume = {139},
+  number = {1},
+  pages = {305--358},
+  year = {2024},
+  doi = {10.1093/qje/qjad043}
+}
+@article{chernozhukov2013,
+  author = {Chernozhukov, Victor and Chetverikov, Denis and Kato, Kengo},
+  title = {Gaussian approximations and multiplier bootstrap for maxima of sums of high-dimensional random vectors},
+  journal = {The Annals of Statistics},
+  volume = {41},
+  number = {6},
+  pages = {2786--2819},
+  year = {2013}
+}
+@article{berk2013,
+  author = {Berk, Richard and Brown, Lawrence and Buja, Andreas and Zhang, Kai and Zhao, Linda},
+  title = {Valid post-selection inference},
+  journal = {The Annals of Statistics},
+  volume = {41},
+  number = {2},
+  pages = {802--837},
+  year = {2013},
+  doi = {10.1214/12-AOS1077}
+}
+@inproceedings{khattab2024,
+  author = {Khattab, Omar and Singhvi, Arnav and Maheshwari, Paridhi and Zhang, Zhiyuan and Santhanam, Keshav and Vardhamanan, Sri and Haq, Saiful and Sharma, Ashutosh and Joshi, Thomas T. and Moazam, Hanna and Miller, Heather and Zaharia, Matei and Potts, Christopher},
+  title = {{DSPy}: Compiling declarative language model calls into self-improving pipelines},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year = {2024}
+}
+@inproceedings{opsahlong2024,
+  author = {Opsahl-Ong, Krista and Ryan, Michael J. and Purtell, Josh and Broman, David and Potts, Christopher and Zaharia, Matei and Khattab, Omar},
+  title = {Optimizing instructions and demonstrations for multi-stage language model programs},
+  booktitle = {Proceedings of the 2024 Conference on Empirical Methods in Natural Language Processing (EMNLP)},
+  year = {2024}
+}
+@inproceedings{zhou2023,
+  author = {Zhou, Yongchao and Muresanu, Andrei Ioan and Han, Ziwen and Paster, Keiran and Pitis, Silviu and Chan, Harris and Ba, Jimmy},
+  title = {Large language models are human-level prompt engineers},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year = {2023}
+}
+@inproceedings{yang2024,
+  author = {Yang, Chengrun and Wang, Xuezhi and Lu, Yifeng and Liu, Hanxiao and Le, Quoc V. and Zhou, Denny and Chen, Xinyun},
+  title = {Large language models as optimizers},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year = {2024}
+}
+@inproceedings{pryzant2023,
+  author = {Pryzant, Reid and Iter, Dan and Li, Jerry and Lee, Yin Tat and Zhu, Chenguang and Zeng, Michael},
+  title = {Automatic prompt optimization with ``gradient descent'' and beam search},
+  booktitle = {Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing (EMNLP)},
+  year = {2023},
+  doi = {10.18653/v1/2023.emnlp-main.494}
+}
+@misc{agrawal2025,
+  author = {Agrawal, Lakshya A. and others},
+  title = {{GEPA}: Reflective prompt evolution can outperform reinforcement learning},
+  year = {2025},
+  howpublished = {arXiv:2507.19457}
+}
+@inproceedings{shi2024,
+  author = {Shi, Chengshuai and Yang, Kun and Chen, Zihan and Li, Jundong and Yang, Jing and Shen, Cong},
+  title = {Efficient prompt optimization through the lens of best arm identification},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year = {2024}
+}
+@inproceedings{sclar2024,
+  author = {Sclar, Melanie and Choi, Yejin and Tsvetkov, Yulia and Suhr, Alane},
+  title = {Quantifying language models' sensitivity to spurious features in prompt design or: How I learned to start worrying about prompt formatting},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year = {2024}
+}
+@inproceedings{polo2024,
+  author = {Polo, Felipe Maia and Xu, Ronald and Weber, Lucas and Silva, M{\'i}rian and Bhardwaj, Onkar and Choshen, Leshem and de Oliveira, Allysson Flavio Melo and Sun, Yuekai and Yurochkin, Mikhail},
+  title = {Efficient multi-prompt evaluation of {LLMs}},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year = {2024}
+}
+@inproceedings{zheng2024,
+  author = {Zheng, Chujie and Zhou, Hao and Meng, Fandong and Zhou, Jie and Huang, Minlie},
+  title = {Large language models are not robust multiple choice selectors},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year = {2024}
+}
+@inproceedings{pezeshkpour2024,
+  author = {Pezeshkpour, Pouya and Hruschka, Estevam},
+  title = {Large language models sensitivity to the order of options in multiple-choice questions},
+  booktitle = {Findings of the Association for Computational Linguistics: NAACL 2024},
+  year = {2024},
+  doi = {10.18653/v1/2024.findings-naacl.130}
+}
+@misc{miller2024,
+  author = {Miller, Evan},
+  title = {Adding error bars to evals: A statistical approach to language model evaluations},
+  year = {2024},
+  howpublished = {arXiv:2411.00640}
+}
+@inproceedings{wang2024,
+  author = {Wang, Yubo and Ma, Xueguang and Zhang, Ge and Ni, Yuansheng and Chandra, Abhranil and Guo, Shiguang and Ren, Weiming and Arulraj, Aaran and He, Xuan and Jiang, Ziyan and others},
+  title = {{MMLU-Pro}: A more robust and challenging multi-task language understanding benchmark},
+  booktitle = {Advances in Neural Information Processing Systems, Datasets and Benchmarks Track (NeurIPS)},
+  year = {2024}
+}
+@misc{qwen2024,
+  author = {{Qwen Team}},
+  title = {Qwen2.5 technical report},
+  year = {2024},
+  howpublished = {arXiv:2412.15115}
+}

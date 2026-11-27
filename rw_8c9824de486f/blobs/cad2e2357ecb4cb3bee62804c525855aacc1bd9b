@@ -1,0 +1,25 @@
+split,epsilon_name,epsilon,k_hat,k_hat_lo,k_hat_hi,k_emp,k_emp_lo,k_emp_hi,grid_steps_hat_minus_emp,k_emp_in_hat_ci,n_train_side_models,note
+G,delta_floor,1.17226063918127,32,20.0,50.0,32,20.0,50.0,0,True,1395,grid values; 9999 = not reached on the grid
+G,2delta_floor,2.34452127836254,5,3.0,5.0,5,3.0,8.0,0,True,1395,grid values; 9999 = not reached on the grid
+G,eps_0.25,0.25,80,80.0,9999.0,80,80.0,9999.0,0,True,1395,grid values; 9999 = not reached on the grid
+G,eps_0.5,0.5,80,50.0,80.0,80,50.0,80.0,0,True,1395,grid values; 9999 = not reached on the grid
+G,eps_1.0,1.0,50,32.0,50.0,50,32.0,50.0,0,True,1395,grid values; 9999 = not reached on the grid
+G,eps_1.5,1.5,20,8.0,20.0,20,12.0,32.0,0,True,1395,grid values; 9999 = not reached on the grid
+G,eps_2.0,2.0,5,5.0,8.0,8,5.0,12.0,-1,True,1395,grid values; 9999 = not reached on the grid
+G,eps_3.0,3.0,3,2.0,3.0,3,2.0,3.0,0,True,1395,grid values; 9999 = not reached on the grid
+T,delta_floor,1.0911606048249753,32,32.0,32.0,3,3.0,8.0,5,False,135,grid values; 9999 = not reached on the grid
+T,2delta_floor,2.1823212096499507,5,5.0,8.0,1,1.0,3.0,3,False,135,grid values; 9999 = not reached on the grid
+T,eps_0.25,0.25,80,80.0,80.0,5,3.0,12.0,6,False,135,grid values; 9999 = not reached on the grid
+T,eps_0.5,0.5,80,80.0,80.0,5,3.0,8.0,6,False,135,grid values; 9999 = not reached on the grid
+T,eps_1.0,1.0,32,32.0,32.0,3,3.0,8.0,5,False,135,grid values; 9999 = not reached on the grid
+T,eps_1.5,1.5,12,12.0,20.0,3,3.0,5.0,3,False,135,grid values; 9999 = not reached on the grid
+T,eps_2.0,2.0,8,5.0,12.0,2,1.0,5.0,3,False,135,grid values; 9999 = not reached on the grid
+T,eps_3.0,3.0,3,2.0,3.0,1,1.0,2.0,2,False,135,grid values; 9999 = not reached on the grid
+S,delta_floor,1.0557139881349107,50,20.0,50.0,20,20.0,32.0,2,True,133,grid values; 9999 = not reached on the grid
+S,2delta_floor,2.1114279762698214,8,5.0,12.0,12,5.0,20.0,-1,True,133,grid values; 9999 = not reached on the grid
+S,eps_0.25,0.25,109,80.0,9999.0,80,20.0,80.0,1,True,133,grid values; 9999 = not reached on the grid
+S,eps_0.5,0.5,80,80.0,80.0,50,20.0,80.0,1,False,133,grid values; 9999 = not reached on the grid
+S,eps_1.0,1.0,50,20.0,80.0,20,20.0,32.0,2,True,133,grid values; 9999 = not reached on the grid
+S,eps_1.5,1.5,20,20.0,20.0,20,8.0,20.0,0,True,133,grid values; 9999 = not reached on the grid
+S,eps_2.0,2.0,8,5.0,12.0,20,5.0,20.0,-2,False,133,grid values; 9999 = not reached on the grid
+S,eps_3.0,3.0,3,2.0,3.0,5,2.0,8.0,-1,False,133,grid values; 9999 = not reached on the grid

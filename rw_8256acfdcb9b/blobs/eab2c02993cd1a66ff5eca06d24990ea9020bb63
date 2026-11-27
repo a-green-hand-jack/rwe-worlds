@@ -1,0 +1,119 @@
+"""Fig 4 (claim M5): budget and estimators for the two datasets whose default budget samples (German Credit, ACS Employment), one row each.
+(a) relative L2 error of one run vs the exact phi against budget m (median over instances, bootstrap CI), log-log, default Kernel SHAP
+    (shap KernelExplainer, l1_reg=False), with the slope -1/2 reference; only budgets m >= 3d (those entering the fitted slope). LR is not drawn:
+    additive model, zero variance (error at rounding level).
+(b) paired differences in the share of instances with a correct top-3 between estimators at equal model evaluations at the default budget
+    (B minus default Kernel SHAP): filled = strict P_c, open = P_c^eps (eps = 0.05); grey band = smallest resolvable effect of the strict P_c.
+(c) evaluations m*(0.9) needed for P_c >= 0.9 against the exact margin (median per within-cell margin quartile, bootstrap CI),
+    with the interval-censored (Tobit) fit log m* = a + s log g from mstar_tobit; open triangles at the largest budget tried = not reached in the grid.
+(d) the Tobit slope s per model with bootstrap CI (strict P_c filled, P_c^eps open), dotted line at the H3 prediction -2.
+
+Reads: phi_error, scaling_fit, paired_diff, mstar_by_margin, mstar_tobit, cells. Usage: python fig4_budget.py DATA_DIR OUT_PREFIX
+"""
+import argparse
+import numpy as np, pandas as pd, matplotlib as mpl, matplotlib.pyplot as plt
+import figstyle as fs
+
+ap = argparse.ArgumentParser()
+ap.add_argument("data"); ap.add_argument("out")
+ap.add_argument("--datasets", nargs="+", default=["german", "acs_employment"])
+ap.add_argument("--estimator", default="shap_kernel"); ap.add_argument("--l1", default="False")
+ap.add_argument("--criterion", default="pc_exact")
+a = ap.parse_args()
+fs.setup()
+pe, p1 = fs.load(a.data, "phi_error"); sf, p2 = fs.load(a.data, "scaling_fit")
+pdf, p3 = fs.load(a.data, "paired_diff"); ms, p4 = fs.load(a.data, "mstar_by_margin")
+cells, p6 = fs.load(a.data, "cells")
+mt, p7 = fs.load(a.data, "mstar_tobit")
+fs.require(pe, ["dataset", "model", "estimator", "l1_reg", "budget_m", "rel_l2_median", "rel_l2_median_ci_lo", "rel_l2_median_ci_hi"], "phi_error")
+fs.require(sf, ["dataset", "model", "estimator", "l1_reg", "slope", "ci_lo", "ci_hi", "budgets_used"], "scaling_fit")
+fs.require(pdf, ["dataset", "model", "contrast", "quantity", "budget_m", "budget_evals", "evals_ratio_b_over_a", "diff", "ci_lo", "ci_hi", "smallest_resolvable"], "paired_diff")
+fs.require(ms, ["dataset", "model", "estimator", "l1_reg", "criterion", "margin_mid", "m_star_evals", "ci_lo", "ci_hi", "reached", "max_budget_tried"], "mstar_by_margin")
+TOBIT_EST = [("shap_kernel", a.l1, "shap\nKernel"), ("kernel_paired", "NA", "paired\nKernel"), ("permutation_antithetic", "NA", "antithetic\nperm.")]
+CONTRAST = {"kernel_paired_vs_shap_kernel": "paired\nKernel",
+            "perm_antithetic_vs_shap_kernel": "antithetic\nperm."}
+fs.require(mt, ["dataset", "model", "estimator", "l1_reg", "criterion", "n_instances", "n_left_censored", "n_right_censored", "slope", "slope_ci_lo", "slope_ci_hi", "intercept"], "mstar_tobit")
+ref = fs.ref_budget(cells, a.estimator, a.l1)
+fig, ax = plt.subplots(len(a.datasets), 4, figsize=(0.8 * fs.WIDTH_IN, 0.86 * (2.0 * len(a.datasets) + 0.35)), squeeze=False,
+                       gridspec_kw=dict(width_ratios=[1, 1.3, 1, 0.85]))
+rows = []
+for r, ds in enumerate(a.datasets):
+    A, B, C, D = ax[r]
+    d = int(cells[cells.dataset == ds].d.iloc[0])
+    # (a)
+    for m in [m for m in fs.MODELS if m != "lr"]:
+        st = fs.MODEL_STYLE[m]
+        t = pe[(pe.dataset == ds) & (pe.model == m) & (pe.estimator == a.estimator) & (pe.l1_reg == a.l1) & (pe.budget_m >= 3 * d)].sort_values("budget_m")
+        if t.empty: continue
+        A.fill_between(t.budget_m, t.rel_l2_median_ci_lo, t.rel_l2_median_ci_hi, color=st["color"], alpha=0.18, lw=0)
+        A.plot(t.budget_m, t.rel_l2_median, color=st["color"], ls=st["ls"], marker=st["marker"], label=st["label"])
+        s_ = sf[(sf.dataset == ds) & (sf.model == m) & (sf.estimator == a.estimator) & (sf.l1_reg == a.l1)].iloc[0]
+        rows += [dict(dataset=ds, model=m, panel="phi_error", **q) for q in t[["budget_m", "rel_l2_median", "rel_l2_median_ci_lo", "rel_l2_median_ci_hi"]].to_dict("records")]
+        rows.append(dict(dataset=ds, model=m, panel="fitted_slope", slope=s_.slope, ci_lo=s_.ci_lo, ci_hi=s_.ci_hi, budgets_used=s_.budgets_used))
+    pd_ = pe[(pe.dataset == ds) & (pe.estimator == a.estimator) & (pe.l1_reg == a.l1) & (pe.budget_m >= 3 * d) & (pe.model != "lr")]
+    x0, x1 = pd_.budget_m.min(), pd_.budget_m.max()
+    y0 = pd_[pd_.budget_m == x0].rel_l2_median.max()
+    A.plot([x0, x1], [y0, y0 * (x1 / x0) ** -0.5], color="0.4", lw=0.7, ls=":", zorder=0, label=None)
+    A.set_xscale("log"); A.set_yscale("log"); A.set_xlabel("budget $m$")
+    A.set_ylabel(f"{fs.DATASET_TITLE[ds]}\nrel. $L_2$ error of $\\hat\\phi$")
+    # (b)
+    b0 = int(ref[ref.dataset == ds].budget_m.iloc[0])
+    p = pdf[(pdf.dataset == ds) & (pdf.budget_m == b0)]
+    for ci_, (c, cl) in enumerate(CONTRAST.items()):
+        for mi, m in enumerate(fs.MODELS):
+            st = fs.MODEL_STYLE[m]
+            y0_ = -(ci_ * 5 + mi)
+            for qty, off, filled in (("pc_exact", 0.17, True), ("pc_eps", -0.17, False)):
+                q = p[(p.model == m) & (p.contrast == c) & (p.quantity == qty)]
+                if q.empty: continue
+                q = q.iloc[0]; y = y0_ + off
+                B.plot([q.ci_lo, q.ci_hi], [y, y], color=st["color"], lw=0.9)
+                B.plot(q["diff"], y, color=st["color"], marker=st["marker"], ls="none", mfc=st["color"] if filled else "white", ms=3.5)
+                if filled: B.add_patch(mpl.patches.Rectangle((-q.smallest_resolvable, y0_ - 0.45), 2 * q.smallest_resolvable, 0.9, color="0.88", lw=0, zorder=0))
+                rows.append(dict(dataset=ds, model=m, panel="paired_diff", contrast=c, quantity=qty, budget_m=b0, diff=q["diff"], ci_lo=q.ci_lo, ci_hi=q.ci_hi,
+                                 smallest_resolvable=q.smallest_resolvable, budget_evals=q.budget_evals, evals_ratio_b_over_a=q.evals_ratio_b_over_a))
+    B.axvline(0, color="0.3", lw=0.6); B.set_ylim(-8.6, 0.6)
+    B.set_yticks([-1.5, -6.5]); B.set_yticklabels(list(CONTRAST.values()), va="center", ha="right", multialignment="right", linespacing=1.0); B.tick_params(axis="y", length=0, pad=3)
+    B.set_xlabel("share correct $-$ shap Kernel\nat equal evaluations")
+    # (c)
+    for m in fs.MODELS:
+        st = fs.MODEL_STYLE[m]
+        t = ms[(ms.dataset == ds) & (ms.model == m) & (ms.estimator == a.estimator) & (ms.l1_reg == a.l1) & (ms.criterion == a.criterion)].sort_values("margin_mid")
+        if t.empty: continue
+        got = t.reached.astype(bool)
+        lo = (t.m_star_evals - t.ci_lo).clip(lower=0).fillna(0); hi = (t.ci_hi - t.m_star_evals).clip(lower=0).fillna(0)
+        C.errorbar(t.margin_mid[got], t.m_star_evals[got], yerr=[lo[got], hi[got]], color=st["color"], marker=st["marker"], ls="none", lw=0.8, capsize=1.5)
+        C.scatter(t.margin_mid[~got], t.max_budget_tried[~got], marker="^", s=14, facecolors="none", edgecolors=st["color"], lw=0.8)
+        tb = mt[(mt.dataset == ds) & (mt.model == m) & (mt.estimator == a.estimator) & (mt.l1_reg == a.l1) & (mt.criterion == a.criterion)]
+        if len(tb):
+            g = np.geomspace(t.margin_mid.min(), t.margin_mid.max(), 20)
+            C.plot(g, np.exp(tb.intercept.iloc[0] + tb.slope.iloc[0] * np.log(g)), color=st["color"], ls=st["ls"], lw=0.8)
+        rows += [dict(dataset=ds, model=m, panel="mstar", criterion=a.criterion, tobit_slope=(tb.slope.iloc[0] if len(tb) else np.nan), tobit_intercept=(tb.intercept.iloc[0] if len(tb) else np.nan), **q)
+                 for q in t[["margin_bin", "margin_mid", "m_star_evals", "ci_lo", "ci_hi", "reached", "max_budget_tried"]].to_dict("records")]
+    C.set_xscale("log"); C.set_yscale("log"); C.set_xlabel("exact margin $g_3$"); C.set_ylabel("evaluations $m^*$")
+    # (d) interval-censored (Tobit) slope of log m* on log g, per estimator and model; strict P_c filled, P_c^eps open
+    for ei, (est, l1e, el) in enumerate(TOBIT_EST):
+        for mi, m in enumerate([m for m in fs.MODELS if m != "lr"]):
+            st = fs.MODEL_STYLE[m]
+            for crit, off, filled in (("pc_exact", 0.17, True), ("pc_eps", -0.17, False)):
+                q = mt[(mt.dataset == ds) & (mt.model == m) & (mt.estimator == est) & (mt.l1_reg == l1e) & (mt.criterion == crit)]
+                if q.empty: continue
+                q = q.iloc[0]; y = -(ei * 4 + mi) + off
+                D.plot([q.slope_ci_lo, q.slope_ci_hi], [y, y], color=st["color"], lw=0.9)
+                D.plot(q.slope, y, color=st["color"], marker=st["marker"], ls="none", mfc=st["color"] if filled else "white", ms=3.5)
+                rows.append(dict(dataset=ds, model=m, panel="tobit_slope", estimator=est, criterion=crit, slope=q.slope, ci_lo=q.slope_ci_lo, ci_hi=q.slope_ci_hi,
+                                 n_instances=q.n_instances, n_left_censored=q.n_left_censored, n_right_censored=q.n_right_censored))
+    D.axvline(-2, color="0.4", lw=0.7, ls=":"); D.axvline(0, color="0.3", lw=0.6)
+    D.set_yticks([-1, -5, -9]); D.set_yticklabels([e[2] for e in TOBIT_EST], va="center", ha="right", multialignment="right", linespacing=1.0); D.tick_params(axis="y", length=0, pad=3); D.set_ylim(-10.5, 0.6); D.set_xlim(-2.8, 0.4); D.set_xticks([-2, -1, 0]); D.set_xlabel("slope $s$")
+for c_, t_ in enumerate("abcd"):
+    ax[0, c_].text(0.0, 1.02, f"({t_})", transform=ax[0, c_].transAxes, fontsize=fs.LABEL_PT, ha="left", va="bottom")
+from matplotlib.lines import Line2D
+h = [Line2D([], [], color=fs.MODEL_STYLE[m]["color"], ls=fs.MODEL_STYLE[m]["ls"], marker=fs.MODEL_STYLE[m]["marker"]) for m in fs.MODELS]
+l = [fs.MODEL_STYLE[m]["label"] for m in fs.MODELS]
+h += [Line2D([], [], color="0.4", lw=0.7, ls=":"), Line2D([], [], color="0.3", marker="o", ls="none", ms=3.5), Line2D([], [], color="0.3", marker="o", mfc="white", ls="none", ms=3.5)]
+l += ["slope $-1/2$ (a), $-2$ (d)", "strict $P_c$", "$P_c^\\epsilon$"]
+fig.legend(h, l, loc="upper center", ncol=4, frameon=False, handlelength=2.2, bbox_to_anchor=(0.5, 1.0), columnspacing=1.0)
+fig.tight_layout(pad=0.4, w_pad=0.6, rect=(0, 0, 1, 0.87))
+fs.save(fig, a.out, pd.DataFrame(rows), [p1, p2, p3, p4, p6, p7],
+        note=f"estimator={a.estimator}; l1_reg={a.l1}; (a) median over instances, budgets >= 3d, LR omitted (zero variance); (b) at the default budget {dict(zip(ref.dataset, ref.budget_m))}; "
+             f"(c) criterion={a.criterion}, open triangle = not reached within the grid (largest budget tried), line = interval-censored (Tobit) fit log m* = a + s log g from analysis (mstar_tobit); points = interpolated m* per margin quartile, secondary (biased toward flat by the grid, Outline rev 6); (d) Tobit slope s with instance-bootstrap CI for the default, paired Kernel and antithetic-permutation estimators (strict P_c filled, P_c^eps open; LR omitted, zero variance; right-censored counts of the paired Kernel strict fits are 12-29 instances, in the csv); dotted -2 = H3's prediction. Outline rev 8: the Tobit fit is the primary M5 estimate (Gaussian residuals assumed, 8-29 of 40-60 paired-Kernel instances right-censored); H3's -2 is supported for antithetic permutation, not refuted for paired Kernel (its slope depends on the budget grid: -1.4..-1.8 on the full grid, -0.65..-1.1 on every third budget) and unresolved for the shap Kernel explainer (Tobit about -1, probit-implied about -2); the probit collapse and the grid variants are in figB_m5_robust")

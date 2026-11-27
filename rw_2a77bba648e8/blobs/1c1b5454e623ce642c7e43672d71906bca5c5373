@@ -1,0 +1,169 @@
+"""P7: confirmatory test of the noise-adjusted disagreement score S_adj (ANALYSIS_PLAN addendum 4, Brief rev. 8).
+    python analysis/p7_confirm.py OUTDIR ORIGINAL_RAWDIR CONFIRMATORY_RAWDIR
+Cells (run x column with s > 0, noise level 0.5) are built with make_diag.part2_cells (random half h1 of the draws for the predictors, realised bias of the cell as target).
+Frozen predictor: OLS of log(|bias| + 0.01) on [1, log n, log(Sadj_pb + 0.01), log(C + 0.01)] fitted once on the original cells; the three degree benchmarks
+(log d, log p(1-p), log n p(1-p)/d, each with 1 and log n) are fitted on the same cells; nothing is refitted on the confirmatory cells.
+Groups (10): the SBM confirmatory cells by mechanism (a)-(h), and all cells of each new family (HK, LN)."""
+import glob
+import json
+import os
+import subprocess
+import sys
+from datetime import date
+
+import numpy as np
+import pandas as pd
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import agg  # noqa: E402
+import make_diag  # noqa: E402
+
+B_BOOT = 2000
+
+
+def build(rawdir):
+    rows = []
+    for f in sorted(glob.glob(os.path.join(rawdir, "*.pkl"))):
+        run = agg.Run(f)
+        rows += [r for r in make_diag.part2_cells(run, seed=0) if r["s"] > 0]
+        print("p7 cells", run.id, flush=True)
+    return pd.DataFrame(rows)
+
+
+def features(c):
+    return {"S_adj (parametric-bootstrap noise part)": np.log(c.Sadjpb_h1.values + 0.01),
+            "S_adj (null-column noise part, exploratory definition)": np.log(c.Sadj_h1.values + 0.01),
+            "S_bar (pre-registered)": np.log(c.S_h1.values + 0.01)}
+
+
+def design(c, x):
+    cols = [np.ones(len(c)), c.logn.values] + ([x] if x is not None else [])
+    return np.column_stack(cols)
+
+
+def benchmarks(c):
+    return {"mean_degree": np.log(c.d.values), "p(1-p)": np.log(c.p.values * (1 - c.p.values)), "n p(1-p)/d": np.log(c.n.values * c.p.values * (1 - c.p.values) / c.d.values)}
+
+
+def sse(y, yh):
+    return ((y - yh) ** 2).sum()
+
+
+def main(out, orig_dir, conf_dir=None):
+    o = build(orig_dir)
+    if conf_dir is None:     # freeze: only the coefficients fitted on the original cells, recorded before the confirmatory block is run
+        yo = np.log(np.abs(o.bias.values) + 0.01)
+        rows = []
+        for nm, xo in features(o).items():
+            Zo = np.column_stack([design(o, xo), np.log(o.C_h1.values + 0.01)])
+            rows.append(dict(predictor=nm + " + corner x curvature", coefficients="[1, log n, log feature, log C] = " + ", ".join(f"{x:.4f}" for x in np.linalg.lstsq(Zo, yo, rcond=None)[0]), original_cells=len(o)))
+        os.makedirs(out, exist_ok=True)
+        pd.DataFrame(rows).to_csv(os.path.join(out, "p7_frozen_coefficients_recorded.csv"), index=False)
+        print(pd.DataFrame(rows).to_string())
+        return
+    k = build(conf_dir)
+    k["group"] = np.where(k.family == "SBM", k.mechanism, k.family)
+    yo = np.log(np.abs(o.bias.values) + 0.01)
+    yk = np.log(np.abs(k.bias.values) + 0.01)
+    # --- frozen predictors
+    P = {}
+    for nm, xo in features(o).items():
+        xk = features(k)[nm]
+        Zo = np.column_stack([design(o, xo), np.log(o.C_h1.values + 0.01)])
+        Zk = np.column_stack([design(k, xk), np.log(k.C_h1.values + 0.01)])
+        b = np.linalg.lstsq(Zo, yo, rcond=None)[0]
+        P[nm + " + corner x curvature"] = (Zk @ b, b)
+    Co = design(o, np.log(o.C_h1.values + 0.01))
+    Ck = design(k, np.log(k.C_h1.values + 0.01))
+    b = np.linalg.lstsq(Co, yo, rcond=None)[0]
+    P["corner x curvature alone"] = (Ck @ b, b)
+    bo, bk = benchmarks(o), benchmarks(k)
+    BM = {}
+    for nm in bo:
+        b = np.linalg.lstsq(design(o, bo[nm]), yo, rcond=None)[0]
+        BM[nm] = design(k, bk[nm]) @ b
+    train_mean = yo.mean()
+    groups = list(np.unique(k.group))
+    grp = k.group.values
+    rows, grows = [], []
+    main_name = "S_adj (parametric-bootstrap noise part) + corner x curvature"
+    sst = ((yk - yk.mean()) ** 2).sum()
+
+    def r2(mask, yh):
+        return 1 - sse(yk[mask], yh[mask]) / ((yk[mask] - yk.mean()) ** 2).sum()
+
+    allm = np.ones(len(k), bool)
+    best_b = max(BM, key=lambda n: r2(allm, BM[n]))
+    rng = np.random.default_rng(20261126)
+
+    def gain_of(gl, name):
+        mask = np.concatenate([np.where(grp == g)[0] for g in gl])
+        mk = np.zeros(len(k), bool)
+        mk[mask] = True
+        # a resample repeats groups: weight by multiplicity
+        w = np.zeros(len(k))
+        for g in gl:
+            w[grp == g] += 1
+        tot = (w * (yk - yk.mean()) ** 2).sum()
+        sm = (w * (yk - P[name][0]) ** 2).sum()
+        sb = min((w * (yk - BM[n]) ** 2).sum() for n in BM)
+        return (sb - sm) / tot
+
+    for name in P:
+        r2m = r2(allm, P[name][0])
+        gain = r2m - r2(allm, BM[best_b])
+        boot = [gain_of([groups[i] for i in rng.integers(0, len(groups), len(groups))], name) for _ in range(B_BOOT)]
+        lo, hi = np.nanpercentile(boot, [2.5, 97.5])
+        npos = 0
+        for g in groups:
+            m = grp == g
+            gg = (sse(yk[m], BM[best_b][m]) - sse(yk[m], P[name][0][m])) / ((yk[m] - yk.mean()) ** 2).sum()
+            npos += gg > 0
+            grows.append(dict(predictor=name, group=g, cells=int(m.sum()), gain_over_best_benchmark=gg, r2_group=r2(m, P[name][0]), r2_best_benchmark_group=r2(m, BM[best_b])))
+        r2_train = 1 - sse(yk, P[name][0]) / ((yk - train_mean) ** 2).sum()
+        need = int(np.ceil(2 * len(groups) / 3 - 1e-9))     # at least two thirds of the groups
+        c1, c2, c3 = r2m > 0, bool(gain >= 0.05 and lo > 0), npos >= need
+        verdict = "supported" if (c1 and c2 and c3) else "inconclusive" if (c1 and lo <= 0) else "not supported"
+        rows.append(dict(predictor=name, counted_in_verdict=(name == main_name), cells=len(k), n_groups=len(groups), r2_vs_confirmatory_mean=r2m, r2_vs_frozen_training_mean=r2_train,
+                         best_benchmark=best_b, r2_best_benchmark=r2(allm, BM[best_b]), r2_benchmarks="; ".join(f"{n}={r2(allm, BM[n]):.3f}" for n in BM),
+                         gain=gain, gain_lo=lo, gain_hi=hi, groups_with_positive_gain=int(npos), crit1_r2_gt_0=bool(c1), crit2_gain_ge_005_ci_gt_0=c2, crit3_ge_two_thirds_of_groups=bool(c3), groups_needed=need,
+                         verdict=verdict if name == main_name else "not counted"))
+    res = pd.DataFrame(rows)
+    # --- context: the same predictors evaluated by leave-one-mechanism-out on the original cells (exploratory and confirmatory definitions of the noise part)
+    ctx = []
+    og = o.mechanism.values
+    ybo = yo
+    for nm, xo in features(o).items():
+        Z = np.column_stack([design(o, xo), np.log(o.C_h1.values + 0.01)])
+        pr = np.zeros(len(o))
+        for g in np.unique(og):
+            te = og == g
+            pr[te] = Z[te] @ np.linalg.lstsq(Z[~te], ybo[~te], rcond=None)[0]
+        bmr = {}
+        for bn, v in bo.items():
+            Zb = design(o, v)
+            pb_ = np.zeros(len(o))
+            for g in np.unique(og):
+                te = og == g
+                pb_[te] = Zb[te] @ np.linalg.lstsq(Zb[~te], ybo[~te], rcond=None)[0]
+            bmr[bn] = 1 - sse(ybo, pb_) / ((ybo - ybo.mean()) ** 2).sum()
+        ctx.append(dict(sample="original cells, leave-one-mechanism-out", predictor=nm + " + corner x curvature", cells=len(o),
+                        r2=1 - sse(ybo, pr) / ((ybo - ybo.mean()) ** 2).sum(), best_benchmark_r2=max(bmr.values()), best_benchmark=max(bmr, key=bmr.get)))
+    ctx = pd.DataFrame(ctx)
+    os.makedirs(out, exist_ok=True)
+    res.to_csv(os.path.join(out, "p7_confirmatory.csv"), index=False)
+    pd.DataFrame(grows).to_csv(os.path.join(out, "p7_groups.csv"), index=False)
+    ctx.to_csv(os.path.join(out, "p7_original_cells.csv"), index=False)
+    cols = ["run_id", "family", "mechanism", "s", "d", "p", "n", "bias", "S_h1", "Sadj_h1", "Sadjpb_h1", "noise_pb_h1", "C_h1", "Ssig_h1"]
+    k.assign(frozen_pred_logabsbias=P[main_name][0], group=grp)[cols + ["group", "frozen_pred_logabsbias"]].to_csv(os.path.join(out, "p7_cells.csv"), index=False)
+    coef = pd.DataFrame([dict(predictor=n, coefficients="[1, log n, log feature, log C] = " + ", ".join(f"{x:.4f}" for x in v[1])) for n, v in P.items()])
+    coef.to_csv(os.path.join(out, "p7_frozen_coefficients.csv"), index=False)
+    commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, cwd=os.path.dirname(os.path.abspath(__file__))).stdout.strip()
+    for nm in ("p7_confirmatory", "p7_groups", "p7_original_cells", "p7_cells", "p7_frozen_coefficients"):
+        json.dump(dict(script="analysis/p7_confirm.py", code_commit=commit, date=str(date.today()), seed=20261126, bootstrap_B=B_BOOT, original_cells=len(o), confirmatory_cells=len(k)),
+                  open(os.path.join(out, nm + ".meta.json"), "w"), indent=1)
+    print(res.T.to_string())
+
+
+if __name__ == "__main__":
+    main(*sys.argv[1:4])

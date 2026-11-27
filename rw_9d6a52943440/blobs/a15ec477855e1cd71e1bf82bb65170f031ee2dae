@@ -1,0 +1,21 @@
+"""Fall-back rate of the target-recalibrated estimators: share of (draw, target) pairs for which the regression was replaced by the
+Hajek mean (fewer than 3 sampled items of either class, or a rank-deficient weighted design).
+usage: python3 -I scripts/08_recal.py RAWDIR OUT.csv [--two-pct]
+Output rows: split, n (the actual n), design, estimator, bench, k_targets, rate (mean over folds, weighted by targets). The pickles keep one rate per
+(design, estimator, target) averaged over draws (and over the pps epsilon variants)."""
+import pickle, glob, os, sys, numpy as np, pandas as pd
+
+raw, out = sys.argv[1], sys.argv[2]
+rows = []
+for f in sorted(glob.glob(f"{raw}/*__*.pkl")):
+    recs = pickle.load(open(f, "rb"))["records"]
+    for r in recs:
+        for k, v in r["diag"].items():
+            if k.startswith("fb:"):
+                _, dn, est = k.split(":", 2)
+                rows.append(dict(split=r["split"], bench=r["bench"], fold=r["fold"], n=r["n"], design=dn, estimator=est, k=len(v), fb=float(v.sum())))
+d = pd.DataFrame(rows)
+g = d.groupby(["split", "bench", "n", "design", "estimator"]).agg(k_targets=("k", "sum"), fb=("fb", "sum")).reset_index()
+g["rate"] = g.fb / g.k_targets
+g.drop(columns="fb").to_csv(out, index=False)
+print(g.groupby(["split", "estimator"]).apply(lambda x: (x.fb.sum() / x.k_targets.sum())).unstack().round(3).to_string())

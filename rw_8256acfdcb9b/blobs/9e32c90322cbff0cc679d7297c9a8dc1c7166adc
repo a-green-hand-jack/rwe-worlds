@@ -1,0 +1,18 @@
+"""Stage 2: results/tables/instance_level.parquet -> sensitivity, h1_contrast, phi_error, scaling_fit, paired_diff, mstar, guidance."""
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+import pandas as pd
+from shapreliab import derive as D
+
+out = sys.argv[1] if len(sys.argv) > 1 else "results/tables"
+il = pd.read_parquet(os.path.join(out, "instance_level.parquet"))
+for name, fn in [("sensitivity", D.sensitivity), ("h1_contrast", D.h1_contrast), ("phi_error", D.phi_error),
+                 ("scaling_fit", D.scaling_fit), ("paired_diff", D.paired_diff), ("guidance", D.guidance), ("margin_strata", D.margin_strata)]:
+    df = fn(il)
+    df.to_csv(os.path.join(out, name + ".csv"), index=False)
+    print(name, df.shape, flush=True)
+mb, fits, pi = D.mstar_tables(il)
+mb.to_csv(os.path.join(out, "mstar_by_margin.csv"), index=False)
+fits.to_csv(os.path.join(out, "mstar_fit.csv"), index=False)
+pi.to_csv(os.path.join(out, "mstar_per_instance.csv"), index=False)
+print("mstar", mb.shape, fits.shape, pi.shape)

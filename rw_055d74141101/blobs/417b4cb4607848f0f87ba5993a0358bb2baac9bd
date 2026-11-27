@@ -1,0 +1,156 @@
+"""Search quality at scale (claim C6, review #5 point 5).
+(i) stronger independent search: for 40 z-stratified pairs per family of one data set, try to beat the standard k* (iterated
+    re-linearisation + bisection) with Frank-Wolfe plus randomised restarts (noisy influence ranking, restarted from partial
+    copies of the best known alteration) at budgets 0.85/0.93/0.97/0.99 k* and k*-1; report k_improved / k_std.
+(ii) planted instances: take the observed counts, choose a pair (A, B) the data rank B above A, add (delete family) or flip
+    (flip family) k_p random outcomes in A's favour until A is above B; the reverse alteration of size k_p is a known solution,
+    so the search must return k <= k_p; report k_found / k_p.
+usage: 08_search_scale.py [UNIT=arena55k] [--npairs 40] [--restarts 200] [--planted 20]
+Output $BT_RESULTS/search/scale_<unit>.parquet (kind = improve | planted)"""
+import argparse, os, sys, time
+import numpy as np, pandas as pd
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src")); sys.path.insert(0, os.path.dirname(__file__))
+import btlib as B, analysis as A
+from core01 import OUT, get
+
+
+def noisy_iterlin(g, ty, cnt, th0, d, k, rng, sigma, x_start=None, T=12):
+    cap = ty.capacity(cnt)
+    if x_start is None:
+        th, H = B.fit(g, cnt, th0, return_H=True)
+    else:
+        th, H = B.fit(g, ty.apply(cnt, x_start), th0, return_H=True)
+    best = np.inf
+    for it in range(T):
+        eff = B.effects(g, ty, th, H, d) * np.exp(rng.normal(0, sigma * 0.7 ** it, len(cap)))
+        xn, left = B.fill(eff, cap, k)
+        gp, thn = B.gap_after(g, ty, cnt, xn, th0, d)
+        best = min(best, gp)
+        if gp <= 0:
+            return gp
+        th, H = B.fit(g, ty.apply(cnt, xn), thn, return_H=True)
+    return best
+
+
+def improve(g, ty, cnt, d, th0, k_std, x_std, rng, restarts):
+    """smallest budget (among a descending grid) for which some independent search reaches gap <= 0"""
+    budgets = sorted({max(1, int(np.ceil(f * k_std))) for f in (0.85, 0.93, 0.97, 0.99)} | {k_std - 1})
+    budgets = [b for b in budgets if 1 <= b < k_std]
+    for kb in budgets:
+        gp, _ = B.search(g, ty, cnt, th0, d, kb, method="both")
+        if gp <= 0:
+            return kb
+        for r in range(restarts):
+            sigma = (0.05, 0.15, 0.3)[r % 3]
+            xs = None
+            if x_std is not None and r % 2 == 1:
+                xs = x_std * (kb / k_std) * rng.uniform(0.3, 0.9)
+            if noisy_iterlin(g, ty, cnt, th0, d, kb, rng, sigma, xs) <= 0:
+                return kb
+    return k_std
+
+
+def planted(P, fam, A_, B_, factor=1.5):
+    """Plant a known alteration path.  B_ is ranked above A_ in the data.  Units that favour A_ (insertions of A_-favouring
+    outcomes for the delete family, outcome flips b2a/a2b for the flip family) are added in order of first-order influence
+    until A_ is above B_ (K_min units), then K_p = ceil(factor * K_min) units are planted.  The data now has A_ above B_,
+    and undoing the planted units most-influential-first is a KNOWN alteration set of the family; k_path = its smallest
+    prefix (exact refits) that puts A_ back below B_.  Returns (cnt', K_p, k_path)."""
+    g = P.g
+    ty_p = B.Types(g, "insert" if fam == "delete" else "flip")
+    ty_s = B.Types(g, fam)
+    allowed = (0, 1) if fam == "delete" else (0, 2)
+    rev = {0: 0, 1: 1} if fam == "delete" else {0: 2, 2: 0}
+    nk = ty_p.nk
+    th, H = B.fit(g, P.cnt, P.theta, return_H=True)
+    eff = B.effects(g, ty_p, th, H, B.make_d(P.M, B_, A_))
+    kk = np.tile(np.arange(nk), g.P)
+    eff = np.where(np.isin(kk, allowed), eff, np.inf)
+    cap = ty_p.capacity(P.cnt)
+    cap = np.minimum(cap, np.ceil(0.25 * P.cnt.sum(1)).repeat(nk) + 3)
+    d = B.make_d(P.M, A_, B_)
+    gap = lambda c: d @ B.fit(g, c, P.theta)
+
+    def plant(K):
+        x, left = B.fill(eff, cap, K)
+        return x, left
+
+    lo, hi = 0, int(cap[eff < 0].sum())
+    if hi < 3 or gap(ty_p.apply(P.cnt, plant(hi)[0])) <= 0:
+        return None, None, None
+    while hi - lo > 1:
+        mid = (lo + hi) // 2
+        if gap(ty_p.apply(P.cnt, plant(mid)[0])) > 0:
+            hi = mid
+        else:
+            lo = mid
+    Kp = int(np.ceil(factor * hi))
+    x, left = plant(Kp)
+    if left > 0:
+        return None, None, None
+    cp = ty_p.apply(P.cnt, x)
+    units = []  # reversal units, most influential first
+    for t in np.argsort(eff):
+        if x[t] > 0:
+            units += [(t // nk) * ty_s.nk + rev[t % nk]] * int(x[t])
+
+    def undone(m):
+        xr = np.zeros(g.P * ty_s.nk)
+        for u in units[:m]:
+            xr[u] += 1
+        return ty_s.apply(cp, xr)
+
+    lo, hi = 0, len(units)
+    while hi - lo > 1:
+        mid = (lo + hi) // 2
+        if gap(undone(mid)) <= 0:
+            hi = mid
+        else:
+            lo = mid
+    return cp, len(units), hi
+
+
+def main():
+    ap = argparse.ArgumentParser(); ap.add_argument("unit", nargs="?", default="arena55k")
+    ap.add_argument("--npairs", type=int, default=40); ap.add_argument("--restarts", type=int, default=200)
+    ap.add_argument("--planted", type=int, default=20); ap.add_argument("--seed", type=int, default=0)
+    a = ap.parse_args()
+    P = A.Prepared(get(a.unit))
+    rng = np.random.default_rng(a.seed)
+    real = pd.read_parquet(f"{OUT}/core/{a.unit.replace(':', '_')}.parquet")
+    rows, t0 = [], time.time()
+    for fam in ("delete", "flip"):
+        ty = B.Types(P.g, fam)
+        x = real[(real.family == fam) & (real.gap > 0) & (real.z_fisher >= 1) & (real.z_fisher <= 8) & (real.k_ver > 1)].sort_values("z_fisher")
+        sel = x.iloc[np.linspace(0, len(x) - 1, min(a.npairs, len(x))).astype(int)]
+        for _, r in sel.iterrows():
+            d = B.make_d(P.M, int(r.a), int(r.b))
+            res = B.kstar(P.g, ty, P.cnt, d, th0=P.theta, method="both")
+            ks = res["k_ver"]
+            ki = improve(P.g, ty, P.cnt, d, P.theta, int(ks), res["x"], rng, a.restarts)
+            rows.append(dict(kind="improve", family=fam, a=int(r.a), b=int(r.b), z_fisher=r.z_fisher, k_core=r.k_ver, k_std=ks, k_improved=ki,
+                             ratio=ki / ks))
+        print(a.unit, fam, "improve done", round(time.time() - t0), flush=True)
+        # planted
+        order = np.argsort(-P.theta)
+        tries = done = 0
+        while done < a.planted and tries < 10 * a.planted:
+            tries += 1
+            i, j = sorted(rng.choice(P.M, 2, replace=False))
+            hi_m, lo_m = order[i], order[j]
+            cp, kp, kpath = planted(P, fam, lo_m, hi_m)
+            if cp is None or kpath < 3:
+                continue
+            th_c = B.fit(P.g, cp, P.theta)
+            d = B.make_d(P.M, lo_m, hi_m)
+            res = B.kstar(P.g, ty, cp, d, th0=th_c, method="both")
+            rows.append(dict(kind="planted", family=fam, a=int(lo_m), b=int(hi_m), z_fisher=np.nan, k_planted=kp, k_path=kpath,
+                             k_found=res["k_ver"], ratio=res["k_ver"] / kpath))
+            done += 1
+        print(a.unit, fam, "planted done", round(time.time() - t0), flush=True)
+    os.makedirs(f"{OUT}/search", exist_ok=True)
+    pd.DataFrame(rows).to_parquet(f"{OUT}/search/scale_{a.unit.replace(':', '_')}.parquet")
+
+
+if __name__ == "__main__":
+    main()

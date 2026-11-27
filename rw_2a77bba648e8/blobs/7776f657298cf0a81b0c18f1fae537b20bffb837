@@ -1,0 +1,42 @@
+\begingroup\footnotesize\setlength{\tabcolsep}{2.5pt}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{4.2cm}lcccc@{}}
+\toprule
+Criterion & Threshold & Value [95\% CI] & \multicolumn{2}{c}{Absolute $R^2$ of} & Met \\
+\cmidrule(lr){4-5}
+ & & & $\log$ RMSE & $\log|\mathrm{bias}|$ & \\
+\midrule
+\multicolumn{6}{@{}l}{\emph{Rule specified before the runs}} \\
+(1) Pooled held-out $R^2$ gain, combined score, leave one mechanism out & $\geq0.05$, CI\,$>0$ & $0.034$ [$-0.285$, $0.338$] & $0.32$ & -- & no \\
+(1$'$) same, leave one family out & $\geq0.05$, CI\,$>0$ & $-0.009$ [$-0.267$, $0.215$] & $0.34$ & -- & no \\
+(2) Mechanisms with positive gain (of 6) & $\geq4$ & $3$ & -- & -- & no \\
+(2) Lowest pooled gain after deleting any one mechanism & $\geq0.05$ & $-0.095$ & -- & -- & no \\
+(3i) Part (i), variance: gain of $L$ over best degree benchmark, D$^*$ cells, leave one family out & $\geq0.05$, CI\,$>0$ & $0.125$ [$0.069$, $0.318$] & -- & -- & yes \\
+(3ii) Part (ii), bias: corner distance $\times$ curvature, gain over $p(1-p)$ & $\geq0.05$, CI\,$>0$ & $0.008$ [$-0.327$, $0.227$] & -- & $-0.12$ & no \\
+(3ii$'$) Part (ii), bias: spec disagreement $\bar S$, gain over $p(1-p)$ & $\geq0.05$, CI\,$>0$ & $0.044$ [$-0.009$, $0.084$] & -- & $-0.22$ & no \\
+(4) Within-cell Spearman excess of $S$ over the null simulation & CI above 0 & $0.0007$ [$-0.0001$, $0.0027$] & -- & -- & no \\
+(4) Median excess of $S$ above that of the bootstrap SE & $>0$ & $0.0012$ & -- & -- & yes \\
+\midrule
+\multicolumn{6}{@{}l}{\emph{Exploratory, outside the verdict}} \\
+Noise-adjusted $S_{\mathrm{adj}}$: combined, leave one mechanism out & $\geq0.05$, CI\,$>0$ & $0.148$ [$-0.094$, $0.375$] & $0.43$ & -- & no \\
+Noise-adjusted $S_{\mathrm{adj}}$: part (ii), bias, gain over $p(1-p)$ & $\geq0.05$, CI\,$>0$ & $0.200$ [$0.100$, $0.299$] & -- & $-0.06$ & yes \\
+Noise-free $S_{\mathrm{sig}}$ (ceiling): part (ii), bias, gain over $p(1-p)$ & $\geq0.05$, CI\,$>0$ & $0.055$ [$0.001$, $0.099$] & -- & -- & yes \\
+\midrule
+\multicolumn{6}{@{}l}{\emph{Confirmatory block (666 new cells, coefficients frozen before the runs), outside the verdict}} \\
+$S_{\mathrm{adj}}$ with corner $\times$ curvature: gain over $p(1-p)$, bias & $\geq0.05$, CI\,$>0$ & $0.099$ [$-0.059$, $0.170$] & -- & $0.115$ & no \\
+Groups with positive gain (of 10) & $\geq7$ & $5$ & -- & -- & no \\
+\midrule
+\multicolumn{6}{@{}l}{\emph{Reference predictors of $\log|\mathrm{bias}|$}} \\
+Population-OLS prediction (needs the true response; ceiling, not a competitor) & & & & $0.99$ & \\
+Best degree benchmark, $p(1-p)$ & & & & $-0.26$ & \\
+Constant (mean of the training groups) & & & & $-0.24$ & \\
+\midrule
+\multicolumn{6}{@{}l}{\emph{Reference predictors of $\log\mathrm{RMSE}$ (leave one mechanism / family out)}} \\
+Best degree benchmark, $np(1-p)/d$ & & & $0.29$ / $0.35$ & & \\
+Leverage $L$ only & & & $0.25$ / $0.25$ & & \\
+Controls only ($\log n$, $\log\sigma^2$) & & & $0.01$ / $0.07$ & & \\
+Constant (mean of the training groups) & & & $-0.05$ / $-0.03$ & & \\
+\midrule
+\multicolumn{6}{@{}l}{\textbf{Verdict: not supported} (all four criteria are required)} \\
+\bottomrule
+\end{tabular}
+\endgroup

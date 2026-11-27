@@ -1,0 +1,6 @@
+\newcommand{\cfg}{c}
+\newcommand{\chat}{\hat c}
+\newcommand{\Keff}{K_{\mathrm{eff}}}
+\newcommand{\sigmatheta}{\sigma_\theta}
+\newcommand{\PP}{\mathbb{P}}
+\newcommand{\EE}{\mathbb{E}}

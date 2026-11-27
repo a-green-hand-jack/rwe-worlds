@@ -1,0 +1,55 @@
+"""Paired family-bootstrap comparison of one run configuration against another on the same targets.
+For each (split, n, method) present in both target-level tables: per benchmark the RMSE ratio to uniform|mean in each table (each table's own
+uniform|mean), the family resample is shared by both tables, and the statistic is the geometric mean over non-thin benchmarks of
+ratio_B / ratio_A.  A value < 1 means table B is more accurate.  (Both tables must hold the same targets: same split, same folds.)
+usage: python3 -I scripts/09_paired.py TL_A.parquet TL_B.parquet OUT.csv [--split extrap] [--n 100] [--targets TARGETS.csv]"""
+import os
+for v in ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS"):
+    os.environ[v] = "1"
+import sys, argparse
+import numpy as np, pandas as pd
+ap = argparse.ArgumentParser()
+ap.add_argument("a"); ap.add_argument("b"); ap.add_argument("out")
+ap.add_argument("--split", default="extrap"); ap.add_argument("--n", type=int, default=100)
+ap.add_argument("--targets", default="results/targets.csv")
+ap.add_argument("--base", default="uniform|mean")
+args = ap.parse_args()
+B = 2000
+rng = np.random.default_rng(9)
+tg = pd.read_csv(args.targets).set_index(["bench", "split"])
+cols = ["bench", "split", "n", "method", "family", "target_model", "fold", "sq_err", "n_draws"]
+T = [pd.read_parquet(p, filters=[("split", "==", args.split), ("n", "==", args.n)], columns=cols) for p in (args.a, args.b)]
+methods = sorted(set(T[0].method) & set(T[1].method))
+benches = sorted(b for b in set(T[0].bench) & set(T[1].bench) if not tg.loc[(b, args.split), "thin"])
+rows = []; logs = {m: [] for m in methods}; pts = {m: [] for m in methods}; draws = {m: [] for m in methods}
+for b in benches:
+    g = [t[t.bench == b] for t in T]
+    key = g[0][g[0].method == args.base][["fold", "target_model", "family"]].sort_values(["fold", "target_model"])
+    ufam = np.unique(key.family); F = len(ufam)
+    C = rng.multinomial(F, np.ones(F) / F, size=B).astype(float)
+    cnt = np.bincount(np.searchsorted(ufam, key.family), minlength=F).astype(float); den = C @ cnt
+    rm = []
+    for t in g:
+        d = {}
+        for m, h in t.groupby("method"):
+            h = h.sort_values(["fold", "target_model"])
+            assert (h.target_model.values == key.target_model.values).all(), (b, m)
+            se = np.bincount(np.searchsorted(ufam, h.family), h.sq_err.values.astype(float), F)
+            d[m] = (np.sqrt((C @ se) / den), np.sqrt(se.sum() / cnt.sum()), h.n_draws.iloc[0])
+        rm.append(d)
+    for m in methods:
+        la = np.log(rm[0][m][0] / rm[0][args.base][0]); lb = np.log(rm[1][m][0] / rm[1][args.base][0])
+        logs[m].append((la, lb))
+        pts[m].append((np.log(rm[0][m][1] / rm[0][args.base][1]), np.log(rm[1][m][1] / rm[1][args.base][1])))
+        draws[m].append((rm[0][m][2], rm[1][m][2]))
+for m in methods:
+    A = np.stack([x[0] for x in logs[m]]); Bm = np.stack([x[1] for x in logs[m]])
+    pa, pb = np.array(pts[m]).T
+    dd = np.exp(np.mean(Bm - A, 0))
+    ga, gb = np.exp(np.mean(A, 0)), np.exp(np.mean(Bm, 0))
+    rows.append(dict(split=args.split, n=args.n, method=m, ratio_a=np.exp(pa.mean()), ratio_b=np.exp(pb.mean()), b_over_a=np.exp((pb - pa).mean()),
+                     ci_lo=np.percentile(dd, 2.5), ci_hi=np.percentile(dd, 97.5), a_lo=np.percentile(ga, 2.5), a_hi=np.percentile(ga, 97.5),
+                     b_lo=np.percentile(gb, 2.5), b_hi=np.percentile(gb, 97.5), n_bench=len(benches),
+                     n_draws_a=int(np.median([x[0] for x in draws[m]])), n_draws_b=int(np.median([x[1] for x in draws[m]]))))
+pd.DataFrame(rows).to_csv(args.out, index=False)
+print(pd.DataFrame(rows).round(3).to_string())

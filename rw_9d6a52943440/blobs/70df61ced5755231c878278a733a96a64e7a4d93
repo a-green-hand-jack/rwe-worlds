@@ -1,0 +1,37 @@
+\section{Target-recalibrated estimators and a weaker prior}
+\label{app:recal}
+
+\paragraph{Estimators.}
+The recalibrated estimator fits, on the target's sample, a regression of $y_j$ on a feature of item $j$ computed from the sources, with weights $1/\pi_j$, and averages the fitted values, clipped to $[0,1]$, over all $N$ items.
+The feature is either the logit of the smoothed source accuracy of the item (\emph{recal-s}) or the item's mean fitted logit under the rank-two IRT model fitted on the sources (\emph{recal-q}); the variants \emph{recal-sirt} and \emph{recal-qirt} add the cross-fitted IRT prediction on the sample as a second feature.
+The regression has a ridge penalty of $1$ on the standardised slopes, fixed in the code before the run; the variants without it are within $0.01$ of those with it at $n=100$.
+If either class has fewer than three sampled items, or the weighted regression is rank-deficient, the estimate is the Hájek mean.
+We report all eight variants, not one chosen in advance; the class representative is chosen leave-one-benchmark-out as for the other classes (Table~\ref{tab:lobo}), and rows named best are post hoc.
+
+\paragraph{Results.}
+Table~\ref{tab:recal} gives the ratio to uniform $\times$ mean at $n=100$ for the five splits (the three main splits and the top-10\% and top-50\% extrapolation splits).
+On a uniform design recalibration lowers the variance by about $30\%$ and the ratio to $0.89$ in extrapolation, but stratification alone gives $0.85$ and a balanced design $0.81$.
+Against stratified $\times$ mean, stratified $\times$ recal-sirt is $1.03$ $[1.02,1.05]$ in extrapolation, $0.97$ $[0.96,0.99]$ on the top-10\% split, $0.99$ on the top-50\% split and $1.02$ in interpolation and lineage; balanced $\times$ recal-s is $0.97$ $[0.95,0.98]$ in extrapolation against $0.95$ for balanced $\times$ mean.
+The estimator is not unbiased: its squared bias is $0.10$ to $0.14$ of the mean squared error of uniform $\times$ mean in extrapolation, against $0$ for stratified $\times$ mean and $4.3$ for the IRT model.
+The leave-one-benchmark-out representative is $0.85$ $[0.83,0.86]$ of uniform $\times$ mean in extrapolation (balanced $\times$ recal-q most often) and $1.00$ $[0.98,1.01]$ of stratified $\times$ mean.
+At the two-percent budget the conclusion is the same: balanced $\times$ recal-s is $0.76$ against $0.75$ for balanced $\times$ mean in extrapolation.
+The Hájek fall-back replaces $0.4$--$1.3\%$ of the (draw, target) pairs in the extrapolation splits and $4.5$--$6.1\%$ in interpolation and lineage, pooled over targets and non-thin benchmarks (minimum to maximum over the four designs; Table~\ref{tab:recal}); it is high only on two benchmarks, MATH Lvl~5 ($37$--$50\%$ in interpolation depending on the design, where targets answer nearly every item correctly) and OpenBookQA ($17\%$ in extrapolation).
+At the two-percent budget it is $83$--$99\%$ on the benchmarks with $n\le10$, so there the estimator is mostly the Hájek mean.
+The extrapolation runs use $R=40$ subset draws per fold, the others $R=10$; none uses $100$.
+
+\begin{table}[h]
+\centering
+\caption{Target-recalibrated estimators and the weak-prior check, $n=100$. Entry: geometric mean over the non-thin benchmarks of the RMSE ratio to uniform~$\times$~mean (first and last blocks) or to stratified~$\times$~mean (second block), with its 95\% family-bootstrap interval; below 1 is better. Recalibrated regression: the target's $n$ answers are regressed on the source-side item score (s: logit of the sources' item accuracy; s+IRT: with the cross-fitted IRT prediction as a second feature) and the fitted values are averaged over all items. The recalibrated estimators and the weak-prior rows were added after the first results. LOBO: the variant chosen among the eight by leave-one-benchmark-out; $\dagger$: the best of the eight per split, chosen after the fact. Diff.\ IRT (naive) refits without cross-fitting and is a diagnostic. Weak prior: prior precision $0.1$ on the target's ability instead of $1$, checked after the fact. Fall-back rate: share of (draw, target) pairs for which the regression was replaced by the sample mean (fewer than three sampled items of one outcome class), pooled over targets and non-thin benchmarks, minimum to maximum over the four designs.}
+\label{tab:recal}
+\resizebox{\linewidth}{!}{\input{../tables/table10_recal}}
+\end{table}
+
+\paragraph{A weaker prior.}
+The IRT predictors take the target's ability at its posterior mode under a standard normal prior.
+We repeated the IRT model and plug-in with a prior variance ten times larger (weak prior), after seeing that the model's extrapolation error was large; the headline rows keep the default prior.
+At $n=100$ on a uniform design the ratio of the IRT model to uniform $\times$ mean falls from $1.96$ to $1.66$ in extrapolation, from $1.55$ to $1.35$ on the top-10\% split and from $2.59$ to $2.32$ on the top-50\% split, and changes by at most $0.03$ in interpolation and lineage; the squared bias in extrapolation falls from $4.29$ to $3.04$.
+The plug-in estimator falls from $1.76$ to $1.50$.
+A weak-prior model-based predictor remains $1.3$ to $2.3$ times worse than uniform $\times$ mean above the sources, so this prior is not the whole cause of the bias; Appendix~\ref{app:public} varies it further.
+
+\paragraph{Not run.}
+We did not run a two-phase design that adapts the sample to the target after a first batch of answers.

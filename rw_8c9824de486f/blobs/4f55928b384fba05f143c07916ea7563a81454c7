@@ -1,0 +1,13 @@
+"""Inference rules P0-P6 (prereg/PREREG.md H). Each returns standardised predictions for all N benchmarks of one held-out model
+given the revealed benchmarks S (indices) and standardised values y."""
+import numpy as np
+from fa import predict_row
+
+def p0_mean(N):
+    return np.zeros(N)
+
+def p1_offset(N, y):
+    return np.full(N, float(np.mean(y))) if len(y) else np.zeros(N)
+
+def p5_fa(fit, S, y):
+    return predict_row(fit, S, y)

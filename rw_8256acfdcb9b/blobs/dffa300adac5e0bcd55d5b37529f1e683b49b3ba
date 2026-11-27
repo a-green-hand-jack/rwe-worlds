@@ -1,0 +1,12 @@
+{
+ "figure": "fig5_floors",
+ "width_in": 4.95,
+ "height_in": 2.3400000000000003,
+ "inputs": {
+  "results/tables/floors.parquet": "c4c7ebdb654f15e23d96a0e354eb99217e5e9755acaef873e60f840197ca7483",
+  "results/tables/cells.csv": "3266aaca4ea1f015193d53732614c8a75bfce1c998cbbf0b28dfb88aeb155ed3",
+  "results/tables/floors_models.csv": "1a987defe918c3e86e08dea98c53039555a4b02c23f3d7c8e55ef312ac089208"
+ },
+ "note": "k=3; floor a = pairs of the R runs of shap_kernel (l1_reg=False) at the small budget (smallest m>=3d present for all models) and at the reference budget (shap default where it samples, else largest sampling budget); b, c = pairs of exactly explained backgrounds/retrained models (K per floors_models.csv); instance bootstrap (seed 0); K = models per floor in column n_models (open marker: K<10 backgrounds (b) or retrained models kept after the AUC filter (c); floors_models.csv has tried/kept per definition); b is at the single background size B=50 (random rows), c is one trained model per population per definition, three definitions never pooled; the CI is over instances only; absent = not computed; n/a = retraining floor unusable (German MLP, AUC filter kept 1 of 24 bootstrap, 3 of 24 hyper-parameter and 6 of 15 seed retrainings; Outline rev 7), no number drawn",
+ "scope": "Intervals resample instances of one trained model per dataset x model (one seed, B=50 random background rows); variance from retraining and from the background is not in them (floors b and c measure those separately)."
+}

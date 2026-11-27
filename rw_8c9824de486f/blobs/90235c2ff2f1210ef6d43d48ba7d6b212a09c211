@@ -1,0 +1,16 @@
+{
+  "analysis_commit": "66252a8",
+  "figure": "figtab/tab4_ksrule.tex",
+  "inputs": [
+    {
+      "path": "results/inner_kstar.csv",
+      "sha256": "4463c6d35d6c69bedf786e9f1a06ba451533a0db5fe5c10c34e7fc2d0e74c7a5"
+    },
+    {
+      "path": "results/olb/inner_kstar.csv",
+      "sha256": "51e2f31c483d06ec475e19660086a979dd8aec0c9bb2b058a21cb12ecdc4f94c"
+    }
+  ],
+  "note": "cell = khat [90% interval] / measured k*; dagger = measured k* outside the interval of khat; grid values, 9999 = not reached (>109 MTEB, >13 Open LLM); delta_floor rows: epsilon differs by split (MTEB 1.17, 1.09, 1.06; Open LLM 1.20, 1.20 points)",
+  "script": "figtab/make_table_ksrule.py"
+}

@@ -1,0 +1,60 @@
+"""Fig 9 (C8): does the nominal 95% interval of the Chin regression cover?  One point per cell (run, mechanism, s) at sigma=0.5,
+HC0 sandwich interval on all 3000 assignment draws (`coverage_hc`); the Monte Carlo SE of a point is <= 0.03 (median 0.005).
+A: coverage against |bias| / SD (log axis; cells with |bias|/SD < 0.01 drawn at 0.01); B: coverage against the leverage L of the
+corner contrast, for cells with small bias (|bias|/SD < 0.25, orange) and the rest (grey). Dashed line: 0.95. Large dots: mean coverage per bin (x at the median of the bin).
+Bernoulli designs, mechanisms (a)-(f), the true graph (edge-noise, no-baseline sanity and convex-mirror runs left out), every graph family and d, p grid, in A and B; cluster-design cells are listed in the appendix table (the HC0 interval is a unit-level interval).
+Usage: fig9_coverage.py RESULTS_DIR OUT_DIR
+"""
+import argparse
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+import common
+import style
+
+ap = argparse.ArgumentParser()
+ap.add_argument("data"); ap.add_argument("out")
+ap.add_argument("--sigma", type=float, default=0.5)
+a = ap.parse_args()
+style.apply()
+cells, meta = common.load(a.data, "cells")
+k = common.coverage_population(cells, a.sigma)   # shared with Table A3
+k["bias_over_sd"] = k.bias.abs() / k.sd
+bern = k
+bern["x_bias"] = bern.bias_over_sd.clip(lower=0.01)
+
+fig, axs = plt.subplots(1, 2, figsize=(style.TEXTWIDTH, 2.5), sharey=True, gridspec_kw=dict(wspace=0.08))
+ax, bx = axs
+ax.scatter(bern.x_bias, bern.coverage_hc, s=3, c="#0072B2", alpha=0.3, lw=0, rasterized=True)
+edges = np.array([0.0, 0.25, 0.5, 1, 2, 1e3])   # the bins of claims/c8_coverage.csv
+bern["bin"] = pd.cut(bern.bias_over_sd, edges, include_lowest=True)
+g = bern.groupby("bin", observed=True).agg(x=("x_bias", "median"), y=("coverage_hc", "mean"), n=("coverage_hc", "size")).reset_index()
+ax.plot(g.x, g.y, color="k", marker="o", ms=4, lw=1.0, zorder=4)
+ax.axhline(0.95, color="k", ls="--", lw=0.8); ax.set_xscale("log"); ax.minorticks_off()
+ax.set_xticks([0.01, 0.1, 1, 10]); ax.set_xticklabels(["$\\leq$0.01", "0.1", "1", "10"])
+ax.set_xlabel("|bias| / SD"); ax.set_ylabel("coverage of the 95% interval"); ax.set_ylim(-0.02, 1.02)
+ax.text(-0.2, 1.04, "A", transform=ax.transAxes, fontweight="bold")
+
+lo = bern[bern.bias_over_sd < 0.25]; hi = bern[bern.bias_over_sd >= 0.25]
+bx.scatter(hi.L, hi.coverage_hc, s=3, c="0.55", alpha=0.3, lw=0, rasterized=True)
+bx.scatter(lo.L, lo.coverage_hc, s=3, c="#D55E00", alpha=0.4, lw=0, rasterized=True)
+qe = np.quantile(lo.L, np.linspace(0, 1, 5)); qe[-1] += 1e-9
+lo = lo.assign(bin=pd.cut(lo.L, qe, include_lowest=True))
+g2 = lo.groupby("bin", observed=True).agg(x=("L", "median"), y=("coverage_hc", "mean"), n=("coverage_hc", "size")).reset_index()
+bx.plot(g2.x, g2.y, color="#D55E00", marker="o", ms=4, lw=1.0, zorder=4, mec="k", mew=0.6)
+bx.axhline(0.95, color="k", ls="--", lw=0.8); bx.set_xscale("log"); bx.minorticks_off()
+bx.set_xticks([10, 100, 1000]); bx.set_xticklabels(["10", "100", "1000"])
+bx.set_xlabel("leverage $L$ of the corner contrast")
+bx.text(-0.06, 1.04, "B", transform=bx.transAxes, fontweight="bold")
+from matplotlib.lines import Line2D
+h = [Line2D([], [], marker="o", color="#D55E00", ls="", ms=3.5), Line2D([], [], marker="o", color="0.55", ls="", ms=3.5),
+     Line2D([], [], marker="o", color="k", ls="-", ms=4, mfc="#D55E00")]
+fig.legend(h, ["$|$bias$|$/SD $<0.25$ (B)", "$|$bias$|$/SD $\\geq0.25$ (B)", "bin mean"], frameon=False, loc="lower center", ncol=3,
+           bbox_to_anchor=(0.5, -0.17), columnspacing=1.2, handletextpad=0.3)
+style.check_min_type(fig)
+o = common.out_dir(meta, a.out)
+style.save(fig, o / "fig9_coverage.pdf", dpi=300)
+bern[["run_id", "graph", "mechanism", "s", "d_target", "p", "L", "bias", "sd", "bias_over_sd", "coverage_hc", "coverage_hc_mc_se", "width_hc"]].to_csv(o / "fig9_coverage.csv", index=False)
+g.to_csv(o / "fig9_coverage_binsA.csv", index=False); g2.to_csv(o / "fig9_coverage_binsB.csv", index=False)

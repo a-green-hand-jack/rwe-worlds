@@ -1,0 +1,30 @@
+"""E3 headroom ladder (T1 arms) on the ppi-python sets; pool = population, iid draws with replacement.
+usage: python exp3_real.py DATASET PROCS [replace|disjoint]"""
+import sys
+from common import *
+
+name, procs = sys.argv[1], int(sys.argv[2])
+mode = sys.argv[3] if len(sys.argv) > 3 else "replace"
+# Reference n (fixed before the runs): 500 for every set except forest (200). N is capped (stated per set).
+GRID = {  # n grid and N per dataset
+    "galaxies": ([30, 100, 300, 500, 1000, 3000], 10000),
+    "forest": ([30, 100, 200, 300, 500], 1000),
+    "alphafold": ([30, 100, 300, 500, 1000, 3000], 8000),
+    "gene_expression": ([30, 100, 300, 500, 1000, 3000], 10000),
+    "census_income": ([30, 100, 300, 500, 1000, 3000], 10000),
+    "census_healthcare": ([30, 100, 300, 500, 1000, 3000], 10000),
+    "census_education": ([30, 100, 300, 500, 1000, 3000], 10000),
+    "plankton": ([30, 100, 300, 500, 1000, 3000], 10000),
+    "ballots": ([30, 100, 300, 500], 5000),
+}
+REFERENCE_N = {"forest": 200}
+ns, N = GRID[name]
+pop = load_pool(name, replace=(mode == "replace"))
+exp = "exp3" if mode == "replace" else "exp3_disjoint"
+cells = []
+for n in ns:
+    if mode == "disjoint" and n + N > len(pop.Y):
+        continue
+    rare = pop.truth < 0.2 or n <= 100
+    cells.append(dict(id=f"{name}_n{n}_N{N}", pop=pop, n=n, N=N, R=5000 if rare else 2000, cfg=T1_CFG))
+run_grid(exp, cells, procs)

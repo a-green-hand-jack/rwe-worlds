@@ -1,0 +1,64 @@
+"""Facts about the item x configuration matrix (Tab 1): accuracy range, spread of true configuration accuracy sigma_theta
+(split-half covariance estimator, free of sampling noise), pairwise item-level correlation between configurations,
+share of the spread due to letter/position bias, variance shares of the configuration factors, leakage Delta_leak.
+Usage: python matrix_facts.py MATRIX.npz CF.npz OUT.json"""
+import sys, os, json
+DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")
+import numpy as np
+from scipy.special import softmax
+
+rng = np.random.default_rng(0)
+z = np.load(sys.argv[1]); Y = z["Y"].astype(float); logp = z["logp"].astype(np.float32); ans = z["ans"]; fac = z["factors"]
+N, K = Y.shape; out = dict(N_items=int(N), K=int(K))
+p = Y.mean(0); out.update(acc_mean=float(p.mean()), acc_min=float(p.min()), acc_max=float(p.max()), acc_sd_raw=float(p.std()))
+
+def sigma_theta(Y, reps=200):
+    """sd of true configuration accuracy: sqrt of the mean over random half-splits of cov_k(p_A, p_B) (noise independent across halves)."""
+    v = []
+    for _ in range(reps):
+        perm = rng.permutation(len(Y)); a, b = perm[: len(Y) // 2], perm[len(Y) // 2:]
+        v.append(np.cov(Y[a].mean(0), Y[b].mean(0))[0, 1])
+    return float(np.sqrt(max(np.mean(v), 0)))
+
+def boot(fn, reps=200):
+    vals = [fn(Y[rng.integers(0, N, N)]) for _ in range(reps)]
+    return [float(np.percentile(vals, 2.5)), float(np.percentile(vals, 97.5))]
+
+out["sigma_theta"] = sigma_theta(Y, 50); out["sigma_theta_ci_pool_bootstrap"] = boot(lambda Yb: sigma_theta(Yb, 10), 100)
+# pairwise item-level correlation of correctness between configurations
+C = np.corrcoef(Y.T); iu = np.triu_indices(K, 1); out["mean_pairwise_item_corr"] = float(np.nanmean(C[iu])); out["pairwise_corr_q"] = [float(x) for x in np.nanpercentile(C[iu], [5, 50, 95])]
+# letter bias: contextual-calibration share.  For every configuration remove the per-letter log prior (mean log prob of each letter
+# over items) and re-score; share = 1 - var_k(cal. acc) / var_k(raw acc) using split-half sigma_theta^2 on each.
+valid = np.isfinite(logp)
+lp = np.where(valid, logp, -np.inf); P = softmax(np.where(valid, logp, -1e9), -1)               # (N,K,10) option probabilities
+prior = np.log(P.mean(0) + 1e-9)                                                                   # (K,10)
+cal = np.where(valid, np.log(P + 1e-12) - prior[None], -np.inf).argmax(-1)
+Ycal = (cal == ans[:, None]).astype(float)
+out["acc_mean_calibrated"] = float(Ycal.mean()); out["sigma_theta_calibrated"] = sigma_theta(Ycal, 50)
+out["letter_bias_share"] = float(max(0.0, 1 - out["sigma_theta_calibrated"] ** 2 / out["sigma_theta"] ** 2))
+# bias-only accuracy: accuracy a configuration would have if its predicted letter were independent of the item
+q = np.stack([np.bincount(logp[:, k].argmax(-1), minlength=10) / N for k in range(K)])             # predicted-letter distribution (K,10)
+tf = np.bincount(ans, minlength=10) / N; bias_acc = q @ tf
+out["bias_only_acc_mean"] = float(bias_acc.mean()); out["corr_acc_vs_bias_only_acc"] = float(np.corrcoef(p, bias_acc)[0, 1])
+out["predicted_letter_share_max"] = float(q.max(1).mean()); out["true_letter_share_max"] = float(tf.max())
+# factor shares of the variance of config accuracy (main effects, one-way ANOVA per factor)
+names = ["demo_set", "label", "instruction", "cue"]; tot = p.var()
+out["factor_variance_share"] = {nm: float(sum((fac[:, i] == l).sum() * (p[fac[:, i] == l].mean() - p.mean()) ** 2 for l in np.unique(fac[:, i])) / K / tot) for i, nm in enumerate(names)}
+# per-factor-level mean accuracy
+out["factor_level_acc"] = {nm: [float(p[fac[:, i] == l].mean()) for l in np.unique(fac[:, i])] for i, nm in enumerate(names)}
+# leakage counterfactual from the cf file
+if len(sys.argv) > 2:
+    cf = np.load(sys.argv[2], allow_pickle=True); pool_ans = None
+    import pandas as pd
+    pool = pd.read_pickle(DATA + "/pool.pkl"); meta = json.load(open(DATA + "/pool_meta.json")); by = pool.set_index("question_id")
+    d = []
+    for X in "ABC":
+        for k, qi in enumerate(meta["sets"][X]):
+            a = int(by.loc[qi, "answer_index"]); v = []
+            for lab in ("dot", "paren"):
+                v.append((cf[f"{X}_{k}_{lab}_leak"].argmax(-1) == a).mean() - (cf[f"{X}_{k}_{lab}_cf"].argmax(-1) == a).mean())
+            d.append(np.mean(v))
+    d = np.array(d); bs = [rng.choice(d, len(d)).mean() for _ in range(2000)]
+    out["delta_leak"] = float(d.mean()); out["delta_leak_ci"] = [float(np.percentile(bs, 2.5)), float(np.percentile(bs, 97.5))]
+    out["delta_leak_items"] = d.tolist()
+json.dump(out, open(sys.argv[3], "w"), indent=1); print(json.dumps(out, indent=1))

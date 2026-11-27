@@ -1,0 +1,41 @@
+\begingroup\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lrrrrrrr}
+\toprule
+& & \multicolumn{6}{c}{Mean width (coverage \%)} \\
+\cmidrule(lr){3-8}
+Dataset & $n$ & Labels only & PPI & PPI++ & Calib. $f$ & Selected & Selected, $f$ and $X$ \\
+\midrule
+alphafold & 500 & 0.0669 (94.5) & 0.0409 (94.7) & 0.0410 (94.4)$^\dagger$ & 0.0413 (94.6) & 0.0410 (94.5) & 0.0411 (93.8)$^\dagger$ \\
+ballots & 500 & 0.0847 (94.0) & 0.0313 (95.9) & 0.0297 (94.8) & 0.0297 (94.6) & 0.0297 (94.6) & -- \\
+census educ. & 500 & 0.768 (95.2) & 0.608 (95.0) & 0.607 (94.7) & 0.615 (94.6) & 0.610 (94.7) & 0.612 (94.8) \\
+census health & 500 & 0.0824 (94.3) & 0.0596 (94.8) & 0.0595 (94.7) & 0.0601 (94.8) & 0.0597 (94.8) & 0.0598 (94.9) \\
+census income & 500 & 13100 (94.0) & 10700 (94.0)$^\dagger$ & 10700 (93.8)$^\dagger$ & 10700 (94.0)$^\dagger$ & 10600 (93.9)$^\dagger$ & 10600 (93.7)$^\dagger$ \\
+forest & 200 & 0.0992 (94.4)$^\dagger$ & 0.0877 (94.4)$^\dagger$ & 0.0861 (93.8)$^\dagger$ & 0.0878 (94.2)$^\dagger$ & 0.0867 (94.3)$^\dagger$ & -- \\
+galaxies & 500 & 0.0768 (94.7) & 0.0531 (94.2) & 0.0530 (94.0)$^\dagger$ & 0.0535 (94.1) & 0.0532 (94.3) & -- \\
+gene expr. & 500 & 0.769 (95.2) & 0.269 (95.5) & 0.269 (95.4) & 0.261 (95.5) & 0.261 (95.5) & -- \\
+plankton & 500 & 0.0597 (94.7) & 0.0362 (95.5) & 0.0345 (94.7) & 0.0345 (95.1) & 0.0345 (95.1) & -- \\
+\bottomrule
+\end{tabular}
+\endgroup
+
+\vspace{6pt}
+
+\begingroup\scriptsize\setlength{\tabcolsep}{1.5pt}
+\begin{tabular}{lrrlrlrllrrrl}
+\toprule
+& \multicolumn{3}{c}{Ratio to package PPI++ [95\% CI]} & \multicolumn{2}{c}{to unclipped PPI++} & \multicolumn{3}{c}{to strongest valid baseline} & \multicolumn{2}{c}{Floor / PPI++} & \multicolumn{2}{c}{Ratio, with $X$} \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-6}\cmidrule(lr){7-9}\cmidrule(lr){10-11}\cmidrule(lr){12-13}
+Dataset & PPI++ unclipped & Selected & class & Selected & class & Selected & base & class & asympt. & meas. & Selected & class \\
+\midrule
+alphafold & 1.002 [1.002,1.003] & 1.000 [1.000,1.000] & none & 0.998 [0.997,0.998] & none & 1.000 [1.000,1.000] & P$^\ddagger$ & none & 0.998 & 0.998 & 1.004 [1.004,1.005]$^\dagger$ & none$^\ddagger$ \\
+ballots & 1.000 [1.000,1.000] & 1.000 [1.000,1.001] & none & 1.000 [1.000,1.001] & none & 1.000 [1.000,1.001] & P & none & 1.003 & 1.007 & -- & -- \\
+census educ. & 1.000 [1.000,1.000] & 1.005 [1.005,1.005] & none & 1.005 [1.004,1.005] & none & 1.005 [1.005,1.005] & P & none & 0.997 & 1.000 & 1.009 [1.009,1.009] & none \\
+census health & 1.000 [1.000,1.000] & 1.003 [1.003,1.004] & none & 1.003 [1.003,1.003] & none & 1.003 [1.003,1.004] & P & none & 0.997 & 1.000 & 1.004 [1.004,1.005] & none \\
+census income & 0.985 [0.984,0.985] & 0.992 [0.991,0.993]$^\dagger$ & none & 1.008 [1.007,1.008] & none & 1.008 [1.007,1.008] & U$^\ddagger$ & none & 0.995 & 1.000 & 0.993 [0.993,0.994]$^\dagger$ & none$^\ddagger$ \\
+forest & 1.001 [1.000,1.001] & 1.007 [1.007,1.007]$^\dagger$ & none & 1.006 [1.006,1.007] & none & 1.007 [1.007,1.007] & P$^\ddagger$ & none & 1.004 & 1.010 & -- & -- \\
+galaxies & 1.000 [1.000,1.001] & 1.003 [1.002,1.003] & none & 1.002 [1.002,1.002] & none & 1.002 [1.002,1.002] & U & none & 1.000 & 1.001 & -- & -- \\
+gene expr. & 0.977 [0.976,0.977] & 0.971 [0.971,0.971] & small & 0.994 [0.994,0.995] & none & 0.994 [0.994,0.995] & U & none & 0.993 & 0.967 & -- & -- \\
+plankton & 1.000 [1.000,1.000] & 1.001 [1.000,1.001] & none & 1.000 [1.000,1.001] & none & 1.001 [1.000,1.001] & P & none & 1.001 & 1.002 & -- & -- \\
+\bottomrule
+\end{tabular}
+\endgroup

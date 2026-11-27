@@ -1,0 +1,46 @@
+# Review of the plan (Outline rev 1, story-repo wiki, 2026-11-25 16:11; built on Brief rev 3) — round 1
+
+Search note: I did not search for the published study the task forbids; novelty is judged against adjacent work only.
+
+## What is strong
+1. The outline follows the Brief and the objective: related work, method, theory with a numerical check, experiments with baselines, and limits. Each claim C0-C7 is tied to the evidence needed and to one figure or table, so each roles knows what it owes.
+2. It is built around the primary result (error and closure vs k, under family-held-out evaluation) and names three acceptable headline forms, so no result is forced.
+3. Section 4 says what each result would change, including routing a result that does not carry the idea back to `idea-repo`.
+4. The cut order if the page budget bites (Fig. 6 into a table before Figs. 2-4) is stated.
+5. Main-text claims (C1-C5) and appendix claims (C0, C6, C7) are separated, and the data regimes are not pooled.
+
+## Weak points and fixes (most serious first)
+
+### P1. "How large must k be" depends on our predictor, and the evidence for C1 uses only one
+C1 is run with greedy/random selection and the PPCA predictor. k* is a property of selector and predictor together. If a simple predictor (ridge on the chosen columns, or the one-factor offset) closes the gap with a smaller k, the paper's k* overstates what an evaluator needs. Fix: report k* (and C(k)) for the PPCA predictor and for the best of the simple predictors, with the predictor chosen on the training folds, not on the test folds. Put the second curve in Fig. 2 or Table 2, not only in C6.
+
+### P2. The conditions of applicability are not tested unless the union matrix works
+The objective asks for the method's conditions and costs. The Brief says the method needs history coverage of S and a history of enough models. The outline tests sparse history only through C6, and C6 is conditional on the LLM union matrix reaching an overlap threshold that nobody has checked. Fix: add a history-size and history-density sweep that needs no new data, on the dense pool of MTEB and on HELM MMLU: fit the history on a random subset of M' training models (family-grouped) and/or with a fraction of cells masked (random, and in a pattern where weak models lack cells), and report error and k* against M' and density. Then "how many models and how much coverage are needed" has an answer even if the union matrix is dropped. State the selection cost (seconds, number of EM iterations) in the method section from the code.
+
+### P3. The LLM, cross-benchmark evidence can end up empty
+The objective is about LLM benchmarks. The main figure has MTEB (embedding models) and HELM MMLU (57 subjects of one benchmark). The only cross-benchmark LLM evidence is the union matrix, which is conditional. HELM Lite v1.13.0 (91 models x 10 scenarios) is real cross-benchmark LLM data with no missing cells, and the Open LLM Leaderboard (6 benchmarks) is also; both are small N, but k = 1-5 is a legitimate range. Fix: include them in C1/C2 as small-N panels (Table 2 rows and an appendix figure) with the Brief's "case study, not evidence for how large k" label. Then the paper has a cross-benchmark LLM statement either way, with its limits said. If it has none, the abstract must say that the LLM-benchmark question is answered only at subtask level.
+
+### P4. Saturation and transform are treated as robustness, not as part of the method
+Accuracy-type scores are bounded and saturate (strong models near the top on MMLU subjects), and the Brief names this as a failure case of the Gaussian model. C7 puts the logit transform in the appendix. If the untransformed model is mis-specified on a main dataset, the main figures (C1-C4) rest on a weak model, and the theory check (C4) will fail for a known reason. Fix: pre-register the transform choice as part of the method (per dataset, by held-out likelihood on the training folds, with the identity as the default for MTEB scores that are not bounded probabilities) and run C1-C4 with the chosen one; keep the other as the robustness row.
+
+### P5. Statistical resolution is not planned
+Family-clustered intervals have as few clusters as there are families (HELM MMLU: 79 models, likely a few dozen families; MTEB dense pool: unknown). The Brief's H2 margin is 10% of random error. With few clusters the CI may be too wide to decide that. Fix: print the number of families next to each CI (already in the Brief), and add to Table 2/3 the smallest gap that the family-clustered bootstrap could have detected at that dataset (from the CI half-width), so a "not clearly better" verdict is read as "not detected at this resolution" when that is what it is. Report number of folds and the seeds.
+
+### P6. Requirements of the deliverable with no owner
+deliverable.md requires: reproduction notes (environment and versions, data acquisition steps and versions, seeds, commands and expected time, which script makes each table and figure) and, if the forbidden material is met, a record of it in those notes. Section 5 assigns code to `experiment-repo`, figures to `figtab-repo`, text to `report`; nobody owns the reproduction notes or the figure-to-script map. Also the theory derivations: Section 5 gives "derivations and their numerical checks" to `experiment-repo`, while the Brief says the matrix-Chernoff constants must come from the source. Fix: assign in the outline (and agree with the owners): reproduction notes = `experiment-repo` for everything up to the numbers, `figtab-repo` for the figure/table-to-script map, `report` for assembling and the forbidden-material statement; derivations = `experiment-repo` writes and checks them, `idea-repo` supplies the source statement for the coherence bound; the report role does not state a constant that the code owner has not confirmed.
+
+### P7. Smaller points
+- The adaptive vs non-adaptive selection test (Brief remark) sits inside C3 ("with and without nonlinear/adaptive selection"), which is about shift. It answers a different question (is the linear theory enough). Give it its own line, in C6 or C4, and say which data it uses.
+- The main text carries five multi-panel figures plus Fig. 1 and four tables. That is heavy for a nine-page main text. Settle with `venue-repo` before figures are made; I would pre-decide that Fig. 5 shows the three tiers as three curves in one panel and the real-data result as a table row, and that Fig. 6 starts as a table.
+- Section 6 puts the theory tier-1 check before the real data: good. Add a resource line: the grouped K-fold x selectors x predictors x 200 random draws x three splits x several datasets is the main cost; EM refits per fold, not per draw, keep it to CPU minutes-hours, but the experiment role should confirm before the grid is fixed, so that the cut is chosen in the plan and not under time pressure.
+- Add to C0 the dense-pool selection check requested in the Brief: how pool models differ from the rest, so the reader knows what the dense-pool result is a claim about.
+
+## What would make the plan stronger, in order of effect
+1. P1: k* for the best simple predictor as well as for PPCA.
+2. P2: history-size/density sweep that does not depend on new data.
+3. P6: owners for reproduction notes and derivations.
+4. P3: HELM Lite and Open LLM Leaderboard as small-N cross-benchmark panels.
+5. P4: transform as part of the method, chosen on training folds.
+6. P5: say what resolution the intervals have.
+
+No change of direction is needed. Please answer in the issue with what you adopt or decline; I review the revised Outline.

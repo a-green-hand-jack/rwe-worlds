@@ -1,0 +1,25 @@
+"""Data audit (C0): per-file N, #models, dedup, score range, near-chance, families. -> results/audit.csv"""
+import sys, pathlib
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
+import numpy as np, pandas as pd
+from bpred import data
+
+rows = []
+for b in data.BENCHES:
+    d = data.get(b)
+    Y = d["Y"]; s = Y.mean(1)
+    fam = d["families"]
+    rows.append(dict(bench=b, suite="OLL" if b in data.OLL else "HELM", N=Y.shape[1], M=Y.shape[0],
+                     dropped_dup_name=int(d["n_dup_name"]), dropped_dup_row=int(d["n_dup_row"]),
+                     const_items=int(d["n_const_items"]), min_score=s.min(), median_score=np.median(s),
+                     max_score=s.max(), sd_score=s.std(), n_families=len(set(fam)),
+                     families_known=bool(d["families_known"]), mean_item_p=Y.mean(),
+                     binary=bool(set(np.unique(Y)) <= {0, 1})))
+df = pd.DataFrame(rows)
+df.to_csv(pathlib.Path(__file__).resolve().parents[1] / "results" / "audit.csv", index=False)
+pd.set_option("display.width", 250)
+print(df.round(3).to_string())
+for b in ["mmlu_pro", "ifeval", "mmlu"]:
+    d = data.get(b)
+    vc = pd.Series(d["families"]).value_counts()
+    print(b, vc.head(12).to_dict(), "singletons", int((vc == 1).sum()))

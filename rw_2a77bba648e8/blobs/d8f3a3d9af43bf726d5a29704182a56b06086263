@@ -1,0 +1,58 @@
+"""Appendix Fig A9 (C4, the fitted-form oracle row of Fig 5): why the one-shot diffusion regression with a fitted shape parameter (`or_fit`) is worse than DM at d >= 20.
+Rows: (c) saturating (shape kappa, true 3) and (e) multi-hop (diffusion weight rho, true 0.5); columns: target degree d in {5, 20, 80}.
+Line: RMSE of the oracle regression with the shape parameter held fixed at each grid value. Star: the known-parameter oracle (the true value).
+Dashed horizontal: the oracle with the parameter fitted by least squares over the grid; dotted horizontal: DM. Panel text: share of draws whose fitted parameter sits at an end of the grid.
+Source: `or_fit_check.csv` (analysis), p = 1/2, s = 1/2, sigma = 0.5, 1200 draws (4 graph draws x 300 assignments).
+Usage: figA9_orfit.py RESULTS_DIR OUT_DIR
+"""
+import argparse
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+import common
+import style
+
+ap = argparse.ArgumentParser()
+ap.add_argument("data"); ap.add_argument("out")
+a = ap.parse_args()
+style.apply()
+d, meta = common.load(a.data, "or_fit_check")
+ROWS = [("c", r"(c) saturating, $\kappa$", True), ("e", r"(e) multi-hop, $\rho$", False)]
+fig, axs = plt.subplots(2, 3, figsize=(style.TEXTWIDTH, 3.6), sharex="row", sharey="row", gridspec_kw=dict(wspace=0.12, hspace=0.8))
+out = []
+for i, (m, lab, logx) in enumerate(ROWS):
+    for j, dd in enumerate([5, 20, 80]):
+        r = d[(d.mechanism == m) & (d.d == dd)].iloc[0]
+        g = np.array([float(x) for x in r.grid.split(";")])
+        y = np.array([float(x) for x in r.rmse_fixed_parameter_by_grid_value.split(";")])
+        ax = axs[i, j]
+        ax.plot(g, y, color="#D55E00", marker="o", ms=3, lw=1.0, label="oracle, parameter fixed at grid value")
+        ax.plot([r.true_value], [r.rmse_or_known], color="#D55E00", marker="*", ms=9, mfc="white", mew=0.9, ls="", label="known parameter (true value)")
+        ax.axhline(r.rmse_or_fit, color="#0072B2", ls="--", lw=1.2, label="parameter fitted (profiled)")
+        ax.axhline(r.rmse_dm, color="k", ls=":", lw=1.2, label="DM")
+        ax.set_yscale("log")
+        if logx:
+            ax.set_xscale("log"); ax.set_xticks([0.5, 2, 8]); ax.set_xticklabels(["0.5", "2", "8"]); ax.minorticks_off()
+        else:
+            ax.set_xticks([0, 0.4, 0.8])
+        ax.set_title(f"$d={dd}$; grid end {100 * r.share_selected_at_grid_end:.0f}%", fontsize=style.MIN_PT, pad=3)
+        if j == 0:
+            ax.set_ylabel(lab + "\nRMSE")
+        if i == 1:
+            ax.set_xlabel(r"$\rho$ held fixed")
+        else:
+            ax.set_xlabel(r"$\kappa$ held fixed")
+        out.append(dict(mechanism=m, d=dd, true_value=r.true_value, rmse_dm=r.rmse_dm, rmse_known=r.rmse_or_known, rmse_fitted=r.rmse_or_fit,
+                        share_grid_end=r.share_selected_at_grid_end, sse_range_rel=r.median_sse_range_over_grid_relative_to_min))
+for ax in axs[:, 0]:
+    ax.set_yticks([0.1, 0.3, 1, 3]); ax.set_yticklabels(["0.1", "0.3", "1", "3"]); ax.set_ylim(0.07, 3.8); ax.minorticks_off()
+for ax in axs[:, 1:].ravel():
+    ax.tick_params(labelleft=False)
+h, l = axs[0, 0].get_legend_handles_labels()
+fig.legend(h, l, frameon=False, loc="lower center", ncol=2, bbox_to_anchor=(0.5, -0.17), columnspacing=1.2, handletextpad=0.4)
+style.check_min_type(fig)
+o = common.out_dir(meta, a.out)
+style.save(fig, o / "figA9_orfit.pdf", dpi=300)
+import pandas as pd
+pd.DataFrame(out).to_csv(o / "figA9_orfit.csv", index=False)

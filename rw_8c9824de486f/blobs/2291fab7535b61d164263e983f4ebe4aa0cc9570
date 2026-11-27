@@ -1,0 +1,62 @@
+\begingroup\scriptsize\setlength{\tabcolsep}{3pt}
+\noindent T: temporal (13 models, 4 groups)\smallskip
+
+\begin{tabular*}{\linewidth}{@{\extracolsep{\fill}}rrrrrrrr@{}}\toprule
+ & \multicolumn{7}{c}{RMSE on the target set (points), S6 selection; lowest in bold} \\\cmidrule(l){2-8}
+$k$ & P0 & P1 & P2 & P3 & P4 & P5 & P6 \\\midrule
+1 & 21.27 & 12.63 & 11.67 & 13.71 & 16.60 & \textbf{11.58} & 11.93 \\
+2 & 21.27 & \textbf{11.22} & 11.48 & 13.93 & 15.93 & 11.47 & 11.65 \\
+3 & 21.27 & 10.36 & \textbf{10.34} & 11.50 & 13.84 & 10.46 & 10.69 \\
+5 & 21.27 & 10.42 & 9.71 & 10.47 & 11.83 & \textbf{9.71} & 10.51 \\
+8 & 21.27 & 10.37 & 9.51 & 10.15 & 10.84 & \textbf{9.43} & 10.44 \\
+12 & 21.27 & 10.27 & \textbf{9.05} & 9.95 & 9.87 & 9.39 & 9.36 \\
+20 & 21.27 & 10.56 & \textbf{8.85} & 9.81 & 9.27 & 9.23 & 9.20 \\
+32 & 21.27 & 10.68 & \textbf{8.73} & 9.80 & 9.10 & 9.38 & 8.96 \\
+\bottomrule\end{tabular*}
+\smallskip
+
+\begin{tabular*}{\linewidth}{@{\extracolsep{\fill}}rrrrrr@{}}\toprule
+ & \multicolumn{5}{c}{RMSE(S6+P5) $-$ RMSE(S6+rule) [90\% CI]; $\uparrow$ better, $\downarrow$ worse than P5 by more than 1.06} \\\cmidrule(l){2-6}
+$k$ & P1 & P2 & P3 & P4 & P6 \\\midrule
+1 & $-$1.04 [$-$1.39, $-$0.26]\makebox[0.5em][l]{} & $-$0.08 [$-$0.31, 0.29]\makebox[0.5em][l]{} & $-$2.12 [$-$2.90, $-$1.77]\makebox[0.5em][l]{$^{\downarrow}$} & $-$5.02 [$-$6.89, 1.07]\makebox[0.5em][l]{} & $-$0.34 [$-$0.49, $-$0.29]\makebox[0.5em][l]{} \\
+2 & 0.26 [$-$0.55, 0.55]\makebox[0.5em][l]{} & $-$0.01 [$-$0.26, 0.35]\makebox[0.5em][l]{} & $-$2.46 [$-$4.19, $-$0.91]\makebox[0.5em][l]{} & $-$4.45 [$-$6.25, 1.05]\makebox[0.5em][l]{} & $-$0.18 [$-$0.77, $-$0.08]\makebox[0.5em][l]{} \\
+3 & 0.11 [$-$0.44, 0.86]\makebox[0.5em][l]{} & 0.13 [0.02, 0.37]\makebox[0.5em][l]{} & $-$1.04 [$-$1.22, $-$0.75]\makebox[0.5em][l]{} & $-$3.38 [$-$4.12, 0.81]\makebox[0.5em][l]{} & $-$0.23 [$-$0.66, 0.37]\makebox[0.5em][l]{} \\
+5 & $-$0.72 [$-$1.81, $-$0.50]\makebox[0.5em][l]{} & $-$0.00 [$-$0.11, 0.13]\makebox[0.5em][l]{} & $-$0.76 [$-$1.60, $-$0.54]\makebox[0.5em][l]{} & $-$2.13 [$-$2.48, $-$0.27]\makebox[0.5em][l]{} & $-$0.81 [$-$1.10, $-$0.17]\makebox[0.5em][l]{} \\
+8 & $-$0.94 [$-$2.10, $-$0.66]\makebox[0.5em][l]{} & $-$0.09 [$-$0.14, 0.10]\makebox[0.5em][l]{} & $-$0.72 [$-$1.35, $-$0.51]\makebox[0.5em][l]{} & $-$1.41 [$-$1.74, $-$0.25]\makebox[0.5em][l]{} & $-$1.01 [$-$1.30, $-$0.39]\makebox[0.5em][l]{} \\
+12 & $-$0.88 [$-$1.77, $-$0.68]\makebox[0.5em][l]{} & 0.34 [0.23, 0.37]\makebox[0.5em][l]{} & $-$0.56 [$-$1.01, $-$0.42]\makebox[0.5em][l]{} & $-$0.48 [$-$0.90, $-$0.17]\makebox[0.5em][l]{} & 0.03 [$-$0.48, 0.17]\makebox[0.5em][l]{} \\
+20 & $-$1.32 [$-$2.00, $-$1.14]\makebox[0.5em][l]{$^{\downarrow}$} & 0.39 [0.27, 0.43]\makebox[0.5em][l]{} & $-$0.58 [$-$0.95, $-$0.42]\makebox[0.5em][l]{} & $-$0.04 [$-$0.45, 0.20]\makebox[0.5em][l]{} & 0.04 [$-$0.43, 0.23]\makebox[0.5em][l]{} \\
+32 & $-$1.30 [$-$1.76, $-$1.16]\makebox[0.5em][l]{$^{\downarrow}$} & 0.65 [0.26, 0.92]\makebox[0.5em][l]{} & $-$0.43 [$-$0.88, $-$0.22]\makebox[0.5em][l]{} & 0.28 [$-$0.32, 0.58]\makebox[0.5em][l]{} & 0.42 [$-$0.21, 0.68]\makebox[0.5em][l]{} \\
+\bottomrule\end{tabular*}
+\bigskip
+
+\noindent S: strongest quarter (22 models, 11 groups)\smallskip
+
+\begin{tabular*}{\linewidth}{@{\extracolsep{\fill}}rrrrrrrr@{}}\toprule
+ & \multicolumn{7}{c}{RMSE on the target set (points), S6 selection; lowest in bold} \\\cmidrule(l){2-8}
+$k$ & P0 & P1 & P2 & P3 & P4 & P5 & P6 \\\midrule
+1 & 24.52 & 11.13 & 11.58 & 11.88 & 18.11 & 11.47 & \textbf{11.03} \\
+2 & 24.52 & 11.05 & 10.94 & 11.94 & 16.65 & 10.89 & \textbf{10.42} \\
+3 & 24.52 & 10.76 & 10.60 & 11.36 & 15.44 & 10.59 & \textbf{10.04} \\
+5 & 24.52 & 10.58 & 10.01 & 10.70 & 13.84 & 10.18 & \textbf{9.65} \\
+8 & 24.52 & 10.39 & 9.44 & 10.78 & 12.20 & 9.72 & \textbf{9.13} \\
+12 & 24.52 & 10.40 & 9.02 & 11.87 & 11.24 & 9.41 & \textbf{8.76} \\
+20 & 24.52 & 11.43 & \textbf{7.55} & 9.84 & 8.09 & 8.03 & 8.24 \\
+32 & 24.52 & 11.44 & \textbf{7.61} & 12.00 & 7.85 & 8.17 & 8.14 \\
+\bottomrule\end{tabular*}
+\smallskip
+
+\begin{tabular*}{\linewidth}{@{\extracolsep{\fill}}rrrrrr@{}}\toprule
+ & \multicolumn{5}{c}{RMSE(S6+P5) $-$ RMSE(S6+rule) [90\% CI]; $\uparrow$ better, $\downarrow$ worse than P5 by more than 1.04} \\\cmidrule(l){2-6}
+$k$ & P1 & P2 & P3 & P4 & P6 \\\midrule
+1 & 0.34 [$-$0.62, 0.97]\makebox[0.5em][l]{} & $-$0.11 [$-$0.23, $-$0.04]\makebox[0.5em][l]{} & $-$0.41 [$-$1.10, 0.59]\makebox[0.5em][l]{} & $-$6.64 [$-$7.14, $-$5.90]\makebox[0.5em][l]{$^{\downarrow}$} & 0.44 [0.31, 0.54]\makebox[0.5em][l]{} \\
+2 & $-$0.15 [$-$0.73, 0.47]\makebox[0.5em][l]{} & $-$0.05 [$-$0.19, 0.04]\makebox[0.5em][l]{} & $-$1.05 [$-$1.99, 0.47]\makebox[0.5em][l]{} & $-$5.76 [$-$6.25, $-$5.11]\makebox[0.5em][l]{$^{\downarrow}$} & 0.47 [0.39, 0.53]\makebox[0.5em][l]{} \\
+3 & $-$0.17 [$-$0.73, 0.31]\makebox[0.5em][l]{} & $-$0.02 [$-$0.13, 0.06]\makebox[0.5em][l]{} & $-$0.77 [$-$1.69, 0.58]\makebox[0.5em][l]{} & $-$4.85 [$-$5.25, $-$4.46]\makebox[0.5em][l]{$^{\downarrow}$} & 0.55 [0.42, 0.63]\makebox[0.5em][l]{} \\
+5 & $-$0.40 [$-$1.11, 0.12]\makebox[0.5em][l]{} & 0.17 [0.06, 0.26]\makebox[0.5em][l]{} & $-$0.52 [$-$0.99, 0.19]\makebox[0.5em][l]{} & $-$3.66 [$-$3.85, $-$3.41]\makebox[0.5em][l]{$^{\downarrow}$} & 0.53 [0.39, 0.62]\makebox[0.5em][l]{} \\
+8 & $-$0.67 [$-$1.40, $-$0.16]\makebox[0.5em][l]{} & 0.28 [0.19, 0.34]\makebox[0.5em][l]{} & $-$1.07 [$-$1.44, $-$0.50]\makebox[0.5em][l]{} & $-$2.48 [$-$2.65, $-$2.24]\makebox[0.5em][l]{$^{\downarrow}$} & 0.59 [0.46, 0.67]\makebox[0.5em][l]{} \\
+12 & $-$0.99 [$-$1.70, $-$0.51]\makebox[0.5em][l]{} & 0.39 [0.29, 0.46]\makebox[0.5em][l]{} & $-$2.46 [$-$3.22, $-$1.40]\makebox[0.5em][l]{$^{\downarrow}$} & $-$1.83 [$-$2.03, $-$1.54]\makebox[0.5em][l]{$^{\downarrow}$} & 0.65 [0.51, 0.74]\makebox[0.5em][l]{} \\
+20 & $-$3.40 [$-$3.96, $-$2.67]\makebox[0.5em][l]{$^{\downarrow}$} & 0.48 [0.23, 0.67]\makebox[0.5em][l]{} & $-$1.81 [$-$2.43, $-$0.94]\makebox[0.5em][l]{} & $-$0.06 [$-$0.47, 0.25]\makebox[0.5em][l]{} & $-$0.21 [$-$0.38, 0.05]\makebox[0.5em][l]{} \\
+32 & $-$3.27 [$-$3.78, $-$2.63]\makebox[0.5em][l]{$^{\downarrow}$} & 0.56 [0.36, 0.74]\makebox[0.5em][l]{} & $-$3.83 [$-$4.91, $-$2.22]\makebox[0.5em][l]{$^{\downarrow}$} & 0.33 [$-$0.13, 0.69]\makebox[0.5em][l]{} & 0.04 [$-$0.17, 0.32]\makebox[0.5em][l]{} \\
+\bottomrule\end{tabular*}
+\bigskip
+
+\endgroup

@@ -1,0 +1,40 @@
+"""Fig. 5 (appendix): search quality. Ratio of what a search / predictor found to its reference, with the supplied interval:
+first-order prediction k_lin/k_best per data set (the reference is the best verified search result), searches vs the exhaustive minimum on tiny
+MT-Bench subproblems, the LP relaxation (lower-bound candidate) over the exhaustive minimum, and planted instances. Reference line at 1."""
+import os, numpy as np, matplotlib; matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from style import setup, fig_size, design_style, short_name
+from common import args, load, write_prov
+
+a = args("fig5"); setup(); os.makedirs(a.out, exist_ok=True)
+prov = {"inputs": {}}
+df = load(a.data, "search_quality.csv", ["scope", "design", "perturbation", "method", "k_ratio_to_best", "k_ratio_lo", "k_ratio_hi", "n_conclusions"], prov)
+GROUPS = [("first_order", None, "first-order estimate / best found"),
+          ("iterated_vs_exact", "tiny_exact_mtbench_subproblems", "iterated search / exhaustive minimum"),
+          ("frank_wolfe_vs_exact", "tiny_exact_mtbench_subproblems", "Frank–Wolfe / exhaustive minimum"),
+          ("lp_candidate_vs_exact", "tiny_exact_mtbench_subproblems", "LP candidate / exhaustive minimum"),
+          ("restarts_vs_standard", "search_at_scale_arena55k", "restarts / standard search"),
+          ("planted_vs_known", "search_at_scale_arena55k", "found / planted undo path")]
+rows = []
+for m, scope, lab in GROUPS:
+    g = df[(df.method == m) & df.perturbation.isin(["delete", "flip"])]
+    if scope: g = g[g.scope == scope]
+    else: g = g[~g.scope.isin(["all_datasets"])]
+    for r in g.itertuples(): rows.append((lab, r.scope, r.perturbation, r.k_ratio_to_best, r.k_ratio_lo, r.k_ratio_hi, int(r.n_conclusions), r.design))
+w, _ = fig_size("text")
+fig, ax = plt.subplots(figsize=(w, 0.55 + 0.145 * len(rows) + 0.2 * len(GROUPS)))
+y, ticks, last = 0.0, [], None
+for lab, scope, fam, v, lo, hi, n, des in rows:
+    if lab != last:
+        y -= 0.6; ax.annotate(lab, xy=(0.0, y + 0.1), xycoords=("axes fraction", "data"), ha="left", va="center", fontweight="bold", bbox=dict(fc="white", ec="none", pad=0.5)); y -= 0.9; last = lab
+    st = design_style(des); mk = "o" if fam == "delete" else "s"
+    ax.plot([lo, hi], [y, y], color=st["color"], lw=0.8)
+    ax.plot(v, y, marker=mk, ms=3.5, color=st["color"], mfc=st["color"] if fam == "delete" else "white", mew=0.8)
+    nm = short_name(scope) if scope.startswith(("arena", "mtbench")) else scope.replace("tiny_exact_mtbench_subproblems", "MT-Bench subproblems").replace("search_at_scale_arena55k", "Arena-55k")
+    ticks.append((y, f"{nm} ({n})")); y -= 1.0
+ax.axvline(1.0, color="0.4", lw=0.6, zorder=0)
+ax.set_yticks([t[0] for t in ticks]); ax.set_yticklabels([t[1] for t in ticks]); ax.tick_params(axis="y", length=0); ax.spines["left"].set_visible(False)
+ax.set_xlabel("ratio to reference (1 = equal); number of conclusions in brackets")
+ax.plot([], [], "ko", ms=3.5, label="deletion"); ax.plot([], [], "ks", ms=3.5, mfc="white", mew=0.8, label="outcome flip")
+fig.legend(*ax.get_legend_handles_labels(), loc="outside lower center", ncol=2, handletextpad=0.2)
+fig.savefig(os.path.join(a.out, "fig5.pdf")); write_prov(a.out, "fig5", {**prov, "rows": len(rows)})

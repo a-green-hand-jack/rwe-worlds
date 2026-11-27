@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# second check against the public p-IRT: our `irt` fitted longer and with weaker penalties (BPRED_IRT_STEPS=2000, BPRED_IRT_REG=0.1), d = 2 (tag _fit2) and d = 10 (tag _fit10),
+# `irtw` precision 0.01; same cells as launch_dsweep.sh -> results/raw_dsweep
+cd "$(dirname "$0")/.."
+for s in extrap interp; do
+  for b in arc_challenge gpqa ifeval musr openllm_math bbh; do
+    for d in 2 10; do
+      ht-resource run local-compute --cwd "$PWD" --cpus 1 --memory 6000 --note "dsweep2-$b-$s-d$d" -- \
+        env BPRED_IRTW_PREC=0.01 BPRED_IRT_STEPS=2000 BPRED_IRT_REG=0.1 python3 -I -u scripts/02_run.py "$b" "$s" --draws 10 --d $d --ngrid 100 --designs anchor,uniform \
+        --no-cat --extra --tag _fit$d --out results/raw_dsweep > /dev/null
+    done
+  done
+done

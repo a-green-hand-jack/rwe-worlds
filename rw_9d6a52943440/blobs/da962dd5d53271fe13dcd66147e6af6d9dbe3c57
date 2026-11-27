@@ -1,0 +1,417 @@
+"""Item-subset selection designs, predictors and estimators for benchmark score prediction.
+
+Notation: Ys (Ms,N) 0/1 source matrix, Yt (T,N) targets (only used for scoring and the n answers),
+S the selected items ((n,) shared by all targets or (T,n) per target), w Hajek weights of the sample.
+"""
+import os
+import numpy as np
+import torch
+
+torch.set_num_threads(1)
+IRTW_PREC = float(os.environ.get("BPRED_IRTW_PREC", "0.1"))   # prior precision of the weak-prior IRT `irtw` (default 0.1 = prior variance x10)
+IRT_STEPS = int(os.environ.get("BPRED_IRT_STEPS", "300"))      # Adam steps of the IRT fit on the sources (default 300)
+IRT_REG = float(os.environ.get("BPRED_IRT_REG", "1"))           # multiplier of the three penalties of that fit (default 1)
+EXTRA = False                # opt-in extra estimators (target-recalibrated regression, weak-prior IRT); set by scripts/02_run.py --extra
+K_CF = 5                      # cross-fitting folds over the sample
+LAMBDAS = (0.0, 0.25, 0.5, 0.75, 1.0)
+KNN_KS = (3, 10, 30)
+RIDGE_AS = (0.01, 0.1, 1.0)
+EPS_GRID = (0.1, 0.3, 0.6)
+
+
+def sigmoid(x):
+    return 1.0 / (1.0 + np.exp(-x))
+
+
+# ----------------------------------------------------------------------------- source side
+class Source:
+    def __init__(self, Ys, irt_d=2, irt_steps=None, seed=0):
+        self.Y = np.ascontiguousarray(Ys.astype(np.uint8))
+        self.M, self.N = self.Y.shape
+        self.f = self.Y.mean(1)
+        self.p = (self.Y.sum(0) + 0.5) / (self.M + 1.0)      # smoothed item difficulty (success rate)
+        self.irt_d, self.irt_steps, self.seed = irt_d, irt_steps or IRT_STEPS, seed
+        self._irt = {}
+        self._Yf = None
+
+    @property
+    def Yf(self):
+        if self._Yf is None:
+            self._Yf = self.Y.astype(np.float32)
+        return self._Yf
+
+    def irt(self, d=None):
+        """Logistic latent-factor (2PL for d=1) fit on sources: logit P = Theta A' + c, N(0,1) prior on Theta."""
+        d = d or self.irt_d
+        if d not in self._irt:
+            g = torch.Generator().manual_seed(self.seed)
+            Y = torch.from_numpy(self.Yf)
+            Th = (0.1 * torch.randn(self.M, d, generator=g)).requires_grad_()
+            A = (0.1 * torch.randn(self.N, d, generator=g) + (0.5 if d == 1 else 0.0)).requires_grad_()
+            pc = torch.from_numpy(self.p.astype(np.float32))
+            c = torch.log(pc / (1 - pc)).clone().requires_grad_()
+            opt = torch.optim.Adam([Th, A, c], lr=0.05)
+            for _ in range(self.irt_steps):
+                opt.zero_grad()
+                z = Th @ A.T + c
+                nll = torch.nn.functional.binary_cross_entropy_with_logits(z, Y, reduction="sum")
+                loss = nll + IRT_REG * (0.5 * (Th ** 2).sum() + 0.05 * (A ** 2).sum() + 0.005 * ((c - torch.log(pc / (1 - pc))) ** 2).sum())
+                loss.backward(); opt.step()
+            A_, c_ = A.detach().numpy().astype(np.float64), c.detach().numpy().astype(np.float64)
+            if d == 1 and A_.mean() < 0:
+                A_ = -A_; Th = -Th.detach()
+            self._irt[d] = (A_, c_, Th.detach().numpy().astype(np.float64))
+        return self._irt[d]
+
+
+# ----------------------------------------------------------------------------- designs (source-only)
+def _tiebreak_order(score, rng):
+    return np.lexsort((rng.random(score.shape[0]), score))
+
+
+def design_uniform(src, n, rng, **kw):
+    S = rng.choice(src.N, n, replace=False)
+    return S, np.ones(n)
+
+
+def design_strat(src, n, rng, **kw):
+    order = _tiebreak_order(src.p, rng)
+    parts = np.array_split(order, n)
+    S = np.array([rng.choice(p) for p in parts])
+    return S, np.array([len(p) for p in parts], float)
+
+
+def pps_pi(src, n, eps):
+    wv = np.sqrt(src.p * (1 - src.p))
+    pi = n * ((1 - eps) * wv / wv.sum() + eps / src.N)
+    for _ in range(50):                       # cap at 1 and redistribute
+        big = pi > 1
+        if not big.any():
+            break
+        rest = n - big.sum()
+        pi[big] = 1.0
+        sm = pi[~big].sum()
+        pi[~big] *= rest / sm
+    return np.minimum(pi, 1.0)
+
+
+def design_pps(src, n, rng, eps=0.3, **kw):
+    pi = pps_pi(src, n, eps)
+    order = _tiebreak_order(src.p, rng)
+    cs = np.cumsum(pi[order])
+    pts = rng.random() + np.arange(n)
+    pos = np.searchsorted(cs, pts, side="left")
+    pos = np.minimum(pos, src.N - 1)
+    S = order[pos]
+    if len(np.unique(S)) < n:                 # a pi=1 item hit twice cannot happen; fall back defensively
+        S = np.unique(S)
+        extra = rng.choice(np.setdiff1d(np.arange(src.N), S), n - len(S), replace=False)
+        S = np.concatenate([S, extra])
+    return S, 1.0 / pi[S]
+
+
+def design_balanced(src, n, rng, pool_mult=4, **kw):
+    pool = rng.choice(src.N, min(src.N, pool_mult * n), replace=False)
+    Yp = src.Yf[:, pool].T                    # (P, M)
+    cur = np.zeros(src.M, np.float32)
+    avail = np.ones(len(pool), bool)
+    S = []
+    for k in range(n):
+        err = (((cur[None, :] + Yp) / (k + 1) - src.f[None, :]) ** 2).sum(1)
+        err[~avail] = np.inf
+        j = int(np.argmin(err))
+        avail[j] = False; S.append(pool[j]); cur += Yp[j]
+    return np.array(S), np.ones(n)
+
+
+def design_anchor(src, n, rng, **kw):
+    from sklearn.cluster import KMeans
+    X = src.Yf.T                              # items as M-dim response vectors
+    n_init, max_iter = (10, 300) if os.environ.get("BPRED_KMEANS") == "strong" else (1, 25)   # default: light k-means (the main runs)
+    km = KMeans(n_clusters=n, n_init=n_init, max_iter=max_iter, random_state=int(rng.integers(1 << 30))).fit(X)
+    S, w = [], []
+    for k in range(n):
+        idx = np.where(km.labels_ == k)[0]
+        if len(idx) == 0:
+            continue
+        dist = ((X[idx] - km.cluster_centers_[k]) ** 2).sum(1)
+        S.append(idx[np.argmin(dist)]); w.append(len(idx))
+    return np.array(S), np.array(w, float)
+
+
+def design_infotop(src, n, rng=None, **kw):
+    A, c, Th = src.irt()
+    # Fisher information a'a * p(1-p) averaged over the source abilities (random-free)
+    info = np.zeros(src.N)
+    for ch in np.array_split(np.arange(src.M), max(1, src.M // 64)):
+        p = sigmoid(Th[ch] @ A.T + c)
+        info += (p * (1 - p)).sum(0)
+    info = info / src.M * (A ** 2).sum(1)
+    S = np.argsort(-info)[:n]
+    return S, np.ones(n)
+
+
+DESIGNS = dict(uniform=design_uniform, strat=design_strat, pps=design_pps, balanced=design_balanced,
+               anchor=design_anchor, infotop=design_infotop)
+DETERMINISTIC = {"infotop"}
+
+
+# ----------------------------------------------------------------------------- predictors
+def _S2(S, T):
+    return np.broadcast_to(S, (T, S.shape[-1])) if S.ndim == 1 else S
+
+
+def _folds(n, rng):
+    return np.array_split(rng.permutation(n), K_CF)
+
+
+def irt_map(src, S2, y, d, prior_prec=1.0):
+    """MAP abilities (T,d) for targets from answers y (T,m) on items S2 (T,m); prior N(0, 1/prior_prec)."""
+    A, c, _ = src.irt(d)
+    As, cs = A[S2], c[S2]                     # (T,m,d), (T,m)
+    T = y.shape[0]
+    th = np.zeros((T, d)); I = np.eye(d)[None]
+    for _ in range(10):
+        p = sigmoid(np.einsum("tmd,td->tm", As, th) + cs)
+        g = np.einsum("tmd,tm->td", As, y - p) - prior_prec * th
+        H = np.einsum("tmd,tm,tme->tde", As, p * (1 - p), As) + prior_prec * I
+        step = np.linalg.solve(H, g[..., None])[..., 0]
+        th = th + np.clip(step, -2, 2)
+        if np.abs(step).max() < 1e-4:
+            break
+    return th
+
+
+def pred_irt(src, S2, y, rng, d, Yt=None, prior_prec=1.0):
+    A, c, _ = src.irt(d)
+    T, n = y.shape
+    th = irt_map(src, S2, y, d, prior_prec)
+    N = src.N
+    Pall = sigmoid(th @ A.T + c)              # (T,N)
+    full_S = np.take_along_axis(Pall, S2, 1)
+    cf = np.zeros_like(full_S)
+    for fo in _folds(n, rng):
+        tr = np.setdiff1d(np.arange(n), fo)
+        thk = irt_map(src, S2[:, tr], y[:, tr], d, prior_prec)
+        cf[:, fo] = sigmoid(np.einsum("tmd,td->tm", A[S2[:, fo]], thk) + c[S2[:, fo]])
+    out = dict(mean_all=Pall.mean(1), full_S=full_S, cf_S=cf, P_all=Pall)
+    if Yt is not None:                        # diagnostic: Brier on unsampled items
+        mask = np.ones((T, N), bool); np.put_along_axis(mask, S2, False, 1)
+        out["brier_unsamp"] = (((Yt - Pall) ** 2) * mask).sum(1) / (N - n)
+    return out
+
+
+def _topk_weights(sim, k, rng):
+    sim = sim + 1e-6 * rng.random(sim.shape)
+    idx = np.argpartition(-sim, k - 1, axis=1)[:, :k]
+    return idx
+
+
+def pred_knn(src, S, y, rng, ks, Yt=None):
+    """k nearest sources by agreement on the sample; item predictions = neighbour mean."""
+    T, n = y.shape
+    N = src.N
+    shared = S.ndim == 1
+    folds = _folds(n, rng)
+    yf = y.astype(np.float32)
+    if shared:
+        Z = src.Yf[:, S]                                       # (Ms,n)
+        def agree(pos):
+            return yf[:, pos] @ Z[:, pos].T + (1 - yf[:, pos]) @ (1 - Z[:, pos]).T       # (T,Ms)
+        def nbmean(idx, pos):
+            return Z[:, pos][idx].mean(1)                      # (T,k,|pos|)->(T,|pos|)
+    else:
+        Zt = src.Yf[:, S]                                      # (Ms,T,n)
+        Zt = np.transpose(Zt, (1, 0, 2))                       # (T,Ms,n)
+        def agree(pos):
+            return (Zt[:, :, pos] == yf[:, None, pos]).sum(-1).astype(np.float32)
+        def nbmean(idx, pos):
+            return np.take_along_axis(Zt[:, :, pos], idx[..., None], 1).mean(1)
+    tot = agree(np.arange(n))
+    ag_f = [agree(fo) for fo in folds]
+    outs = {}
+    S2 = _S2(S, T)
+    for k_nom in ks:
+        k = min(k_nom, src.M)                  # fewer sources than k: use all of them (name keeps the nominal k)
+        idx = _topk_weights(tot, k, rng)
+        mean_all = src.f[idx].mean(1)
+        full_S = nbmean(idx, np.arange(n))
+        cf = np.zeros((T, n))
+        for fo, af in zip(folds, ag_f):
+            cf[:, fo] = nbmean(_topk_weights(tot - af, k, rng), fo)
+        o = dict(mean_all=mean_all, full_S=full_S, cf_S=cf)
+        if Yt is not None and k_nom == 10:
+            # Brier on unsampled items, computed from neighbour means over all items
+            P = src.Yf[idx].mean(1)                            # (T,N) (k=10: neighbours' item mean)
+            mask = np.ones((T, N), bool); np.put_along_axis(mask, S2, False, 1)
+            o["brier_unsamp"] = (((Yt - P) ** 2) * mask).sum(1) / (N - n)
+        outs[k_nom] = o
+    return outs
+
+
+def pred_ridge(src, S, y, rng, alphas):
+    """Kernel ridge (linear kernel, intercept) from sample responses to the full response vector. Shared S only."""
+    T, n = y.shape
+    Z = src.Yf[:, S].astype(np.float64)
+    folds = _folds(n, rng)
+    pbar = Z.mean(0)
+    fc = src.f - src.f.mean()
+    Zc = Z - pbar
+    yc = y - pbar
+
+    def solve_parts(tr):
+        Kt = Zc[:, tr] @ Zc[:, tr].T / len(tr)
+        lam, U = np.linalg.eigh(Kt)
+        return lam, U
+    lam, U = solve_parts(np.arange(n))
+    ks = yc @ Zc.T / n                                          # (T,Ms)
+    Uf = U.T @ fc
+    kU = ks @ U
+    Ucols = U.T @ Zc                                            # (Ms, n)
+    fold_parts = []
+    for fo in folds:
+        tr = np.setdiff1d(np.arange(n), fo)
+        l2, U2 = solve_parts(tr)
+        k2 = yc[:, tr] @ Zc[:, tr].T / len(tr)
+        # source responses on held-out fold items centred by their source means
+        fold_parts.append((fo, tr, l2, U2, k2))
+    outs = {}
+    pcol = src.Y.mean(0)
+    for a in alphas:
+        coef_f = (kU / (lam + a)) @ Uf                          # (T,)
+        mean_all = np.clip(src.f.mean() + coef_f, 0, 1)
+        W = (kU / (lam + a)) @ Ucols                            # (T,n): weights on source items -> full_S via source responses
+        full_S = np.clip(pbar + W, 0, 1)
+        cf = np.zeros((T, n))
+        for fo, tr, l2, U2, k2 in fold_parts:
+            Wk = (k2 @ U2 / (l2 + a)) @ (U2.T @ Zc[:, fo])
+            cf[:, fo] = np.clip(pbar[fo] + Wk, 0, 1)
+        outs[a] = dict(mean_all=mean_all, full_S=full_S, cf_S=cf)
+    return outs
+
+
+# ----------------------------------------------------------------------------- estimators
+def hajek(v, w):
+    return (v * w).sum(-1) / w.sum()
+
+
+RECAL_KAPPA = 1.0              # ridge on the standardised slopes, fixed in advance
+
+
+def _wls_mean(Xs, y, w, Xall, kappa, ybar):
+    """Weighted LS of y on [1, Xs] (ridge kappa on the standardised slopes, w scaled to sum n); mean of the clipped fits over all items.
+    Xs (T,n,q) sample features, Xall (T,N,q) features of every item. Falls back to the Hajek mean ybar (T,) for a target whose sample has
+    fewer than 3 items of either class or whose weighted design is rank-deficient. Returns (estimate (T,), fallback flag (T,))."""
+    T, n, q = Xs.shape
+    wn = w / w.sum() * n
+    mu = (Xs * wn[None, :, None]).sum(1) / n
+    sd = np.sqrt(((Xs - mu[:, None, :]) ** 2 * wn[None, :, None]).sum(1) / n) + 1e-6
+    Z = (Xs - mu[:, None, :]) / sd[:, None, :]
+    D = np.concatenate([np.ones((T, n, 1)), Z], 2)
+    fb = ((y > 0.5).sum(1) < 3) | ((y < 0.5).sum(1) < 3) | (np.linalg.matrix_rank(D * np.sqrt(wn)[None, :, None]) < q + 1)
+    G = np.einsum("tnq,n,tnr->tqr", D, wn, D)
+    G[:, 1:, 1:] += kappa * np.eye(q)[None]
+    G[fb] = np.eye(q + 1)                      # placeholder, replaced by ybar below
+    b = np.linalg.solve(G, np.einsum("tnq,n,tn->tq", D, wn, y)[..., None])[..., 0]
+    Za = (Xall - mu[:, None, :]) / sd[:, None, :]
+    fit = b[:, :1] + np.einsum("tnq,tq->tn", Za, b[:, 1:])
+    est = np.clip(fit, 0, 1).mean(1)
+    return np.where(fb, ybar, est), fb
+
+
+def recal_estimates(src, S2, y, wv, pr, ybar):
+    """Target-recalibrated regression estimators (grid): y_i ~ b0 + b1 f_i (+ b2 phat_i) fitted on the target's own sample, mean over all items.
+    f = s: logit of the smoothed source accuracy of the item; f = q: the item's mean fitted logit under the rank-d IRT fitted on the sources;
+    phat = IRT prediction (cross-fitted on the sample, full prediction off-sample). Names: recal-{s|q}[irt][0], suffix 0 = no ridge (kappa 0),
+    otherwise kappa = RECAL_KAPPA. Returns ({name: (T,)}, {name: fallback flag (T,)})."""
+    T, n = y.shape
+    A, c, Th = src.irt()
+    feats = {"s": np.log(src.p / (1 - src.p)), "q": c + A @ Th.mean(0)}
+    lg = lambda P: np.log(np.clip(P, 1e-3, 1 - 1e-3) / (1 - np.clip(P, 1e-3, 1 - 1e-3)))
+    w = wv if wv.ndim == 1 else wv[0]
+    out, fbs = {}, {}
+    for f, v in feats.items():
+        X1 = v[S2][..., None]; Xa1 = np.broadcast_to(v[None, :, None], (T, src.N, 1))
+        X2 = np.concatenate([X1, lg(pr["cf_S"])[..., None]], 2)
+        Xa2 = np.concatenate([Xa1, lg(pr["P_all"])[..., None]], 2)
+        for kap, suf in ((RECAL_KAPPA, ""), (0.0, "0")):
+            out[f"recal-{f}{suf}"], fbs[f"recal-{f}{suf}"] = _wls_mean(X1, y, w, Xa1, kap, ybar)
+            out[f"recal-{f}irt{suf}"], fbs[f"recal-{f}irt{suf}"] = _wls_mean(X2, y, w, Xa2, kap, ybar)
+    return out, fbs
+
+
+def estimate(src, S, w, y, rng, N, d, Yt=None, with_ridge=True, only=None):
+    """Return {estimator name: (T,) predicted full scores} for one sample (shared S (n,) or per-target (T,n))."""
+    T, n = y.shape
+    S2 = _S2(S, T)
+    shared = S.ndim == 1
+    wv = w if w.ndim == 1 else w
+    ybar = hajek(y, wv[None, :] if wv.ndim == 1 else wv)
+    out = {"mean": ybar}
+    diag = {}
+    if shared:
+        Zs = src.Yf[:, S]
+        s_src = (Zs * w[None, :]).sum(1) / w.sum()
+        A_ = np.vstack([np.ones(src.M), s_src]).T
+        coef = np.linalg.lstsq(A_, src.f, rcond=None)[0]
+        out["calreg"] = np.clip(coef[0] + coef[1] * ybar, 0, 1)
+    preds = {}
+    pr = pred_irt(src, S2, y, rng, d, Yt)
+    preds["irt"] = pr
+    if EXTRA:
+        preds["irtw"] = pred_irt(src, S2, y, rng, d, None, prior_prec=IRTW_PREC)      # default: prior variance x10
+        ro_, fb_ = recal_estimates(src, S2, y, wv, pr, ybar)
+        out.update(ro_)
+        diag.update({f"fb:{k}": v.astype(np.float32) for k, v in fb_.items()})
+    if "brier_unsamp" in pr:
+        diag["brier_irt"] = pr["brier_unsamp"]
+    kn = pred_knn(src, S, y, rng, KNN_KS, Yt)
+    for k, o in kn.items():
+        preds[f"knn{k}"] = o
+        if "brier_unsamp" in o:
+            diag["brier_knn"] = o["brier_unsamp"]
+    if shared and with_ridge:
+        for a, o in pred_ridge(src, S, y, rng, RIDGE_AS).items():
+            preds[f"ridge{a}"] = o
+    fr = n / N
+    for name, o in preds.items():
+        short = name
+        out[f"{short}-model"] = o["mean_all"]
+        mu_un = (N * o["mean_all"] - o["full_S"].sum(1)) / (N - n)
+        out[f"{short}-plugin"] = fr * ybar + (1 - fr) * mu_un
+        resid = hajek(y - o["cf_S"], wv[None, :] if wv.ndim == 1 else wv)
+        for lam in LAMBDAS:
+            out[f"diff-{short}@{lam}"] = o["mean_all"] + lam * resid
+        if name in ("irt", "irtw"):
+            resid_n = hajek(y - o["full_S"], wv[None, :] if wv.ndim == 1 else wv)
+            out[f"diffnaive-{name}@1.0"] = o["mean_all"] + resid_n
+    for k in out:
+        out[k] = np.clip(out[k], 0, 1)
+    return out, diag
+
+
+# ----------------------------------------------------------------------------- adaptive (IRT-CAT), per target
+def cat_select(src, Yt, nmax, ns):
+    """Max-information adaptive selection with the d=1 2PL; returns S (T,nmax) in selection order."""
+    A, c, _ = src.irt(1)
+    a = A[:, 0]
+    T, N = Yt.shape
+    th = np.zeros(T)
+    taken = np.zeros((T, N), bool)
+    S = np.zeros((T, nmax), int)
+    ycur = np.zeros((T, nmax))
+    for t in range(nmax):
+        p = sigmoid(th[:, None] * a[None, :] + c[None, :])
+        info = (a ** 2)[None, :] * p * (1 - p)
+        info[taken] = -1
+        j = info.argmax(1)
+        S[:, t] = j; taken[np.arange(T), j] = True
+        ycur[:, t] = Yt[np.arange(T), j]
+        # one-step Newton MAP update on the items seen so far
+        for _ in range(3):
+            Sj = S[:, : t + 1]
+            pp = sigmoid(th[:, None] * a[Sj] + c[Sj])
+            g = (a[Sj] * (ycur[:, : t + 1] - pp)).sum(1) - th
+            H = (a[Sj] ** 2 * pp * (1 - pp)).sum(1) + 1
+            th = th + np.clip(g / H, -2, 2)
+    return S, ycur

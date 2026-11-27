@@ -1,0 +1,10 @@
+{
+ "script": "analysis/make_gnn.py",
+ "code_commit": "1b5328ec14a261e28463578a5171e44729fa0bcb",
+ "seed": 20261125,
+ "n_draws": "50 per cell (5 graph draws x 10 assignments; real graphs 1 graph x 50 assignments), the first assignments of the Tier A runs",
+ "date": "2026-11-26",
+ "description": "Tier A: graph neural network against dm, chin and the other Tier A learners on the same draws (the first 10 of 40 assignments per graph draw; 50 of 200 for a real graph), noise multiple 0.5",
+ "n_cells": 13,
+ "note": "13 of the 14 Tier A cells. The cell SBM n=3000, d=80, p=0.25 did not finish: its job reached the 4 h run limit with no output, so it is absent (not a zero). Cells present: BA, ER, WS d=20 p=0.5; SBM d=5 and d=20 at p=0.25, 0.5, 0.75; SBM d=80 at p=0.5 and 0.75; Stanford3 and ego-Facebook d=20 p=0.5. The GNN is trained on the first 10 of the 40 assignments of each graph draw (the first 50 of 200 for a real graph), with the Chin and dm estimates compared on the same draws."
+}

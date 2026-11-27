@@ -1,0 +1,91 @@
+"""Tables 1 and 2 (+ appendix k* table) as LaTeX fragments.
+
+usage: python3 -m figtab.make_tables RESULTS_DIR OUT_DIR     (repo root as cwd)
+Every number is read from RESULTS_DIR; none is typed here.
+"""
+import sys, json, pathlib
+import numpy as np, pandas as pd
+from figtab import provenance
+
+res = pathlib.Path(sys.argv[1]); out = pathlib.Path(sys.argv[2]); out.mkdir(exist_ok=True)
+HEAD = "\\begingroup\\scriptsize\\setlength{\\tabcolsep}{3pt}\n"
+TAIL = "\\endgroup\n"
+VERD = {"design helps": "helps", "undecided": "undecided", "random matches": "equiv.", "random better": "random better"}
+
+
+def f(x, d=2):
+    return "--" if pd.isna(x) else f"{x:.{d}f}"
+
+
+def kk(x):
+    return "--" if pd.isna(x) else ("$>$109" if x >= 9999 else f"{int(round(x))}")
+
+
+def kci(row):
+    """k* [5th, 95th percentile over bootstrap curves], grid values; 9999 = not reached on the grid (k <= 109)."""
+    if row.k_emp >= 9999:
+        return "$>$109" + ("" if row.k_emp_lo >= 9999 else f" [{kk(row.k_emp_lo)}, $>$109]")
+    return f"{kk(row.k_emp)} [{kk(row.k_emp_lo)}, {kk(row.k_emp_hi)}]"
+
+
+# ---- Table 1: coverage filter, final shape, held-out counts
+t1 = pd.read_csv(res / "table1_filter.csv"); sp = pd.read_csv(res / "table1_splits.csv")
+shape = json.load(open(res / "table1_shape.json"))
+L = [HEAD, "\\begin{tabular}{@{}p{2.3in}rrrr@{}}\\toprule\n",
+     "Filter step & Models & Tasks & Cells & Missing \\\\\\midrule\n"]
+for _, r in t1.iterrows():
+    miss = 1 - r.cells / (r.models * r.tasks)
+    step = r.step.replace("&", "\\&").replace(">=", "$\\geq$").replace("_", "\\_")
+    L.append(f"{step} & {int(r.models)} & {int(r.tasks)} & " + f"{int(r.cells):,}".replace(",", "{,}") + f" & {100*miss:.0f}\\% \\\\\n")
+L.append(f"\\midrule Final matrix & {shape['M']} & {shape['N']} & {shape['cells']:,}".replace(",", "{,}") + f" & {100*shape['missing_rate']:.1f}\\% \\\\\n")
+L.append("\\midrule Split & Held-out models & Held-out groups & Training models & Models, groups at $k_{\\max}$ \\\\\\midrule\n")
+ctc = pd.read_csv(res / "ct_curves.csv"); ctc = ctc[(ctc.method == "S6+P5") & (ctc["subset"] == "fixed")].groupby("split").agg(n=("n_models_at_k", "min"), g=("n_groups", "min"))
+names = {"G": "G: group-held-out", "T": "T: temporal", "S": "S: strongest quarter"}
+for _, r in sp.iterrows():
+    tr = "--" if pd.isna(r.n_train_models) else str(int(r.n_train_models))
+    L.append(f"{names[r.split]} & {int(r.n_models_heldout)} & {int(r.n_groups_heldout)} & {tr} & {int(ctc.n[r.split])}, {int(ctc.g[r.split])} \\\\\n")
+L.append("\\bottomrule\\end{tabular}\n"); L.append(TAIL)
+(out / "tab1_coverage.tex").write_text("".join(L))
+
+# ---- Table 2: primary contrast + k*  (common target set, subset = fixed: models eligible at k_max)
+SUB = "fixed"
+cur = pd.read_csv(res / "ct_curves.csv"); con = pd.read_csv(res / "ct_contrast.csv"); ks = pd.read_csv(res / "ct_kstar.csv")
+con = con[(con.rule == "S6") & (con.inf == "P5")]
+KS = [1, 2, 3, 5, 8, 12, 20]
+G = con[(con.split == "G") & (con["subset"] == SUB) & con.k.isin(KS)].set_index("k")
+T = con[(con.split == "T") & (con["subset"] == SUB) & con.k.isin(KS)].set_index("k")
+nG = G.n_models.iloc[0], G.n_groups.iloc[0]; nT = T.n_models.iloc[0], T.n_groups.iloc[0]
+cg = cur[(cur.split == "G") & (cur["subset"] == SUB)]
+r0 = cg[cg.method == "S0+P5"].set_index("k").rmse_raw; r6 = cg[cg.method == "S6+P5"].set_index("k").rmse_raw
+L = [HEAD, "\\begin{tabular}{@{}r rr r ll r ll@{}}\\toprule\n",
+     f" & \\multicolumn{{5}}{{c}}{{G: group-held-out ({nG[0]} models, {nG[1]} groups)}} & \\multicolumn{{3}}{{c}}{{T: temporal ({nT[0]} models, {nT[1]} groups)}} \\\\\\cmidrule(lr){{2-6}}\\cmidrule(l){{7-9}}\n",
+     "$k$ & S0 & S6 & Gain [90\\% CI] & $\\pm\\delta$ & $\\pm\\delta_{\\text{floor}}$ & Gain [90\\% CI] & $\\pm\\delta$ & $\\pm\\delta_{\\text{floor}}$ \\\\\\midrule\n"]
+for k in KS:
+    g, t = G.loc[k], T.loc[k]
+    L.append(f"{k} & {f(r0[k])} & {f(r6[k])} & {f(g.gain_mean)} [{f(g.lo90)}, {f(g.hi90)}] & {VERD[g.verdict]} & {VERD[g.verdict_floor]} "
+             f"& {f(t.gain_mean)} [{f(t.lo90)}, {f(t.hi90)}] & {VERD[t.verdict]} & {VERD[t.verdict_floor]} \\\\\n")
+L.append("\\midrule\n\\multicolumn{9}{@{}l}{Smallest $k$ whose excess error over the floor is at most $\\epsilon$: empirical [90\\% CI] / predicted by T1 [band]} \\\\\n")
+L.append("$\\epsilon$ & \\multicolumn{3}{c}{value (points)} & \\multicolumn{2}{c}{G empirical / predicted} & \\multicolumn{3}{c}{T empirical / predicted} \\\\\\cmidrule(lr){2-4}\\cmidrule(lr){5-6}\\cmidrule(l){7-9}\n")
+EPS = [("delta_T", "$\\delta$"), ("2delta_T", "$2\\delta$"), ("delta_floor", "$\\delta_{\\text{floor}}$"), ("2delta_floor", "$2\\delta_{\\text{floor}}$")]
+def pred(r): return f"{kk(r.k_pred)}" if r.k_pred_lo == r.k_pred_hi else f"{kk(r.k_pred)} [{kk(r.k_pred_lo)}, {kk(r.k_pred_hi)}]"
+for nm, lab in EPS:
+    g = ks[(ks.split == "G") & (ks["subset"] == SUB) & (ks.epsilon_name == nm)].iloc[0]
+    t = ks[(ks.split == "T") & (ks["subset"] == SUB) & (ks.epsilon_name == nm)].iloc[0]
+    L.append(f"{lab} & \\multicolumn{{3}}{{c}}{{G {f(g.epsilon)}; T {f(t.epsilon)}}} & \\multicolumn{{2}}{{c}}{{{kci(g)} / {pred(g)}}} & \\multicolumn{{3}}{{c}}{{{kci(t)} / {pred(t)}}} \\\\\n")
+L.append("\\bottomrule\\end{tabular}\n"); L.append(TAIL)
+(out / "tab2_primary_contrast.tex").write_text("".join(L))
+
+# ---- appendix: k* on every split/subset
+L = [HEAD, "\\begin{tabular}{@{}llrrll@{}}\\toprule\n", "Split & Subset & $\\epsilon$ & Value & Empirical $k^*$ [90\\% CI] & Predicted $k^*$ [band] \\\\\\midrule\n"]
+lab = dict(EPS, **{n: f"{n[4:]}\\,pt" for n in ks.epsilon_name.unique() if n.startswith("eps_")}, **{n: f"{n[5:]}\\,fl." for n in ks.epsilon_name.unique() if n.startswith("frac_")})
+for _, r in ks.iterrows():
+    pr = kk(r.k_pred) if r.k_pred_lo == r.k_pred_hi else f"{kk(r.k_pred)} [{kk(r.k_pred_lo)}, {kk(r.k_pred_hi)}]"
+    sub = r["subset"].replace("_", "\\_")
+    L.append(f"{r.split} & {sub} & {lab[r.epsilon_name]} & {f(r.epsilon)} & {kci(r)} & {pr} \\\\\n")
+L.append("\\bottomrule\\end{tabular}\n"); L.append(TAIL)
+(out / "tabA_kstar_all.tex").write_text("".join(L))
+
+for n, ins in (("tab1_coverage.tex", ["table1_filter.csv", "table1_splits.csv", "table1_shape.json", "ct_curves.csv"]),
+               ("tab2_primary_contrast.tex", ["ct_curves.csv", "ct_contrast.csv", "ct_kstar.csv"]),
+               ("tabA_kstar_all.tex", ["ct_kstar.csv"])):
+    provenance.write(out / n, [res / i for i in ins], {"script": "figtab/make_tables.py"})

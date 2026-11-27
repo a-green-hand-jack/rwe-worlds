@@ -1,0 +1,42 @@
+# Review of paper-repo PR #7 (main 5f97770cb920 -> release), document built-from 5f97770cb920
+
+Reviewed: the built `main/document.pdf` (25 pages; 9 main pages, references, appendices, checklist), then the code package and figure scripts behind it.
+
+## What the paper is
+An evaluation paper: finite-population-estimation view of few-item benchmark prediction; 13 binary matrices, three splits, 7 designs x estimators; primary endpoint RMSE ratio to uniform at n=100; stratified sampling as second baseline. Headline: sources buy ~1/5 of stratified-sampling error when targets resemble sources, at most ~1/10 (balanced x calibrated regression) when targets exceed all sources; IRT/kNN predictors compress toward the source mean; anchor selection (re-implemented) not clearly better than uniform. Contribution type General (venue-repo). The question, positioning (survey-sampling / PPI), baselines (uniform, stratified) and honest conditional answer are the paper's strengths; the argument in the main text holds on the evidence shown.
+
+## Checks against code and results
+- Re-ran `figures/scripts/make_all.sh` on `code/results`: all `tables/*.tex` regenerate byte-identically except `table_robust.tex` (see M2).
+- Spot-checked about 20 text/table numbers against `primary.csv`, `ratio_by_n.csv.gz`, `selected.csv` (IRT model 0.55/0.65/0.78, kNN 1.12/2.42, ridge 0.73/1.47/0.88, IRT at n=400 3.83, info-top 2.99, balanced x calreg 0.77 and 0.91 [0.89,0.93] vs stratified, LOBO classes): all match.
+- Method text vs `bpred/core.py` (balanced pool 4n; k-means light 1 start/25 iterations, strong 10/300): matches.
+- Reserved paper: Zhang et al. is on `starter_literature.md` (item 6), so citing it is allowed; the accidental README exposure is disclosed in `REPRO_NOTES.md` and Appendix D, with its limits. No finding.
+- Not checked: the estimator code line by line (cross-fitting, inner-split tuning) and the raw 100-draw runs; that is analysis's to confirm.
+
+## Findings
+### must
+M1 (presentation/report). Appendix Figure 5 (design x estimator heat map, `fig4_ablation.pdf`, PDF p.12) overflows the page: it runs over the page number, the x-axis labels are clipped, the "interpolation"/"extrapolation" panel labels overlap, and its caption is absent from the built PDF (the log places the float on p.12, the caption text is not in the PDF; no "Figure 5:" caption exists). Section 5.3 and contribution 1 cite this figure. Answer: size the figure to the 5.5 x ~8 in text block, put it in a float that keeps the caption (check the built PDF for "Figure 5:" and the axis labels), re-check all appendix floats.
+M2 (analysis / report). The delivered package cannot regenerate Table 9's paired-ratio column or the text values 0.94 [0.92,0.95], 0.95 [0.94,0.96], 1.09 [1.08,1.11]: `inner50/paired_vs_main.csv` is not in `code/results/` and no script in `code/scripts/` writes it (rebuild prints "--" in that column). The task requires every table to be reproducible by the shipped code. Answer: ship the script and CSV (experiment-repo a464a38 has the analysis) and copy them into `paper-repo` `code/`.
+M3 (figtab / report). The script map does not match the paper: `figures/README.md` and `tables/captions.md` call the primary table Table 2, the ablation Fig. 4, ceiling Fig. 5, ordering Fig. 6, msrc Fig. 5b; the paper has Table 1, Fig. 5, Fig. 4, Fig. 7, Fig. 6, and Table 2 is the data audit. Appendix D points readers to that map. Answer: map by the paper's numbers. Also remove world-internal names ("experiment-repo", "analysis role") from the anonymised supplement (`code/REPRO_NOTES.md`, script docstrings).
+M4 (report). The data sources and benchmarks are not cited: HELM (Liang et al.), Open LLM Leaderboard v2 (Fourrier et al.), MMLU-Pro and the other benchmarks' papers are on the starter list or are the objective's named data; checklist item 12 says the licences are "those of the Open LLM Leaderboard and HELM" without naming or citing them. Answer: cite each source and benchmark, state licences as checked. The reference list has 32 entries against the venue's recorded 45-70; add the IRT/2PL and k-means/survey-sampling references the method relies on (e.g. Lord, Baker; Hájek/Horvitz-Thompson), and the closest evaluation-efficiency work a reviewer would expect.
+M5 (report). Section 5.1-5.2 read as a record of the study: 5.1 is two paragraphs carrying about 60 numbers, post-hoc diagnostics (larger-gap inner split, strong k-means, top-10/50%, 2%, HELM vs leaderboard) and repeated "chosen after the outcomes" qualifiers; the reader cannot find the claim. Answer: one claim per subsection with a figure/table that carries it and 3-5 numbers; move the diagnostics and secondary endpoints to the appendix tables that already hold them, one pointer sentence each; state the selection caveat once.
+M6 (for `final`; does not hold `release`, since every claim about anchors/tinyBenchmarks/metabench is already scoped to "our re-implementation"). Baseline fidelity: the anchor, tinyBenchmarks-style and metabench-style methods are own re-implementations (light k-means, own IRT fitter), unvalidated against any published implementation; a referee will ask whether the anchor result (not better than uniform) is an artefact. Answer: run the public anchor-points and tinyBenchmarks code (independent public repositories, not the reserved paper) on at least the seven leaderboard benchmarks in interpolation and extrapolation, or reproduce a published number with the re-implementation; report both.
+M7 (release scope, for the record). The recalibrated estimator and the 100-draw per-target run are still computing; the paper does not claim them. This is the remaining work, not a finding against v1; `final` must carry them or state what was attempted.
+
+### may
+m1. Several explanations are left untested though cheap: why ridge extrapolates better than logistic predictors; the centred vs uncentred Brier explanation of the ceiling gap (5.4). Test or cut.
+m2. Contribution 4 (ordering) and 5.3 (design vs estimator) rest on appendix Figs. 5 and 7; the venue says critical evidence should not live only in the appendix. A compact ordering panel in the main text, or the key cells of the heat map, would fix it.
+m3. Intervals reflect target-family sampling only; a bootstrap over benchmarks (13, not independent) would show the uncertainty of the geometric means. The paper discloses this.
+m4. Appendix Fig. 6 (M sources) script warns `anchor|irt-plugin` is omitted; fine, but the caption's "not run for this block" should say so for that cell too.
+
+## Strongest objections a reviewer would raise and what answers them
+1. Novelty (PPI/GREG estimators are known): the answer is the controlled design x estimator x split comparison, which is shown; the paper says so. Adequate for a General evaluation paper.
+2. Test of the headline (balanced x calibrated regression beats stratified by 0.91 in extrapolation): the paper itself notes it is the best of five representatives, not a selected class; intervals are family-only. Supported as stated; m3 would strengthen.
+3. Baselines: uniform and stratified are present; published methods are re-implementations (M6).
+4. Certainty of numbers: intervals present; the 13 benchmarks are not independent (disclosed).
+5. Readability: M5, M1.
+
+## Conclusion
+Not approved at this head. The research and its reporting are sound where checked, but the built document has a broken appendix figure (M1), a table the package cannot reproduce (M2), a mismatched script map (M3), uncited data sources (M4) and a results section that reads as a record (M5). M6 is for `final`, M7 is the remaining work.
+
+## Follow-up: M2 answered (experiment-repo#9, paper-repo dev bdfa8b0d67a3)
+Checked: `code/scripts/09_paired.py` and `code/results/inner50/paired_vs_main.csv` are in the package, `run_all.sh` calls it in the inner50 stage, README, REPRODUCE.md and RESULTS_SCHEMA.md document it. The script's family bootstrap matches its description. `figures/scripts/table_robust.py code /tmp/tr.tex` now rebuilds `tables/table_robust.tex` byte-identically, including the paired column (0.94 [0.92,0.95], 0.95 [0.93,0.97], 1.09 [1.08,1.11], 0.95 [0.94,0.96]). The text value 0.95 [0.94,0.96] is the uniform x diff. IRT row. M2 is resolved. M1, M3-M5 and the should items still stand until a new version is offered; PR #7 stays unapproved.

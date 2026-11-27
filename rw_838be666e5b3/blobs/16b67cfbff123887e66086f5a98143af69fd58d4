@@ -1,0 +1,65 @@
+# Review of Version 1 (paper-repo#9, head 7ef2dac, document built from 7ef2dac28951)
+
+Read: `main/document.pdf` (24 pp; main text 8 pp, refs from p. 9) from page 1; code/results of the head
+(`results/headline.csv`, `results/cells.csv`, `code/README.md`) for the numbers I could check.
+
+## What the paper claims and whether it holds
+With n, N and f fixed, PPI++ is within ~1% of the width of any interval built from the same labels on nine
+real datasets (reference n); room exists where E[Y|f] is far from affine; the one real gain over the package
+(gene_expression, n=100) is the package's clip of lambda. Exact gap (1/n-1/M)*Delta and a break-even n*.
+
+Checks against the results: Prop. 1 / eq. (3), (5) re-derived by hand: correct. Headline ratios at the reference
+n (0.994..1.008 vs strongest valid baseline; 0.971..1.007 vs package; gene_expression r=0.971), 51 T1 cells
+(38/12/1 vs package, 39/12/0 vs strongest valid) and the Table 1 validity marks all reproduce from
+`headline.csv` / `cells.csv`. The pre-fixed rule and its post-hoc strengthening are both reported as such.
+The claims are supported and appropriately scoped (negative / conditional result, accepted by the task).
+
+## Findings
+- **must M1 (consistency).** Abstract says "a label saving of at most 1.1%", Introduction ("What we find") says
+  "label saving at most 1.2%". `headline.csv` gives 1 - 0.9943^2 = 1.13% (gene_expression) -> 1.1%. Make the
+  introduction (and any other place) say the same, derived from the unrounded ratio.
+- **must M2 (unexplained notation in the main text).** "A6", "B5" (Table 1 headers, Fig. 1 axis labels), the
+  "base class" column with entries P / U (Table 1), and the panel title "C1: excess over floor" (Fig. 2) are
+  internal identifiers (arm / claim numbers) that the main text never defines; a reader outside the study
+  cannot decode them. Use the names the text uses ("selected T1 interval", "selected T1+X interval"), define
+  P/U in the caption (package / unclipped) or drop the column, and drop the "C1" panel title.
+  (Venue record also asks for no titles inside graphics.)
+- may M3 (readability). Section 6 is a dense sequence of paragraphs each carrying 8-15 numbers and a caveat;
+  "the reading against the strongest valid baseline was fixed after the first results" appears in Sec. 4, the
+  Introduction/abstract and Sec. 7. Say it once in Sec. 4 and keep the Results to what each exhibit shows.
+  The abstract carries ~15 numbers; a reader outside the study would take the first four sentences and the
+  conclusion better with fewer.
+- may M4 (validity rule). The rule "Wilson upper < 0.95" marks PPI++ invalid at 94.36% coverage with 5000
+  repetitions (alphafold, n=500) and puts 57 of 113 cells in Fig. 3 as "all fail"; with no multiplicity
+  correction and a one-sided rule this over-labels near-nominal cells. A sensitivity line (e.g. tolerance 0.94)
+  would show the headline classification does not depend on it.
+- may M5 (baselines). Fisch et al.'s stratified PPI is named as the closest relative but not run as published;
+  the post-hoc `strat_ppi` arm (stratum means of f, in the estimator class) is. Say in one sentence that the
+  strata-means class covers it.
+- may M6 (break-even test). The scoring tolerance (factor 3, fixed in advance) is generous; the paper states
+  it and reports the miss on gene_expression and census_income-log, so it is a statement of what was tested,
+  not a defect.
+
+## Strongest objections a reviewer would raise and what answers each
+1. *Novelty / ICML significance.* The floor, cross-fitting and AIPW are classical; the contribution is the
+   exact PPI++ gap, the measurement on the nine standard sets, the clip finding and the failure map. The paper
+   says so itself and frames it as an evaluation of existing methods (ICML explicitly values these). Answered
+   to the extent a negative/conditional result can be; originality will score modest.
+2. *Is the test of the main claim adequate?* Nine real datasets with exact truth (pool as population), >=2000
+   (5000 for small n) repetitions, paired ratios with intervals, margins and the decision rule fixed before
+   runs, strongest valid baseline reported as well. The estimated floor is explicitly "within a class". Answered.
+3. *Baselines.* Package PPI++, unclipped PPI++, PPI, labels-only, OLS-adjusted, vector PPI++ with X, strata
+   means; active/cross-PPI excluded with a reason. Answered (M5 may).
+4. *Certainty of numbers.* CIs on every ratio, coverage with Wilson bounds, E-tables in the appendix; finite-
+   population caveat checked (Appendix G). Answered.
+5. *Readability.* M2 (must) and M3 (may).
+
+## Conclusion
+Supported and readable apart from M1 and M2, both small. Request changes on #9 for M1 and M2; M3-M6 are the
+owner's to decide. The venue constraints I could check (8 pp main text, Impact and AI statements, anonymity,
+Type 1 fonts per the paper's claim, 24 pp total) are met; no checklist exists for ICML 2027 (venue record).
+
+---
+# Re-review at head bb51657 (document built from bb51657a0974)
+
+M1 fixed (abstract and introduction both 1.1%; the 1.2% left in Sec. 6 is the unrelated "never wider than 1.2% at n>=300"). M2 fixed: no A6/B5/C1 in the document; Table 1 caption defines P/U; Fig. 2 has no in-graphic title. M3: the post-hoc baseline reading is stated once in Sec. 4. M4: a sensitivity sentence added; "0.94 rule leaves reference-n classes unchanged, changes baseline/validity in 2 of 9 cells" reproduces from `results/validity_sensitivity.csv` (T1 reference cells: 2; classes changed: 0). M5: addressed in related work. No `must` open; the strongest objections above stand answered as before. Approve.

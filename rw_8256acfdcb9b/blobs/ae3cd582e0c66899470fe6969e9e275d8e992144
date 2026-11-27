@@ -1,0 +1,89 @@
+\section{Design, sensitivity and guidance tables}
+\label{app:tables}
+
+\begin{table}[h]
+\caption{Design of the study. $d$: number of attributes; AUC of the explained model on the held-out split; $n$: explained instances; $R$: repeats per instance for the sampled budgets; default evals: model evaluations of one run at the \texttt{shap} default budget (marked $^{\mathrm{x}}$ where it enumerates all coalitions and is exact); sampling grid: range of model evaluations of the sampled budgets. All references are the exact enumeration (E1).}
+\label{tab:design}
+\centering
+\input{../tables/tab1_design}
+\end{table}
+
+\begin{table}[h]
+\caption{Minimum model evaluations at which at least $90\%$ of the instances of a within-cell margin quartile (Q1 smallest) have $P_c^{\varepsilon}\ge0.9$ (\texttt{shap} Kernel, \texttt{l1\_reg=False}); bracket: interval over instance resamples; $\le$: reached at the smallest budget of the grid; only cells with a sampling grid appear. The column $d$ is descriptive: the default-budget evidence is two populations ($d=20$, $d=16$), so a difference between rows of different $d$ is confounded with the dataset and its model fits and is not a $d$ effect.}
+\label{tab:guidance}
+\centering
+\input{../tables/tab2_guidance}
+\end{table}
+
+\begin{table}[h]
+\caption{Sensitivity of the headline share (percent of instances with $P_c^{\varepsilon}\ge0.9$) at the reference budget of each cell: tolerance $\varepsilon$ at threshold $0.9$; threshold $\tau$ at $\varepsilon=0.05$; $k$ at $\varepsilon=0.05$; and the \texttt{shap} settings \texttt{l1\_reg}=\texttt{auto} and \texttt{num\_features(10)} at $\varepsilon=0.05$ (``--'': not run at that budget).}
+\label{tab:sens}
+\centering
+\input{../tables/tabA1_sensitivity}
+\end{table}
+
+\begin{table}[h]
+\caption{Hypothesis H1 per cell: mean Pearson correlation between a run and the exact $\phi$, minus the share of instances with $P_c^{\varepsilon}\ge0.9$ (``$\varepsilon$ contrast'') or with strict $P_c\ge0.9$ (``strict contrast''), in percentage points with instance-bootstrap interval, at a small and at the reference budget. $\dagger$: at least ten points with the interval excluding zero.}
+\label{tab:h1}
+\centering
+\input{../tables/tabA2_h1}
+\end{table}
+
+\begin{table}[h]
+\caption{Certificate against run-twice, pooled over the four models and the budget ladder, top-3 outcome. (a) Brier score of the calibrated probability that the delivered top-3 set is exact, with the base rate $p$ of that outcome, and the paired difference certificate minus run-twice with instance-bootstrap interval: registered (run-twice delivers its first run) and variant (it delivers the mean of its two runs). (b) Minimum-budget rule at threshold $0.9$: share of instances at which the rule stops, share whose delivered run is exact, model evaluations used, and evaluations of a flat budget with the same share exact. Certificate: stop at the smallest budget with calibrated probability $\ge0.9$; run-twice: stop when two runs agree.}
+\label{tab:cert}
+\centering
+\input{../tables/tab3_certificate}
+\end{table}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\linewidth]{../figures/fig6_certificate.pdf}
+\caption{Certificate against run-twice, paired Kernel runs, top-3 outcome. (a) Calibration on held-out instances: observed rate of correctness against the calibrated probability. (b) Paired difference in Brier score, certificate minus run-twice, per dataset with instance-bootstrap interval; ``vs first run'': run-twice delivers its first run (pre-specified), ``vs mean'': it delivers the mean of its two runs. Positive favours running twice; the vertical band is the useful margin $0.01$.}
+\label{fig:cert}
+\end{figure}
+
+\section{Sensitivity to the background}
+\label{app:background}
+The value function is marginal with $B=50$ random training rows throughout.
+Figure~\ref{fig:background} changes the background to $B=20$ or $B=200$ random rows or to $50$ $k$-means medoids (the training rows nearest the cluster centres, weighted by cluster size) for the \texttt{shap} Kernel explainer on German Credit ($10$ instances for the random forest, $20$ for boosting and the MLP) and ACS Employment ($30$), at the reference budget; each background has its own exact reference.
+The exact top-3 set equals the one under $B=50$ for $0.23$--$0.47$ of the instances at $B=20$, $0.50$--$0.90$ at $B=200$ and $0.50$--$0.87$ for $k$-means, so the reference moves toward stability as $B$ grows without settling by $B=200$.
+The paired difference of the single run's mean $P_c$ (the share of runs correct, averaged over instances, each run scored against the exact attribution of its own background) is at most $0.09$ in absolute value, with intervals that include zero except in two cells at the margin; the tolerance-aware differences are exactly zero.
+These are subsets of the $40$ and $60$ instances.
+Figure~\ref{fig:floorb} shows floor (b) as a function of the background: for random rows it rises with $B$ and lies below the run-to-run agreement of the \texttt{shap} Kernel explainer in every $d\ge16$ row, while against the paired Kernel estimator the sign is mixed; Figure~\ref{fig:floorbs} gives the $d\le10$ datasets at the largest sampled budget.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\linewidth]{../figures/figA_background.pdf}
+\caption{Background sensitivity (\texttt{shap} Kernel, \texttt{l1\_reg=False}, reference budget). (a) Share of instances whose exact top-3 set under the background on the horizontal axis equals that under $B=50$ random rows, with $95\%$ interval. (b) Paired difference, background minus $B=50$, of the mean $P_c$ (share of runs correct, averaged over instances; strict filled, tolerance-aware open, which is zero throughout). German Credit $n=10$--$20$, ACS Employment $n=30$.}
+\label{fig:background}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\linewidth]{../figures/fig7_floor_b.pdf}
+\caption{Floor (b) by background on German Credit and ACS Employment. Top: top-3 agreement of two independent backgrounds ($K$ per model in the panel titles, each explained exactly) for $B=20$, $50$, $200$ random rows and $50$ $k$-means medoids, beside the run-to-run agreement at the default budget $m=2d+2048$ of the \texttt{shap} Kernel explainer (filled) and the paired Kernel estimator (open), on the same instances. Bottom: paired difference floor (b) minus run-to-run agreement with $95\%$ instance-bootstrap interval; negative: the background moves the top-3 set more than a re-run. One trained model per cell.}
+\label{fig:floorb}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\linewidth]{../figures/figA_floor_b_sampled.pdf}
+\caption{As Figure~\ref{fig:floorb} for the $d\le10$ datasets, with run-to-run agreement at the largest sampled budget ($m=127$ or $511$).}
+\label{fig:floorbs}
+\end{figure}
+
+\section{Robustness of the margin law}
+\label{app:m5}
+Figure~\ref{fig:m5} checks the budget law of Section~\ref{sec:budget} two ways.
+With $\sigma$ the per-instance standard deviation of the run's attribution difference, estimated from the runs at the other budgets, the Gaussian argument predicts that the share of correct runs depends on $x=g\sqrt m/\sigma$ alone, as $\Phi(\beta x)$ with $\beta=1$ (panels a--c, d).
+Antithetic permutation sampling collapses onto this curve ($\beta=0.9$--$1.05$ at $m_{\mathrm{eff}}\ge256$); the \texttt{shap} Kernel explainer collapses only at large budgets, and the paired Kernel estimator stays below $1$.
+The interval-censored slope of $\log m^*$ on $\log g$ depends on the budget grid for the paired Kernel estimator ($-1.4$ to $-1.8$ on the full grid, $-1.2$ to $-1.7$ on every second budget, $-0.65$ to $-1.1$ on every third) and not for antithetic permutation (panel e).
+The upper bound $20$ of a probit interval is a search bound reached when every point at large $x$ is correct, not an estimate.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\linewidth]{../figures/figB_m5_robust.pdf}
+\caption{Probit and grid checks of the budget law, non-linear models on German Credit ($40$ instances) and ACS Employment ($60$). (a--c) Share of correct runs against $x=g\sqrt m/\sigma$ for antithetic permutation, the \texttt{shap} Kernel explainer and the paired Kernel estimator ($m_{\mathrm{eff}}\ge256$, $R=100$ runs per point, bins of $3$--$110$ points), against $\Phi(x)$. (d) Probit slope $\beta$ (predicted $1$) by estimator and budget range, with instance-bootstrap interval. (e) Interval-censored slope of $\log m^*$ on $\log g$ under thinning of the budget grid (predicted $-2$).}
+\label{fig:m5}
+\end{figure}

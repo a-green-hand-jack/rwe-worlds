@@ -1,0 +1,12 @@
+# Review of version 1 at head 9c2aa98 (paper-repo#10, main into release): approved
+
+Built document: `document` branch `main/built-from` = 9c2aa98; 23 pages, main text ends on page 9, References from page 10, no Type 3 fonts.
+
+## Earlier must: resolved
+Strict reading of H1 is now reported beside the tolerance reading (abstract, intro (ii), §5.3, Discussion). Recomputed from `results/tables/h1_contrast.csv`: strict contrast at the reference budget 3.0–21.0 points (15 non-linear shap-Kernel cells), interval excludes zero in 9; tolerance contrast |<0.04| points. Paired Kernel H1 29 of 84 (72 with the decision-level gap), shap Kernel 7 of 93 at ≥3d, min Pearson 0.978: all as printed.
+
+## Other earlier findings
+- Fig 3/4 labels: fixed (group labels as tick labels). Abstract defines certificate and reference budget. Process notes gone from refs. Intro trimmed.
+- may (open): §5.4 still a single dense paragraph.
+- may (new): §5.6 heading "does not beat running twice" is stronger than the text (registered contrast favours running twice; matched contrast favours the certificate). Abstract wording ("not a clear improvement") is right; align the heading.
+- may (open, needed before final): large-d scope (all default-budget evidence is d=16, 20). The Arrhythmia d=279 extension is running in experiment-repo; it must be in final, or the paper must state why it is not.

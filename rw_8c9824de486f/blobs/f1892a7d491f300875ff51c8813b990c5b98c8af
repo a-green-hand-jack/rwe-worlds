@@ -1,0 +1,40 @@
+"""C5 on synthetic data: adaptive interview (S7, adaptation of Golbandi et al. 2011, `select_rules.s7_interview`) vs the batch design S6 and random-k S0, all with the same factor-model inference (P5),
+on the correct model (L0) and on every rung of the misspecification ladder (incl. the combined rung). Same generator and missingness as `10_synth.py` (N = 120, M = 240 training models, rank 6 fitted,
+per-model observation probability ~ Beta, 0.6 mean). Score: MSE on the N - k unrevealed benchmarks of fully observed test models, standardised units. Paired per test model; mean and standard error over seeds.
+Common-target variant (env SA_COMMON=1, written after the first run showed that each rule is scored on its own unrevealed set, which differ between rules): every rule at a given k is scored on
+the benchmarks outside the union of the sets revealed by S6 and S7 (and, for a random draw, outside that draw), so the targets do not depend on what a rule chose; SA_LEVELS=comma list restricts the rungs (parallel runs).
+usage: python 38_synth_adaptive.py <out_csv> [n_seeds] [n_test]"""
+import os, sys, numpy as np, pandas as pd
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from fa import fit_fa, posterior_row
+from synth import generate, LEVELS, COMBINED
+import select_rules as SR
+out = sys.argv[1]; n_seeds = int(sys.argv[2]) if len(sys.argv) > 2 else 4; n_test = int(sys.argv[3]) if len(sys.argv) > 3 else 60
+N, M, K = 120, 240, [1, 2, 3, 5, 8, 12, 20]; DENS = 0.6; D = 20
+rows = []
+LV = os.environ.get('SA_LEVELS'); COMMON = os.environ.get('SA_COMMON') == '1'
+for lv in (LV.split(',') if LV else LEVELS + [COMBINED]):
+    for seed in range(n_seeds):
+        g = generate(M + n_test, N, 6, "separated", lv, seed * 1000 + 17); Y = g["Y"]; Ytr, Yte = Y[:M], Y[M:]
+        rng = np.random.default_rng(seed + 5); p = rng.beta(2.0, 2.0 * (1 - DENS) / DENS, size=(M, 1)); msk = rng.random((M, N)) < p
+        Ym = np.where(msk, Ytr, np.nan); mu = np.nanmean(Ym, 0); sd = np.nanstd(Ym, 0); Ztr = (Ym - mu) / sd; Zte = (Yte - mu) / sd
+        fit = fit_fa(Ztr, 6); cand = np.arange(N); Zfill = np.nan_to_num(Ztr)
+        acc = {k: {"S0": [], "S6": [], "S7": []} for k in K}
+        for i in range(n_test):
+            z = Zte[i]; s6 = SR.s6_greedy(fit, cand, max(K)); s7 = SR.s7_interview(Zfill, msk, z, cand, max(K))
+            for k in K:
+                T = np.setdiff1d(cand, s6[:k]); T7 = np.setdiff1d(cand, s7[:k])
+                if COMMON: T = T7 = np.setdiff1d(cand, np.union1d(s6[:k], s7[:k]))
+                def mse(S, T_):
+                    zz, _ = posterior_row(fit, S, z[S]); pr = fit["mu"][T_] + fit["V"][T_] @ zz; return float(np.mean((pr - z[T_]) ** 2))
+                s0 = np.mean([mse(S, np.setdiff1d(T if COMMON else cand, S)) for S in (rng.choice(N, k, replace=False) for _ in range(D))])
+                acc[k]["S0"].append(s0); acc[k]["S6"].append(mse(s6[:k], T)); acc[k]["S7"].append(mse(s7[:k], T7))
+        for k in K:
+            a = {r: np.array(v) for r, v in acc[k].items()}
+            rows.append(dict(level=lv, seed=seed, k=k, mse_S0=a["S0"].mean(), mse_S6=a["S6"].mean(), mse_S7=a["S7"].mean(), gain_S6_over_S7=(a["S7"] - a["S6"]).mean(), n_test=n_test))
+        print(lv, seed, flush=True)
+df = pd.DataFrame(rows)
+t = df.groupby(["level", "k"]).agg(mse_S0=("mse_S0", "mean"), mse_S6=("mse_S6", "mean"), mse_S7=("mse_S7", "mean"), gain_S6_over_S7=("gain_S6_over_S7", "mean"),
+                                  gain_se=("gain_S6_over_S7", lambda x: x.std(ddof=1) / np.sqrt(len(x))), n_seeds=("seed", "nunique")).reset_index()
+t["n_test"] = n_test; t.to_csv(out, index=False); df.to_csv(out.replace(".csv", "_raw.csv"), index=False)
+print(t.round(3).to_string())

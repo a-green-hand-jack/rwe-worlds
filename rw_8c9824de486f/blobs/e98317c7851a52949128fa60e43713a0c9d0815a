@@ -1,0 +1,24 @@
+{
+  "analysis_commit": "66252a8",
+  "figure": "figtab/fig2_spectrum.pdf",
+  "inputs": [
+    {
+      "path": "results/fig2_spectrum.csv",
+      "sha256": "bf4726591971ff856ba211d23a926029363d84635f9af1b67dbf506047db3ca8"
+    },
+    {
+      "path": "results/fig2_rank_estimates.csv",
+      "sha256": "d2be7db034d24e29f626aeb64334dc39185d0182f5c9dedbab29ad75ab973180"
+    },
+    {
+      "path": "results/fig2_cv_vs_rank.csv",
+      "sha256": "bf5de628a3f6e523f71458767865c3cdc97f0707566beffa5d722a32add8d00d"
+    },
+    {
+      "path": "results/fig2_summary.json",
+      "sha256": "90a49af54f6e4549bd03ac06d4da4ab5fad92369c633ab7c4262c43d0c2e9f91"
+    }
+  ],
+  "matrix": "N=328 tasks",
+  "script": "figtab/make_fig2.py"
+}

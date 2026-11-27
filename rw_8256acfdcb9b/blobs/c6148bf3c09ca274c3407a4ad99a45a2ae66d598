@@ -1,0 +1,8 @@
+{
+ "table": "tab2_guidance",
+ "inputs": {
+  "results/tables/guidance.csv": "43af2a85406f2abc33bc79301ee116fa86884dfcfd8cf74870b5b50e171c332f"
+ },
+ "scope": "d is descriptive for these populations, not a d effect (Outline rev 6): default-budget evidence is two populations (d=20, d=16); intervals resample instances of one trained model per cell.",
+ "note": "entries are model evaluations (background rows included); n.r. = not reached within the grid (largest budget tried in brackets); <= = reached at the smallest budget of the grid (true minimum may be lower); CI = instance bootstrap as supplied by analysis; criterion: pc_eps, estimator shap_kernel l1_reg=False"
+}

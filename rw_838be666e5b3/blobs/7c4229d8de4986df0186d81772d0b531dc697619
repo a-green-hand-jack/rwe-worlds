@@ -1,0 +1,15 @@
+"""Where the results live: $PCI_RESULTS, else `<code root>/results` (this repository), else `<code root>/../results`
+(the delivered layout, code/ next to results/)."""
+import os
+
+CODE_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+
+
+def results_dir():
+    env = os.environ.get("PCI_RESULTS")
+    if env:
+        return os.path.abspath(env)
+    for cand in (os.path.join(CODE_ROOT, "results"), os.path.join(CODE_ROOT, "..", "results")):
+        if os.path.isdir(cand):
+            return os.path.abspath(cand)
+    return os.path.join(CODE_ROOT, "results")

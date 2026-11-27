@@ -1,0 +1,33 @@
+"""Table 3 inputs: error of S6+P5 and S0+P5 per task type, T1-predicted error and own all-others floor, per split and k.
+Pooled RMSE over the held-out (model, cell) pairs of the type (sqrt of summed squared error / count), group bootstrap 90% CI (B=2000).
+Also per-task pooled error (G only) for the extreme-task listing.
+usage: python 18_table3.py <data_dir> <cells_dir> <out_dir>"""
+import os, sys, glob, numpy as np, pandas as pd
+sys.path.insert(0, os.path.dirname(__file__))
+from common import *
+data_dir, cdir, out = sys.argv[1:4]
+Y, mods, tasks, et = load_matrix(data_dir); org = mods.org.values
+d = pd.concat([pd.read_parquet(f) for f in sorted(glob.glob(os.path.join(cdir, "*_types.parquet")))], ignore_index=True)
+d["org"] = org[d.model.values]
+rows = []
+for (s, k, rule, ty), g in d.groupby(["split", "k", "rule", "type"]):
+    gm = g.groupby("model").agg(n=("n", "sum"), sse=("sse", "sum"), t1=("sse_t1", "sum"), fl=("sse_floor", "sum"), org=("org", "first")).reset_index()
+    if len(gm) < 5: continue
+    ug, inv = np.unique(gm.org.values, return_inverse=True); rng = np.random.default_rng(7000 + k)
+    dr = rng.integers(0, len(ug), size=(2000, len(ug)))
+    agg = {c: np.bincount(inv, weights=gm[c].values, minlength=len(ug)) for c in ("n", "sse", "t1", "fl")}
+    row = dict(split=s, k=k, rule=rule, type=ty, n_models=len(gm), n_cells=float(gm.n.sum()), n_groups=len(ug))
+    for c, name in (("sse", "rmse"), ("t1", "rmse_t1"), ("fl", "rmse_floor")):
+        pt = np.sqrt(gm[c].sum() / gm.n.sum()); reps = np.sqrt(agg[c][dr].sum(1) / agg["n"][dr].sum(1))
+        row[name] = pt; row[name + "_lo90"] = np.percentile(reps, 5); row[name + "_hi90"] = np.percentile(reps, 95)
+    row["excess_over_floor"] = row["rmse"] - row["rmse_floor"]; row["t1_excess_over_floor"] = row["rmse_t1"] - row["rmse_floor"]
+    rows.append(row)
+t3 = pd.DataFrame(rows); t3.to_csv(os.path.join(out, "table3_task_type.csv"), index=False)
+c = pd.concat([pd.read_parquet(f) for f in sorted(glob.glob(os.path.join(cdir, "G_*_cells.parquet")))], ignore_index=True)
+c = c.groupby(["k", "rule", "task"])[["n", "sse", "sse_t1", "sse_floor"]].sum().reset_index()
+c["rmse"] = np.sqrt(c.sse / c.n); c["rmse_t1"] = np.sqrt(c.sse_t1 / c.n); c["rmse_floor"] = np.sqrt(c.sse_floor / c.n)
+c["type"] = tasks["type"].values[c.task.values]; c["task"] = tasks["task"].values[c.task.values]
+c.drop(columns=["sse", "sse_t1", "sse_floor"]).to_csv(os.path.join(out, "table3_per_task_G.csv"), index=False)
+pd.set_option("display.width", 220)
+x = t3[(t3.split == "G") & (t3.k == 8) & (t3.rule == "S6")][["type", "n_cells", "rmse", "rmse_lo90", "rmse_hi90", "rmse_t1", "rmse_floor"]]
+print(x.round(2).to_string(index=False))

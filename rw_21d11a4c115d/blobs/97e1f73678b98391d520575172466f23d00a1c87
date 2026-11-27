@@ -1,0 +1,6 @@
+{
+ "table": "tableA2_adaptive",
+ "inputs": {
+  "adaptive.csv": "617dbf5684c7"
+ }
+}

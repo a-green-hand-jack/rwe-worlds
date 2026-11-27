@@ -1,0 +1,50 @@
+# results/ — what each file is
+
+Definitions of method ids, constructions and columns: `METHODS.md`. Reproduction (environment, data, seeds, commands): `../code/README.md`
+(`code_README.md` in `experiment-repo`). The delivered CSV files are rebuilt from the raw cells (`results/exp*/*.npz`, a release asset, not in git)
+by `python analysis/build_results.py all`. **`planned_cells.csv` lists every planned cell with `done` = 0/1; `cells.csv` carries the cells not run as
+rows with `reps` = 0 and the reason in `valid_reason`.** A cell that is not in `cells.csv` with `reps` > 0 was not run; nothing is filled in.
+
+Common conditions: target E[Y]; K = 5 cross-fitting folds (K = 10 only in `exp3k10`); labels MCAR with propensity n/M unless the group says otherwise;
+nominal level 95 %; pool-based cells draw iid **with replacement** from the pool, whose mean is the truth (a pool is a finite population, not a
+sample of a larger one); replicates R = 2000 (E1 3000, 5000 for n ≤ 100 in E3 and for rare / small-n cells); seeds: 20261126 + crc32(cell id) mod 10^6.
+
+## Data files (all long format, one row per cell × method × construction unless stated)
+| file | content | experiment / group | produced by |
+|---|---|---|---|
+| `cells.csv` | coverage (Wilson CI), mean width, paired width ratio vs PPI++ (bootstrap CI), bias, `valid`, `valid_vs_ppipp`, `pick_frac`, `frac_degenerate`, not-run rows | all | `analysis/build_results.py cells` |
+| `prop_check.csv` | measured excess variance over the floor V* vs the closed form (1/n − 1/M)Δ (+ learning cost); η², ρ², σ²_res, Δ, V*; SE calibration | E1 (synthetic: `quad_n_sweep`, `shapes`, `N_sweep`) and E3 real cells | `build_results.py prop` |
+| `breakeven.csv` | width ratio vs n of the calibrated arms; predicted n* (real pools with pool-bootstrap interval; synthetic exact) and measured crossing | E1 (quad n-sweep), E3, stress | `build_results.py breakeven` |
+| `diagnostic.csv` | the analyst's headroom diagnostic per cell (median and 2.5/97.5 % over replicates) vs the realised gain | E3, stress | `build_results.py diagnostic` |
+| `ladder.csv` | width ratio per rung (PPI++ → … → select; Wald → Wilson/t) for the reference and stress cells | E3, E3b, E6 | `build_results.py ladder` (from `cells.csv`) |
+| `headline.csv` | the headline arms of the Outline (T1 `select` = A6, T2 `select_x` = B5) per reference-grid (dataset, n): paired width ratio vs PPI++ with CI, label saving 1 − r², coverage, validity, the pre-fixed classification (no gain / gain / small–undecided), estimated-floor ratio (predicted, measured-unit, and with the stronger floor classes), the ratio and classification against the unclipped PPI++ baseline and against the narrower of the two PPI++ variants (`*_best`), best valid arm as a descriptive ceiling; `is_reference_n` marks n = 500 | E3 (C2) | `build_results.py headline` |
+| `decomp.csv` | gene_expression (and galaxies, forest, census_income, and a +0.34 sd(Y) shifted-predictor ablation): arms differing in one ingredient on the same draws, the source of the PPI++ gap (unclipped λ vs clipped λ vs in-sample/cross-fitted linear vs flexible calibrator); 3000 draws per cell | story-repo request | `experiments/gene_decomp.py`, `build_results.py decomp` |
+| `clip_sweep.csv`, `clip_real.csv` | E9, the λ clip: synthetic sweep over the slope b (known truth, package vs unclipped PPI++ vs the exact variance formula; 61 cells) and the same quantities on the real pools (E3/E4 cells) | story-repo request (C8) | `experiments/exp9_clip.py`, `build_results.py clip` |
+| `breakeven_curves.csv`, `breakeven_summary.csv` | one row per break-even curve and the per-group counts of bracketed / censored curves (both baselines) | E1, E3, stress (C3) | `build_results.py breakeven` |
+| `floors_strong.json` | σ²_res, V_g, Δ of the best of seven cross-fitted calibrator classes for each real pool (within-class floor) | E3 floor | `experiments/floors_strong.py` |
+| `se_variants.csv` | fold-pooled vs per-fold-centred residual variance in the cross-fitted SE | E1, E3 | `build_results.py variants` |
+| `run_times.csv` | wall-clock seconds, seed and code commit of every stored cell (single CPU, shared host) | all | `build_results.py runtimes` |
+| `planned_cells.csv` | the planned grid with `done` flag | all | `analysis/planned.py` |
+| `floors.json`, `nstar_ci.json` | population quantities (Var Y, ρ², σ²_res, V_g, Δ, V*; predicted n* with interval) | all pools / synthetic populations | `experiments/floors*.py`, `nstar_ci.py` |
+| `exp2_equiv.csv` | E2: PPI++ (`ppi-python`) vs the pooled linear estimator with the in-sample slope: estimate difference in half-widths, width ratio, λ̂ / (b̂N/M), 500 draws per row | E2 | `experiments/exp2_equiv.py` |
+| `ballots_native.csv` | the T1 arms on the native ballots split (n = 1027, N = 78 150), no truth, so no coverage; 20 fold seeds | application | `experiments/ballots_native.py` |
+| `data_sha256.txt` | SHA-256 and shapes of the data files used | — | `experiments/get_data.py` |
+
+## Experiment grids (the exact lists are in `planned_cells.csv`)
+- **E1** synthetic, known truth. A: quadratic E[Y|f] (curvature c ∈ {0, 0.2, 0.5}) n ∈ {25 … 1600}, N per `planned_cells.csv`; B: shapes (sin, tanh, non-monotone, binary links including rare prevalence); C: N sweep at n = 400.
+- **E2** (`exp2_equiv.csv`) nine pools × up to three (n, N).
+- **E3** reference grid on nine `ppi-python` sets (n ∈ {30, 100, 300, 500, 1000, 3000}, N from 1000 to 10⁴, capped by pool size), plus `exp3b` (monotone-transformed predictor: stress test), `exp3_disjoint` (labeled and unlabeled sets drawn without replacement from the pool, disjoint), `exp3k10` (K = 10), and `exp3_T2ref.py` (census_healthcare / census_income / census_education / alphafold at n = 500: the T2 arms `select_x`, `gbm_aipw`, … under the same cell ids and seeds as the T1 reference cells, so the draws are paired; only the rows with `tier == T2` of these cells go into `cells.csv`).
+- **E4** the N/n dimension: E1 group `N_sweep`, `exp4` (n = 300; N ∈ {n, 4n}) and the E3 cells.
+- **E5** constructions for binary Y: n ∈ {25, 50, 200} (plankton 50/100/400, synthetic 100/200/800), 2000 replicates, bootstrap-t B = 399.
+- **E6** side information X: census sets, alphafold, synthetic X populations; n ∈ {100, 200, 400, 1000, 1600}, N = 4000 ‒ 5000, 1000 replicates.
+- **E7** `shift` (plankton 2013 → 2014), `selected_labeling` (non-MCAR), `rare` (prevalence 1–5 %; coverage with Wilson CI).
+
+## Deviations and things to know when reading the files
+- Extra columns beyond the figtab schema: `valid_vs_ppipp`, `valid_reason`, `frac_degenerate`, `sampling`, `commit`, `ratio_ref`, `pred_ratio_vs_ppipp`.
+- `floor` / `floor_x` rows are predicted ratios (construction `NA`), not intervals; they carry no coverage.
+- `ols_adj` (T2) is the pooled estimator with OLS on (1, f, X); `labels_cp` has construction `cp`.
+- `valid` is the pre-fixed rule (Wilson upper limit ≥ 0.95 and not worse than PPI++); at small n the PPI++ Wald interval itself undercovers, so `valid` = 0 for most arms there:
+  read `coverage` and `valid_vs_ppipp` together.
+- Floors are estimated within a model class; ratios slightly above 1 occur because the cross-fitted floor MSE is noisy.
+- The closed-form excess for PPI++ is the leading-order term; the package (and cross-fitted arms) pay an additional learning cost at small n, reported in `prop_check.csv` as an `excess_ratio` above 1.
+- Raw cells are not part of git; the tarball `raw_cells.tar.gz` is attached to the release of `experiment-repo`.

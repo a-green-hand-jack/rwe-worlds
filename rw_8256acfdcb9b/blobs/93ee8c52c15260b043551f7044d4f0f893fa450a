@@ -1,0 +1,8 @@
+{
+ "table": "tabA1_sensitivity",
+ "inputs": {
+  "results/tables/sensitivity.csv": "108616632ee9f3979338e07461e928e81d5683ffe25e65b6f1d989a8fd2241c1",
+  "results/tables/cells.csv": "3266aaca4ea1f015193d53732614c8a75bfce1c998cbbf0b28dfb88aeb155ed3"
+ },
+ "note": "shap_kernel, l1_reg=False unless the column names another; reference budget per cell (default 2d+2048 where it samples, R>1, else the largest sampling budget); share of instances in %; eps = tolerance of P_c^eps (0 = strict P_c), tau = threshold on the per-instance P_c^eps, k = top-k; instance-bootstrap CIs in the csv"
+}

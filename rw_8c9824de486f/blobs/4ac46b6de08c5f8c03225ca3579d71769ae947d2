@@ -1,0 +1,84 @@
+"""Factor analysis with missing data (EM), posterior for a new row, and the T1 risk terms.
+Model (standardised scores): y_mj = mu_j + v_j' z_m + e_mj,  z ~ N(0, I_r),  e ~ N(0, psi_j).
+All arrays: Y (M x N) with NaN for missing; mask = ~isnan(Y)."""
+import numpy as np
+
+PSI_FLOOR = 1e-2
+
+def _estep(Y, mask, mu, V, psi):
+    """posterior mean (M x r) and covariance (M x r x r) of z_m given observed cells."""
+    M, N = Y.shape; r = V.shape[1]
+    VV = (V[:, :, None] * V[:, None, :]).reshape(N, r * r)
+    prec = np.eye(r)[None] + ((mask / psi[None, :]) @ VV).reshape(M, r, r)
+    cov = np.linalg.inv(prec)
+    R = np.where(mask, (np.nan_to_num(Y) - mu[None, :]) / psi[None, :], 0.0)
+    mean = np.einsum("mab,mb->ma", cov, R @ V)
+    return mean, cov
+
+def fit_fa(Y, r, n_iter=300, tol=1e-6, seed=0, init=None):
+    """EM for factor analysis with missing cells. Y standardised (columns ~ mean 0). Returns dict(mu, V, psi, ll_trace)."""
+    mask = ~np.isnan(Y); M, N = Y.shape
+    Y0 = np.where(mask, Y, 0.0)
+    cnt = mask.sum(0).clip(min=1)
+    if init is None:
+        mu = Y0.sum(0) / cnt
+        Yc = np.where(mask, Y - mu, 0.0)
+        U, s, Vt = np.linalg.svd(Yc, full_matrices=False)
+        V = (Vt[:r].T * (s[:r] / np.sqrt(M))) + 0.0
+        rng = np.random.default_rng(seed); V = V + 1e-3 * rng.standard_normal(V.shape)
+        res = np.where(mask, Yc - (U[:, :r] * s[:r]) @ Vt[:r], 0.0)
+        psi = np.maximum((res ** 2).sum(0) / cnt, PSI_FLOOR)
+    else:
+        mu, V, psi = init["mu"].copy(), init["V"][:, :r].copy(), init["psi"].copy()
+    prev = -np.inf; trace = []
+    for it in range(n_iter):
+        mean, cov = _estep(Y, mask, mu, V, psi)
+        # sufficient statistics with augmented z~ = [z; 1]
+        Ezz = cov + mean[:, :, None] * mean[:, None, :]
+        A = np.zeros((M, r + 1, r + 1)); A[:, :r, :r] = Ezz; A[:, :r, r] = mean; A[:, r, :r] = mean; A[:, r, r] = 1.0
+        S = (mask.astype(float).T @ A.reshape(M, -1)).reshape(N, r + 1, r + 1)       # per benchmark
+        Zt = np.concatenate([mean, np.ones((M, 1))], 1)
+        B = np.einsum("mj,ma->ja", Y0, Zt)                                           # N x (r+1)
+        S = S + 1e-8 * np.eye(r + 1)[None]
+        theta = np.linalg.solve(S, B[:, :, None])[:, :, 0]
+        V, mu = theta[:, :r], theta[:, r]
+        quad = np.einsum("ja,jab,jb->j", theta, S, theta)
+        sq = (Y0 ** 2).sum(0)
+        psi = np.maximum((sq - 2 * (theta * B).sum(1) + quad) / cnt, PSI_FLOOR)
+        # observed-data negative residual proxy for convergence: mean log psi weighted
+        ll = -0.5 * (cnt * np.log(psi)).sum() / mask.sum()
+        trace.append(ll)
+        if abs(ll - prev) < tol * (1 + abs(ll)) and it > 5: break
+        prev = ll
+    return dict(mu=mu, V=V, psi=psi, n_iter=it + 1, ll=trace)
+
+def posterior_row(fit, idx, y):
+    """posterior mean (r,) and covariance (r x r) of z for a new row with observed benchmark idx and standardised values y."""
+    V, mu, psi = fit["V"], fit["mu"], fit["psi"]
+    r = V.shape[1]
+    if len(idx) == 0:
+        return np.zeros(r), np.eye(r)
+    Vo = V[idx] / np.sqrt(psi[idx])[:, None]
+    P = np.eye(r) + Vo.T @ Vo
+    cov = np.linalg.inv(P)
+    mean = cov @ (Vo.T @ ((y - mu[idx]) / np.sqrt(psi[idx])))
+    return mean, cov
+
+def predict_row(fit, idx, y):
+    m, _ = posterior_row(fit, idx, y)
+    return fit["mu"] + fit["V"] @ m
+
+def complete(Y, fit):
+    """EM-FA conditional-mean completion of a training matrix."""
+    mask = ~np.isnan(Y)
+    mean, _ = _estep(Y, mask, fit["mu"], fit["V"], fit["psi"])
+    hat = fit["mu"][None] + mean @ fit["V"].T
+    return np.where(mask, Y, hat)
+
+def design_risk(fit, S, targets=None):
+    """T1: expected squared error of the posterior-mean prediction (known parameters) for each benchmark given run set S:
+    psi_j + v_j' Sigma(S) v_j. Returns vector over all N benchmarks."""
+    V, psi = fit["V"], fit["psi"]; r = V.shape[1]
+    Vo = V[S] / np.sqrt(psi[S])[:, None] if len(S) else np.zeros((0, r))
+    cov = np.linalg.inv(np.eye(r) + Vo.T @ Vo)
+    return psi + np.einsum("ja,ab,jb->j", V, cov, V)

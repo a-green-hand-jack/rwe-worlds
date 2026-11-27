@@ -1,0 +1,58 @@
+"""Required background sensitivity (Outline 3a, appendix A2): the same instances and model, a different background.
+Each background defines its own value function, hence its own exact table and exact reference.
+usage: background_sens.py DATASET MODEL SPEC START END R     SPEC in B20, B200, kmeans50 (B=50 is the main grid)
+Output cell directory: <WORK>/<dataset>__<SPEC>_s0/inst_<model>_<i>.npz (same keys as the main runs: shap_noreg_m, shap_auto_m, phi, v)."""
+import sys, os, pickle, time
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+import numpy as np
+from sklearn.cluster import KMeans
+from shapreliab import pipeline as P, exact, estimators as E, models
+
+ds, kind, spec, a, b, R = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4]), int(sys.argv[5]), int(sys.argv[6])
+src = P.cell_dir(ds, 0)
+out = P.cell_dir(f"{ds}__{spec}", 0)
+os.makedirs(out, exist_ok=True)
+sp = np.load(os.path.join(src, "split.npz"))
+m = pickle.load(open(os.path.join(src, f"model_{kind}.pkl"), "rb"))
+Xtr = sp["Xtr"]
+d = Xtr.shape[1]
+meta = __import__("json").load(open(os.path.join(src, "meta.json")))
+w = None
+if spec.startswith("B"):
+    B = int(spec[1:])
+    bg = Xtr[np.random.RandomState(7).choice(len(Xtr), B, replace=False)]
+elif spec == "kmeans50":
+    # k-means summary of the training data in the model's attribute-wise preprocessing space; each centroid is replaced by the
+    # nearest actual training row (so categorical codes stay valid) and weighted by its cluster size
+    prep = models._prep(d, meta["cat_idx"]).fit(Xtr)
+    Z = prep.transform(Xtr)
+    km = KMeans(50, n_init=3, random_state=0).fit(Z)
+    idx = np.array([np.argmin(((Z - c) ** 2).sum(1)) for c in km.cluster_centers_])
+    bg = Xtr[idx]
+    w = np.bincount(km.labels_, minlength=50) / len(Xtr)
+else:
+    raise ValueError(spec)
+fb = P.budgets(d)
+bud = [1024, 2 * d + 2048] if d >= 16 else fb[:1] + [2 * d + 2048]
+for i in range(a, b):
+    fn = os.path.join(out, f"inst_{kind}_{i:04d}.npz")
+    if os.path.exists(fn):
+        continue
+    t0 = time.time()
+    x = sp["X"][i]
+    if kind == "lr":
+        v = exact.lr_value_table(m.f, x, bg, w=w)
+    elif kind == "mlp":
+        v = exact.mlp_value_table(m, x, bg, w=w)
+    else:
+        v = exact.value_table(m.f, x, bg, w=w)
+    phi = exact.exact_shapley(v)
+    res = dict(v=v, phi=phi, x=x, fx=m.f(x[None])[0], B=len(bg))
+    sl = E.ShapLookup(v, x)
+    for l1n, l1 in (("noreg", False), ("auto", "auto")):
+        for bi, mm in enumerate(bud):
+            res[f"shap_{l1n}_{mm}"] = np.array([sl.kernel(mm, (i * 1000003 + bi * 1009 + r * 7 + 13) % (2**31 - 1), l1) for r in range(R)])
+    tmp = fn + ".tmp.npz"
+    np.savez_compressed(tmp, **res)
+    os.replace(tmp, fn)
+    print(f"{ds} {kind} {spec} inst {i} done {time.time()-t0:.1f}s", flush=True)

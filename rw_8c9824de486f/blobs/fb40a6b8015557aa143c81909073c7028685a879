@@ -1,0 +1,17 @@
+split,subset,epsilon_name,epsilon,k_emp,k_emp_lo,k_emp_hi,frac_boot_never,k_pred,k_pred_lo,k_pred_hi,n_groups,N,note
+G,all,delta,0.09773099960595631,9999.0,,,0.9842,109,109.0,109.0,83,328,grid steps; inf = not reached on the grid
+G,all,2delta,0.19546199921191262,9999.0,80.0,,0.8016,20,20.0,32.0,83,328,grid steps; inf = not reached on the grid
+G,all,delta_floor,1.2047798201172213,20.0,12.0,32.0,0.0,3,3.0,3.0,83,328,grid steps; inf = not reached on the grid
+G,all,2delta_floor,2.4095596402344426,3.0,3.0,3.0,0.0,2,2.0,2.0,83,328,grid steps; inf = not reached on the grid
+G,fixed_kmax,delta,0.09737558503799013,9999.0,,,0.9946,109,109.0,109.0,55,328,grid steps; inf = not reached on the grid
+G,fixed_kmax,2delta,0.19475117007598025,9999.0,80.0,,0.9158,20,20.0,20.0,55,328,grid steps; inf = not reached on the grid
+G,fixed_kmax,delta_floor,1.2037198409956025,50.0,20.0,50.0,0.0,3,3.0,3.0,55,328,grid steps; inf = not reached on the grid
+G,fixed_kmax,2delta_floor,2.407439681991205,3.0,3.0,5.0,0.0,2,2.0,2.0,55,328,grid steps; inf = not reached on the grid
+S,all,delta,0.09114132920221109,20.0,5.0,50.0,0.0,109,109.0,109.0,32,328,grid steps; inf = not reached on the grid
+S,all,2delta,0.18228265840442218,20.0,5.0,32.0,0.0,32,32.0,32.0,32,328,grid steps; inf = not reached on the grid
+S,all,delta_floor,1.0873735817408354,8.0,2.0,20.0,0.0,5,3.0,5.0,32,328,grid steps; inf = not reached on the grid
+S,all,2delta_floor,2.174747163481671,3.0,1.0,5.0,0.0,2,2.0,2.0,32,328,grid steps; inf = not reached on the grid
+T,all,delta,0.11077529465543959,12.0,8.0,20.600000000002183,0.0,50,50.0,109.0,37,328,grid steps; inf = not reached on the grid
+T,all,2delta,0.22155058931087918,12.0,5.0,20.0,0.0,20,20.0,20.0,37,328,grid steps; inf = not reached on the grid
+T,all,delta_floor,1.1264130599339952,5.0,3.0,8.0,0.0,3,3.0,3.0,37,328,grid steps; inf = not reached on the grid
+T,all,2delta_floor,2.2528261198679904,2.0,1.0,3.0,0.0,2,1.0,2.0,37,328,grid steps; inf = not reached on the grid

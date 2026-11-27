@@ -1,0 +1,22 @@
+{
+ "inputs": {
+  "search_quality.csv": {
+   "sha256": "4987a212cd7660b1bf3e368c689465cd0e3902048ffb19391f45b937a5f33a4b",
+   "rows": 81,
+   "design": [
+    "all",
+    "crowd",
+    "expert",
+    "llm_judge",
+    "sports"
+   ],
+   "perturbation": [
+    "both",
+    "delete",
+    "flip"
+   ]
+  }
+ },
+ "scope": "all_datasets: 152 deletion and 152 flip conclusions (Arena-55k, Arena single-turn, MT-Bench human and GPT-4)",
+ "columns": "median ratio of the smallest verified k to the best found [95% CI]; share of conclusions reversed at 0.5k* and k*"
+}

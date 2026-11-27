@@ -1,0 +1,13 @@
+# Review of version 2 (paper-repo#10 at d5cfdfc, document built from the identical tree 5a1b066): approved
+
+Re-review against reviews/v2-paper-pr10-56854b0.md.
+
+- M1 (must) resolved: Table 2 has one absolute-R2 column per target (log RMSE: 0.32, 0.34, 0.43; log|bias|: -0.12, -0.22, -0.06), constant row -0.24 matches bias_reference; caption names targets and populations.
+- M2 (must) resolved: REPRODUCE.md section 9 maps Fig. 10 = fig6_cluster, Fig. 9 = figA9_orfit; CAPTIONS.md carries paper numbers.
+- M3 resolved: abstract/intro give 85% (uncentred); Sec. 5.1 labels the largest gap as uncentred and states 86.7% as post-hoc centred.
+- M4 resolved: threshold-mechanism learners "cannot be told apart" (boosting 0.99 [0.70,1.18], forests 1.09 [0.76,1.59], adaptive Hajek 1.02 [0.59,1.73]; lasso/ridge ~2x); matches results/parity_d.csv.
+- M5 resolved: Appendix C defines each population (2193, 1797, 2178, 1800, 1974, 1440, 1224, 9795), matches results/populations.csv; coverage by family points to Table 1.
+- M7 (may) partly open: legibility of Fig. 1 / Fig. 5C at print size is with figtab-repo.
+- Main text ends on page 9 on the system build (references start on page 10).
+
+Conditions for `final` (unchanged, M6): GNN and cluster Horvitz-Thompson baselines reported in the paper; confirmatory P6/P7 tests of the corner-interpretation claim; Fig. 1 / 5C legibility.

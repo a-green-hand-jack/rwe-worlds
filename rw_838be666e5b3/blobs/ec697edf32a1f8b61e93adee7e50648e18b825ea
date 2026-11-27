@@ -1,0 +1,82 @@
+"""Fig 3 (C2): headroom ladder per dataset, width ratio to PPI++ with paired CI; hollow = invalid."""
+import numpy as np
+import matplotlib.pyplot as plt
+import style, schema, captions
+from common import CFG, nice, headline, primary, reference, complete_arms
+
+style.apply()
+df, nr = schema.drop_not_run(schema.load("cells.csv"))
+df = primary(reference(df[df.exp.isin(["E3"])]))
+df = headline(df)
+hl_all = schema.load("headline.csv")
+hl_ = hl_all[hl_all.tier == "T1"].set_index(["dataset", "n"])
+nobase = {(r.dataset, r.tier, int(r.n)) for r in hl_all.itertuples() if r.baseline_valid == 0}   # neither PPI++ passes the coverage rule: the cell is marked
+marked = set()
+sets = sorted(df.dataset.unique())
+ncol = 3
+nrow = int(np.ceil(len(sets) / ncol))
+fig, axs = plt.subplots(nrow, ncol, figsize=(style.FULL_W, 1.45 * nrow + 0.4), sharey=False, squeeze=False)
+steps = complete_arms(df, CFG["ladder"])   # a rung no dataset has, or a T2 rung some X-dataset lacks, is not drawn
+dropped = [st[0] for st in CFG["ladder"] if st not in steps]
+YL = (0.9, 1.15)      # Labels-only is far above PPI++ (2-3x): shown as a clipped marker with its value, so the rungs that matter stay readable
+mg = CFG["margin"]
+for ax, d in zip(axs.flat, sets):
+    g = df[df.dataset == d]
+    ax.axhspan(*mg["no_gain"], color="#bbbbbb", alpha=0.35, lw=0, zorder=0)       # pre-fixed no-gain margin
+    ax.axhline(mg["gain_ub"], color="#777777", lw=0.6, ls="--", zorder=0)         # gain needs the CI upper bound below this
+    for k, (lab, m, tier) in enumerate(steps):
+        r = g[(g.method == m) & (g.tier == tier)]
+        if r.empty:
+            ax.text(k, 1, "n/a", ha="center", va="bottom", fontsize=style.FONT, color="#777")
+            continue
+        r = r.iloc[0]
+        col = style.method_style(m)[1]
+        if r.ratio_vs_ppipp > YL[1]:
+            ax.plot(k, YL[1] - 0.012, marker="^", ms=4, color=col, ls="none", clip_on=False)
+            ax.text(k + 0.15, YL[1] - 0.012, f"{r.ratio_vs_ppipp:.2f}", ha="left", va="center", fontsize=style.FONT, color=col)
+            continue
+        if np.isnan(r.ratio_lo):      # the floor is a model-based prediction: point, no paired CI
+            ax.plot(k, r.ratio_vs_ppipp, marker="_", ms=9, mew=1.4, color=col, ls="none")
+            continue
+        ax.errorbar(k, r.ratio_vs_ppipp, yerr=[[r.ratio_vs_ppipp - r.ratio_lo], [r.ratio_hi - r.ratio_vs_ppipp]],
+                    fmt="o", color=col, ms=5.5 if m in CFG["headline_arm"].values() else 3.5, lw=0.8, capsize=1.5, mfc=col if (r.valid == 1 or m == "floor") else "white", mew=0.9)
+    for k, (lab, m, tier) in enumerate(steps):       # double dagger above the headline arm of a cell whose baselines both miss the coverage rule
+        if m == CFG["headline_arm"][tier] and (d, tier, int(g.n.iloc[0])) in nobase:
+            ax.text(k, 1.075, "\\ddag", ha="center", va="center", fontsize=style.FONT)
+            marked.add((d, tier))
+    kf = [k for k, st in enumerate(steps) if st[1] == "floor"]
+    if kf:       # the same floor in measured-width units (headline.csv), a hollow diamond beside the model-based bar
+        fm = hl_.loc[(d, int(g.n.iloc[0])), "floor_ratio_measured"]
+        if not np.isnan(fm):
+            ax.plot(kf[0] + 0.28, fm, marker="D", ms=3, mfc="white", mec="k", mew=0.7, ls="none")
+    ax.axhline(1, color="k", lw=0.6)
+    ax.set_ylim(*YL)
+    ax.set_xticks(range(len(steps)))
+    ax.set_xticklabels([s[0] for s in steps], rotation=60, ha="right", fontsize=style.FONT)
+    ax.set_title(f"{nice(d)} (n={int(g.n.iloc[0])})", fontsize=style.FONT, loc="left")
+for ax in axs.flat[len(sets):]:
+    ax.axis("off")
+for ax in axs[:, 0]:
+    ax.set_ylabel("width / PPI++ width")
+lab = df[(df.method == 'labels_z') & (df.tier == 'T1')].ratio_vs_ppipp
+drawn = df[[(m, t) in {(s[1], s[2]) for s in steps} for m, t in zip(df.method, df.tier)]]
+rng = []
+for lab_, m, tier in steps:
+    v = drawn[(drawn.method == m) & (drawn.tier == tier)].ratio_vs_ppipp
+    rng.append(f"- {lab_} ({m}): {v.min():.3f} to {v.max():.3f} over {len(v)} datasets")
+hl = drawn[drawn.method == CFG["headline_arm"]["T1"]].sort_values("dataset")
+hlrows = []
+for r in hl.itertuples():
+    h = hl_.loc[(r.dataset, r.n)]
+    hlrows.append(f"- {nice(r.dataset)} (n={int(r.n)}): r = {r.ratio_vs_ppipp:.3f} [{r.ratio_lo:.3f}, {r.ratio_hi:.3f}] ({h.classification}), "
+                  f"against unclipped PPI++ {h.ratio_vs_unclip:.3f} [{h.ratio_unclip_lo:.3f}, {h.ratio_unclip_hi:.3f}] ({h.classification_vs_unclip}); "
+                  f"floor {h.floor_ratio:.3f} (asymptotic), {h.floor_ratio_measured:.3f} (measured units); coverage {r.coverage:.3f}, valid = {int(r.valid)}")
+extra = ("**Ratio drawn per rung** (width / PPI++ width, min to max over the datasets that have the rung; the plotted axis is "
+         f"{YL[0]} to {YL[1]}, larger values are drawn as the triangle with the value):\n" + "\n".join(rng) +
+         f"\n\n**Headline arm ({CFG['headline_arm']['T1']}) per dataset** (paired ratio to package PPI++ with 95% CI and the pre-fixed class; the same against the unclipped PPI++; the floor in both units; coverage of the selected interval; pre-fixed valid flag):\n" + "\n".join(hlrows))
+fig.tight_layout(h_pad=0.6, w_pad=0.5)
+style.save(fig, "fig_headroom_ladder")
+captions.write("figures", "fig_headroom_ladder", "C2: where the gain over PPI++ is zero, small or large, per dataset.",
+    "per dataset at its headline n, mean interval width of each step of the ladder divided by PPI++ width (same draws), with the 95% CI of the paired ratio; hollow marker = the method misses the pre-registered win rule (coverage) in that cell; 'n/a' = step not defined for that dataset; a triangle at the top edge = ratio above the plotted range (value printed; the labels-only interval is "+f"{lab.min():.1f}-{lab.max():.1f}"+" times PPI++). " + (f"Rungs not drawn because the reference-n results are missing for at least one dataset they apply to: {', '.join(dropped)}. " if dropped else "") + "Floor = the model-based predicted ratio of the standard deviations (bar; no interval, no coverage) and, beside it, the same floor in measured-width units (hollow diamond; headline.csv `floor_ratio_measured`); neither is a bound, both are estimates within a class of calibrators, and neither is a method. 'PPI++ unclipped' is PPI++ with the same estimated tuning but without the package's clip of it to [0, 1] (`ppi-python` 0.2.3), on the same draws, as a ratio to the package PPI++.",
+    "grey band = pre-fixed no-gain margin [0.98, 1.02], dashed = gain threshold 0.95 (the CI upper bound must lie below it); the large marker is the headline arm 'Selected'" + (" and 'Selected + X' for T2" if any(st[2] == "T2" and st[1] == CFG["headline_arm"]["T2"] for st in steps) else "") + ". "
+    "below the line at 1 = shorter than PPI++; a CI that contains 1 = no detectable difference; hollow = width is not credited. A double dagger above a headline arm marks a cell in which neither the package PPI++ nor the unclipped PPI++ passes the coverage rule (" + str(len(marked)) + " cells: " + "; ".join(f"{nice(d)} {t}" for d, t in sorted(marked)) + "), so the reference line is itself an undercovering interval there.", drawn, extra=extra)

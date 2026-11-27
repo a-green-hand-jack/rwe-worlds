@@ -1,0 +1,63 @@
+"""GNN baseline against the other Tier A and Tier G estimators:  python analysis/make_gnn.py RAWGNN_DIR RAWA_DIR OUT.csv
+Per (Tier A cell, mechanism, s) at m = 0.5: bias, SD, RMSE (95% graph-draw CI) of A_gnn on the draws it ran on (rows `rows` of the Tier A arrays: the first 10 of the 40
+assignments of each of the 5 graph draws, the first 50 of 200 for a real graph), and, on the SAME draws, the same for dm, chin, A_lasso, A_ridge, A_rf, A_hgb, A_ada, with
+paired log RMSE ratios of A_gnn to dm and to chin.  `chin_check_max_abs_diff` is the largest difference between the Chin estimate recomputed inside the GNN run and the Tier A
+array (0 = the assignments are identical)."""
+import glob
+import os
+import pickle
+import sys
+
+import numpy as np
+import pandas as pd
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import agg  # noqa: E402
+from gate import mech, tierA  # noqa: E402
+
+OTHER = ["dm", "chin", "A_lasso", "A_ridge", "A_rf", "A_hgb", "A_ada"]
+
+
+def main(rawg, rawa, out):
+    rows = []
+    for f in sorted(glob.glob(os.path.join(rawg, "*.pkl"))):
+        g = pickle.load(open(f, "rb"))
+        cfg = g["cfg"]
+        a = pickle.load(open(os.path.join(rawa, os.path.basename(f)), "rb"))
+        Gn, R = cfg["G"], cfg["R"]
+        rws = g["rows"]
+        r_use = len(rws) // Gn
+        tau_rep = np.repeat(a["tau"], R, axis=0)[rws]            # (Gn r_use) x J
+        chk = float(np.nanmax(np.abs(g["chin_check"] - a["tau_hat"][rws, tierA.AEST.index("chin"), :])))
+        for j in tierA.TEST_COLS:
+            mname, s = mech.COLS[j]
+            tau = tau_rep[:, j]
+            E = {"A_gnn": ((g["tau_hat"][:, j] - tau) / tau).reshape(Gn, r_use)}
+            for e in OTHER:
+                th = a["tau_hat"][rws, tierA.AEST.index(e), j]
+                E[e] = ((th - tau) / tau).reshape(Gn, r_use)
+            for e, x in E.items():
+                st = agg.metrics(x, seed=j)
+                if st is None:
+                    continue
+                r = dict(run_id=cfg["id"], graph=cfg["family"], d_target=cfg["d"], p=cfg["p"], mechanism=mname, s=s, estimator=e,
+                         n_draws=st["n_draws"], defined=st["defined"], bias=st["bias"], sd=st["sd"], rmse=st["rmse"],
+                         rmse_mc_lo=st["rmse_lo"], rmse_mc_hi=st["rmse_hi"], chin_check_max_abs_diff=chk)
+                if e == "A_gnn":
+                    for ref in ("dm", "chin"):
+                        lr = agg.log_ratio(x, E[ref], seed=j)
+                        if lr is not None:
+                            r[f"log_ratio_vs_{ref}"], r[f"log_ratio_vs_{ref}_lo"], r[f"log_ratio_vs_{ref}_hi"] = lr
+                    wd = g["sel"][:, 0, j]
+                    r["median_weight_decay"], r["median_epochs"] = float(np.nanmedian(wd)), float(np.nanmedian(g["sel"][:, 1, j]))
+                rows.append(r)
+    df = pd.DataFrame(rows)
+    df.to_csv(out, index=False)
+    d = df[df.estimator != "dm"]
+    print(df.groupby("estimator").agg(cells=("rmse", "size"), median_rmse=("rmse", "median")))
+    print("max chin check diff:", df.chin_check_max_abs_diff.max())
+
+
+if __name__ == "__main__":
+    main(sys.argv[1], sys.argv[2], sys.argv[3])

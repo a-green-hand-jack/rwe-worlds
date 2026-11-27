@@ -1,0 +1,27 @@
+analysed arc_challenge extrap
+analysed arc_challenge interp
+analysed bbh extrap
+analysed bbh interp
+analysed commonsense extrap
+analysed commonsense interp
+analysed gpqa extrap
+analysed gpqa interp
+analysed gsm extrap
+analysed gsm interp
+analysed ifeval extrap
+analysed ifeval interp
+analysed legalbench extrap
+analysed legalbench interp
+analysed math extrap
+analysed math interp
+analysed med_qa extrap
+analysed med_qa interp
+analysed mmlu extrap
+analysed mmlu interp
+analysed mmlu_pro extrap
+analysed mmlu_pro interp
+analysed musr extrap
+analysed musr interp
+analysed openllm_math extrap
+analysed openllm_math interp
+done

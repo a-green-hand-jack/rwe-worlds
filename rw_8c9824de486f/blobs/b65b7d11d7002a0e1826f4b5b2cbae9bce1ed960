@@ -1,0 +1,63 @@
+"""C6 scope sweeps: S6+P5 vs S0+P5 under data conditions applied to the *training* matrix (held-out models keep their run sets).
+usage: python 15_scope.py <data_dir> <out_dir> <condition> <fold> [kgrid]
+conditions: ref | M50 | M25 | dens70 | dens50 | dens30 | logit | types
+All conditions use the reduced rank grid SC_RANKS (inner group-CV) so they are comparable with `ref` run by the same code.
+Errors are reported in raw points (transforms are inverted before the error is taken) plus the model's own all-others floor."""
+import os, sys, numpy as np, pandas as pd, time
+sys.path.insert(0, os.path.dirname(__file__))
+from common import *
+from state import build_state, loo_predictions
+from fa import design_risk
+import select_rules as SR, infer_rules as IR
+
+SC_RANKS = [1, 2, 4, 8, 16]
+data_dir, out, cond, fold = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
+Y, mods, tasks, et = load_matrix(data_dir)
+f, tr, te = [s for s in make_splits(mods)["G"] if s[0] == fold][0]
+rng = np.random.default_rng(SEED + 7 * fold + sum(map(ord, cond)))
+fwd = lambda y: y; inv = lambda y: y
+KG = [3, 8, 20]
+if cond == "M50" or cond == "M25":
+    keep = int(len(tr) * (0.5 if cond == "M50" else 0.25)); tr = np.sort(rng.choice(tr, keep, replace=False))
+Yw = Y.copy()
+if cond.startswith("dens"):
+    p = int(cond[4:]) / 100.0
+    sub = Yw[tr]; drop = (rng.random(sub.shape) > p) & ~np.isnan(sub); sub[drop] = np.nan; Yw[tr] = sub
+if cond == "logit":
+    fwd = lambda y: np.log(np.clip(y / 100, 0.005, 0.995) / (1 - np.clip(y / 100, 0.005, 0.995)))
+    inv = lambda t: 100 / (1 + np.exp(-t))
+    Yw = fwd(Y)
+if cond == "types":
+    tp = tasks["type"].values; ut = sorted(set(tp)); Yn = np.full((Y.shape[0], len(ut)), np.nan)
+    for i, t in enumerate(ut):
+        c = np.where(tp == t)[0]
+        with np.errstate(all="ignore"): Yn[:, i] = np.nanmean(Y[:, c], 1)
+    Yw = Yn; KG = [1, 2, 3]
+ranks = SC_RANKS if cond != "types" else [1, 2, 3, 4]
+t0 = time.time()
+st = build_state(Yw, mods, "G", fold, tr, te, ranks=ranks, k_list=KG)
+mu, sd = st["mu"], st["sd"]; Z = (Yw - mu) / sd; mask = ~np.isnan(Yw); N = Yw.shape[1]
+floor_fit = st["fits"][st["best_rank"]["loo"]]
+rows = []
+for m in te:
+    obs = np.where(mask[m])[0]; z = Z[m]
+    yraw = inv(Yw[m]) if cond != "types" else Yw[m]
+    ploo = inv(loo_predictions(floor_fit, obs, z[obs]) * sd[obs] + mu[obs]); e_loo = np.zeros(N); e_loo[obs] = ploo - yraw[obs]
+    rg = np.random.default_rng(SEED * 41 + int(m))
+    for k in KG:
+        if len(obs) <= k: continue
+        fit = st["fits"][st["best_rank"][k]]
+        for rule in ("S6", "S0"):
+            sets = [SR.s6_greedy(fit, obs, k)] if rule == "S6" else [SR.s0_random(obs, k, rg) for _ in range(10)]
+            r2 = []
+            for S in sets:
+                S = np.asarray(S); T = np.setdiff1d(obs, S)
+                pred = IR.p5_fa(fit, S, z[S]); pp = inv(pred * sd + mu)
+                r2.append((np.mean((pp[T] - yraw[T]) ** 2), np.mean(e_loo[T] ** 2),
+                           np.mean(design_risk(fit, S)[T] * sd[T] ** 2) if cond not in ("logit",) else np.nan))
+            a = np.mean(r2, 0)
+            rows.append(dict(cond=cond, fold=fold, model=int(m), group=mods.org.values[m], k=k, rule=rule, N=N, M_train=len(tr), mse=a[0], mse_floor=a[1], mse_t1=a[2],
+                             rank=st["best_rank"][k], runset=len(obs)))
+os.makedirs(out, exist_ok=True)
+pd.DataFrame(rows).to_parquet(os.path.join(out, f"{cond}_{fold}.parquet"))
+print(cond, fold, len(rows), round(time.time() - t0), "s", flush=True)

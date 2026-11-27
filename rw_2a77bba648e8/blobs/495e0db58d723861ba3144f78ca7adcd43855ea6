@@ -1,0 +1,74 @@
+"""Fig 3 (C2, C3): bias and SD of the Chin regression move apart with degree d (top row) and
+with treatment probability p (bottom row); one column per mechanism class; DM bias dashed.
+Input: cells.csv (contract). Usage: fig3_bias_sd.py DATA_DIR OUT_ROOT [--sigma-mult M] [--s S]
+"""
+import argparse
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+import common
+import style
+
+p = argparse.ArgumentParser()
+p.add_argument("data"); p.add_argument("out")
+p.add_argument("--sigma", type=float, default=0.5)
+p.add_argument("--s", type=float, default=0.5)
+p.add_argument("--p0", type=float, default=0.5, help="p held fixed in the d row")
+p.add_argument("--d0", type=int, default=20, help="d held fixed in the p row")
+a = p.parse_args()
+
+style.apply()
+cells, meta = common.load(a.data, "cells")
+base = common.core(cells, s=a.s, sigma=a.sigma)
+chin, dm = base[base.estimator == "Chin"], base[base.estimator == "DM"]
+# fine p grid (runs pfine_SBM_n3000_d20_p*): resolves the zero crossing of the bias of (c); used in the p row only
+fine = cells[cells.run_id.str.match(r"pfine_SBM_n3000_d20_p[\d.]+$") & np.isclose(cells.s, a.s) & np.isclose(cells.sigma, a.sigma)]
+fine = fine[~fine.set_index(["mechanism", "estimator", "p"]).index.isin(base.set_index(["mechanism", "estimator", "p"]).index)]
+pbase = __import__("pandas").concat([base, fine])
+
+# panels group the mechanisms that share the specification error of the Chin regression
+classes = [("linear", ["a", "b"], {"a": "a: fraction", "b": "b: count"}), ("saturating", ["c"], {"c": "c: saturating"}),
+           ("threshold", ["d"], {"d": "d: threshold"}), ("multi-hop / interaction", ["e", "f"], {"e": "e: multi-hop", "f": "f: interaction"})]
+fig, axs = plt.subplots(2, 4, figsize=(style.TEXTWIDTH, 3.3), sharey="row")
+for r, (xcol, fixed, xlab) in enumerate([("mean_degree", ("p", a.p0), "mean degree $d$"),
+                                         ("p", ("mean_degree", a.d0), "treated share $p$")]):
+    for c, (cls, mechs, ttl) in enumerate(classes):
+        ax = axs[r, c]
+        for m in mechs:
+            src = (pbase if xcol == "p" else base)
+            chin_, dm_ = src[src.estimator == "Chin"], src[src.estimator == "DM"]
+            sub = chin_[(chin_.mechanism == m) & np.isclose(chin_[fixed[0]], fixed[1])].sort_values(xcol)
+            mk = common.MECH_MARK[m]
+            ax.errorbar(sub[xcol], sub.bias, yerr=[sub.bias - sub.bias_mc_lo, sub.bias_mc_hi - sub.bias],
+                        color=style.BIAS_COLOR, marker=mk, ms=3.5, lw=1.2, capsize=1.5, elinewidth=0.7,
+                        label=None)
+            ax.errorbar(sub[xcol], sub.sd, yerr=[sub.sd - sub.sd_mc_lo, sub.sd_mc_hi - sub.sd],
+                        color=style.SD_COLOR, marker=mk, ms=3.5, lw=1.2, capsize=1.5, elinewidth=0.7,
+                        mfc="white", label=None)
+            ax.plot([], [], color="k", marker=mk, ls="", ms=3.5, label=m)
+            d_ = dm_[(dm_.mechanism == m) & np.isclose(dm_[fixed[0]], fixed[1])].sort_values(xcol)
+            ax.plot(d_[xcol], d_.bias, color="0.3", ls="--", lw=0.9, label="DM bias" if m == "a" else None)
+        ax.axhline(0, color="0.5", lw=0.6)
+        if xcol == "mean_degree":
+            ax.set_xscale("log"); ax.set_xticks([5, 20, 80]); ax.set_xticklabels(["5", "20", "80"])
+            ax.minorticks_off()
+        if xcol == "p":
+            ax.set_xticks([0.1, 0.5, 0.9])
+        ax.set_xlabel(xlab)
+        if r == 0:
+            sym = {"o": "\u25cf", "s": "\u25a0", "^": "\u25b2"}
+            ax.set_title("\n".join(f"{ttl[m]} {sym[common.MECH_MARK[m]]}" for m in mechs), fontsize=style.MIN_PT, pad=3)
+        if c == 0:
+            ax.set_ylabel("bias, SD (units of $\\tau$)")
+    axs[r, 0].text(-0.34, 1.02, "AB"[r], transform=axs[r, 0].transAxes, fontweight="bold")
+from matplotlib.lines import Line2D
+h = [Line2D([], [], color=style.BIAS_COLOR, marker="o", ms=3.5), Line2D([], [], color=style.SD_COLOR, marker="o", mfc="white", ms=3.5),
+     Line2D([], [], color="0.3", ls="--", lw=0.9)]
+fig.legend(h, ["bias (Chin regression)", "SD (Chin regression)", "bias of difference in means"], loc="lower center",
+           ncol=3, frameon=False, bbox_to_anchor=(0.5, -0.06))
+fig.tight_layout()
+style.check_min_type(fig)
+o = common.out_dir(meta, a.out)
+style.save(fig, o / "fig3_bias_sd.pdf")
+pbase[pbase.estimator.isin(["Chin", "DM"])].to_csv(o / "fig3_bias_sd.csv", index=False)

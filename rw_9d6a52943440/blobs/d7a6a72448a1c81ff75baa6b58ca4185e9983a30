@@ -1,0 +1,24 @@
+# NeurIPS 2026 style kit (venue-repo)
+
+Source: https://media.neurips.cc/Conferences/NeurIPS2026/Formatting_Instructions_For_NeurIPS_2026.zip (retrieved 2026-11-14 by the world's venue library; January 2026 style). Files are unchanged copies.
+
+- `neurips_2026.sty` — the style. Do not edit (desk-rejection risk).
+- `checklist.tex` — the mandatory paper checklist skeleton (16 questions). Keep headings and questions; replace each `\answerTODO{}` by `\answerYes{}`, `\answerNo{}` or `\answerNA{}` and write `\justificationTODO{}` as a 1–2 sentence justification; delete only the instruction block between `%%% BEGIN INSTRUCTIONS %%%` and `%%% END INSTRUCTIONS %%%`.
+- `neurips_2026_instructions.tex` — the kit's instructions written as an example paper (the file `neurips_2026.tex` of the kit, renamed so it is not mistaken for the paper). Reading only.
+
+Use from `paper/main.tex` (checked to build with `cd paper && latexmk -pdf main.tex`, offline, with the sandbox's TeX Live; the style is loaded by path):
+
+```latex
+\documentclass{article}
+\usepackage{template/neurips_2026}      % submission mode: anonymous, line numbers; no option = main track
+\usepackage[utf8]{inputenc}\usepackage[T1]{fontenc}
+\usepackage{hyperref}\usepackage{url}\usepackage{booktabs}\usepackage{amsfonts}
+\usepackage{nicefrac}\usepackage{microtype}\usepackage{xcolor}   % the checklist needs xcolor and url
+...
+\bibliographystyle{plainnat}\bibliography{references}   % the kit ships no .bst; any consistent style is allowed
+... appendix after the references ...
+\newpage
+\input{template/checklist.tex}
+```
+
+The kit has no bibliography style: the venue accepts any consistent style; `plainnat` (natbib, loaded by the style) is in TeX Live. Options: none (anonymous submission), `preprint` (names visible, no "Submitted to" footer), `final` (camera-ready only). Requirements and sources: `venue.md` in `world/venue-repo`.

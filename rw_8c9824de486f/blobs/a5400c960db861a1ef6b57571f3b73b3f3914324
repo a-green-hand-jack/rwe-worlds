@@ -1,0 +1,54 @@
+"""Stage 3: apply rules R1-R7 of prereg/PREREG.md, write the analysis matrix and the coverage-filter table.
+usage: python 03_build_matrix.py <work_dir> <repo_data_dir>
+Outputs: <work_dir>/cells_all.parquet (all cells after R1-R5), <repo_data_dir>/matrix_long.parquet (final),
+         <repo_data_dir>/models.csv, <repo_data_dir>/tasks.csv, <repo_data_dir>/coverage_filter.csv"""
+import sys, os, json, pandas as pd, numpy as np
+sys.path.insert(0, os.path.dirname(__file__))
+from mteb_cells import build_cells, norm_org
+
+W, D = sys.argv[1], sys.argv[2]
+os.makedirs(D, exist_ok=True)
+raw = pd.read_parquet(os.path.join(W, "cells_raw.parquet")); meta = pd.read_parquet(os.path.join(W, "model_meta.parquet"))
+tm = pd.read_parquet(os.path.join(W, "task_meta.parquet"))
+cells, log = build_cells(raw, meta, tm)
+# R6 dedup: model dirs whose meta name is identical (case-insensitive) keep the one with most cells; `_(...)` config variants dropped
+m1 = meta.drop_duplicates("model_dir").set_index("model_dir")
+cnt = cells.groupby("model_dir").size()
+nm = m1.meta_name.str.lower().reindex(cnt.index)
+dropv = [m for m in cnt.index if "_(" in m]
+dups = pd.DataFrame({"n": cnt, "nm": nm}).dropna().sort_values("n", ascending=False)
+dropd = list(dups[dups.nm.duplicated()].index)
+log["dedup_dropped_variants"] = len(dropv); log["dedup_dropped_samename"] = len(set(dropd) - set(dropv))
+cells = cells[~cells.model_dir.isin(set(dropv) | set(dropd))]
+rows = [dict(step="R1-R5 cells (text tasks, one revision/model, split, dataset revision, subsets)",
+             models=cells.model_dir.nunique(), tasks=cells.task.nunique(), cells=len(cells))]
+# R7 coverage filter: tasks observed for >= TT models, models with >= TM tasks, iterated to a fixed point
+TT, TM = 50, 30
+c = cells
+it = 0
+while True:
+    n0 = len(c)
+    tc = c.groupby("task").model_dir.nunique(); c = c[c.task.isin(tc.index[tc >= TT])]
+    rows.append(dict(step=f"iter {it}: tasks with >= {TT} models", models=c.model_dir.nunique(), tasks=c.task.nunique(), cells=len(c)))
+    mc = c.groupby("model_dir").task.nunique(); c = c[c.model_dir.isin(mc.index[mc >= TM])]
+    rows.append(dict(step=f"iter {it}: models with >= {TM} tasks", models=c.model_dir.nunique(), tasks=c.task.nunique(), cells=len(c)))
+    it += 1
+    if len(c) == n0: break
+cov = pd.DataFrame(rows); cov.to_csv(os.path.join(D, "coverage_filter.csv"), index=False)
+c = c.reset_index(drop=True)
+M, N = c.model_dir.nunique(), c.task.nunique()
+print(cov.to_string()); print("FINAL", M, N, len(c), "density", len(c) / M / N)
+# models table: org group (R-group), release date, run-set size
+mods = pd.DataFrame({"model": sorted(c.model_dir.unique())})
+mods["org"] = [norm_org(m.split("__")[0]) for m in mods.model]
+mods["release_date"] = mods.model.map(m1.release_date)
+mods["n_parameters"] = mods.model.map(m1.n_parameters)
+mods["runset"] = mods.model.map(c.groupby("model_dir").size())
+mods.to_csv(os.path.join(D, "models.csv"), index=False)
+tasks = pd.DataFrame({"task": sorted(c.task.unique())}).merge(tm[["task", "type", "n_langs", "domains"]], on="task")
+tasks["n_models"] = tasks.task.map(c.groupby("task").size())
+tasks.to_csv(os.path.join(D, "tasks.csv"), index=False)
+c.rename(columns={"model_dir": "model"}).to_parquet(os.path.join(D, "matrix_long.parquet"))
+json.dump(dict(log=log, M=M, N=N, cells=len(c), n_groups=mods.org.nunique(), type_counts=tasks.type.value_counts().to_dict()),
+          open(os.path.join(D, "matrix_summary.json"), "w"), indent=1)
+print(log, mods.org.nunique(), tasks.type.value_counts().to_dict())

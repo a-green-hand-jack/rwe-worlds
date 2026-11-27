@@ -1,0 +1,45 @@
+"""Greedy vs exhaustive (k=2,3) and vs greedy+1-swap local search (k=8,20) for the S6 objective F(S)=tr(V' V Sigma(S)),
+Sigma(S)=(I+sum_{j in S} a_j a_j')^-1, a_j=v_j/sqrt(psi_j). Held-out models of G fold 0 (all models with run set > 3). Also the
+measured RMSE (P5, raw points) of the refined design vs greedy, to see whether the objective gap matters.
+usage: python 19_greedy_check.py <data_dir> <work_dir> <out_csv> [n_models]"""
+import os, sys, pickle, itertools, numpy as np, pandas as pd
+sys.path.insert(0, os.path.dirname(__file__))
+from common import *
+import select_rules as SR, infer_rules as IR
+data_dir, work, out = sys.argv[1:4]; nm = int(sys.argv[4]) if len(sys.argv) > 4 else 40
+Y, mods, tasks, et = load_matrix(data_dir)
+st = pickle.load(open(os.path.join(work, "state", "G_0.pkl"), "rb")); mu, sd = st["mu"], st["sd"]; Z = (Y - mu) / sd; mask = ~np.isnan(Y)
+rng = np.random.default_rng(1); test = [m for m in st["test"] if mask[m].sum() > 20]; test = list(rng.choice(test, min(nm, len(test)), replace=False))
+def F(G, A, S):
+    r = A.shape[1]; P = np.eye(r) + A[S].T @ A[S]; return float(np.trace(G @ np.linalg.inv(P)))
+rows = []
+for m in test:
+    obs = np.where(mask[m])[0]; z = Z[m]
+    for k in (2, 3, 8, 20):
+        fit = st["fits"][st["best_rank"][k]]; V, psi = fit["V"], fit["psi"]; G = V.T @ V; A = V[obs] / np.sqrt(psi[obs])[:, None]
+        g = SR.s6_greedy(fit, obs, k); gi = [int(np.where(obs == j)[0][0]) for j in g]; Fg = F(G, A, gi)
+        if k <= 3:
+            best = (np.inf, None)
+            combos = np.array(list(itertools.combinations(range(len(obs)), k)))
+            for ch in np.array_split(combos, max(1, len(combos) // 20000)):
+                P = np.eye(A.shape[1])[None] + np.einsum("cki,ckj->cij", A[ch], A[ch]); Fv = np.einsum("ij,cji->c", G, np.linalg.inv(P))
+                i = int(np.argmin(Fv))
+                if Fv[i] < best[0]: best = (Fv[i], ch[i])
+            Fr, Sr = best[0], list(best[1]); kind = "exhaustive"
+        else:
+            Sr = list(gi); Fr = Fg; improved = True
+            while improved:
+                improved = False
+                for pos in range(k):
+                    for j in range(len(obs)):
+                        if j in Sr: continue
+                        T = Sr.copy(); T[pos] = j; f = F(G, A, T)
+                        if f < Fr - 1e-9: Sr, Fr, improved = T, f, True
+            kind = "swap"
+        def rmse(Sidx):
+            S = obs[np.array(Sidx)]; T = np.setdiff1d(obs, S); p = IR.p5_fa(fit, S, z[S]); return float(np.sqrt(np.mean(((p[T] - z[T]) * sd[T]) ** 2)))
+        rows.append(dict(model=int(m), k=k, kind=kind, F_greedy=Fg, F_refined=Fr, rel_gap=(Fg - Fr) / Fg, same_set=set(gi) == set(Sr), rmse_greedy=rmse(gi), rmse_refined=rmse(Sr)))
+    print(m, flush=True)
+df = pd.DataFrame(rows); df.to_csv(out, index=False)
+summ = df.groupby(["k", "kind"]).agg(n_models=("model", "size"), rel_gap_mean=("rel_gap", "mean"), rel_gap_max=("rel_gap", "max"), frac_same=("same_set", "mean"), rmse_greedy=("rmse_greedy", "mean"), rmse_refined=("rmse_refined", "mean")).round(4)
+summ.to_csv(out.replace(".csv", "_summary.csv")); print(summ)

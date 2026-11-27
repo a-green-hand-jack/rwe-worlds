@@ -1,0 +1,87 @@
+\section{Data, protocol and departures from the plan}\label{app:protocol}
+\paragraph{Data.}
+MTEB: the public results repository (548 model directories, CC0), parsed into a long table of (model, task, main score); one score per model and task. \emph{MTEB-Eng} keeps English-only tasks after removing duplicate tasks and the largest set of top-coverage tasks such that at least 120 models have all of them (124 models $\times$ 70 tasks, from 535 models $\times$ 567 tasks at density 0.11). \emph{MTEB-Multi} keeps tasks in all languages (English ones included) with coverage of at least 100 models and deletes models and tasks greedily until no cell is missing (117 $\times$ 247, from 535 $\times$ 1\,256 at density 0.12). HELM MMLU: 57 subject accuracies of 79 models from the public HELM release (v1.13.0 of the MMLU scenario), with no missing cell. Licences: MTEB results are CC0; HELM code is Apache-2.0 and the MMLU data repository MIT, while the output files carry no licence text and the per-scenario licences of the small HELM panels are unchecked; the Open LLM Leaderboard and LiveBench dataset cards declare none (they enter only the overlap check of Appendix~\ref{app:small}). Time-forward splits use the release date in each MTEB model's metadata (complete for both pools; first-commit dates were dominated by bulk commits); HELM MMLU has no release dates.
+
+\paragraph{Departures from the plan, all of which affect how results are read.}
+(a) The target set is fixed (30\% of benchmarks) so that every selector is scored on identical targets; the literal design $T=[N]\setminus S$ is run as a secondary design for greedy A and random selection with the factor model and ridge, and gives a grid-averaged gap of $-0.049$ [$-0.066$, $-0.035$] (MTEB-Eng), $-0.065$ [$-0.079$, $-0.050$] (MTEB-Multi) and $-0.054$ [$-0.104$, $-0.018$] (HELM MMLU) for the factor model. (b) The rank uses the one-standard-error rule on inner random (not grouped) folds, so siblings across inner folds may favour a slightly larger rank. (c) Closure is computed on squared standardised error, the quantity the risk formula describes. (d) The best simple predictor is chosen per fold among one-factor offset, ridge, $k$-NN ($k=10$) and Ledoit--Wolf conditioning by grouped inner CV on training rows; Soft-Impute is run in a fold-in form (shrinkage level chosen on the training matrix, the new row completed by a fixed point) and not as a refit per new model. (e) The transform (identity or logit on columns whose scores lie strictly in $(0,1)$, clipped at 0.005) is chosen per pool by held-out likelihood in the original score space with the Jacobian; the folds disagree on MTEB-Multi (6 of 10 prefer logit) and the likelihood rule decides (Table~\ref{tab:robust}). (f) The CIs of $k^*$ are bootstrap percentiles with ``level not reached'' coded as one more than the grid maximum. (g) The near-duplicate check removes models within RMS 0.3 of an earlier model (standardised) because the pools contain almost no pairs within the 0.01 of Table~\ref{tab:datasets}; it is a robustness run. (h) The extra metrics (raw-score errors, pairwise-winner accuracy, per-benchmark Spearman correlation) were computed for a subset of settings and are not used in the text. The grid of $k$ and the replication numbers are in Section~\ref{sec:protocol}; seeds and run commands are in the code package.
+
+\section{Derivations}\label{app:theory}
+\paragraph{Proof of Proposition~\ref{prop:risk}.}
+Given $x_S$, $z\mid x_S\sim\mathcal{N}(m,\Sigma_S)$ with $\Sigma_S=(I+W_S^\top D_S^{-1}W_S)^{-1}=(I+\sum_{j\in S}b_jb_j^\top)^{-1}$ and $m=\Sigma_SW_S^\top D_S^{-1}(x_S-\mu_S)$. For $j\in T$, $x_T-\mu_T-W_Tm=W_T(z-m)+e_T$ and $e_T$ is independent of $x_S$ because $T\cap S=\emptyset$ and $D$ is diagonal, so $\mathbb{E}\|x_T-\hat x_T\|^2=\mathrm{tr}(W_T\Sigma_SW_T^\top)+\mathrm{tr}(D_T)$. Adding a benchmark adds a positive semidefinite term to $\Sigma_S^{-1}$ and so decreases $\Sigma_S$ in the Loewner order, hence the reducible part does not increase.
+
+\paragraph{Proof of Lemma~\ref{lem:jensen}.}
+For $S$ uniform without replacement, each $j$ is in $S$ with probability $k/N$, so $\mathbb{E}\sum_{j\in S}b_jb_j^\top=\tfrac{k}{N}A$. The map $M\mapsto(I+M)^{-1}$ is operator convex on positive semidefinite matrices, so $\mathbb{E}\,\Sigma_S\succeq(I+\tfrac{k}{N}A)^{-1}$; taking $\mathrm{tr}(W\,\cdot\,W^\top)$ over all columns gives the claim (restricting to $T$ would need the same argument on $W_T$). For $D=\sigma^2I$ and $A=U\Lambda U^\top$, $\mathrm{tr}(W(I+cA)^{-1}W^\top)=\sigma^2\sum_i\lambda_i/(1+c\lambda_i)$ with $c=k/N$.
+
+\paragraph{The Chernoff remark.}
+With $X_i=A^{-1/2}b_{J_i}b_{J_i}^\top A^{-1/2}\succeq0$ for $J_i$ uniform and independent, $\lambda_{\max}(X_i)\le\ell_{\max}=\max_j\ell_j=\mu_{\rm coh}r/N$ and $\mathbb{E}X_i=I/N$, so $\lambda_{\min}(\sum_i\mathbb{E}X_i)=k/N$. Remark~5.3 of \citet{tropp2012user} with $t=1-\varepsilon$ gives $\mathbb{P}\{\lambda_{\min}(\sum_iX_i)\le(1-\varepsilon)k/N\}\le r\exp(-\varepsilon^2k/(2\mu_{\rm coh}r))$. This is at most $\eta$ iff $k\ge2\mu_{\rm coh}r\log(r/\eta)/\varepsilon^2$, and on the complement $\Sigma_S\preceq(I+(1-\varepsilon)\tfrac{k}{N}A)^{-1}$, so the reducible risk is bounded by $\mathrm{tr}(W(I+(1-\varepsilon)\tfrac{k}{N}A)^{-1}W^\top)$ (a superset of columns adds positive terms). Two limits apply. The bound is for draws with replacement; the sum over the distinct set is at most that over the multiset, so it does not by itself bound the without-replacement case. \citet{gross2010note} treat that case; we have read only their abstract and do not rely on it, and instead tested it numerically: over 2\,000 draws per $k$ on the fitted loadings, the share of draws violating the eigenvalue event never exceeded the Chernoff value, but that value equals 1 at every $k$ tried, so the check is uninformative and the without-replacement case is untested near the sufficient $k$. And the condition is vacuous: with $\varepsilon=0.5,\eta=0.1$ and the rank used in the main runs (fold medians 4, 6, 2) the sufficient $k$ is 506 (MTEB-Eng, $N=70$), 742 (MTEB-Multi, $N=247$), 171 (HELM MMLU, $N=57$) and 459 (synthetic, $N=60$); with the pool-selected ranks it is 551, 742 and 57. The risk bound is below the measured mean reducible risk for $k\le3$ (MTEB-Eng) and $k\le8$ (MTEB-Multi) and 1.6--2.7 times above it at $k=30$ on the MTEB pools (3.2 on the synthetic problem). The Jensen lower bound held in all 35 rows.
+
+\section{Additional results}\label{app:results}
+Table~\ref{tab:theory} gives the full comparison of the risk formula with the empirical curve; Table~\ref{tab:grid} the exploratory selector-by-predictor grid; Table~\ref{tab:predictors} the predictors on the same sets; Table~\ref{tab:adaptive} adaptive selection; Table~\ref{tab:robust} the transform choice and robustness; Table~\ref{tab:skill} the per-benchmark skill; Figure~\ref{fig:history} the history sweep; Figure~\ref{fig:spectra} the spectra; Figure~\ref{fig:coh} the coherence scatter.
+
+\input{../tables/table3_coherence.tex}
+\input{../tables/table4_theory.tex}
+\input{../tables/tableA1_exploratory.tex}
+\input{../tables/tableA4_predictors.tex}
+\input{../tables/tableA2_adaptive.tex}
+\input{../tables/tableA3_robustness.tex}
+\input{../tables/tableA5_skill.tex}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{fig7_history}
+\caption{\protect\input{../figures/fig7_history.caption}}
+\label{fig:history}
+\end{figure}
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figA1_spectra}
+\caption{\protect\input{../figures/figA1_spectra.caption}}
+\label{fig:spectra}
+\end{figure}
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figA3_coherence}
+\caption{\protect\input{../figures/figA3_coherence.caption}}
+\label{fig:coh}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{fig5_theory}
+\caption{\protect\input{../figures/fig5_theory.caption}}
+\label{fig:theory}
+\end{figure}
+
+\subsection{History size and missingness}\label{app:history}
+Selection with a smaller dense history degrades slowly (Figure~\ref{fig:history}). By the point estimate (three repeats; by the upper interval limit MTEB-Eng needs half), a quarter of the history models (about 29) stays within 10\% of the full-history RMSE on MTEB-Eng, half on MTEB-Multi, and all models on HELM MMLU; randomly missing history cells down to half the cells stay within 10\% on all three pools, but missingness concentrated on weaker models does not at any density tried (0.3 to 0.7).
+
+\subsection{Sparse leaderboard matrix}\label{app:sparse}
+The six subsets keep the real missing cells of the MTEB score matrix. \emph{English, 21\%} holds the 445 models and 335 English tasks reported for at least 20 models (a median of 60 observed cells per model; 337 models have at least 30). The other subsets are greedy trimmings of the English tasks (332$\times$295, 268$\times$176 and 226$\times$134 at 30, 50 and 70\% observed) and of all tasks (331$\times$705 and 236$\times$517 at 30 and 50\%); the trimmed subsets are one greedy choice among many. Models are grouped by family and held out in ten folds as in the dense pools. A training column needs at least 10 observed training cells and is standardised on its observed training cells; only the identity transform is used. A model with at least 30 observed cells is a test model; for each of three random partitions, 30\% of its observed cells (rounded) are the targets and the remaining cells are the candidates, from which the selector chooses; the predictor uses only the selected cells. Greedy A uses the masked-EM factor-model covariance; random selection averages 30 draws per $k$ (the dense runs average 50 to 200). The factor model chooses its rank by five-fold held-out masked marginal likelihood and the one-standard-error rule. The pairwise predictor takes pairwise-complete correlations, clips them to a positive semi-definite matrix and shrinks them toward the identity, with the shrinkage in $\{0.02,\dots,0.4\}$ chosen on training rows. A masked Soft-Impute fold-in is only slightly better than the column mean (its fold-in shrinks the cells it cannot see) and is omitted from Table~\ref{tab:sparse}. Standardised RMSE is the square root of the mean over test models of the per-model mean squared error. Closure is $(e_{\rm colmean}-e_k)/(e_{\rm colmean}-e_{\rm LOBO})$ with $e_{\rm LOBO}$ the lower error of the two predictors conditioning on all candidates; this reference is itself noisy (interval about $\pm0.4$), so closure is noisier than the gap. The grid is $k=1,\dots,6,8,10,12,15,20$: a model has too few candidate cells for larger $k$. Intervals are family-clustered bootstraps ($B=2000$), and $k^*$ is censored when the level is not reached on the grid. Figure~\ref{fig:sparse} and Appendix Table~\ref{tab:sparse-k} give closure and the paired gap at every $k$ of the grid.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{fig8_sparse}
+\caption{\protect\input{../figures/fig8_sparse.caption}}
+\label{fig:sparse}
+\end{figure}
+\input{../tables/tableA6_sparse_k.tex}
+
+\subsection{Small leaderboards}\label{app:small}
+We also applied the protocol to leaderboard matrices with too few benchmarks for a closure target: HELM Lite (10 scenarios), HELM Capabilities (5) and a block of 25 models in both HELM Lite and the Open LLM Leaderboard with 16 benchmarks (names matched by a fixed rule that excludes ambiguous names; 25 models appear in both sources, 23 with LiveBench and 72 in at least two). They are descriptive case studies with $N<12$ (or 16 with 12 families): greedy A is at or below random at every $k$ but the bands overlap throughout (Figure~\ref{fig:small}), and we draw no $k^*$ or hypothesis verdict from them.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figA2_small}
+\caption{\protect\input{../figures/figA2_small.caption}}
+\label{fig:small}
+\end{figure}
+
+\section{Reproducibility, use of language models and forbidden material}\label{app:repro}
+\paragraph{Code and data.}
+The supplementary archive holds all code (Python 3.11, CPU only, versions pinned), the derived dense score matrices, the tidy result tables behind every number, figure and table here, a list of the departures from the study plan, and a README with the download pins for each public source, the commands, seeds and run times (each main run takes about 2--22 CPU minutes on one core, the history sweeps up to about an hour). Raw leaderboard files are not included and are re-downloaded from the pinned sources.
+
+\paragraph{Use of language models.}
+The research, the code and this text were produced by language-model agents working from a task specification; no person ran experiments or wrote text.
+
+\paragraph{Excluded material.}
+The task excluded one published study of this question and work citing it; none was read, searched for or used.

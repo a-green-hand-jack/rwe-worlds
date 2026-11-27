@@ -1,0 +1,46 @@
+"""Smoke test of the generators on a fixture generated here. The fixture is made-up, written only to a temp dir and never
+copied into any delivered output; it checks that the code runs on the contract's schemas, not any result."""
+import sys, subprocess, tempfile, os, numpy as np, pandas as pd
+rng = np.random.default_rng(0); t = tempfile.mkdtemp(); here = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+ds = [("arena_x", "crowd", 50000), ("mtbench_h", "expert", 3000), ("mtbench_g", "llm_judge", 3000), ("nba_1990", "sports", 1200), ("nba_1991", "sports", 1100)]
+fc, bz, t1, rmn, sv, vn, dc = [], [], [], [], [], [], []
+for n, d, N in ds:
+    dc.append(dict(dataset=n, design=d, N=N, n_models=20, density=.3, tie_rate=.1))
+    for fam in ("delete", "flip"):
+        for z in np.exp(rng.uniform(-1, 3, 30)):
+            k = z * np.sqrt(N) * rng.uniform(.5, 1.5) / 10
+            fc.append(dict(dataset=n, design=d, synthetic=0, N=N, perturbation=fam, z_fisher=z, k_upper=k, k_null_mean=k * rng.uniform(.8, 1.2) if rng.random() > .1 else np.nan, Q=1.1, Q_null=rng.uniform(.9, 1.2)))
+        for zb in ("[0,1)", "[1,2)", "[2,4)", "[4,8)", "[8,inf)"):
+            bz.append(dict(dataset=n, design=d, family=fam, zbin=zb, n_pairs=10, z_med=2.0, k_med=30, k_q25=22, k_q75=40, k_null_med=31, k_null_q25=23, k_null_q75=41, n_null_pairs=12, kN_med=.001, Q_med=1.1, Q_null_med=1.1, N=N, k_ratio_med=1.0, k_ratio_lo=.95, k_ratio_hi=1.05))
+        rmn.append(dict(dataset=n, design=d, perturbation=fam, N=N, n_pairs=20, delta_logQ=rng.normal(0, .03), lo=-.08, hi=.08))
+        t1.append(dict(dataset=n, perturbation=fam, top1_vs_top2_z=.5, top1_vs_top2_k=3, top1_vs_top2_kN=1e-4))
+        for ax_, grid in (("se", np.geomspace(.25, 16, 12)), ("frac", np.geomspace(5e-4, .3, 12))):
+            for b in grid:
+                for c in ("adversarial", "random_" + fam):
+                    sv.append(dict(dataset=n, design=d, synthetic=0, perturbation=fam, sep_def="published", subset="separated", axis=ax_, b_se=b if ax_ == "se" else np.nan,
+                                   b_frac=b if ax_ == "frac" else np.nan, curve=c, frac_surviving=np.exp(-b * (1 if ax_ == "se" else 30) / (1 if c == "adversarial" else 4)), lo=0, hi=1))
+    for s in (500, 2000, 8000):
+        vn += [dict(dataset=n, design=d, synthetic=0, perturbation="delete", n_sub=s, stat="kN", value=1 / np.sqrt(s), lo=.8 / np.sqrt(s), hi=1.2 / np.sqrt(s)),
+               dict(dataset=n, design=d, synthetic=0, perturbation="delete", n_sub=s, stat="F_over_z", value=1.5, lo=1.2, hi=1.8)]
+mcs = [dict(contrast=f"arena_crowd_vs_judge_{j}", member=j, perturbation=fam, design="llm_judge", is_reference=0, dQ_real_minus_null=.0, lo=-.1, hi=.1, paired_diff=.02, paired_lo=-.05, paired_hi=.09)
+       for j in ("a", "b") for fam in ("delete", "flip")] + [dict(contrast="arena", member="arena_single", perturbation="delete", design="crowd", is_reference=1, dQ_real_minus_null=.01, lo=-.1, hi=.1)]
+files = {"datasets_computed": dc, "fragility_conclusions": fc, "fragility_by_z": bz, "top1_conclusions": t1, "real_minus_null": rmn, "survival_curves": sv,
+         "fragility_vs_N": vn, "matched_contrasts": mcs,
+         "se_ratio": [dict(dataset=r["dataset"], real_ratio_cluster_med=.9, real_ratio_cluster_q25=.8, real_ratio_cluster_q75=1.0, null_ratio_cmp_med=.85) for r in dc],
+         "predictive_rule": [dict(term=tm, coef=1.0, lo=.8, hi=1.2, heldout_scheme="none (full fit)", heldout_err=.2, n_heldout_units=0, perturbation=fam, n_units=9) for fam in ("delete", "flip") for tm in ("intercept", "log_z", "log_N", "log_density", "tie_rate")]
+         + [dict(term="heldout_sq_err_diff(base-design)", coef=.01, lo=-.02, hi=.04, heldout_scheme="leave-one-dataset-out, designs with >=2 units", heldout_err=.2, n_heldout_units=6, perturbation=fam, n_units=9) for fam in ("delete", "flip")]
+         + [dict(term=f"heldout_rmse_ref[{k}][all_units]", coef=.3, lo=.2, hi=.4, heldout_scheme="leave-one-dataset-out, all_units", heldout_err=.3, n_heldout_units=8, perturbation=fam, n_units=9)
+            for fam in ("delete", "flip") for k in ("intercept_only", "log_z_only", "base_model", "first_order_rescaled", "null_mean", "null_mean_rescaled")],
+         "positive_control": [dict(graph=g, departure=dp, size=sz, perturbation=fam, synthetic=1, n_replicates=10, replicates_run=12, delta_mean=.01, pooled_lo=-.02, pooled_hi=.04, se_ratio_cluster_med=1.0 + sz, n_boot=200)
+                              for g in ("mtbench_human", "arena55k") for dp, sz in (("none", 0.0), ("overdisp", 0.5), ("position", 0.5), ("cyclic", 0.4), ("pairdev", 0.4)) for fam in ("delete", "flip")],
+         "sensitivity": [dict(check="ties_dropped", dataset="arena_x@noties", perturbation=fam, statistic="delta_logQ_real_minus_null", value=.01, lo=-.02, hi=.04, baseline_value=.0, n_pairs=100) for fam in ("delete", "flip")]
+         + [dict(check="flip_cost2_win_to_loss", dataset="arena_x", perturbation="flip", statistic="median cost-2 k*/k* (re-priced unit-cost solution)", value=2.0, lo=2, hi=2, baseline_value=1.0, n_pairs=40)],
+         "search_quality": [dict(scope=sc, design=de, perturbation=fam, method=m, k_ratio_to_best=1.0, k_ratio_lo=.9, k_ratio_hi=1.1, flipped_at_half_k=.1, flipped_at_k=.9, flipped_at_2k=np.nan, share_unreachable=0.0, n_conclusions=20)
+                            for sc, de in (("all_datasets", "all"), ("tiny_exact_mtbench_subproblems", "expert"), ("search_at_scale_arena55k", "crowd"), ("arena_x", "crowd")) for fam in ("delete", "flip")
+                            for m in ("random", "residual", "oneshot", "iterated", "first_order", "iterated_vs_exact", "frank_wolfe_vs_exact", "lp_candidate_vs_exact", "restarts_vs_standard", "planted_vs_known")]}
+for f, r in files.items(): pd.DataFrame(r).to_csv(f"{t}/{f}.csv", index=False)
+for s in ("make_fig1", "make_fig2", "make_fig3", "make_fig4", "make_tab1", "make_tab2", "make_tab3", "make_tab4", "make_tab5", "make_fig5", "make_fig6"):
+    subprocess.run([sys.executable, f"{here}/figures/{s}.py", "--data", t, "--out", f"{t}/out"], check=True, cwd=f"{here}/figures")
+for f in ("fig1", "fig2", "fig3", "fig4", "fig5", "fig6", "tab1", "tab2", "tab3", "tab4", "tab5"):
+    assert os.path.getsize(f"{t}/out/{f}." + ("pdf" if f.startswith("fig") else "tex")) > 50, f
+print("ok", t)

@@ -1,0 +1,18 @@
+# Review of paper-repo PR #15 (final, `main` a9080a66 into `final`)
+
+Built from a9080a66ba43 (document/main): 32 pages, main text ends on page 9, References from page 10, no Type 3 fonts, no unresolved references or raw labels in the PDF text.
+
+## Checked and fine
+- M6 and M7 of the version-1 review are answered: published-code comparison (Table 11, Appendix E; numbers recomputed from `results/public_baselines.csv`), recalibrated and weak-prior estimators (Table 10, Appendix D; fall-back rates; the R = 10/40 draws disclosed, no R = 100 for the recalibrated runs; two-phase design stated as not run).
+- All 14 tables rebuild byte-identically from `code/results` with `figures/scripts` (table2, 8, 10, 11, tables_results).
+- IRT claims are narrowed to "our implementation" after the public-code result; limitations say what was not run. The abstract, introduction and Section 5 agree with Tables 1, 10, 11.
+- Anonymity: no role or repository names, no local paths in the package.
+
+## Must fix (one item)
+**F1. Appendix E, "The setting of our IRT model": the longer-fit numbers do not belong to the setting the sentence describes.** The text says the longer fit is "2000 Adam steps instead of 300, item and ability penalties a tenth as large, *and the wide prior*" and gives the plug-in on the anchor design as 2.22 (two dimensions) and 3.38 (ten), on a uniform design 1.98 and 3.04. In `results/dsweep.csv` (configs `fit2`, `fit10`) those are the `irt-plugin` rows, which use the default prior (precision 1; see header of `scripts/15_dsweep.py`). The wide-prior (`irtw-plugin`) rows are 2.11 and 3.52 (anchor) and 1.92 and 3.11 (uniform). Either state that the longer fit was run with the default prior (and give the wide-prior numbers separately or drop "and the wide prior"), or report the irtw numbers. The conclusion ("does not help") holds on both sets.
+
+## Minor, optional
+- Abstract: "the published tinyBenchmarks IRT estimator, run on six benchmarks, is not (0.88)": add "one extrapolation fold" and note that p-IRT on correctness anchors is 1.05 (Appendix E has both).
+- Appendix D says the weak prior has variance ten times larger; Appendix E's wide prior is a hundred times larger. Say once that these are two different settings.
+
+I will approve the next head if F1 is fixed and nothing else changes.

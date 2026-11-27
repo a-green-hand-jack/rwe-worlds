@@ -1,0 +1,361 @@
+"""Derived result tables from results/tables/instance_level.parquet. Instances are the resampling unit throughout."""
+import numpy as np
+import pandas as pd
+
+NBOOT = 2000
+CELL = ["dataset", "model", "estimator", "l1_reg"]
+KEY = CELL + ["budget_m"]
+EPS_COL = {0.0: "n_correct", 0.02: "n_correct_tol_e002", 0.05: "n_correct_tol", 0.1: "n_correct_tol_e010"}
+rng_seed = 20260101
+
+
+def boot_idx(n, nb=NBOOT, seed=rng_seed):
+    return np.random.default_rng(seed).integers(0, n, (nb, n))
+
+
+def ci(x, lo=2.5, hi=97.5):
+    return float(np.percentile(x, lo)), float(np.percentile(x, hi))
+
+
+def boot_mean_ci(v):
+    v = np.asarray(v, float)
+    if len(v) == 0:
+        return np.nan, np.nan
+    m = v[boot_idx(len(v))].mean(1)
+    return ci(m)
+
+
+def pc(df, eps):
+    """per-instance share of runs whose top-k set is correct (eps = 0: exact; else tolerance-aware)."""
+    return (df[EPS_COL[eps]] / df["R"]).to_numpy()
+
+
+def sensitivity(il):
+    rows = []
+    for key, g in il.groupby(KEY + ["kind"], sort=False):
+        kind = key[-1]
+        if kind == "sign":
+            eps_list = [0.0]
+        else:
+            eps_list = list(EPS_COL)
+        n = len(g)
+        idx = boot_idx(n)
+        for e in eps_list:
+            p = pc(g, e)
+            for thr in (0.8, 0.9, 0.95):
+                ok = (p >= thr - 1e-12).astype(float)
+                lo, hi = ci(ok[idx].mean(1))
+                rows.append(dict(zip(KEY + ["kind"], key), eps=e, threshold=thr, n_instances=n, R=int(g.R.max()), share=ok.mean(),
+                                 ci_lo=lo, ci_hi=hi))
+    return pd.DataFrame(rows)
+
+
+def h1_contrast(il):
+    rows = []
+    g3 = il[il.kind == "topk3"]
+    for key, g in g3.groupby(KEY, sort=False):
+        n = len(g)
+        idx = boot_idx(n)
+        pear = g.mean_pearson.to_numpy()
+        row = dict(zip(KEY, key), n_instances=n, R=int(g.R.max()), pearson_mean=pear.mean())
+        row["aggregate_high_0.9"] = bool(pear.mean() >= 0.9)
+        for tag, e in (("eps", 0.05), ("exact", 0.0)):
+            ok = (pc(g, e) >= 0.9 - 1e-12).astype(float)
+            c = (pear - ok) * 100
+            lo, hi = ci(c[idx].mean(1))
+            row[f"share_pc_{tag}"] = ok.mean()
+            row[f"contrast_{tag}"] = c.mean()
+            row[f"ci_lo_{tag}"], row[f"ci_hi_{tag}"] = lo, hi
+            for pts in (5, 10, 20):
+                row[f"lower_decision_level_{tag}_{pts}"] = bool(c.mean() >= pts and lo > 0)
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def phi_error(il):
+    rows = []
+    g3 = il[il.kind == "topk3"]
+    for key, g in g3.groupby(KEY, sort=False):
+        row = dict(zip(KEY, key), n_instances=len(g), R=int(g.R.max()))
+        for col, name in (("mean_rel_l2", "rel_l2_mean"), ("med_rel_l2", "rel_l2_median")):
+            v = g[col].to_numpy()
+            idx = boot_idx(len(v))
+            row[name] = v.mean() if name.endswith("mean") else np.median(v)
+            row[name + "_ci_lo"], row[name + "_ci_hi"] = ci((v[idx].mean(1) if name.endswith("mean") else np.median(v[idx], 1)))
+        row["ci_lo"], row["ci_hi"] = row["rel_l2_mean_ci_lo"], row["rel_l2_mean_ci_hi"]
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def scaling_fit(il, minmult=3):
+    """slope of per-cell error vs m_eff on log-log (median over instances of the per-instance median relative L2),
+    over budgets with m_eff >= minmult*d and below exhaustive enumeration; CI by resampling instances."""
+    rows = []
+    g3 = il[il.kind == "topk3"]
+    for cell, g in g3.groupby(CELL, sort=False):
+        piv = g.pivot_table(index="instance_id", columns="m_eff", values="med_rel_l2")
+        piv = piv.dropna(axis=0, how="any") if piv.notna().all(axis=1).sum() >= 10 else piv
+        dd = int(g["d"].iloc[0])
+        cols = [c for c in piv.columns if c >= minmult * dd and c < (1 << dd) - 2 and g[g.m_eff == c].R.max() > 1]
+        if len(cols) < 3:
+            continue
+        P = piv[cols].dropna().to_numpy()
+        x = np.log(np.array(cols, float))
+        idx = boot_idx(len(P))
+        def slope(M):
+            y = np.log(np.median(M, 0)) if M.ndim == 2 else np.log(np.median(M, 1))
+            return np.polyfit(x, y, 1)[0]
+        zero_err = float(np.median(P)) < 1e-8  # additive model: estimator is exact, the 'error' is rounding noise
+        s0 = np.nan if zero_err else slope(P)
+        sb = np.array([np.polyfit(x, np.log(np.median(P[i], 0)), 1)[0] for i in idx[:500]]) if not zero_err else np.array([np.nan])
+        lo, hi = ci(sb) if not zero_err else (np.nan, np.nan)
+        rows.append(dict(zip(CELL, cell), n_instances=len(P), budgets_used=" ".join(map(str, cols)), slope=s0, ci_lo=lo, ci_hi=hi,
+                         method=f"OLS on log median-over-instances of per-instance median rel. L2 vs log m_eff; m_eff>={minmult}d, below exhaustive" + ("; NA: zero error (additive model, estimator exact up to rounding)" if zero_err else "")))
+    return pd.DataFrame(rows)
+
+
+def paired_diff(il):
+    """Contrasts between estimators at the same nominal budget m (same instances, same exact reference) and between
+    consecutive budgets of one estimator. quantity: pc_eps (k=3, eps=0.05) and pc_exact (k=3, eps=0)."""
+    g3 = il[il.kind == "topk3"].copy()
+    rows = []
+    contrasts = [(("shap_kernel", "False"), ("kernel_paired", "NA"), "kernel_paired_vs_shap_kernel"),
+                 (("shap_kernel", "False"), ("permutation_antithetic", "NA"), "perm_antithetic_vs_shap_kernel"),
+                 (("kernel_paired", "NA"), ("permutation_antithetic", "NA"), "perm_antithetic_vs_kernel_paired"),
+                 (("shap_kernel", "False"), ("shap_kernel", "auto"), "shap_l1auto_vs_l1False")]
+    for (ds, mo), g in g3.groupby(["dataset", "model"], sort=False):
+        d = int(g["d"].iloc[0])
+        for (ea, la), (eb, lb), name in contrasts:
+            A = g[(g.estimator == ea) & (g.l1_reg == la)]
+            Bb = g[(g.estimator == eb) & (g.l1_reg == lb)]
+            for m in sorted(set(A.budget_m) & set(Bb.budget_m)):
+                a = A[A.budget_m == m].set_index("instance_id")
+                b = Bb[Bb.budget_m == m].set_index("instance_id")
+                if a.R.max() <= 1:
+                    continue
+                ids = a.index.intersection(b.index)
+                for q, e in (("pc_eps", 0.05), ("pc_exact", 0.0)):
+                    diff = (b.loc[ids, EPS_COL[e]] / b.loc[ids, "R"] - a.loc[ids, EPS_COL[e]] / a.loc[ids, "R"]).to_numpy()
+                    rows.append(_pd_row(ds, mo, name, q, m, a.loc[ids].evals_per_run.iloc[0], b.loc[ids].evals_per_run.iloc[0], diff))
+        for (ea, la) in (("shap_kernel", "False"), ("kernel_paired", "NA"), ("permutation_antithetic", "NA")):
+            A = g[(g.estimator == ea) & (g.l1_reg == la)]
+            bs = sorted(m for m in A.budget_m.unique() if A[A.budget_m == m].R.max() > 1)
+            for m1, m2 in zip(bs[:-1], bs[1:]):
+                a = A[A.budget_m == m1].set_index("instance_id")
+                b = A[A.budget_m == m2].set_index("instance_id")
+                ids = a.index.intersection(b.index)
+                for q, e in (("pc_eps", 0.05), ("pc_exact", 0.0)):
+                    diff = (b.loc[ids, EPS_COL[e]] / b.loc[ids, "R"] - a.loc[ids, EPS_COL[e]] / a.loc[ids, "R"]).to_numpy()
+                    rows.append(_pd_row(ds, mo, f"budget_{ea}_{la}_m{m2}_vs_m{m1}", q, m1, a.loc[ids].evals_per_run.iloc[0],
+                                        b.loc[ids].evals_per_run.iloc[0], diff))
+    return pd.DataFrame(rows)
+
+
+def _pd_row(ds, mo, name, q, m, evals_a, evals_b, diff):
+    n = len(diff)
+    idx = boot_idx(n)
+    lo, hi = ci(diff[idx].mean(1))
+    sd = diff.std(ddof=1) if n > 1 else np.nan
+    sr = 1.96 * sd / np.sqrt(n)
+    ceiling = bool(np.all(diff == 0))
+    label = "B_higher" if lo > 0 else ("B_lower" if hi < 0 else "not_resolved")
+    return dict(dataset=ds, model=mo, contrast=name, quantity=q, budget_m=m, budget_evals=evals_a, evals_b=evals_b,
+                evals_ratio_b_over_a=evals_b / evals_a, n_instances=n, diff=diff.mean(), ci_lo=lo, ci_hi=hi, paired_sd=sd,
+                smallest_resolvable=sr, label=label, all_diffs_zero=ceiling)
+
+
+def margin_bins(il, nb=4):
+    """within-cell (dataset, model) quantile bins of the exact k=3 margin; Q1 = smallest margin."""
+    g = il[(il.kind == "topk3")].drop_duplicates(["dataset", "model", "instance_id"])[["dataset", "model", "instance_id", "margin_gk"]]
+    out = []
+    for (ds, mo), h in g.groupby(["dataset", "model"]):
+        q = pd.qcut(h.margin_gk.rank(method="first"), nb, labels=[f"Q{i+1}" for i in range(nb)])
+        out.append(h.assign(margin_bin=q.astype(str)))
+    return pd.concat(out)
+
+
+CRIT = {"pc_exact": 0.0, "pc_eps": 0.05}
+
+
+def dedupe_evals(il):
+    """permutation runs at different nominal m can have the same m_eff (whole permutation pairs): keep the smallest nominal m."""
+    return il.sort_values("budget_m").drop_duplicates(CELL + ["instance_id", "kind", "evals_per_run"])
+
+
+def per_instance_mstar(il, target=0.9):
+    """for each (cell estimator, criterion, instance): smallest evals_per_run at which the per-instance P_c (criterion) >= target
+    (first crossing on the budget grid; inf if never)."""
+    g3 = dedupe_evals(il[il.kind == "topk3"])
+    rows = []
+    for cell, g in g3.groupby(CELL, sort=False):
+        g = g[g.R > 1]
+        if g.budget_m.nunique() < 3:
+            continue
+        evs = np.sort(g.evals_per_run.unique())
+        for crit, e in CRIT.items():
+            for iid, h in g.groupby("instance_id"):
+                h = h.sort_values("evals_per_run")
+                ok = (h[EPS_COL[e]] / h.R >= target - 1e-12).to_numpy()
+                ms = h.evals_per_run.to_numpy()[ok.argmax()] if ok.any() else np.inf
+                rows.append(dict(zip(CELL, cell), criterion=crit, target=target, instance_id=iid, mstar_evals=ms, max_evals_tried=evs.max(),
+                                 min_evals_tried=evs.min(), margin_gk=h.margin_gk.iloc[0], d=int(h["d"].iloc[0])))
+    return pd.DataFrame(rows)
+
+
+def mstar_tables(il, target=0.9):
+    pi = per_instance_mstar(il, target)
+    mb = margin_bins(il)
+    pi = pi.merge(mb[["dataset", "model", "instance_id", "margin_bin"]], on=["dataset", "model", "instance_id"])
+    rows, fits = [], []
+    for key, g in pi.groupby(CELL + ["criterion"], sort=False):
+        # per bin
+        for qb, h in g.groupby("margin_bin"):
+            v = h.mstar_evals.to_numpy()
+            idx = boot_idx(len(v))
+            med = np.median(v)
+            bm = np.median(v[idx], 1)
+            lo, hi = ci(bm)
+            rows.append(dict(zip(CELL + ["criterion"], key), target=target, margin_bin=qb, margin_lo=h.margin_gk.min(), margin_hi=h.margin_gk.max(),
+                             margin_mid=float(np.sqrt(max(h.margin_gk.min(), 1e-12) * h.margin_gk.max())), n_instances=len(h),
+                             n_reached=int(np.isfinite(v).sum()), m_star_evals=med if np.isfinite(med) else np.nan,
+                             ci_lo=lo if np.isfinite(lo) else np.nan, ci_hi=hi if np.isfinite(hi) else np.nan,
+                             reached=bool(np.isfinite(med)), max_budget_tried=h.max_evals_tried.iloc[0], min_budget_tried=h.min_evals_tried.iloc[0]))
+        # fit m* = c / g^2 over the instances (censored = never reached counted as inf in the median)
+        v, gk = g.mstar_evals.to_numpy(), g.margin_gk.to_numpy()
+        reach = np.isfinite(v) & (v > g.min_evals_tried.to_numpy()) & (gk > 0)  # strictly above the smallest budget (not left-censored)
+        c_i = v * gk ** 2
+        idx = boot_idx(len(v))
+        c_med = np.median(c_i)
+        cb = np.median(c_i[idx], 1)
+        slope = np.nan; slo = shi = np.nan
+        if reach.sum() >= 8:
+            lx, ly = np.log(gk[reach]), np.log(v[reach])
+            slope = np.polyfit(lx, ly, 1)[0]
+            ri = np.where(reach)[0]
+            bs = [np.polyfit(lx[j], ly[j], 1)[0] for j in np.random.default_rng(1).integers(0, len(ri), (500, len(ri)))]
+            slo, shi = ci(bs)
+        fits.append(dict(zip(CELL + ["criterion"], key), target=target, n_instances=len(v), n_never_reached=int((~np.isfinite(v)).sum()),
+                         n_at_smallest_budget=int((np.isfinite(v) & (v <= g.min_evals_tried.to_numpy())).sum()), n_in_slope_fit=int(reach.sum()),
+                         fit_c=c_med if np.isfinite(c_med) else np.nan, fit_c_ci_lo=ci(cb)[0] if np.isfinite(ci(cb)[0]) else np.nan,
+                         fit_c_ci_hi=ci(cb)[1] if np.isfinite(ci(cb)[1]) else np.nan,
+                         loglog_slope_mstar_vs_g=slope, slope_ci_lo=slo, slope_ci_hi=shi,
+                         note="m* = evaluations at first budget with per-instance P_c>=target; predicted slope -2; instances never reaching or already reaching at the smallest budget are censored and excluded from the slope"))
+    return pd.DataFrame(rows), pd.DataFrame(fits), pi
+
+
+def guidance(il, target=0.9, share=0.9):
+    """per dataset x model x estimator x criterion x margin quartile: smallest evals_per_run at which >= `share` of the
+    bin's instances have per-instance P_c >= target."""
+    mb = margin_bins(il)
+    g3 = dedupe_evals(il[il.kind == "topk3"]).merge(mb[["dataset", "model", "instance_id", "margin_bin"]], on=["dataset", "model", "instance_id"])
+    rows = []
+    for cell, g in g3.groupby(CELL, sort=False):
+        g = g[g.R > 1]
+        if g.budget_m.nunique() < 3:
+            continue
+        for crit, e in CRIT.items():
+            for qb, h in g.groupby("margin_bin"):
+                ids = np.sort(h.instance_id.unique())
+                P = np.full((len(ids), 0), 0.0)
+                evs = np.sort(h.evals_per_run.unique())
+                M = np.zeros((len(ids), len(evs)))
+                for j, ev in enumerate(evs):
+                    hh = h[h.evals_per_run == ev].set_index("instance_id")
+                    M[:, j] = (hh.reindex(ids)[EPS_COL[e]] / hh.reindex(ids).R >= target - 1e-12).to_numpy(float)
+                def mn(Mx):
+                    sh = Mx.mean(0) >= share - 1e-12
+                    return evs[sh.argmax()] if sh.any() else np.inf
+                idx = boot_idx(len(ids), 1000)
+                bm = np.array([mn(M[i]) for i in idx])
+                v = mn(M)
+                lo, hi = np.percentile(bm, 2.5), np.percentile(bm, 97.5)
+                rows.append(dict(zip(CELL, cell), criterion=crit, d=int(h["d"].iloc[0]), margin_bin=qb, margin_lo=h.margin_gk.min(),
+                                 margin_hi=h.margin_gk.max(), n_instances=len(ids), min_evals=v if np.isfinite(v) else np.nan,
+                                 ci_lo=lo if np.isfinite(lo) else np.nan, ci_hi=hi if np.isfinite(hi) else np.nan,
+                                 not_reached_in_grid=not np.isfinite(v), max_evals_tried=evs.max(), min_evals_tried=evs.min(),
+                                 label=("not reached in grid" if not np.isfinite(v) else ("at smallest grid budget (true minimum may be lower)" if v <= evs.min() else "reached"))))
+    return pd.DataFrame(rows)
+
+
+def _tobit_fit(lo, hi, x):
+    """Interval-censored Gaussian regression of log m* on log g: y in (lo, hi], y = a + b x + s e. Returns (a, b, s) or None."""
+    from scipy.optimize import minimize
+    from scipy.stats import norm
+    fin = np.isfinite(lo) & np.isfinite(hi)
+    y0 = np.where(fin, 0.5 * (lo + hi), np.where(np.isfinite(lo), lo, hi))
+    b0, a0 = np.polyfit(x, y0, 1) if len(x) > 2 else (0.0, y0.mean())
+
+    def nll(th):
+        a, b, ls = th
+        mu, s = a + b * x, np.exp(ls)
+        p = norm.cdf((hi - mu) / s) - norm.cdf((lo - mu) / s)
+        return -np.log(np.maximum(p, 1e-300)).sum()
+
+    r = minimize(nll, [a0, b0, np.log(max(y0.std(), 0.1))], method="Nelder-Mead", options=dict(xatol=1e-4, fatol=1e-6, maxiter=2000))
+    return (r.x[0], r.x[1], float(np.exp(r.x[2]))) if np.isfinite(r.fun) else None
+
+
+def mstar_tobit(il, pi, nboot=300):
+    """Slope of log m* vs log margin with the grid censoring handled: m* is only known to lie between two adjacent budgets of the grid
+    (left-censored at the smallest budget, right-censored beyond the largest). Predicted slope under m* = c/g^2 is -2.
+    Instance bootstrap CI (nboot resamples). Cells with fewer than 20 instances, or with all instances censored on one side, are skipped."""
+    g3 = dedupe_evals(il[il.kind == "topk3"])
+    rows = []
+    for key, g in pi.groupby(CELL + ["criterion"], sort=False):
+        evs = np.sort(g3[(g3.dataset == key[0]) & (g3.model == key[1]) & (g3.estimator == key[2]) & (g3.l1_reg.astype(str) == str(key[3]))
+                         & (g3.R > 1)].evals_per_run.unique())
+        gk = g.margin_gk.to_numpy()
+        ok = gk > 0
+        v = g.mstar_evals.to_numpy()[ok]
+        x = np.log(gk[ok])
+        if len(v) < 20 or len(evs) < 3:
+            continue
+        j = np.searchsorted(evs, v)  # index of the first budget reaching it; len(evs) for inf
+        lo = np.where(j == 0, -np.inf, np.log(evs[np.maximum(j - 1, 0)]))
+        hi = np.where(j >= len(evs), np.inf, np.log(evs[np.minimum(j, len(evs) - 1)]))
+        n_left, n_right = int((j == 0).sum()), int((j >= len(evs)).sum())
+        if n_left + n_right == len(v) or n_left == len(v) or n_right == len(v):
+            continue
+        fit = _tobit_fit(lo, hi, x)
+        if fit is None:
+            continue
+        idx = boot_idx(len(v), nboot)
+        bs = []
+        for ii in idx:
+            f = _tobit_fit(lo[ii], hi[ii], x[ii])
+            if f is not None:
+                bs.append(f[1])
+        slo, shi = ci(bs) if len(bs) > 10 else (np.nan, np.nan)
+        rows.append(dict(zip(CELL + ["criterion"], key), n_instances=len(v), n_left_censored=n_left, n_right_censored=n_right, n_grid=len(evs),
+                         slope=fit[1], slope_ci_lo=slo, slope_ci_hi=shi, intercept=fit[0], sigma_log=fit[2]))
+    return pd.DataFrame(rows)
+
+
+def margin_strata(il, nb=4):
+    """P_c by within-(dataset, model) quartile of the exact k=3 margin (Q1 smallest) and for all instances ('all'), per cell and budget with R > 1.
+    Columns: mean strict P_c and tolerance-aware P_c^eps (eps = 0.05) with instance-bootstrap CI; shares of instances with P_c >= 0.9; flat tolerance groups
+    (tol_group_size > 1: the tolerance group has more than one feature beyond the boundary pair, so P_c^eps is satisfied vacuously for swaps among them):
+    their share, and how many of the instances with P_c^eps >= 0.9 are flat. budget_role: 'default' (d >= 16, m = 2d+2048, shap default), 'largest_sampled'
+    (d <= 10: the largest sampled budget; the shap default there enumerates everything and is exact, R = 1, so it is never a reliability statement)."""
+    mb = margin_bins(il)
+    g3 = il[(il.kind == "topk3") & (il.R > 1)].merge(mb[["dataset", "model", "instance_id", "margin_bin"]], on=["dataset", "model", "instance_id"])
+    rows = []
+    big = g3.groupby(CELL)["budget_m"].max()
+    for key, g in g3.groupby(KEY, sort=False):
+        d = int(g["d"].iloc[0])
+        role = "default" if (d >= 16 and key[-1] == 2 * d + 2048) else ("largest_sampled" if (d <= 10 and key[-1] == big.loc[tuple(key[:4])]) else "")
+        for qb in ["all"] + [f"Q{i+1}" for i in range(nb)]:
+            h = g if qb == "all" else g[g.margin_bin == qb]
+            if len(h) == 0:
+                continue
+            p0, p5 = pc(h, 0.0), pc(h, 0.05)
+            flat = h.flat_group.to_numpy()
+            idx = boot_idx(len(h))
+            row = dict(zip(KEY, key), d=d, budget_role=role, margin_bin=qb, n_instances=len(h), R=int(h.R.max()), margin_lo=h.margin_gk.min(), margin_hi=h.margin_gk.max(),
+                       pc_exact_mean=p0.mean(), pc_eps_mean=p5.mean(), share_pc_exact_ge09=float((p0 >= 0.9 - 1e-12).mean()), share_pc_eps_ge09=float((p5 >= 0.9 - 1e-12).mean()),
+                       share_flat_group=float(flat.mean()), n_flat=int(flat.sum()), n_eps_pass=int((p5 >= 0.9 - 1e-12).sum()),
+                       n_eps_pass_and_flat=int(((p5 >= 0.9 - 1e-12) & flat).sum()), n_eps_pass_and_exact_fail=int(((p5 >= 0.9 - 1e-12) & (p0 < 0.9 - 1e-12)).sum()))
+            for nm, v in (("pc_exact_mean", p0), ("pc_eps_mean", p5), ("share_pc_exact_ge09", (p0 >= 0.9 - 1e-12).astype(float))):
+                row[nm + "_ci_lo"], row[nm + "_ci_hi"] = ci(v[idx].mean(1))
+            rows.append(row)
+    return pd.DataFrame(rows)

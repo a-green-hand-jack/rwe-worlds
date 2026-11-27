@@ -1,0 +1,86 @@
+{\scriptsize\setlength{\tabcolsep}{2pt}
+\begin{longtable}{llrrrrr}
+\toprule
+Population & $n$ & Arm & Width / PPI++ & SD / PPI++ & SE / SD & Coverage (\%) [Wilson 95\%] \\
+\midrule
+\endhead
+census income & 100 & PPI++ (package) & 1.000 & 1.000 & 0.920 & 87.9\,[86.7,89.0] \\
+ &  & PPI++, population-optimal $\lambda$ & 0.990 & 0.958 & 0.949 & 90.3\,[89.2,91.3] \\
+ &  & In-sample OLS slope & 0.970 & 0.958 & 0.931 & 88.0\,[86.8,89.1] \\
+ &  & Cross-fitted linear & 1.018 & 0.967 & 0.968 & 89.1\,[87.9,90.2] \\
+ &  & PPI++ on cross-fitted linear & 1.014 & 0.965 & 0.966 & 88.1\,[86.9,89.2] \\
+ &  & Cross-fitted spline & 1.072 & 1.037 & 0.951 & 89.0\,[87.8,90.0] \\
+ & 500 & PPI++ (package) & 1.000 & 1.000 & 0.985 & 92.8\,[91.8,93.6] \\
+ &  & PPI++, population-optimal $\lambda$ & 0.987 & 0.981 & 0.991 & 93.5\,[92.5,94.3] \\
+ &  & In-sample OLS slope & 0.984 & 0.982 & 0.986 & 93.1\,[92.2,94.0] \\
+ &  & Cross-fitted linear & 0.994 & 0.984 & 0.994 & 93.5\,[92.6,94.3] \\
+ &  & PPI++ on cross-fitted linear & 0.993 & 0.981 & 0.997 & 93.0\,[92.0,93.8] \\
+ &  & Cross-fitted spline & 1.006 & 1.002 & 0.989 & 93.4\,[92.5,94.3] \\
+\midrule
+forest & 100 & PPI++ (package) & 1.000 & 1.000 & 0.988 & 92.7\,[91.7,93.6] \\
+ &  & PPI++, population-optimal $\lambda$ & 1.005 & 0.978 & 1.016 & 94.4\,[93.5,95.2] \\
+ &  & In-sample OLS slope & 0.998 & 0.997 & 0.989 & 93.9\,[93.0,94.7] \\
+ &  & Cross-fitted linear & 1.027 & 0.991 & 1.023 & 94.5\,[93.6,95.3] \\
+ &  & PPI++ on cross-fitted linear & 1.023 & 0.998 & 1.013 & 93.6\,[92.6,94.4] \\
+ &  & Cross-fitted spline & 1.061 & 1.028 & 1.019 & 94.3\,[93.4,95.1] \\
+ & 500 & PPI++ (package) & 1.000 & 1.000 & 1.004 & 94.4\,[93.6,95.2] \\
+ &  & PPI++, population-optimal $\lambda$ & 1.000 & 0.997 & 1.008 & 95.2\,[94.4,95.9] \\
+ &  & In-sample OLS slope & 0.999 & 1.000 & 1.004 & 95.1\,[94.3,95.8] \\
+ &  & Cross-fitted linear & 1.004 & 0.999 & 1.010 & 95.2\,[94.4,95.9] \\
+ &  & PPI++ on cross-fitted linear & 1.004 & 0.998 & 1.011 & 94.8\,[93.9,95.5] \\
+ &  & Cross-fitted spline & 1.005 & 1.000 & 1.009 & 95.3\,[94.5,96.0] \\
+\midrule
+forest, predictor shifted by 0.34 sd($Y$) & 100 & PPI++ (package) & 1.000 & 1.000 & 0.988 & 92.7\,[91.7,93.6] \\
+ &  & PPI++, population-optimal $\lambda$ & 1.005 & 0.978 & 1.016 & 94.4\,[93.5,95.2] \\
+ &  & In-sample OLS slope & 0.998 & 0.997 & 0.989 & 93.9\,[93.0,94.7] \\
+ &  & Cross-fitted linear & 1.027 & 0.991 & 1.023 & 94.5\,[93.6,95.3] \\
+ &  & PPI++ on cross-fitted linear & 1.023 & 0.998 & 1.013 & 93.6\,[92.6,94.4] \\
+ &  & Cross-fitted spline & 1.061 & 1.028 & 1.019 & 94.3\,[93.4,95.1] \\
+ & 500 & PPI++ (package) & 1.000 & 1.000 & 1.004 & 94.4\,[93.6,95.2] \\
+ &  & PPI++, population-optimal $\lambda$ & 1.000 & 0.997 & 1.008 & 95.2\,[94.4,95.9] \\
+ &  & In-sample OLS slope & 0.999 & 1.000 & 1.004 & 95.1\,[94.3,95.8] \\
+ &  & Cross-fitted linear & 1.004 & 0.999 & 1.010 & 95.2\,[94.4,95.9] \\
+ &  & PPI++ on cross-fitted linear & 1.004 & 0.998 & 1.011 & 94.8\,[93.9,95.5] \\
+ &  & Cross-fitted spline & 1.005 & 1.000 & 1.009 & 95.3\,[94.5,96.0] \\
+\midrule
+galaxies & 100 & PPI++ (package) & 1.000 & 1.000 & 0.975 & 93.3\,[92.3,94.1] \\
+ &  & PPI++, population-optimal $\lambda$ & 1.003 & 0.973 & 1.005 & 94.4\,[93.5,95.2] \\
+ &  & In-sample OLS slope & 0.999 & 0.985 & 0.989 & 94.0\,[93.1,94.8] \\
+ &  & Cross-fitted linear & 1.019 & 0.981 & 1.013 & 94.6\,[93.7,95.3] \\
+ &  & PPI++ on cross-fitted linear & 1.018 & 0.994 & 0.998 & 93.9\,[93.0,94.7] \\
+ &  & Cross-fitted spline & 1.057 & 1.014 & 1.016 & 94.3\,[93.4,95.0] \\
+ & 500 & PPI++ (package) & 1.000 & 1.000 & 1.010 & 94.8\,[93.9,95.5] \\
+ &  & PPI++, population-optimal $\lambda$ & 1.000 & 0.998 & 1.013 & 95.0\,[94.1,95.7] \\
+ &  & In-sample OLS slope & 1.000 & 0.999 & 1.011 & 95.0\,[94.2,95.7] \\
+ &  & Cross-fitted linear & 1.003 & 0.998 & 1.015 & 95.1\,[94.2,95.8] \\
+ &  & PPI++ on cross-fitted linear & 1.003 & 0.999 & 1.015 & 94.9\,[94.1,95.7] \\
+ &  & Cross-fitted spline & 1.009 & 1.002 & 1.018 & 95.2\,[94.3,95.9] \\
+\midrule
+galaxies, predictor shifted by 0.34 sd($Y$) & 100 & PPI++ (package) & 1.000 & 1.000 & 0.975 & 93.3\,[92.3,94.1] \\
+ &  & PPI++, population-optimal $\lambda$ & 1.003 & 0.973 & 1.005 & 94.4\,[93.5,95.2] \\
+ &  & In-sample OLS slope & 0.999 & 0.985 & 0.989 & 94.0\,[93.1,94.8] \\
+ &  & Cross-fitted linear & 1.019 & 0.981 & 1.013 & 94.6\,[93.7,95.3] \\
+ &  & PPI++ on cross-fitted linear & 1.018 & 0.994 & 0.998 & 93.9\,[93.0,94.7] \\
+ &  & Cross-fitted spline & 1.057 & 1.014 & 1.016 & 94.3\,[93.4,95.0] \\
+ & 500 & PPI++ (package) & 1.000 & 1.000 & 1.010 & 94.8\,[93.9,95.5] \\
+ &  & PPI++, population-optimal $\lambda$ & 1.000 & 0.998 & 1.013 & 95.0\,[94.1,95.7] \\
+ &  & In-sample OLS slope & 1.000 & 0.999 & 1.011 & 95.0\,[94.2,95.7] \\
+ &  & Cross-fitted linear & 1.003 & 0.998 & 1.015 & 95.1\,[94.2,95.8] \\
+ &  & PPI++ on cross-fitted linear & 1.003 & 0.999 & 1.015 & 94.9\,[94.1,95.7] \\
+ &  & Cross-fitted spline & 1.009 & 1.002 & 1.018 & 95.2\,[94.3,95.9] \\
+\midrule
+gene expr. & 100 & PPI++ (package) & 1.000 & 1.000 & 0.974 & 94.9\,[94.1,95.7] \\
+ &  & PPI++, population-optimal $\lambda$ & 0.918 & 0.890 & 1.005 & 95.5\,[94.7,96.2] \\
+ &  & In-sample OLS slope & 0.914 & 0.895 & 0.995 & 95.0\,[94.2,95.8] \\
+ &  & Cross-fitted linear & 0.933 & 0.896 & 1.015 & 95.7\,[94.9,96.4] \\
+ &  & PPI++ on cross-fitted linear & 0.952 & 0.949 & 0.977 & 94.6\,[93.8,95.4] \\
+ &  & Cross-fitted spline & 0.950 & 0.921 & 1.005 & 95.6\,[94.8,96.3] \\
+ & 500 & PPI++ (package) & 1.000 & 1.000 & 1.004 & 94.9\,[94.1,95.6] \\
+ &  & PPI++, population-optimal $\lambda$ & 0.972 & 0.970 & 1.006 & 94.9\,[94.1,95.7] \\
+ &  & In-sample OLS slope & 0.971 & 0.970 & 1.006 & 95.0\,[94.2,95.7] \\
+ &  & Cross-fitted linear & 0.974 & 0.970 & 1.008 & 95.1\,[94.2,95.8] \\
+ &  & PPI++ on cross-fitted linear & 0.978 & 0.977 & 1.006 & 94.9\,[94.0,95.6] \\
+ &  & Cross-fitted spline & 0.971 & 0.962 & 1.013 & 95.2\,[94.4,95.9] \\
+\bottomrule
+\end{longtable}
+}

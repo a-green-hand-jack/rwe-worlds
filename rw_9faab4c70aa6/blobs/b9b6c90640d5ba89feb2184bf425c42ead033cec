@@ -1,0 +1,70 @@
+"""Worker that fills the item x configuration matrix in resumable tasks (any number of workers cooperate).
+Config id c = g*M + m ; g = demo_set_index*2 + label_index ; m = instr*2 + cue.
+Task (g, block b): rows [b*BS,(b+1)*BS) of data/pool.pkl scored under all M suffix variants of group g.
+Counterfactual tasks 'cf': demo item i (in set X) scored under group X with i swapped for a spare item.
+Usage: python run_matrix.py --out DIR --threads 4 --tmax SECONDS [--max-rows N]
+"""
+import sys, os, time, json, argparse; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import numpy as np, pandas as pd
+from harness import *
+DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")
+
+BS = 24
+SETS = ["none", "A", "B", "C"]; LABELS = ["dot", "paren"]
+VARIANTS = [(i, c) for i in range(len(INSTR)) for c in range(len(CUES))]
+M = len(VARIANTS); G = len(SETS) * len(LABELS)
+
+def demo_text(pool, meta, sets, label):
+    if sets == "none": return ""
+    ids = meta["sets"][sets] if isinstance(sets, str) else sets
+    by = pool.set_index("question_id")
+    return "".join(fmt_demo(by.loc[q], label) for q in ids)
+
+def claim(path, stale=2700):
+    lock = path + ".lock"
+    try:
+        os.mkdir(lock); open(lock + "/t", "w").write(str(time.time())); return True
+    except FileExistsError:
+        try:
+            if time.time() - float(open(lock + "/t").read()) > stale:
+                open(lock + "/t", "w").write(str(time.time())); return True
+        except Exception: pass
+        return False
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser(); ap.add_argument("--out", required=True); ap.add_argument("--threads", type=int, default=4)
+    ap.add_argument("--tmax", type=float, default=12000); ap.add_argument("--max-rows", type=int, default=None)
+    a = ap.parse_args()
+    os.makedirs(a.out, exist_ok=True)
+    pool = pd.read_pickle(DATA + "/pool.pkl"); meta = json.load(open(DATA + "/pool_meta.json"))
+    nrows = a.max_rows or len(pool)
+    H = Harness(threads=a.threads)
+    t_start = time.time()
+    tasks = [("cf", s, None) for s in range(1)]  # counterfactual block first (cheap)
+    for b in range((nrows + BS - 1) // BS):
+        for g in range(G): tasks.append(("m", g, b))
+    for kind, g, b in tasks:
+        if time.time() - t_start > a.tmax: print("time limit reached", flush=True); break
+        if kind == "m":
+            fn = f"{a.out}/m_g{g}_b{b:03d}.npz"
+            if os.path.exists(fn) or not claim(fn): continue
+            rows = pool.iloc[b * BS:min((b + 1) * BS, nrows)]
+            t0 = time.time()
+            lp = H.run_group(demo_text(pool, meta, SETS[g // 2], LABELS[g % 2]), LABELS[g % 2], rows, VARIANTS)
+            np.savez(fn + ".tmp.npz", logp=lp.astype(np.float32), rows=rows.row.values); os.replace(fn + ".tmp.npz", fn)
+            print(f"done g{g} b{b} {time.time()-t0:.0f}s elapsed {time.time()-t_start:.0f}s", flush=True)
+        else:
+            fn = f"{a.out}/cf.npz"
+            if os.path.exists(fn) or not claim(fn): continue
+            # counterfactual: each demo item of A,B,C scored under its own group with itself swapped for a spare
+            by = pool.set_index("question_id"); spares = meta["spares"]
+            res = {}
+            for si, X in enumerate(["A", "B", "C"]):
+                for k, qi in enumerate(meta["sets"][X]):
+                    swapped = [spares[(si + k) % 3] if q == qi else q for q in meta["sets"][X]]
+                    for li, lab in enumerate(LABELS):
+                        row = pool[pool.question_id == qi]
+                        res[f"{X}_{k}_{lab}_cf"] = H.run_group(demo_text(pool, meta, swapped, lab), lab, row, VARIANTS)[0]
+                        res[f"{X}_{k}_{lab}_leak"] = H.run_group(demo_text(pool, meta, X, lab), lab, row, VARIANTS)[0]
+            np.savez(fn + ".tmp.npz", **res); os.replace(fn + ".tmp.npz", fn); print("done cf", flush=True)
+    print("worker finished", flush=True)

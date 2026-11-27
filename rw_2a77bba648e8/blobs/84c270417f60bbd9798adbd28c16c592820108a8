@@ -1,0 +1,9 @@
+predictor,held_out_r2_log_abs_bias,n_cells
+exact theory (not data-computable),0.9874052064676643,1224
+S_bar,-0.21604471894975075,1224
+S_adj (exploratory),-0.06244880495552696,1224
+corner x curvature,-0.12146573574123432,1224
+mean_degree,-0.26370435667859016,1224
+p(1-p),-0.2567438344965258,1224
+n p(1-p)/d,-0.26327967811458186,1224
+constant (held-out training mean),-0.23860288746033298,1224

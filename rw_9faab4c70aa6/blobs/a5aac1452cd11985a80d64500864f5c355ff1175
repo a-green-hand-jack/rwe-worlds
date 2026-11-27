@@ -1,0 +1,16 @@
+"""Fit the semi-synthetic generator to the real item x configuration matrix.
+Chooses the interaction rank and penalty by held-out log-likelihood (10% of cells masked), then refits on all cells.
+Usage: python fit_semisynth.py MATRIX.npz OUT.npz [--quick]  ->  OUT.npz holds `fit` (dict), `factors`, and the selection table."""
+import sys, os, json
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "analysis"))
+import numpy as np
+from semisynth import fit, heldout_loglik
+
+if __name__ == "__main__":
+    z = np.load(sys.argv[1]); Y, factors = z["Y"], z["factors"]; quick = "--quick" in sys.argv
+    grid = [(1, 0.02), (3, 0.02)] if quick else [(r, l2) for r in (1, 3, 5, 8, 12, 20) for l2 in (0.001, 0.005, 0.02)]
+    ep = 100 if quick else 400
+    table = [dict(rank=r, l2=l2, heldout_ll=heldout_loglik(Y, r, l2, epochs=ep)) for r, l2 in grid]
+    best = max(table, key=lambda t: t["heldout_ll"]); print(json.dumps(table), "best", best, flush=True)
+    f = fit(Y, best["rank"], best["l2"], epochs=ep)
+    np.savez(sys.argv[2], fit=np.array(f, dtype=object), factors=factors, table=np.array(table, dtype=object), best=np.array(best, dtype=object))

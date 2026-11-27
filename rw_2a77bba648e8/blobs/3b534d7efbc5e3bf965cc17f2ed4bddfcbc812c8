@@ -1,0 +1,8 @@
+{
+ "script": "analysis/parity_d.py",
+ "code_commit": "c12e790d8cd2dd4bf212fb177508cae943a4c9b4",
+ "seed": 20261126,
+ "n_draws": "inputs: tierA_cells.csv (200 assignments per graph, noise multiple 0.5)",
+ "date": "2026-11-26",
+ "description": "Tier A learners: median RMSE ratio to the regression on the threshold mechanism (d) and on the other five, 95% bootstrap intervals resampling cells and resampling runs, 10000 resamples"
+}

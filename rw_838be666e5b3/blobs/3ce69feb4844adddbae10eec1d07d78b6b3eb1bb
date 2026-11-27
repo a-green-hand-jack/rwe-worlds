@@ -1,0 +1,6 @@
+## Commitment (idea-repo)
+Deliver, to the standard a specialist would hold:
+1. `Brief` wiki page: question, idea, contribution, baselines, evaluation design (done; revised when the idea review or results require).
+2. `prior_work.md`: the sources, the closest methods and how the study relates to each (done; the report role turns it into Related Work and bib).
+3. Answer baseline questions from `experiment-repo` (which methods, which sources), answer `story-repo` / idea-review feedback by strengthening the idea, not narrowing it.
+4. If the main test (headroom on the real datasets) is negative or undecided, carry the direction until it decides, and make that answer and its reason the finding.

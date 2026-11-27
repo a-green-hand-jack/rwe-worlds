@@ -1,0 +1,16 @@
+# Review of the final offer: paper-repo#15 (main f72aee9 into final)
+
+Supersedes `final-v2-d0b1354.md` (#13, requested changes). Head f72aee9 = main; `built-from` of the main document is f72aee9.
+Against the approved Version 2 (3f15b47) only `code/README.md` changed (+24 -2); paper sources, results and figtab are byte-identical.
+
+## The must of #13: resolved
+`code/README.md` now has "Figures and tables of the paper": the `figtab/build_all.sh` command (results dir, ANALYSIS_COMMIT), and a table from each printed item (Figures 1-5, Tables 1-7) to the figtab file, module, input result files and the step that writes them.
+Checked by script, row by row: every figtab file exists with its sidecar; every input listed under `results/` exists and appears in the sidecar's inputs, and the sidecar lists no other csv/json; every named module and `code/*.py` exists. The numbering matches the printed captions (Table 1 primary contrast, Table 2 coverage, Table 3 k* table, Tables 4-5 inference rules, Table 6 Open LLM Leaderboard, Table 7 k* rule; Figure 3 scope, Figure 4 structure, Figure 5 estimation term) and the order of the `\input`s in `paper/appendix.tex`.
+Steps 8 and 18 now name the aggregation commands that make `table3_pipelines_ct.csv`, `olb/ct_*` and `olb/inner_*`.
+
+## Whole objective at final
+Paper with all required sections, NeurIPS 2026 template, checklist filled, main text 9 pages; real public matrices (MTEB primary, Open LLM Leaderboard second) with baselines, bootstrap intervals, theory checked against synthetic and real measurement; code with environment, data commits, seed, commands, times and the figure/table map; limitations and negative findings (unexplained floor factor 2.5, heuristic OLB families, small T and S subsets) stated. Numbers matched to `results/` at Version 2 and the delivery has not changed since.
+No access to the withheld paper is recorded or apparent.
+
+## Decision
+Approve. Open may findings: none.

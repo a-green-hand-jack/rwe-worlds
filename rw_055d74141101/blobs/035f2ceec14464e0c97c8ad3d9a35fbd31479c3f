@@ -1,0 +1,8 @@
+# Review of version 1 (paper-repo#11) at 365e0e8: approved
+
+Built document: `document/main`, built-from 365e0e8a3e3d, 29 pages.
+
+- The citation now reads "Huang et al., 2025", and the reference-list entry has the name. This closes the one open `must` from 9376bc1.
+- The change from 9376bc1 touches the abstract, the introduction and §4.3. These now say that the count per unit of separation follows the reference, as the first-order identity makes largely expected, and that the design shows in the bootstrap/model-based interval ratio. That matches the positive control in Appendix C, which shows Δ does not respond to departures. I checked it against `results/positive_control.csv` and the 1.30 and 0.83 ratios.
+- Earlier musts 1 (closest prior work stated, starter item 8 unread by choice) and 2 (abstract and introduction in plain words) stay closed.
+- `may` findings, carried to `final`: lead Section 4 with the informative results; the stale "provisional" line in `results/README.md`; report the Arena-55k positive-control cells as completed, or keep them labelled incomplete.

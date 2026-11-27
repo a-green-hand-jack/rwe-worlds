@@ -1,0 +1,252 @@
+{
+  "analysis_commit": "66252a8",
+  "figure": "figtab/fig4_scope_map.pdf",
+  "holdout_source": "ct_kstar.csv (epsilon_name frac_0.25, frac_0.5 = that fraction of the subset's mean floor RMSE), subset fixed; floor = ct_curves.csv floor_raw, S6+P5, k=109",
+  "inputs": [
+    {
+      "path": "results/ct_kstar.csv",
+      "sha256": "6d0b99469087ef97c84a3cb110b13097b41ce8c81fc05849f7fbd80b879c1f4c"
+    },
+    {
+      "path": "results/ct_curves.csv",
+      "sha256": "27bb53a8af520ef897a78082d20f92e2740e8ddc528ea9fbabe78522dfaa9fcc"
+    },
+    {
+      "path": "results/scope_ct_kstar.csv",
+      "sha256": "d8c0e02d2f2f35b04c16de0576ebf91764030277726ac901cc5f755868b6e618"
+    },
+    {
+      "path": "results/scope_ct_curves.csv",
+      "sha256": "1c9d79d3c6abc8f834d5207dd4d9a0b72a29f94f8687cb40ec396192482bf895"
+    },
+    {
+      "path": "results/ladder/ladder_placement.json",
+      "sha256": "8b2ed825a0637156349c7861591b31aff5d6cd486d469370c892000a8bc9fef4"
+    },
+    {
+      "path": "results/olb/ct_kstar.csv",
+      "sha256": "121366464ef53a9b79dc8df131456b499b0cd6768f3f5f4ef8b26f9e24b28fb9"
+    },
+    {
+      "path": "results/olb/ct_curves.csv",
+      "sha256": "4f786829138d22ad1b2baba4a64d7db565a8a354601706b56437ca8ead27eadb"
+    }
+  ],
+  "ladder_n_seeds": 20,
+  "ladder_placed_on": "outside the ladder",
+  "olb_source": "olb/ct_kstar.csv (frac_0.25, frac_0.5), olb/ct_curves.csv floor_raw S6+P5; k grid 1,2,3,5,8,13 (N=39), 9999 = not reached",
+  "rows": [
+    {
+      "floor": 5.061014535914443,
+      "k_star_0.25_floor": [
+        32.0,
+        20.0,
+        50.0
+      ],
+      "k_star_0.5_floor": [
+        3.0,
+        3.0,
+        5.0
+      ],
+      "label": "held-out groups (G), 154 models",
+      "unit": "pts"
+    },
+    {
+      "floor": 7.553059768945922,
+      "k_star_0.25_floor": [
+        20.0,
+        5.0,
+        20.0
+      ],
+      "k_star_0.5_floor": [
+        2.0,
+        1.0,
+        3.0
+      ],
+      "label": "strongest quarter held out (S), 22 models",
+      "unit": "pts"
+    },
+    {
+      "floor": 10.013638804756006,
+      "k_star_0.25_floor": [
+        1.0,
+        1.0,
+        2.0
+      ],
+      "k_star_0.5_floor": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "label": "newest models held out (T), 13 models",
+      "unit": "pts"
+    },
+    {
+      "floor": 4.824815119849848,
+      "k_star_0.25_floor": [
+        3.0,
+        3.0,
+        3.0
+      ],
+      "k_star_0.5_floor": [
+        2.0,
+        1.0,
+        2.0
+      ],
+      "label": "Open LLM: families (G), 4,507 models",
+      "unit": "pts"
+    },
+    {
+      "floor": 7.147874392332489,
+      "k_star_0.25_floor": [
+        5.0,
+        3.0,
+        8.0
+      ],
+      "k_star_0.5_floor": [
+        2.0,
+        2.0,
+        2.0
+      ],
+      "label": "Open LLM: strongest (S), 1,127 models",
+      "unit": "pts"
+    },
+    {
+      "floor": 5.271458618312494,
+      "k_star_0.25_floor": [
+        32.0,
+        12.0,
+        32.0
+      ],
+      "k_star_0.5_floor": [
+        3.0,
+        2.0,
+        5.0
+      ],
+      "label": "reference (all data)",
+      "unit": "pts"
+    },
+    {
+      "floor": 5.843509580896099,
+      "k_star_0.25_floor": [
+        20.0,
+        5.0,
+        32.0
+      ],
+      "k_star_0.5_floor": [
+        2.0,
+        2.0,
+        3.0
+      ],
+      "label": "50% of training models",
+      "unit": "pts"
+    },
+    {
+      "floor": 6.776484797110811,
+      "k_star_0.25_floor": [
+        5.0,
+        3.0,
+        5.0
+      ],
+      "k_star_0.5_floor": [
+        2.0,
+        2.0,
+        3.0
+      ],
+      "label": "25% of training models",
+      "unit": "pts"
+    },
+    {
+      "floor": 5.965138309637739,
+      "k_star_0.25_floor": [
+        8.0,
+        5.0,
+        8.0
+      ],
+      "k_star_0.5_floor": [
+        2.0,
+        2.0,
+        2.0
+      ],
+      "label": "70% of training cells",
+      "unit": "pts"
+    },
+    {
+      "floor": 6.072305734697651,
+      "k_star_0.25_floor": [
+        5.0,
+        5.0,
+        8.0
+      ],
+      "k_star_0.5_floor": [
+        2.0,
+        2.0,
+        2.0
+      ],
+      "label": "50% of training cells",
+      "unit": "pts"
+    },
+    {
+      "floor": 7.043320432698615,
+      "k_star_0.25_floor": [
+        3.0,
+        3.0,
+        3.0
+      ],
+      "k_star_0.5_floor": [
+        1.0,
+        1.0,
+        2.0
+      ],
+      "label": "30% of training cells",
+      "unit": "pts"
+    },
+    {
+      "floor": 0.3786766550945219,
+      "k_star_0.25_floor": [
+        20.0,
+        12.0,
+        20.0
+      ],
+      "k_star_0.5_floor": [
+        2.0,
+        2.0,
+        3.0
+      ],
+      "label": "logit-transformed scores",
+      "unit": "logit"
+    },
+    {
+      "floor": 6.047014908408221,
+      "k_star_0.25_floor": [
+        5.0,
+        3.0,
+        8.0
+      ],
+      "k_star_0.5_floor": [
+        2.0,
+        1.0,
+        3.0
+      ],
+      "label": "75-benchmark task suite",
+      "unit": "pts"
+    },
+    {
+      "floor": 4.655908290142169,
+      "k_star_0.25_floor": [
+        2.0,
+        1.0,
+        3.0
+      ],
+      "k_star_0.5_floor": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "label": "10 task types as benchmarks",
+      "unit": "pts"
+    }
+  ],
+  "script": "figtab/make_fig4.py",
+  "sweep_source": "scope_ct_kstar.csv, scope_ct_curves.csv (G folds 0-3, 20 splits, 67 models); k grid ends at 32 (the 10-task-type condition: 1, 2, 3, 5); 9999 = not reached"
+}

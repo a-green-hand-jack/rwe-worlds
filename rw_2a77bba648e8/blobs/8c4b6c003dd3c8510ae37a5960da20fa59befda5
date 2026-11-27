@@ -1,0 +1,80 @@
+"""Why the fitted-shape oracle `or_fit` is worse than DM at the core cell (question on the figure inputs, item 3).
+    python analysis/or_fit_check.py OUT.csv [G] [R]
+Re-simulates the core SBM cell (n = 3000, p = 0.5, iid baseline, s = 0.5, in-run noise 0.5, same code as the frozen runs, fresh seed) for d = 5, 20, 80 with
+`gate.sim.fit_profile` wrapped to record, in every assignment, the SSE and the estimate at every grid value of the shape parameter. Writes, per mechanism (c: kappa, e: rho; (d) is
+identical to or_known because the grid contains the true theta) and d: RMSE/bias/SD of or_known and or_fit, the share of draws whose selected grid value is an end point of the usable grid (for rho the lowest usable value is 0.1: rho = 0 makes the feature equal to z),
+the RMSE of the estimator with the shape parameter held fixed at each grid value, and the mean absolute SSE range across the grid relative to the noise-free baseline-plus-noise variance."""
+import os
+import sys
+
+import numpy as np
+import pandas as pd
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+from gate import mech, sim  # noqa: E402
+
+KAP = [0.5, 1, 2, 3, 4, 6, 8]
+RHO = list(np.arange(0, 0.86, 0.1))
+rec = []
+
+
+def fit_profile_rec(y, z, grids, dx_fn):
+    best, bt, bi = np.inf, np.nan, -1
+    yc, zc = y - y.mean(), z - z.mean()
+    out = []
+    for i, (phik, dxk) in enumerate(grids):
+        pc = phik - phik.mean()
+        X = np.stack([zc, pc], 1)
+        b = sim.pinv_sym(X.T @ X) @ (X.T @ yc)
+        r = yc - X @ b
+        sse = r @ r
+        out.append((sse, b[0] + b[1] * dxk))
+        if sse < best:
+            best, bt, bi = sse, b[0] + b[1] * dxk, i
+    rec.append((bi, out))
+    return bt
+
+
+def one(d, G, R, seed):
+    rec.clear()
+    sim.fit_profile = fit_profile_rec
+    o = sim.run_config(dict(id=f"orfit_d{d}", seed=seed, family="SBM", n=3000, d=d, p=0.5, base="iid", G=G, R=R, B=0))
+    NR = G * R
+    oc = [j for j, (m, s) in enumerate(mech.COLS) if m in "cde"]
+    tau = np.repeat(o["tau"], R, axis=0)
+    sd = np.repeat(o["sd"], R, axis=0)
+    rows = []
+    for m, grid in (("c", KAP), ("e", RHO)):
+        j = mech.COLS.index((m, 0.5))
+        k = oc.index(j)
+        sel = np.array([rec[r * len(oc) + k][0] for r in range(NR)])
+        fixed = np.array([[rec[r * len(oc) + k][1][i][1] for i in range(len(grid))] for r in range(NR)])
+        sse = np.array([[rec[r * len(oc) + k][1][i][0] for i in range(len(grid))] for r in range(NR)])
+        ef = (o["or_fit"][:, j] - tau[:, j]) / tau[:, j]
+        e = sim.EI["or_known"]
+        ek = ((o["sig"][:, e, j] + sim.NOISE_M * sd[:, j] * o["nz"][:, e, j]) - tau[:, j]) / tau[:, j]
+        dm = sim.EI["dm"]
+        edm = ((o["sig"][:, dm, j] + sim.NOISE_M * sd[:, j] * o["nz"][:, dm, j]) - tau[:, j]) / tau[:, j]
+        lo = 1 if m == "e" else 0       # rho = 0 makes the feature equal to z (degenerate: never selected); the lowest usable value is 0.1
+        fx = (fixed - tau[:, j][:, None]) / tau[:, j][:, None]
+        rows.append(dict(mechanism=m, d=d, parameter="kappa" if m == "c" else "rho", true_value=mech.KAPPA if m == "c" else 0.5, n_draws=NR, graph_draws=G,
+                         rmse_dm=float(np.sqrt((edm ** 2).mean())), rmse_or_known=float(np.sqrt((ek ** 2).mean())), rmse_or_fit=float(np.sqrt((ef ** 2).mean())),
+                         bias_or_fit=float(ef.mean()), sd_or_fit=float(ef.std()), sd_or_known=float(ek.std()),
+                         share_selected_at_grid_end=float(((sel == lo) | (sel == len(grid) - 1)).mean()),
+                         share_selected_lowest=float((sel == lo).mean()), share_selected_highest=float((sel == len(grid) - 1).mean()),
+                         grid="; ".join(f"{x:.2f}" for x in grid), rmse_fixed_parameter_by_grid_value="; ".join(f"{np.sqrt((fx[:, i] ** 2).mean()):.3f}" for i in range(len(grid))),
+                         median_sse_range_over_grid_relative_to_min=float(np.median((sse.max(1) - sse.min(1)) / sse.min(1)))))
+    return rows
+
+
+def main(out, G=4, R=300):
+    rows = []
+    for d in (5, 20, 80):
+        rows += one(d, int(G), int(R), 20261128)
+        print("or_fit check d =", d, flush=True)
+    pd.DataFrame(rows).to_csv(out, index=False)
+    print(pd.DataFrame(rows).drop(columns=["grid", "rmse_fixed_parameter_by_grid_value"]).to_string())
+
+
+if __name__ == "__main__":
+    main(*sys.argv[1:])

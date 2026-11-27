@@ -1,0 +1,45 @@
+"""Table 4: the training-side k*(eps) rule (Deviation 4a) against the measured k*, on MTEB (G, T, S) and the Open LLM Leaderboard (G, S).
+
+usage: python3 -m figtab.make_table_ksrule RESULTS_DIR OUT_DIR     (repo root as cwd)
+Every number is read from RESULTS_DIR/inner_kstar.csv (MTEB) and RESULTS_DIR/olb/inner_kstar.csv (Open LLM); none is typed here.
+Each cell is  khat [lo, hi] / k*  (khat: the rule, from the training models only, with the 90% interval over resamples of the
+training side; k*: the measured value on the held-out models); a dagger marks a measured k* outside the interval of khat.
+9999 = not reached on the grid (> 109 on MTEB, > 13 on Open LLM).
+"""
+import sys, pathlib
+import pandas as pd
+from figtab import provenance
+
+res = pathlib.Path(sys.argv[1]); out = pathlib.Path(sys.argv[2]); out.mkdir(exist_ok=True)
+HEAD = "\\begingroup\\scriptsize\\setlength{\\tabcolsep}{3pt}\n"
+TAIL = "\\endgroup\n"
+SRC = [("MTEB", pd.read_csv(res / "inner_kstar.csv"), 109), ("Open LLM", pd.read_csv(res / "olb/inner_kstar.csv"), 13)]
+COLS = [("MTEB", "G"), ("MTEB", "T"), ("MTEB", "S"), ("Open LLM", "G"), ("Open LLM", "S")]
+ROWS = [("eps_0.25", "0.25 pt"), ("eps_0.5", "0.5 pt"), ("eps_1.0", "1 pt"), ("eps_1.5", "1.5 pt"), ("eps_2.0", "2 pt"), ("eps_3.0", "3 pt"),
+        ("delta_floor", "$\\delta_{\\text{floor}}$"), ("2delta_floor", "$2\\delta_{\\text{floor}}$")]
+data = {name: (d, kmax) for name, d, kmax in SRC}
+
+
+def kk(x, kmax): return f"$>${kmax}" if x >= 9999 else f"{int(round(x))}"
+
+
+def cell(name, sp, eps):
+    d, kmax = data[name]
+    r = d[(d.split == sp) & (d.epsilon_name == eps)].iloc[0]
+    hat = kk(r.k_hat, kmax) if r.k_hat_lo == r.k_hat_hi else f"{kk(r.k_hat, kmax)} [{kk(r.k_hat_lo, kmax)}, {kk(r.k_hat_hi, kmax)}]"
+    dag = "" if bool(r.k_emp_in_hat_ci) else "$^{\\dagger}$"
+    return f"{hat} / {kk(r.k_emp, kmax)}{dag}"
+
+
+L = [HEAD, "\\begin{tabular*}{\\linewidth}{@{\\extracolsep{\\fill}}l" + "l" * len(COLS) + "@{}}\\toprule\n"]
+L.append(" & \\multicolumn{3}{c}{MTEB} & \\multicolumn{2}{c}{Open LLM} \\\\\\cmidrule(lr){2-4}\\cmidrule(l){5-6}\n")
+L.append("$\\epsilon$ & G & T & S & G & S \\\\\\midrule\n")
+for eps, lab in ROWS:
+    L.append(f"{lab} & " + " & ".join(cell(n, s, eps) for n, s in COLS) + " \\\\\n")
+L.append("\\bottomrule\\end{tabular*}\n"); L.append(TAIL)
+(out / "tab4_ksrule.tex").write_text("".join(L))
+provenance.write(out / "tab4_ksrule.tex", [res / "inner_kstar.csv", res / "olb/inner_kstar.csv"],
+                 {"script": "figtab/make_table_ksrule.py",
+                  "note": "cell = khat [90% interval] / measured k*; dagger = measured k* outside the interval of khat; grid values, 9999 = not reached (>109 MTEB, >13 Open LLM); "
+                          "delta_floor rows: epsilon differs by split (MTEB 1.17, 1.09, 1.06; Open LLM 1.20, 1.20 points)"},
+                 root=res)

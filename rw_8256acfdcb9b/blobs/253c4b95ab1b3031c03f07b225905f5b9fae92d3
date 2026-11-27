@@ -1,0 +1,50 @@
+"""Decision-level metrics. All take an exact/reference vector phi* and estimated vectors."""
+import numpy as np
+
+
+def topk_set(phi, k):
+    return frozenset(np.argsort(-np.abs(phi), kind="stable")[:k].tolist())
+
+
+def topk_mask(phi, k):
+    """boolean membership of top-k by |phi|, rows = vectors."""
+    a = np.abs(np.atleast_2d(phi))
+    order = np.argsort(-a, 1, kind="stable")[:, :k]
+    m = np.zeros(a.shape, bool)
+    np.put_along_axis(m, order, True, 1)
+    return m
+
+
+def margin(phi, k):
+    a = np.sort(np.abs(phi))[::-1]
+    return (a[k - 1] - a[k]) / a[0] if a[0] > 0 else 0.0
+
+
+def correct_exact(est, ref, k):
+    """per-run indicator: top-k set of est equals that of ref. est (R,d)."""
+    return (topk_mask(est, k) == topk_mask(ref, k)).all(1)
+
+
+def tol_group(ref, k, eps=0.05):
+    """Boundary tau = midpoint of the k-th and (k+1)-th largest exact |phi|; tolerance group G = features with
+    ||phi_i| - tau| <= eps*max|phi|. Returns (sure_in, sure_out, n_extra) with n_extra = |G| minus the boundary pair
+    (the two features that define the boundary), i.e. features beyond the boundary pair inside the tolerance band."""
+    a = np.abs(ref)
+    order = np.argsort(-a, kind="stable")
+    hi, lo = a[order[k - 1]], a[order[k]]
+    tau, tol = 0.5 * (hi + lo), eps * a.max()
+    sure_in = a > tau + tol
+    sure_out = a < tau - tol
+    group = ~(sure_in | sure_out)
+    pair = np.zeros(len(a), bool)
+    pair[order[[k - 1, k]]] = True
+    return sure_in, sure_out, int((group & ~pair).sum())
+
+
+def correct_tol(est, ref, k, eps=0.05):
+    """Tolerance-aware correctness: the run's top-k set equals the exact one up to swaps inside the tolerance
+    group. est (R,d). Returns (indicator (R,), n_extra)."""
+    sure_in, sure_out, n_extra = tol_group(ref, k, eps)
+    em = topk_mask(est, k)
+    ok = em[:, sure_in].all(1) & (~em[:, sure_out]).all(1)
+    return ok, n_extra

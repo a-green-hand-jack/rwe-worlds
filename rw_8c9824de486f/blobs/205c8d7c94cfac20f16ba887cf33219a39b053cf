@@ -1,0 +1,38 @@
+"""T3 unit test: under the model with known parameters, an adaptive policy (choose the next benchmark from the posterior using
+the observed values) has the same expected squared error as the batch design, because the posterior covariance does not depend on y.
+Check (a) numerically: the greedy V-optimal sequence is the same for every realisation of y; (b) Monte-Carlo MSE of 'adaptive' vs 'batch'
+selection agree to Monte-Carlo error; (c) the closed-form T1 risk equals the empirical MSE.
+usage: python 11_unit_t3.py <out_json>"""
+import sys, os, json, numpy as np
+sys.path.insert(0, os.path.dirname(__file__))
+from fa import posterior_row, design_risk
+import select_rules as SR
+rng = np.random.default_rng(1)
+N, r, k = 60, 4, 6
+V = rng.standard_normal((N, r)); psi = rng.uniform(0.2, 1.0, N); mu = rng.standard_normal(N)
+truth = dict(V=V, psi=psi, mu=mu)
+batch = SR.s6_greedy(truth, np.arange(N), k)
+same = True
+for t in range(4000):
+    z = rng.standard_normal(r); y = mu + V @ z + rng.standard_normal(N) * np.sqrt(psi)
+    # adaptive policy: at each step recompute the greedy choice given the current posterior (it uses y only through the posterior mean, which does not enter the gain)
+    S = []
+    for _ in range(k):
+        cand = np.setdiff1d(np.arange(N), S)
+        A = V / np.sqrt(psi)[:, None]
+        P = np.eye(r) + A[S].T @ A[S] if S else np.eye(r)
+        Sig = np.linalg.inv(P); G = V.T @ V
+        SA = A[cand] @ Sig; den = 1 + np.einsum("jr,jr->j", SA, A[cand]); gain = np.einsum("jr,jr->j", SA @ G, SA) / den
+        S.append(int(cand[np.argmax(gain)]))
+    same &= (list(S) == list(batch))
+# (b)/(c): MC error of the batch design against the noisy observation y (includes psi) vs the closed form
+mse_b2 = []
+rng = np.random.default_rng(2)
+for t in range(4000):
+    z = rng.standard_normal(r); y = mu + V @ z + rng.standard_normal(N) * np.sqrt(psi)
+    T = np.setdiff1d(np.arange(N), batch)
+    zh, _ = posterior_row(truth, batch, y[batch]); mse_b2.append(np.mean((mu[T] + V[T] @ zh - y[T]) ** 2))
+res = dict(greedy_sequence_independent_of_y=bool(same), mc_mse_batch=float(np.mean(mse_b2)), t1_closed_form=float(np.mean(design_risk(truth, batch)[np.setdiff1d(np.arange(N), batch)])),
+           mc_se=float(np.std(mse_b2) / np.sqrt(len(mse_b2))))
+res["abs_diff_closed_form_vs_mc"] = abs(res["mc_mse_batch"] - res["t1_closed_form"]); res["pass"] = bool(res["greedy_sequence_independent_of_y"] and res["abs_diff_closed_form_vs_mc"] < 4 * res["mc_se"])
+json.dump(res, open(sys.argv[1], "w"), indent=1); print(res)

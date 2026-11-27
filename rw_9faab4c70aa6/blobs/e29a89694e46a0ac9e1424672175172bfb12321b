@@ -1,0 +1,80 @@
+"""Fig 4 (C5): reporting protocols at equal total item budget N_tot (search + report together).
+One row per protocol; (a) point report: P(report > true accuracy of the deployed config), 0.5 = calibrated;
+(b) one-sided 95% lower bound: coverage (nominal 0.95); (c) its mean width (true accuracy - bound).
+Cell: random search with B evaluated configs, N_tot items. Filled diamond = real pool (pool-bootstrap interval, anti-conservative
+score; the tick is the conservative score of the same cell); open circle = synthetic worlds with sigma_theta 0 (world-spread-t interval).
+usage: python figures/src/fig4.py RESULTS_DIR OUT.pdf [--ntot 120] [--B 100]"""
+import sys
+import matplotlib.pyplot as plt
+sys.path.insert(0, __file__.rsplit("/", 1)[0])
+import figstyle as fs
+
+# (protocol key, label, colour role); None = group gap
+ROWS = [("naive", "naive (on $S$)", "reported"), ("boot632", ".632 bootstrap", "reported"), ("optimism_bootstrap", "optimism bootstrap", "reported"),
+        ("crossfit", "cross-fit", "bound"), None,
+        ("split20", "split, 20% report", "fresh"), ("split50", "split, 50% report", "fresh"), None,
+        ("maxt[declared]", "max-$t$, declared set", "bound"), ("maxt[evaluated]", "max-$t$, evaluated set", "bound"),
+        ("pointwise_lb", "pointwise (no correction)", "reported")]
+
+
+def main(rd, out, ntot=120, B=100.0):
+    sy = fs.load(rd, "protocols_synthetic"); re_ = fs.load(rd, "protocols_real")
+    cell = lambda p, sg: p[(p.searcher == "random") & (p.N_tot == ntot) & (p.B == B)] if sg is None else p[(p.searcher == "random") & (p.N_tot == ntot) & (p.B == B) & (p.sigma_theta == sg)]
+    sy, re_ = cell(sy, 0.0), cell(re_, None)
+    for nm, p in (("synthetic", sy), ("real", re_)):
+        print(f"Fig 4 data [{nm}]:", p.pool.iloc[0], "| truth:", p.truth.iloc[0], "| random search B =", B, "| N_tot =", ntot, "| worlds/pools =", int(p.n_boot_or_worlds.min()),
+              "| draws =", int(p.draws.min()), "| interval:", p.ci_kind.iloc[0], "| sigma_theta:", "pool" if nm == "real" else "0")
+    fs.apply(); c = fs.C
+    W, H = fs.VENUE["text_width_in"], fs.VENUE["max_height_in"]
+    fig = plt.figure(figsize=(W, H))
+    axs = [fig.add_axes([x, 0.19, w, 0.68]) for x, w in zip([0.255, 0.615, 0.805], [0.31, 0.155, 0.185])]
+    a, b, d = axs
+    ys = {}
+    for i, r in enumerate(ROWS):
+        if r: ys[r[0]] = -i
+    for ax in axs:
+        ax.set_ylim(-len(ROWS) + 0.4, 0.6); ax.tick_params(axis="y", length=0); ax.spines["left"].set_visible(False)
+        ax.set_yticks([])
+    a.set_yticks(list(ys.values())); a.set_yticklabels([r[1] for r in ROWS if r])
+    OFF = {"syn": 0.2, "real": -0.2}
+    for r in ROWS:
+        if not r: continue
+        key, lab, col = r
+        for arm, p in (("syn", sy), ("real", re_)):
+            q = p[p.protocol == key]
+            if q.empty: continue
+            q = q.iloc[0]; y = ys[key] + OFF[arm]
+            kw = dict(color=c[col], marker="o" if arm == "syn" else "D", ms=3.8 if arm == "syn" else 3.2, mfc="white" if arm == "syn" else c[col], ls="none")
+            tick = dict(color=c[col], marker="|", ms=5, mew=1.1, ls="none")
+            if q.overstate_prob == q.overstate_prob:
+                a.errorbar([q.overstate_prob], [y], xerr=[[max(q.overstate_prob - q.overstate_lo, 0)], [max(q.overstate_hi - q.overstate_prob, 0)]], capsize=1.5, elinewidth=0.8, **kw)
+                if arm == "real": a.plot([q.overstate_cons], [y], **tick)
+            if q.coverage == q.coverage:
+                b.errorbar([q.coverage], [y], xerr=[[max(q.coverage - q.cov_lo, 0)], [max(q.cov_hi - q.coverage, 0)]], capsize=1.5, elinewidth=0.8, **kw)
+                d.plot([q.width], [y], **kw)
+    cc = re_[re_.coverage.notna()].set_index("protocol")
+    sc = fs.load(rd, "bound_coverage_real"); sc = sc[(sc.searcher == "random") & (sc.N_tot == ntot) & (sc.B == B)].set_index("protocol")
+    for key, y in ys.items():
+        if key in sc.index:
+            b.plot([sc.loc[key, "coverage_cons"]], [y + OFF["real"]], color=c[[r for r in ROWS if r and r[0] == key][0][2]], marker="|", ms=5, mew=1.1, ls="none")
+    print("Fig 4 real pairs (anti-conservative | conservative): " + "; ".join(
+        [f"{k} P(rep>truth) {re_[re_.protocol == k].overstate_prob.iloc[0]:.3f}|{re_[re_.protocol == k].overstate_cons.iloc[0]:.3f}" for k in ("naive", "boot632", "optimism_bootstrap", "crossfit", "split20", "split50")]
+        + [f"{k} cov {sc.loc[k, 'coverage']:.3f}|{sc.loc[k, 'coverage_cons']:.3f}" for k in ("maxt[declared]", "maxt[evaluated]", "pointwise_lb", "split20", "split50") if k in sc.index]))
+    a.axvline(0.5, color=c["ink"], lw=0.7, ls="--"); a.set_xlim(0.28, 1.04); a.set_xticks([0.5, 0.75, 1.0]); a.set_xticklabels([".5", ".75", "1"])
+    b.axvline(0.95, color=c["ink"], lw=0.7, ls="--"); b.set_xlim(0, 1.05); b.set_xticks([0, 0.5, 0.95]); b.set_xticklabels(["0", ".5", ".95"])
+    d.axvline(0, color=c["ink"], lw=0.5); d.set_xlim(-0.04, 0.17); d.set_xticks([0, 0.05, 0.1, 0.15]); d.set_xticklabels(["0", ".05", ".10", ".15"])
+    a.set_xlabel("P(report > truth)"); b.set_xlabel("coverage"); d.set_xlabel("mean width")
+    for ax, t in zip(axs, ("(a) point reports", "(b) coverage", "(c) width")):
+        ax.set_title(t, fontsize=7.5, weight="bold", loc="left", pad=3)
+    for ax in axs:
+        ax.grid(axis="y", color=c["light"], lw=0.5); ax.set_axisbelow(True)
+    h = [plt.Line2D([], [], color=c["ink"], marker="D", ls="none", ms=3.2, label="real pool"),
+         plt.Line2D([], [], color=c["ink"], marker="|", ls="none", ms=5, mew=1.1, label="real, conserv. score"),
+         plt.Line2D([], [], color=c["ink"], marker="o", ls="none", ms=3.8, mfc="white", label=r"synthetic, $\sigma_\theta$=0")]
+    a.legend(handles=h, frameon=False, loc="lower left", bbox_to_anchor=(0.0, 0.0), fontsize=7, handletextpad=0.1, borderaxespad=0.1, labelspacing=0.2)
+    fig.savefig(out, bbox_inches=None, pad_inches=0)
+
+
+if __name__ == "__main__":
+    arg = lambda k, d: type(d)(sys.argv[sys.argv.index(k) + 1]) if k in sys.argv else d
+    main(sys.argv[1], sys.argv[2], arg("--ntot", 120), arg("--B", 100.0))

@@ -1,0 +1,65 @@
+"""A dspy language model backed by the study's own scorer (Qwen2.5-1.5B-Instruct, direct answer, letter log-probs).
+
+DSPy renders its own prompt (system description, few-shot turns, final user turn); this LM applies the Qwen chat template to those
+messages, appends the answer-field marker, and returns the highest-scoring valid option letter in DSPy's field format.  No sampling:
+the same prompt gives the same answer.  Every (program prefix, item) result is logged in `self.log` and memoised in `self.memo`
+(a deterministic function, so the memo changes cost only, not what the tool does).  The last prompt's key/value cache is reused for the
+longest common token prefix, so evaluating one program on many items pays for its demonstrations once.
+"""
+import re, hashlib, threading, types
+import numpy as np, torch, dspy
+
+LETTERS = "ABCDEFGHIJ"
+MARK = "[[ ## answer ## ]]\n"
+_OPT = re.compile(r"^\(?([A-J])[.)]", re.M)
+
+
+def _resp(text, n_in):
+    msg = types.SimpleNamespace(content=text, tool_calls=None)
+    return types.SimpleNamespace(choices=[types.SimpleNamespace(message=msg, finish_reason="stop", logprobs=None)],
+                                 usage=dict(prompt_tokens=n_in, completion_tokens=3, total_tokens=n_in + 3),
+                                 model="qwen2.5-1.5b-letter-scorer", _hidden_params={})
+
+
+class LetterLM(dspy.BaseLM):
+    def __init__(self, harness, item_ids):
+        super().__init__(model="qwen2.5-1.5b-letter-scorer", model_type="chat", cache=False, temperature=0.0, max_tokens=16)
+        self.h = harness; self.item_ids = item_ids     # item_ids: question text -> pool index (logging only)
+        self.memo, self.log, self.calls, self.lock = {}, [], 0, threading.Lock()
+        self._ids, self._kv = None, None
+        self.letter_ids = harness.letter_ids[:, 0]; self.letter_ids2 = harness.letter_ids[:, 1]
+
+    def _score(self, ids):
+        m = self.h.model
+        with torch.no_grad():
+            lcp = 0
+            if self._ids is not None:
+                n = min(len(ids) - 1, len(self._ids)); a, b = np.asarray(ids[:n]), np.asarray(self._ids[:n])
+                neq = np.nonzero(a != b)[0]; lcp = int(neq[0]) if len(neq) else n
+            if lcp == 0 or self._kv is None: kv = None; lcp = 0
+            else:
+                kv = self._kv
+                if len(self._ids) > lcp: kv.crop(lcp - len(self._ids))   # negative = number of tokens to drop
+            out = m(torch.tensor([ids[lcp:]]), past_key_values=kv, use_cache=True)
+            self._ids, self._kv = list(ids), out.past_key_values
+            lp = torch.log_softmax(out.logits[0, -1].float(), -1)
+            return torch.logsumexp(torch.stack([lp[self.letter_ids], lp[self.letter_ids2]], -1), -1).numpy()
+
+    def forward(self, prompt=None, messages=None, **kw):
+        with self.lock:
+            last = messages[-1]["content"]
+            nopt = len(set(_OPT.findall(last))); assert nopt >= 2
+            key = (hashlib.md5(repr(messages[:-1]).encode()).hexdigest()[:12], last)
+            self.calls += 1
+            if key not in self.memo:
+                text = self.h.tok.apply_chat_template(messages, tokenize=False, add_generation_prompt=True) + MARK
+                ids = self.h.enc(text)
+                self.memo[key] = self._score(ids)
+                self.log.append((key[0], self._item(last), self.memo[key][:nopt].astype(np.float32)))
+            lp = self.memo[key][:nopt]; k = int(np.argmax(lp))
+        return _resp(f"{MARK}{LETTERS[k]}\n\n[[ ## completed ## ]]", 0)
+
+    def _item(self, last):
+        for q, i in self.item_ids.items():
+            if q in last: return i
+        return -1

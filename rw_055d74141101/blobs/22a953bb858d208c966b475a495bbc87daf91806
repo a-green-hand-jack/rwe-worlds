@@ -1,0 +1,18 @@
+"""Table 1: datasets (design, N, models, density, tie rate, clusters). Replicate families (NBA seasons, LLM judges) are one row with ranges."""
+import os, re
+from style import short_name
+from common import args, load, write_table, tex_escape as E, fmt
+a = args("tab1"); os.makedirs(a.out, exist_ok=True); prov = {"inputs": {}}
+src = "datasets.csv" if os.path.exists(os.path.join(a.data, "datasets.csv")) else "datasets_computed.csv"   # datasets.csv adds cluster unit and version
+df = load(a.data, src, ["dataset", "design", "N", "n_models", "density", "tie_rate"], prov)
+has_cu = "cluster_unit" in df
+if "version" in df: prov["versions"] = {g: sorted(map(str, x.version.unique())) for g, x in df.groupby("design")}
+df["grp"] = df.dataset.map(lambda s: "nba" if s.startswith("nba_") else ("arena_judge" if s.startswith("arena_judge_") else s))
+rng = lambda s, f: f(s.min()) if s.min() == s.max() else f(s.min()) + "--" + f(s.max())
+rows = []
+for g, x in df.groupby("grp", sort=False):
+    name = E(short_name(g)) if len(x) == 1 else {"nba": f"NBA seasons ({len(x)})", "arena_judge": f"Arena LLM judges ({len(x)})"}.get(g, f"{E(g)} ({len(x)})")
+    rows.append([name, E(x.design.iloc[0]), rng(x.N, lambda v: f"{int(v):,}".replace(",", r"\,")), rng(x.n_models, lambda v: str(int(v))),
+                 rng(x.density, lambda v: fmt(v, 2)), rng(x.tie_rate, lambda v: fmt(v, 2))] + ([E("; ".join(sorted(x.cluster_unit.unique())))] if has_cu else []))
+prov["rows_grouped"] = {"datasets": len(df), "table_rows": len(rows)}
+write_table(a.out, "tab1", ["dataset (count)", "design", "$N$", "models", "density", "tie rate"] + (["cluster unit"] if has_cu else []), rows, "llrrrr" + ("l" if has_cu else ""), prov, tabcolsep=3.5)

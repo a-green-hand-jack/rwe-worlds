@@ -1,0 +1,40 @@
+"""Fig. 3 : signed error vs the target's position relative to the source scores.
+usage: python3 figures/scripts/fig3_bias_by_score.py CODE_DIR OUT_PDF
+Source: results/bias_bands.csv (n = 100). Position = (true score - mean source score) / sd of source scores. Per bin:
+mean signed error pooled over the non-thin benchmarks with targets in the bin (target-weighted) and its 95 % family-bootstrap
+interval (analysis, scripts/05_bands.py). Bins with fewer than MIN_BENCH benchmarks or MIN_K targets are not drawn."""
+import sys
+import matplotlib.pyplot as plt
+import numpy as np
+sys.path.insert(0, __file__.rsplit("/", 1)[0])
+import style, common
+
+style.apply()
+R = common.Results(sys.argv[1])
+bs = R.csv("bias_bands.csv"); bs = bs[bs.n == 100]
+MIN_BENCH, MIN_K = 5, 30
+bs = bs[(bs.n_bench >= MIN_BENCH) & (bs.k >= MIN_K)]
+LABELS = ["<-1sd", "-1..0", "0..1", "1..2", "2..3", ">3sd"]
+XT = ["<−1", "−1–0", "0–1", "1–2", "2–3", ">3"]
+shown = R.shown(bs.method.unique())
+fig, axs = plt.subplots(1, 2, figsize=(style.TEXT_WIDTH_IN, 2.65), sharey=True)
+for ax, sp in zip(axs, ["interp", "extrap"]):
+    d = bs[bs.split == sp]
+    for m, c in shown:
+        g = d[d.method == m]
+        if g.empty:
+            continue
+        g = g.set_index("pos_bin").reindex(LABELS)
+        x = np.arange(len(LABELS)); st = style.CLASS_STYLE[c]; ok = g.bias.notna().values
+        ax.fill_between(x[ok], 100 * g.ci_lo.values[ok], 100 * g.ci_hi.values[ok], color=st["color"], alpha=0.18, lw=0)
+        ax.plot(x[ok], 100 * g.bias.values[ok], color=st["color"], marker=st["marker"], ls=st["ls"], label=common.label(m))
+    ax.axhline(0, color="0.5", lw=0.6)
+    ax.set_xlim(-0.45, len(LABELS) - 0.55)
+    ax.set_xticks(range(len(LABELS))); ax.set_xticklabels(XT)
+    ax.set_xlabel("target score, sd above source mean")
+    ax.set_title(common.SPLIT_LABEL[sp], loc="left")
+axs[0].set_ylabel("signed error, points (pred − true)")
+h, l = axs[0].get_legend_handles_labels()
+fig.subplots_adjust(left=0.1, right=0.99, top=0.91, bottom=0.41, wspace=0.05)
+fig.legend(h, l, loc="lower center", ncol=4, bbox_to_anchor=(0.5, 0.0), handlelength=2.2, columnspacing=1.2, labelspacing=0.3)
+plt.rcParams["savefig.bbox"] = "standard"; fig.savefig(sys.argv[2])

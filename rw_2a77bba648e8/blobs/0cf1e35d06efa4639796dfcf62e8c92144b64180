@@ -1,0 +1,127 @@
+"""Fig 1 (C4): where the Chin regression beats or loses to difference in means (DM).
+A: log2(RMSE_Chin / RMSE_DM) over (spillover share s, mechanism) on the fine s grid of the core SBM
+   (n=3000, d=20, p=1/2, sigma=0.5), then the two real graphs on their s grid {.25,.5,.75}.
+   Blue = regression better, orange = DM better; a dot marks a cell whose paired CI contains 0.
+B: break-even share s* (smallest s from which the regression has the lower RMSE) against mean degree d, one
+   line per mechanism, one panel per noise multiple sigma = 0.25, 0.5, 1 (core SBM, p=1/2), with CIs.
+Input: cells.parquet, ratios.parquet, claims/c4_breakeven.csv from the analysis results.
+Usage: fig1_regime_map.py RESULTS_DIR OUT_DIR [--sigma 0.5]
+"""
+import argparse
+import pathlib
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm
+
+import common
+import style
+
+ap = argparse.ArgumentParser()
+ap.add_argument("data"); ap.add_argument("out")
+ap.add_argument("--sigma", type=float, default=0.5)
+a = ap.parse_args()
+style.apply()
+rat, meta = common.load(a.data, "ratios")
+be = pd.read_csv(pathlib.Path(a.data) / "claims" / "c4_breakeven.csv")
+M = list("abcdef")
+rat = rat[(rat.estimator == "Chin") & np.isclose(rat.sigma, a.sigma)].copy()
+rat["log2"] = rat.log_ratio / np.log(2)
+rat["log2_lo"] = rat.log_ratio_lo / np.log(2); rat["log2_hi"] = rat.log_ratio_hi / np.log(2)
+
+# columns of panel A: null column (s=0), SBM fine grid, gap, Stanford3, gap, ego-Facebook
+blocks = [("SBM", "fine_SBM_n3000_d20_p0.5", [0.0] + [round(0.1 * k, 1) for k in range(1, 10)]),
+          ("Stanford3", "real_Stanford3_d20_p0.5", [0.25, 0.5, 0.75]),
+          ("ego-Facebook", "real_ego-Facebook_d20_p0.5", [0.25, 0.5, 0.75])]
+cols = []  # (block, run_id, s) or None for a gap
+for i, (g, rid, ss) in enumerate(blocks):
+    if i:
+        cols.append(None)
+    cols += [(g, rid, s) for s in ss]
+Z = np.full((len(M), len(cols)), np.nan); LO = Z.copy(); HI = Z.copy()
+for j, c in enumerate(cols):
+    if c is None:
+        continue
+    _, rid, s = c
+    for i, m in enumerate(M):
+        r = rat[(rat.run_id == rid) & (rat.mechanism == (m if s > 0 else "0")) & np.isclose(rat.s, s)]
+        assert len(r) == 1, (rid, m, s, len(r))
+        Z[i, j], LO[i, j], HI[i, j] = r.log2.iloc[0], r.log2_lo.iloc[0], r.log2_hi.iloc[0]
+
+fig = plt.figure(figsize=(style.TEXTWIDTH, 3.55))
+gs = fig.add_gridspec(2, 1, height_ratios=[1.85, 1.45], hspace=0.7)
+g0 = gs[0].subgridspec(1, 2, width_ratios=[1, 0.025], wspace=0.04)
+ax, cax = fig.add_subplot(g0[0]), fig.add_subplot(g0[1])
+g1 = gs[1].subgridspec(1, 3, wspace=0.12)
+bxs = [fig.add_subplot(g1[k]) for k in range(3)]
+lim = np.ceil(np.nanmax(np.abs(Z)))
+cmap = LinearSegmentedColormap.from_list("d", ["#0072B2", "#F2F2F2", "#D55E00"])
+im = ax.imshow(Z, cmap=cmap, norm=TwoSlopeNorm(0, -lim, lim), aspect="auto", interpolation="nearest")
+for i in range(len(M)):
+    for j, c in enumerate(cols):
+        if c is None or not np.isfinite(Z[i, j]):
+            continue
+        if LO[i, j] <= 0 <= HI[i, j]:
+            ax.plot(j + 0.36, i - 0.3, marker="o", ms=1.8, color="k", mew=0)
+        ax.text(j, i, f"{Z[i, j]:.1f}", ha="center", va="center", fontsize=style.MIN_PT,
+                color="white" if abs(Z[i, j]) > 0.62 * lim else "black")
+ax.set_xticks([j for j, c in enumerate(cols) if c is not None])
+ax.set_xticklabels([f"{c[2]:g}" for c in cols if c is not None])
+ax.tick_params(axis="x", length=2, pad=1.5)
+ax.set_yticks(range(len(M))); ax.set_yticklabels(M); ax.grid(False)
+ax.set_xlabel("spillover share $s$", labelpad=11); ax.set_ylabel("mechanism")
+for g, x0, x1 in [("core SBM, $d=20$ (null column at $s=0$)", 0, 9), ("Stanford3", 11, 13), ("ego-Facebook", 15, 17)]:
+    ax.annotate(g, xy=((x0 + x1) / 2, len(M) - 0.5), xytext=(0, -13), textcoords="offset points",
+                ha="center", va="top", annotation_clip=False, fontsize=style.MIN_PT)
+ax.annotate("", xy=(0, 0), xytext=(0, 0))
+for j, c in enumerate(cols):
+    if c is None:
+        ax.axvspan(j - 0.5, j + 0.5, color="white", zorder=3)
+ax.spines[:].set_visible(False)
+cb = fig.colorbar(im, cax=cax); cb.outline.set_linewidth(0.4)
+ticks = np.arange(-lim, lim + 1, 1)
+cb.set_ticks(ticks); cb.set_ticklabels([f"{t:g}".replace("-", "\u2212") for t in ticks])
+cax.set_ylabel("log₂ RMSE ratio, Chin / DM", fontsize=style.MIN_PT)
+ax.text(-0.065, 1.06, "A", transform=ax.transAxes, fontweight="bold")
+
+# panel B: break-even share s* against d, one panel per sigma
+MC = common.MECH_COLOR
+for k, (bx, sg) in enumerate(zip(bxs, [0.25, 0.5, 1.0])):
+    for m in M:
+        t = be[(be.mechanism == m) & np.isclose(be.sigma, sg)].sort_values("d")
+        ok = t.set_index("d").reindex([5, 20, 80]).reset_index()
+        ok.loc[ok.loses_at_all_s.astype(bool), ["s_star", "s_star_lo", "s_star_hi"]] = np.nan   # line breaks where DM wins everywhere
+        fl = ok.wins_at_all_s.fillna(False).astype(bool)   # grid floor: s* is a bound (s* <= 0.1), no interval
+        ok.loc[fl, ["s_star_lo", "s_star_hi"]] = ok.loc[fl, "s_star"]
+        mk = common.MECH_MARK_U[m]
+        bx.errorbar(ok.d, ok.s_star, yerr=[ok.s_star - ok.s_star_lo, ok.s_star_hi - ok.s_star], color=MC[m], marker=mk,
+                    ms=3.4, lw=1.0, elinewidth=0.6, capsize=1.2, mfc=MC[m] if m in "abf" else "white", label=m,
+                    ls=common.MECH_LS[m])
+        for _, r in t[t.loses_at_all_s].iterrows():
+            bx.plot(r.d, 1.0, marker="^", ms=4, color=MC[m], ls="", mfc="none", clip_on=False)
+    fl5 = be[(be.d == 5) & np.isclose(be.sigma, sg) & be.wins_at_all_s.astype(bool)]
+    if len(fl5):   # grid floor: s* is only bounded above
+        y0 = fl5.s_star.max()
+        bx.annotate("", xy=(5, y0 - 0.11), xytext=(5, y0 - 0.025), arrowprops=dict(arrowstyle="-|>", color="0.3", lw=0.9, mutation_scale=6, shrinkA=0, shrinkB=0))
+    bx.set_xscale("log"); bx.set_xticks([5, 20, 80]); bx.set_xticklabels(["5", "20", "80"]); bx.minorticks_off()
+    bx.set_xlim(3.8, 105); bx.set_ylim(-0.06, 1.04); bx.set_yticks([0, 0.5, 1]); bx.set_xlabel("mean degree $d$")
+    bx.set_title(f"$\\sigma={sg:g}$", fontsize=style.MIN_PT, pad=2)
+    if k:
+        bx.tick_params(labelleft=False)
+    else:
+        bx.set_ylabel("break-even $s^*$")
+bxs[0].text(-0.30, 1.12, "B", transform=bxs[0].transAxes, fontweight="bold")
+from matplotlib.lines import Line2D
+h = [Line2D([], [], color=MC[m], marker=common.MECH_MARK_U[m], mfc=MC[m] if m in "abf" else "white", ms=3.4, lw=1.0,
+            ls=common.MECH_LS[m]) for m in M]
+h.append(Line2D([], [], color="0.3", marker="^", mfc="none", ls="", ms=4))
+h.append(Line2D([], [], color="0.3", marker=r"$\downarrow$", ls="", ms=6))
+fig.legend(h, M + ["DM better at all $s$ (plotted at 1)", "$d=5$: bound $s^*\\leq0.1$ (grid floor)"], loc="lower center", ncol=4, frameon=False,
+           bbox_to_anchor=(0.5, -0.12), columnspacing=0.9, handletextpad=0.3, handlelength=1.6)
+style.check_min_type(fig)
+o = common.out_dir(meta, a.out)
+style.save(fig, o / "fig1_regime_map.pdf")
+rows = [dict(block=c[0], run_id=c[1], mechanism=M[i], s=c[2], log2_ratio=Z[i, j], log2_lo=LO[i, j], log2_hi=HI[i, j])
+        for j, c in enumerate(cols) if c is not None for i in range(len(M))]
+pd.DataFrame(rows).to_csv(o / "fig1_regime_map_A.csv", index=False); be.to_csv(o / "fig1_regime_map_B.csv", index=False)

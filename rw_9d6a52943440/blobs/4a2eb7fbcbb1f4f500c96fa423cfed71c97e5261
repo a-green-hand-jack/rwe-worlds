@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Public-code check (paper-repo#7 M6): stage A on the seven OLL benchmarks x {interp, extrap}; stage B (py-irt) on six of them, interp fold 0 and extrap.
+cd "$(dirname "$0")/.."
+PY=/hutian/pub/venv/bin/python
+for b in arc_challenge bbh gpqa ifeval mmlu_pro musr openllm_math; do
+  for s in interp extrap; do
+    mem=8000; [ $b = mmlu_pro ] && mem=14000
+    ht-resource run local-compute --cwd "$PWD" --cpus 1 --memory $mem --note "public-A-$b-$s" -- \
+      $PY -I -u scripts/12_public_baselines.py "$b" "$s" --pub /hutian/pub --draws 10 --out results/raw_public > /dev/null
+    [ $b = mmlu_pro ] && continue
+    ht-resource run local-compute --cwd "$PWD" --cpus 1 --memory 6000 --note "public-B-$b-$s" -- \
+      $PY -I -u scripts/12_public_baselines.py "$b" "$s" --pub /hutian/pub --draws 10 --irt --folds 1 --D 10 --epochs 2000 --out results/raw_public > /dev/null
+  done
+done

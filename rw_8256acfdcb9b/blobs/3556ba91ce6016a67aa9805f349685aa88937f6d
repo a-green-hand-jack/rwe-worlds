@@ -1,0 +1,83 @@
+"""Fig 5 (claim M6): pairwise top-k agreement of the noise floors a (explainer run), b (background), c (retrain; three definitions),
+on the same instances and models. Dot plot: one panel per dataset, one row per floor, one marker per model, instance-bootstrap CI.
+
+Reads: floors (per instance: n_pairs, n_agree), cells (default budget).
+Usage: python fig5_floors.py DATA_DIR OUT_PREFIX [--k 3]
+"""
+import argparse
+import numpy as np, pandas as pd, matplotlib.pyplot as plt
+import figstyle as fs
+
+ap = argparse.ArgumentParser()
+ap.add_argument("data"); ap.add_argument("out"); ap.add_argument("--k", type=int, default=3)
+ap.add_argument("--estimator", default="shap_kernel"); ap.add_argument("--l1", default="False")
+ap.add_argument("--unusable", default="german:mlp", help="dataset:model pairs whose retraining floors (c) are marked n/a, not drawn (Outline rev 7: AUC filter kept 1/24 bootstrap, 3/24 hyper-parameter, 6/15 seed retrainings)")
+a = ap.parse_args()
+fs.setup()
+fl, p1 = fs.load(a.data, "floors")
+cells, p2 = fs.load(a.data, "cells")
+fm, p3 = fs.load(a.data, "floors_models")
+fs.require(fl, ["dataset", "model", "floor", "budget_m", "estimator", "l1_reg", "instance_id", "n_pairs", "n_agree", "k"], "floors")
+fs.require(cells, ["dataset", "model", "estimator", "l1_reg", "budget_m", "R", "d", "is_default_budget", "evals_per_run"], "cells")
+fl = fl[fl.k == a.k]
+FLOORS = [("a_lo", "a: run, small $m$"), ("a_ref", "a: run, reference $m$"), ("b_background", "b: background, $B$=50"),
+          ("c_bootstrap", "c: retrain, bootstrap"), ("c_seed", "c: retrain, seed"), ("c_hparam", "c: retrain, hyper-par.")]
+KFULL = int(fl[fl.floor != "a_run"].n_models.max())  # models per floor planned (K=10)
+UNUSABLE = {tuple(x.split(":")) for x in a.unusable.split(",") if x}
+rng = np.random.default_rng(0)  # fixed seed for the instance bootstrap
+ref = fs.ref_budget(cells, a.estimator, a.l1)
+
+def agreement(g, B=1000):
+    """Instance is the resampling unit; the pairs of one instance are pooled to one rate."""
+    per = (g.n_agree / g.n_pairs).values
+    m = rng.choice(per, (B, len(per))).mean(1)
+    return per.mean(), *np.percentile(m, [2.5, 97.5]), len(per)
+
+def small_budget(ds):
+    """smallest sampling budget >= 3d present for every model of the dataset (the regime of the fitted slope in Fig 4a)."""
+    c = cells[(cells.dataset == ds) & (cells.estimator == a.estimator) & (cells.l1_reg == a.l1) & (cells.R > 1)]
+    c = c[c.budget_m >= 3 * c.d]
+    ok = [b for b, g in c.groupby("budget_m") if g.model.nunique() == c.model.nunique()]
+    return min(ok)
+
+dsets = [d for d in fs.DATASET_TITLE if d in set(fl.dataset)]
+if not dsets: raise SystemExit("floors has no dataset")
+fig, ax = plt.subplots(1, len(dsets), figsize=(0.9 * fs.WIDTH_IN, 0.9 * 2.6), sharey=True, squeeze=False)
+rows = []
+for j, ds in enumerate(dsets):
+    blo = small_budget(ds)
+    for mi, m in enumerate(fs.MODELS):
+        st = fs.MODEL_STYLE[m]
+        r0 = ref[(ref.dataset == ds) & (ref.model == m)]
+        if r0.empty: continue
+        for fi, (f, _) in enumerate(FLOORS):
+            if f in ("a_lo", "a_ref"):
+                b = blo if f == "a_lo" else int(r0.budget_m.iloc[0])
+                g = fl[(fl.dataset == ds) & (fl.model == m) & (fl.floor == "a_run") & (fl.estimator == a.estimator) & (fl.l1_reg == a.l1) & (fl.budget_m == b)]
+            else:
+                b = np.nan
+                g = fl[(fl.dataset == ds) & (fl.model == m) & (fl.floor == f)]
+            if f[0] == "c" and (ds, m) in UNUSABLE:  # retraining floor unusable: n/a, not a number
+                ax[0, j].text(0.78, fi + (mi - 1.5) * 0.17, "n/a", color=st["color"], fontsize=fs.MIN_PT, ha="center", va="center")
+                rows.append(dict(dataset=ds, model=m, floor=f, budget_m=b, mean=np.nan, ci_lo=np.nan, ci_hi=np.nan, n_instances=0, n_pairs_per_instance=np.nan, n_models=0))
+                continue
+            if g.empty: continue  # not computed for this cell: not drawn
+            mu, lo, hi, n = agreement(g)
+            y = fi + (mi - 1.5) * 0.17
+            ax[0, j].plot([lo, hi], [y, y], color=st["color"], lw=0.9)
+            K = int(g.n_models.min()) if f[0] == "c" else int(g.n_models.max())
+            thin = f[0] in "bc" and K < KFULL  # fewer backgrounds or retrained models than K=10: open marker
+            ax[0, j].plot(mu, y, color=st["color"], marker=st["marker"], ls="none", mfc="white" if thin else st["color"], mew=0.9 if thin else None)
+            rows.append(dict(dataset=ds, model=m, floor=f, budget_m=b, mean=mu, ci_lo=lo, ci_hi=hi, n_instances=n, n_pairs_per_instance=float(g.n_pairs.mean()), n_models=K))
+    ax[0, j].set_title(f"{fs.DATASET_TITLE[ds]}\n$m$={blo}/{'/'.join(map(str, sorted(set(ref[ref.dataset == ds].budget_m))))}", fontsize=fs.MIN_PT)
+    ax[0, j].set_xlabel(f"top-{a.k} agreement")
+    ax[0, j].grid(axis="y", color="0.9", lw=0.5, zorder=0)
+ax[0, 0].set_yticks(range(len(FLOORS))); ax[0, 0].set_yticklabels([l for _, l in FLOORS]); ax[0, 0].invert_yaxis()
+from matplotlib.lines import Line2D
+h = [Line2D([], [], color=fs.MODEL_STYLE[m]["color"], marker=fs.MODEL_STYLE[m]["marker"], ls="none") for m in fs.MODELS]
+lo_all = np.floor(np.nanmin([r["ci_lo"] for r in rows]) * 10) / 10  # common lower limit, so panels compare on one scale
+for x in ax[0]: x.set_xlim(lo_all, 1.03); x.set_xticks([0.25, 0.5, 0.75, 1.0] if lo_all < 0.35 else [0.5, 0.75, 1.0]); x.set_xticklabels(["", "0.5", "", "1"] if lo_all < 0.35 else ["0.5", "", "1"])
+h.append(Line2D([], [], color="0.3", marker="o", mfc="white", ls="none"))
+fig.legend(h, [fs.MODEL_STYLE[m]["label"] for m in fs.MODELS] + [f"$K<{KFULL}$ models"], loc="upper center", ncol=5, frameon=False, bbox_to_anchor=(0.5, 1.0), columnspacing=1.0, handletextpad=0.3)
+fig.tight_layout(pad=0.4, w_pad=0.4, rect=(0, 0, 1, 0.92))
+fs.save(fig, a.out, pd.DataFrame(rows), [p1, p2, p3], note=f"k={a.k}; floor a = pairs of the R runs of {a.estimator} (l1_reg={a.l1}) at the small budget (smallest m>=3d present for all models) and at the reference budget (shap default where it samples, else largest sampling budget); b, c = pairs of exactly explained backgrounds/retrained models (K per floors_models.csv); instance bootstrap (seed 0); K = models per floor in column n_models (open marker: K<10 backgrounds (b) or retrained models kept after the AUC filter (c); floors_models.csv has tried/kept per definition); b is at the single background size B=50 (random rows), c is one trained model per population per definition, three definitions never pooled; the CI is over instances only; absent = not computed; n/a = retraining floor unusable (German MLP, AUC filter kept 1 of 24 bootstrap, 3 of 24 hyper-parameter and 6 of 15 seed retrainings; Outline rev 7), no number drawn")

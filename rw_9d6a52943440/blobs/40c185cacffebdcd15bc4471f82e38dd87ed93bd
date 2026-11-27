@@ -1,0 +1,122 @@
+[
+ {
+  "n": 0,
+  "year": 2024,
+  "title": "Observational Scaling Laws and the Predictability of Langauge Model Performance",
+  "proceedings_abstract_page": "https://proceedings.neurips.cc/paper_files/paper/2024/hash/1cded4f97cf5f01a284c574110b7e3b9-Abstract-Conference.html",
+  "pdf": "https://proceedings.neurips.cc/paper_files/paper/2024/file/1cded4f97cf5f01a284c574110b7e3b9-Paper-Conference.pdf",
+  "s2_reference_count": null
+ },
+ {
+  "n": 1,
+  "year": 2024,
+  "title": "Efficient multi-prompt evaluation of LLMs",
+  "proceedings_abstract_page": "https://proceedings.neurips.cc/paper_files/paper/2024/hash/28236482f64a72eec43706b6f3a6c511-Abstract-Conference.html",
+  "pdf": "https://proceedings.neurips.cc/paper_files/paper/2024/file/28236482f64a72eec43706b6f3a6c511-Paper-Conference.pdf",
+  "s2_reference_count": 54
+ },
+ {
+  "n": 2,
+  "year": 2024,
+  "title": "Adaptive Labeling for Efficient Out-of-distribution Model Evaluation",
+  "proceedings_abstract_page": "https://proceedings.neurips.cc/paper_files/paper/2024/hash/830c927e4e9c9a457d476c145514fb56-Abstract-Conference.html",
+  "pdf": "https://proceedings.neurips.cc/paper_files/paper/2024/file/830c927e4e9c9a457d476c145514fb56-Paper-Conference.pdf",
+  "s2_reference_count": 40
+ },
+ {
+  "n": 3,
+  "year": 2024,
+  "title": "Efficient Lifelong Model Evaluation in an Era of Rapid Progress",
+  "proceedings_abstract_page": "https://proceedings.neurips.cc/paper_files/paper/2024/hash/874067cee9c98dc9b9980fa6ef70176a-Abstract-Conference.html",
+  "pdf": "https://proceedings.neurips.cc/paper_files/paper/2024/file/874067cee9c98dc9b9980fa6ef70176a-Paper-Conference.pdf",
+  "s2_reference_count": 112
+ },
+ {
+  "n": 4,
+  "year": 2024,
+  "title": "Elo Uncovered: Robustness and Best Practices in Language Model Evaluation",
+  "proceedings_abstract_page": "https://proceedings.neurips.cc/paper_files/paper/2024/hash/bfba8efb806a970455b83b852c9cf846-Abstract-Conference.html",
+  "pdf": "https://proceedings.neurips.cc/paper_files/paper/2024/file/bfba8efb806a970455b83b852c9cf846-Paper-Conference.pdf",
+  "s2_reference_count": null
+ },
+ {
+  "n": 5,
+  "year": 2024,
+  "title": "Stratified Prediction-Powered Inference for Effective Hybrid Evaluation of Language Models",
+  "proceedings_abstract_page": "https://proceedings.neurips.cc/paper_files/paper/2024/hash/c9fcd02e6445c7dfbad6986abee53d0d-Abstract-Conference.html",
+  "pdf": "https://proceedings.neurips.cc/paper_files/paper/2024/file/c9fcd02e6445c7dfbad6986abee53d0d-Paper-Conference.pdf",
+  "s2_reference_count": 0
+ },
+ {
+  "n": 6,
+  "year": 2024,
+  "title": "Prediction-Powered Ranking of Large Language Models",
+  "proceedings_abstract_page": "https://proceedings.neurips.cc/paper_files/paper/2024/hash/cd47cd67caa87f5b1944e00f6781598f-Abstract-Conference.html",
+  "pdf": "https://proceedings.neurips.cc/paper_files/paper/2024/file/cd47cd67caa87f5b1944e00f6781598f-Paper-Conference.pdf",
+  "s2_reference_count": 71
+ },
+ {
+  "n": 7,
+  "year": 2025,
+  "title": "Signal and Noise: A Framework for Reducing Uncertainty in Language Model Evaluation",
+  "proceedings_abstract_page": "https://proceedings.neurips.cc/paper_files/paper/2025/hash/18b3b2947174ae9b1a8fc91ff89f4eb6-Abstract-Conference.html",
+  "pdf": "https://proceedings.neurips.cc/paper_files/paper/2025/file/18b3b2947174ae9b1a8fc91ff89f4eb6-Paper-Conference.pdf",
+  "s2_reference_count": 70
+ },
+ {
+  "n": 8,
+  "year": 2025,
+  "title": "Sloth: scaling laws for LLM skills to predict multi-benchmark performance across families",
+  "proceedings_abstract_page": "https://proceedings.neurips.cc/paper_files/paper/2025/hash/3834d037cd6e29ac7649df42611c5d66-Abstract-Conference.html",
+  "pdf": "https://proceedings.neurips.cc/paper_files/paper/2025/file/3834d037cd6e29ac7649df42611c5d66-Paper-Conference.pdf",
+  "s2_reference_count": 44
+ },
+ {
+  "n": 9,
+  "year": 2025,
+  "title": "Handling Missing Responses under Cluster Dependence with Applications to Language Model Evaluation",
+  "proceedings_abstract_page": "https://proceedings.neurips.cc/paper_files/paper/2025/hash/51b81a56ec2c9dbc0649d44fb49ddb27-Abstract-Conference.html",
+  "pdf": "https://proceedings.neurips.cc/paper_files/paper/2025/file/51b81a56ec2c9dbc0649d44fb49ddb27-Paper-Conference.pdf",
+  "s2_reference_count": 58
+ },
+ {
+  "n": 10,
+  "year": 2025,
+  "title": "Robust Sampling for Active Statistical Inference",
+  "proceedings_abstract_page": "https://proceedings.neurips.cc/paper_files/paper/2025/hash/6389470564214983604d1ac81631c2c5-Abstract-Conference.html",
+  "pdf": "https://proceedings.neurips.cc/paper_files/paper/2025/file/6389470564214983604d1ac81631c2c5-Paper-Conference.pdf",
+  "s2_reference_count": 52
+ },
+ {
+  "n": 11,
+  "year": 2025,
+  "title": "Prediction-Powered Semi-Supervised Learning with Online Power Tuning",
+  "proceedings_abstract_page": "https://proceedings.neurips.cc/paper_files/paper/2025/hash/9cc0e5d8a29b755ef6e52a3b5322feb5-Abstract-Conference.html",
+  "pdf": "https://proceedings.neurips.cc/paper_files/paper/2025/file/9cc0e5d8a29b755ef6e52a3b5322feb5-Paper-Conference.pdf",
+  "s2_reference_count": 41
+ },
+ {
+  "n": 12,
+  "year": 2025,
+  "title": "Adaptive Prediction-Powered AutoEval with Reliability and Efficiency Guarantees",
+  "proceedings_abstract_page": "https://proceedings.neurips.cc/paper_files/paper/2025/hash/e8e81e35728f7559e42ceb265e104d36-Abstract-Conference.html",
+  "pdf": "https://proceedings.neurips.cc/paper_files/paper/2025/file/e8e81e35728f7559e42ceb265e104d36-Paper-Conference.pdf",
+  "s2_reference_count": 53
+ },
+ {
+  "n": 13,
+  "year": 2025,
+  "title": "Predicting the Performance of Black-box Language Models with Follow-up Queries",
+  "proceedings_abstract_page": "https://proceedings.neurips.cc/paper_files/paper/2025/hash/e9027a3553ecc2c994bcf605c74c50ca-Abstract-Conference.html",
+  "pdf": "https://proceedings.neurips.cc/paper_files/paper/2025/file/e9027a3553ecc2c994bcf605c74c50ca-Paper-Conference.pdf",
+  "s2_reference_count": 65
+ },
+ {
+  "n": 14,
+  "year": 2025,
+  "title": "Scaling Up Active Testing to Large Language Models",
+  "proceedings_abstract_page": "https://proceedings.neurips.cc/paper_files/paper/2025/hash/fdb11be1acf5e3724737dd585e590146-Abstract-Conference.html",
+  "pdf": "https://proceedings.neurips.cc/paper_files/paper/2025/file/fdb11be1acf5e3724737dd585e590146-Paper-Conference.pdf",
+  "s2_reference_count": 41
+ }
+]

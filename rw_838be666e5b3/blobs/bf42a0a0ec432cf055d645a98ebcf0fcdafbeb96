@@ -1,0 +1,12 @@
+import pymupdf,re,sys
+for f in sys.argv[1:]:
+    d=pymupdf.open(f); full="\n".join(p.get_text() for p in d)
+    m=list(re.finditer(r'^\s*(References|REFERENCES)\s*$',full,re.M))
+    if not m: print(f,'noref');continue
+    refs=full[m[0].end():]
+    # cut at first appendix heading line like "A. ..." or "Appendix"
+    a=re.search(r'^\s*(A\.|Appendix|APPENDIX)\s+[A-Z][^\n]*\n',refs,re.M)
+    cut=refs[:a.start()] if a else refs
+    # entries: count lines starting with "Surname, I." 
+    n1=len(re.findall(r'^[A-Z][^\n,]{1,30}, [A-Z]\.',cut,re.M))
+    n2=len(re.findall(r'\b(?:19|20)\d\d[a-z]?\.\s',cut)); print(f,'surname-lines',n1,'year-marks',n2,'cut_chars',len(cut),'appendix_found',bool(a))

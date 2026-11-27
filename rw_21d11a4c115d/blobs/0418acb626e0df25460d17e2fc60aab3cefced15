@@ -1,0 +1,16 @@
+import json,statistics as st,csv,numpy as np
+S=json.load(open('raw/sample.json'));M=json.load(open('raw/measure2.json'));R=json.load(open('raw/refs.json'));A=json.load(open('raw/abstracts.json'))
+rows=[]
+for i,s in enumerate(S):
+    m=M[i];r=R[i];a=A[i]
+    refs=r['numbered'] if 0<r['numbered']<200 else r['year_tokens']
+    rows.append(dict(id=i,group=s['group'],title=s['title'],proceedings_page='https://proceedings.neurips.cc'+s['page'],total_pdf_pages=m['total_pages'],main_text_pages=m['main_pages'],figures_main=m['figs'],tables_main=m['tabs'],references=refs,refs_method='numbered' if 0<r['numbered']<200 else 'year-tokens',abstract_words=a['abs_len'],intro_words=m['intro_words'],intro_mentions_contributions=a['intro_contrib'],abstract_has_number=a['abs_has_digit']))
+with open('/hutian/repo/survey/accepted_sample.csv','w',newline='') as f:
+    w=csv.DictWriter(f,fieldnames=list(rows[0]));w.writeheader();w.writerows(rows)
+def q(k,sub=None):
+    v=[r[k] for r in rows if sub is None or r['group']==sub]
+    return f"{np.percentile(v,25):.0f} / {np.median(v):.0f} / {np.percentile(v,75):.0f} (min {min(v):.0f}, max {max(v):.0f}, n={len(v)})"
+for k in ('main_text_pages','figures_main','tables_main','references','abstract_words','intro_words'):
+    print(k,'ALL',q(k),'| A',q(k,'A'),'| B',q(k,'B'))
+print('figs+tabs', np.median([r['figures_main']+r['tables_main'] for r in rows]), np.percentile([r['figures_main']+r['tables_main'] for r in rows],[25,75]))
+print('contrib mention',sum(r['intro_mentions_contributions'] for r in rows),'abs number',sum(r['abstract_has_number'] for r in rows))

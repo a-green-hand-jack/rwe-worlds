@@ -1,0 +1,1477 @@
+1476 tasks
+done (-1, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 3s total 3s
+done (-1, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 3s total 3s
+done (-1, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 3s total 6s
+done (-1, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 3s total 6s
+done (-1, None, 'all', 'tuned_vs_untuned', 60, 20) 25s total 25s
+done (-1, None, 'all', 'tuned_vs_untuned', 60, 100) 26s total 26s
+done (-1, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 5s total 30s
+done (-1, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 5s total 30s
+done (-1, None, 'all', 'tuned_vs_untuned', 120, 100) 28s total 33s
+done (-1, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 4s total 34s
+done (-1, None, 'all', 'tuned_vs_untuned', 120, 20) 28s total 34s
+done (-1, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 4s total 35s
+done (-1, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 3s total 38s
+done (-1, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 5s total 39s
+done (-1, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 4s total 42s
+done (-1, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 5s total 44s
+done (-1, None, 'window', 'tuned_vs_untuned', 60, 20) 28s total 70s
+done (-1, None, 'window', 'tuned_vs_untuned', 60, 100) 27s total 71s
+done (-1, None, 'all', 'tuned_vs_untuned', 240, 20) 40s total 73s
+done (-1, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 3s total 74s
+done (-1, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 4s total 74s
+done (-1, None, 'all', 'tuned_vs_untuned', 240, 100) 41s total 75s
+done (-1, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 2s total 76s
+done (-1, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 4s total 77s
+done (-1, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 3s total 79s
+done (-1, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 4s total 81s
+done (-1, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 4s total 83s
+done (-1, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 5s total 86s
+done (-1, None, 'window', 'tuned_vs_untuned', 120, 20) 22s total 96s
+done (-1, None, 'window', 'tuned_vs_untuned', 120, 100) 22s total 97s
+done (-1, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 3s total 100s
+done (-1, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 5s total 101s
+done (-1, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 3s total 103s
+done (-1, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 6s total 107s
+done (0, None, 'all', 'tuned_vs_untuned', 60, 20) 7s total 110s
+done (0, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 111s
+done (0, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 112s
+done (0, None, 'all', 'tuned_vs_untuned', 60, 100) 6s total 113s
+done (0, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 113s
+done (0, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 2s total 115s
+done (0, None, 'all', 'tuned_vs_untuned', 120, 20) 7s total 121s
+done (0, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 122s
+done (0, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 122s
+done (0, None, 'all', 'tuned_vs_untuned', 120, 100) 8s total 122s
+done (0, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 123s
+done (0, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 123s
+done (-1, None, 'window', 'tuned_vs_untuned', 240, 20) 41s total 124s
+done (0, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 2s total 126s
+done (-1, None, 'window', 'tuned_vs_untuned', 240, 100) 41s total 127s
+done (0, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 127s
+done (0, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 1s total 128s
+done (0, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 128s
+done (0, None, 'all', 'tuned_vs_untuned', 240, 100) 11s total 134s
+done (0, None, 'all', 'tuned_vs_untuned', 240, 20) 11s total 134s
+done (0, None, 'window', 'tuned_vs_untuned', 60, 20) 7s total 135s
+done (0, None, 'window', 'tuned_vs_untuned', 60, 100) 7s total 135s
+done (0, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 135s
+done (0, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 135s
+done (0, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 135s
+done (0, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 136s
+done (0, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 0s total 136s
+done (0, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 136s
+done (0, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 137s
+done (0, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 2s total 138s
+done (0, None, 'window', 'tuned_vs_untuned', 120, 100) 7s total 142s
+done (0, None, 'window', 'tuned_vs_untuned', 120, 20) 7s total 142s
+done (0, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 143s
+done (0, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 143s
+done (0, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 144s
+done (0, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 1s total 145s
+done (0, None, 'window', 'tuned_vs_untuned', 240, 20) 9s total 146s
+done (1, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 147s
+done (0, None, 'window', 'tuned_vs_untuned', 240, 100) 10s total 148s
+done (1, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 148s
+done (1, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 149s
+done (1, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 1s total 149s
+done (1, None, 'all', 'tuned_vs_untuned', 60, 20) 6s total 151s
+done (1, None, 'all', 'tuned_vs_untuned', 60, 100) 6s total 151s
+done (1, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 151s
+done (1, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 0s total 152s
+done (1, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 152s
+done (1, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 153s
+done (1, None, 'all', 'tuned_vs_untuned', 120, 100) 7s total 156s
+done (1, None, 'all', 'tuned_vs_untuned', 120, 20) 8s total 157s
+done (1, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 1s total 157s
+done (1, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 158s
+done (1, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 2s total 158s
+done (1, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 1s total 159s
+done (1, None, 'all', 'tuned_vs_untuned', 240, 20) 10s total 162s
+done (1, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 163s
+done (1, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 164s
+done (1, None, 'all', 'tuned_vs_untuned', 240, 100) 11s total 164s
+done (1, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 165s
+done (1, None, 'window', 'tuned_vs_untuned', 60, 20) 7s total 165s
+done (1, None, 'window', 'tuned_vs_untuned', 60, 100) 6s total 165s
+done (1, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 166s
+done (1, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 166s
+done (1, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 167s
+done (1, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 167s
+done (1, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 1s total 168s
+done (1, None, 'window', 'tuned_vs_untuned', 120, 100) 6s total 171s
+done (1, None, 'window', 'tuned_vs_untuned', 120, 20) 6s total 171s
+done (1, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 172s
+done (1, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 172s
+done (1, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 172s
+done (1, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 2s total 173s
+done (1, None, 'window', 'tuned_vs_untuned', 240, 20) 10s total 178s
+done (2, None, 'all', 'tuned_vs_untuned', 60, 20) 6s total 178s
+done (2, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 179s
+done (2, None, 'all', 'tuned_vs_untuned', 60, 100) 6s total 179s
+done (1, None, 'window', 'tuned_vs_untuned', 240, 100) 11s total 179s
+done (2, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 0s total 179s
+done (2, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 180s
+done (2, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 180s
+done (2, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 2s total 181s
+done (2, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 181s
+done (2, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 182s
+done (2, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 183s
+done (2, None, 'all', 'tuned_vs_untuned', 120, 100) 5s total 184s
+done (2, None, 'all', 'tuned_vs_untuned', 120, 20) 6s total 185s
+done (2, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 2s total 186s
+done (2, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 186s
+done (2, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 1s total 187s
+done (2, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 2s total 188s
+done (2, None, 'all', 'tuned_vs_untuned', 240, 20) 8s total 191s
+done (2, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 192s
+done (2, None, 'window', 'tuned_vs_untuned', 60, 20) 6s total 193s
+done (2, None, 'all', 'tuned_vs_untuned', 240, 100) 11s total 193s
+done (2, None, 'window', 'tuned_vs_untuned', 60, 100) 5s total 193s
+done (2, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 193s
+done (2, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 194s
+done (2, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 194s
+done (2, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 195s
+done (2, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 195s
+done (2, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 195s
+done (2, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 1s total 196s
+done (2, None, 'window', 'tuned_vs_untuned', 120, 20) 5s total 198s
+done (2, None, 'window', 'tuned_vs_untuned', 120, 100) 6s total 199s
+done (2, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 199s
+done (2, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 0s total 200s
+done (2, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 0s total 200s
+done (2, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 2s total 201s
+done (3, None, 'all', 'tuned_vs_untuned', 60, 20) 7s total 207s
+done (2, None, 'window', 'tuned_vs_untuned', 240, 20) 12s total 207s
+done (3, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 208s
+done (3, None, 'all', 'tuned_vs_untuned', 60, 100) 7s total 208s
+done (3, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 208s
+done (3, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 209s
+done (2, None, 'window', 'tuned_vs_untuned', 240, 100) 13s total 209s
+done (3, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 1s total 209s
+done (3, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 2s total 210s
+done (3, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 2s total 211s
+done (3, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 2s total 212s
+done (3, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 2s total 212s
+done (3, None, 'all', 'tuned_vs_untuned', 120, 100) 6s total 214s
+done (3, None, 'all', 'tuned_vs_untuned', 120, 20) 6s total 214s
+done (3, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 2s total 216s
+done (3, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 2s total 216s
+done (3, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 2s total 218s
+done (3, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 2s total 218s
+done (3, None, 'all', 'tuned_vs_untuned', 240, 20) 10s total 221s
+done (3, None, 'all', 'tuned_vs_untuned', 240, 100) 9s total 222s
+done (3, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 222s
+done (3, None, 'window', 'tuned_vs_untuned', 60, 20) 5s total 223s
+done (3, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 223s
+done (3, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 223s
+done (3, None, 'window', 'tuned_vs_untuned', 60, 100) 6s total 224s
+done (3, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 224s
+done (3, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 224s
+done (3, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 225s
+done (3, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 0s total 225s
+done (3, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 2s total 226s
+done (3, None, 'window', 'tuned_vs_untuned', 120, 20) 6s total 229s
+done (3, None, 'window', 'tuned_vs_untuned', 120, 100) 7s total 230s
+done (3, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 2s total 231s
+done (3, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 231s
+done (3, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 232s
+done (3, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 1s total 233s
+done (3, None, 'window', 'tuned_vs_untuned', 240, 20) 8s total 233s
+done (4, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 235s
+done (3, None, 'window', 'tuned_vs_untuned', 240, 100) 9s total 235s
+done (4, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 236s
+done (4, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 236s
+done (4, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 1s total 237s
+done (4, None, 'all', 'tuned_vs_untuned', 60, 20) 7s total 238s
+done (4, None, 'all', 'tuned_vs_untuned', 60, 100) 6s total 239s
+done (4, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 239s
+done (4, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 0s total 239s
+done (4, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 0s total 240s
+done (4, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 240s
+done (4, None, 'all', 'tuned_vs_untuned', 120, 20) 7s total 243s
+done (4, None, 'all', 'tuned_vs_untuned', 120, 100) 7s total 243s
+done (4, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 1s total 245s
+done (4, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 245s
+done (4, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 245s
+done (4, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 1s total 246s
+done (4, None, 'all', 'tuned_vs_untuned', 240, 20) 11s total 251s
+done (4, None, 'all', 'tuned_vs_untuned', 240, 100) 12s total 251s
+done (4, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 252s
+done (4, None, 'window', 'tuned_vs_untuned', 60, 20) 6s total 252s
+done (4, None, 'window', 'tuned_vs_untuned', 60, 100) 6s total 252s
+done (4, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 0s total 252s
+done (4, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 0s total 252s
+done (4, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 0s total 252s
+done (4, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 253s
+done (4, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 0s total 253s
+done (4, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 0s total 253s
+done (4, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 254s
+done (4, None, 'window', 'tuned_vs_untuned', 120, 20) 5s total 257s
+done (4, None, 'window', 'tuned_vs_untuned', 120, 100) 6s total 258s
+done (4, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 258s
+done (4, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 259s
+done (4, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 259s
+done (4, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 1s total 260s
+done (4, None, 'window', 'tuned_vs_untuned', 240, 20) 10s total 264s
+done (5, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 0s total 264s
+done (5, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 0s total 264s
+done (5, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 0s total 265s
+done (4, None, 'window', 'tuned_vs_untuned', 240, 100) 11s total 265s
+done (5, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 0s total 265s
+done (5, None, 'all', 'tuned_vs_untuned', 60, 20) 7s total 266s
+done (5, None, 'all', 'tuned_vs_untuned', 60, 100) 7s total 267s
+done (5, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 267s
+done (5, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 268s
+done (5, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 268s
+done (5, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 268s
+done (5, None, 'all', 'tuned_vs_untuned', 120, 100) 6s total 271s
+done (5, None, 'all', 'tuned_vs_untuned', 120, 20) 7s total 272s
+done (5, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 2s total 273s
+done (5, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 274s
+done (5, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 274s
+done (5, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 1s total 275s
+done (5, None, 'all', 'tuned_vs_untuned', 240, 20) 12s total 280s
+done (5, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 0s total 280s
+done (5, None, 'window', 'tuned_vs_untuned', 60, 20) 7s total 281s
+done (5, None, 'all', 'tuned_vs_untuned', 240, 100) 13s total 281s
+done (5, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 281s
+done (5, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 0s total 281s
+done (5, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 282s
+done (5, None, 'window', 'tuned_vs_untuned', 60, 100) 7s total 282s
+done (5, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 283s
+done (5, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 0s total 283s
+done (5, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 283s
+done (5, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 1s total 285s
+done (5, None, 'window', 'tuned_vs_untuned', 120, 20) 7s total 288s
+done (5, None, 'window', 'tuned_vs_untuned', 120, 100) 7s total 288s
+done (5, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 289s
+done (5, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 2s total 290s
+done (5, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 291s
+done (5, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 2s total 291s
+done (5, None, 'window', 'tuned_vs_untuned', 240, 20) 9s total 292s
+done (6, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 294s
+done (6, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 295s
+done (5, None, 'window', 'tuned_vs_untuned', 240, 100) 11s total 296s
+done (6, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 296s
+done (6, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 1s total 297s
+done (6, None, 'all', 'tuned_vs_untuned', 60, 20) 7s total 298s
+done (6, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 299s
+done (6, None, 'all', 'tuned_vs_untuned', 60, 100) 8s total 299s
+done (6, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 300s
+done (6, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 301s
+done (6, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 301s
+done (6, None, 'all', 'tuned_vs_untuned', 120, 20) 7s total 303s
+done (6, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 1s total 304s
+done (6, None, 'all', 'tuned_vs_untuned', 120, 100) 7s total 304s
+done (6, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 305s
+done (6, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 305s
+done (6, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 1s total 306s
+done (6, None, 'window', 'tuned_vs_untuned', 60, 20) 7s total 312s
+done (6, None, 'all', 'tuned_vs_untuned', 240, 100) 12s total 313s
+done (6, None, 'all', 'tuned_vs_untuned', 240, 20) 12s total 313s
+done (6, None, 'window', 'tuned_vs_untuned', 60, 100) 7s total 313s
+done (6, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 0s total 313s
+done (6, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 313s
+done (6, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 313s
+done (6, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 314s
+done (6, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 315s
+done (6, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 315s
+done (6, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 316s
+done (6, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 1s total 316s
+done (6, None, 'window', 'tuned_vs_untuned', 120, 20) 6s total 319s
+done (6, None, 'window', 'tuned_vs_untuned', 120, 100) 6s total 319s
+done (6, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 320s
+done (6, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 320s
+done (6, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 321s
+done (6, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 2s total 322s
+done (6, None, 'window', 'tuned_vs_untuned', 240, 100) 11s total 327s
+done (6, None, 'window', 'tuned_vs_untuned', 240, 20) 12s total 327s
+done (7, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 328s
+done (7, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 328s
+done (7, None, 'all', 'tuned_vs_untuned', 60, 20) 7s total 328s
+done (7, None, 'all', 'tuned_vs_untuned', 60, 100) 7s total 328s
+done (7, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 329s
+done (7, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 1s total 329s
+done (7, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 329s
+done (7, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 330s
+done (7, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 330s
+done (7, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 331s
+done (7, None, 'all', 'tuned_vs_untuned', 120, 20) 6s total 334s
+done (7, None, 'all', 'tuned_vs_untuned', 120, 100) 6s total 335s
+done (7, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 1s total 335s
+done (7, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 336s
+done (7, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 336s
+done (7, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 1s total 337s
+done (7, None, 'all', 'tuned_vs_untuned', 240, 100) 8s total 339s
+done (7, None, 'all', 'tuned_vs_untuned', 240, 20) 10s total 340s
+done (7, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 340s
+done (7, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 341s
+done (7, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 341s
+done (7, None, 'window', 'tuned_vs_untuned', 60, 20) 6s total 342s
+done (7, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 342s
+done (7, None, 'window', 'tuned_vs_untuned', 60, 100) 6s total 343s
+done (7, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 343s
+done (7, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 344s
+done (7, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 344s
+done (7, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 1s total 344s
+done (7, None, 'window', 'tuned_vs_untuned', 120, 20) 7s total 348s
+done (7, None, 'window', 'tuned_vs_untuned', 120, 100) 6s total 348s
+done (7, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 348s
+done (7, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 0s total 349s
+done (7, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 0s total 349s
+done (7, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 349s
+done (7, None, 'window', 'tuned_vs_untuned', 240, 20) 10s total 354s
+done (7, None, 'window', 'tuned_vs_untuned', 240, 100) 11s total 355s
+done (8, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 355s
+done (8, None, 'all', 'tuned_vs_untuned', 60, 20) 6s total 355s
+done (8, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 0s total 356s
+done (8, None, 'all', 'tuned_vs_untuned', 60, 100) 7s total 356s
+done (8, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 356s
+done (8, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 356s
+done (8, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 357s
+done (8, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 357s
+done (8, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 358s
+done (8, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 358s
+done (8, None, 'all', 'tuned_vs_untuned', 120, 20) 6s total 362s
+done (8, None, 'all', 'tuned_vs_untuned', 120, 100) 6s total 362s
+done (8, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 363s
+done (8, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 1s total 363s
+done (8, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 363s
+done (8, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 1s total 364s
+done (8, None, 'window', 'tuned_vs_untuned', 60, 20) 7s total 370s
+done (8, None, 'all', 'tuned_vs_untuned', 240, 20) 12s total 371s
+done (8, None, 'all', 'tuned_vs_untuned', 240, 100) 13s total 371s
+done (8, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 371s
+done (8, None, 'window', 'tuned_vs_untuned', 60, 100) 7s total 371s
+done (8, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 371s
+done (8, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 372s
+done (8, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 372s
+done (8, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 372s
+done (8, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 373s
+done (8, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 373s
+done (8, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 1s total 374s
+done (8, None, 'window', 'tuned_vs_untuned', 120, 100) 6s total 377s
+done (8, None, 'window', 'tuned_vs_untuned', 120, 20) 6s total 378s
+done (8, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 378s
+done (8, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 378s
+done (8, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 379s
+done (8, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 2s total 380s
+done (8, None, 'window', 'tuned_vs_untuned', 240, 20) 11s total 384s
+done (8, None, 'window', 'tuned_vs_untuned', 240, 100) 10s total 384s
+done (9, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 385s
+done (9, None, 'all', 'tuned_vs_untuned', 60, 20) 6s total 385s
+done (9, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 385s
+done (9, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 0s total 385s
+done (9, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 386s
+done (9, None, 'all', 'tuned_vs_untuned', 60, 100) 6s total 386s
+done (9, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 387s
+done (9, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 387s
+done (9, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 388s
+done (9, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 388s
+done (9, None, 'all', 'tuned_vs_untuned', 120, 100) 5s total 391s
+done (9, None, 'all', 'tuned_vs_untuned', 120, 20) 6s total 391s
+done (9, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 0s total 391s
+done (9, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 392s
+done (9, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 392s
+done (9, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 1s total 394s
+done (9, None, 'all', 'tuned_vs_untuned', 240, 100) 10s total 399s
+done (9, None, 'all', 'tuned_vs_untuned', 240, 20) 11s total 399s
+done (9, None, 'window', 'tuned_vs_untuned', 60, 20) 7s total 399s
+done (9, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 400s
+done (9, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 0s total 400s
+done (9, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 400s
+done (9, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 400s
+done (9, None, 'window', 'tuned_vs_untuned', 60, 100) 7s total 401s
+done (9, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 401s
+done (9, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 401s
+done (9, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 402s
+done (9, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 1s total 402s
+done (9, None, 'window', 'tuned_vs_untuned', 120, 20) 7s total 407s
+done (9, None, 'window', 'tuned_vs_untuned', 120, 100) 7s total 407s
+done (9, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 408s
+done (9, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 408s
+done (9, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 408s
+done (9, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 1s total 410s
+done (9, None, 'window', 'tuned_vs_untuned', 240, 100) 9s total 411s
+done (10, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 412s
+done (9, None, 'window', 'tuned_vs_untuned', 240, 20) 10s total 412s
+done (10, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 413s
+done (10, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 414s
+done (10, None, 'all', 'tuned_vs_untuned', 60, 20) 6s total 414s
+done (10, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 1s total 414s
+done (10, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 416s
+done (10, None, 'all', 'tuned_vs_untuned', 60, 100) 6s total 416s
+done (10, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 416s
+done (10, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 417s
+done (10, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 417s
+done (10, None, 'all', 'tuned_vs_untuned', 120, 20) 7s total 420s
+done (10, None, 'all', 'tuned_vs_untuned', 120, 100) 7s total 421s
+done (10, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 1s total 421s
+done (10, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 422s
+done (10, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 422s
+done (10, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 1s total 423s
+done (10, None, 'all', 'tuned_vs_untuned', 240, 20) 9s total 426s
+done (10, None, 'all', 'tuned_vs_untuned', 240, 100) 10s total 427s
+done (10, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 427s
+done (10, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 428s
+done (10, None, 'window', 'tuned_vs_untuned', 60, 20) 5s total 428s
+done (10, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 428s
+done (10, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 428s
+done (10, None, 'window', 'tuned_vs_untuned', 60, 100) 6s total 430s
+done (10, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 430s
+done (10, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 431s
+done (10, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 431s
+done (10, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 1s total 432s
+done (10, None, 'window', 'tuned_vs_untuned', 120, 20) 6s total 434s
+done (10, None, 'window', 'tuned_vs_untuned', 120, 100) 6s total 434s
+done (10, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 435s
+done (10, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 435s
+done (10, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 436s
+done (10, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 1s total 437s
+done (10, None, 'window', 'tuned_vs_untuned', 240, 20) 11s total 442s
+done (10, None, 'window', 'tuned_vs_untuned', 240, 100) 10s total 442s
+done (11, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 443s
+done (11, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 443s
+done (11, None, 'all', 'tuned_vs_untuned', 60, 100) 6s total 443s
+done (11, None, 'all', 'tuned_vs_untuned', 60, 20) 7s total 443s
+done (11, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 444s
+done (11, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 1s total 444s
+done (11, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 444s
+done (11, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 445s
+done (11, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 445s
+done (11, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 446s
+done (11, None, 'all', 'tuned_vs_untuned', 120, 20) 5s total 448s
+done (11, None, 'all', 'tuned_vs_untuned', 120, 100) 6s total 449s
+done (11, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 1s total 450s
+done (11, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 451s
+done (11, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 451s
+done (11, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 1s total 452s
+done (11, None, 'all', 'tuned_vs_untuned', 240, 100) 7s total 453s
+done (11, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 0s total 453s
+done (11, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 0s total 454s
+done (11, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 0s total 454s
+done (11, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 455s
+done (11, None, 'all', 'tuned_vs_untuned', 240, 20) 11s total 456s
+done (11, None, 'window', 'tuned_vs_untuned', 60, 20) 7s total 458s
+done (11, None, 'window', 'tuned_vs_untuned', 60, 100) 6s total 458s
+done (11, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 459s
+done (11, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 459s
+done (11, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 460s
+done (11, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 2s total 461s
+done (11, None, 'window', 'tuned_vs_untuned', 120, 20) 6s total 461s
+done (11, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 462s
+done (11, None, 'window', 'tuned_vs_untuned', 120, 100) 6s total 462s
+done (11, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 463s
+done (11, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 463s
+done (11, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 1s total 464s
+done (12, None, 'all', 'tuned_vs_untuned', 60, 20) 7s total 470s
+done (11, None, 'window', 'tuned_vs_untuned', 240, 20) 11s total 470s
+done (12, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 471s
+done (11, None, 'window', 'tuned_vs_untuned', 240, 100) 10s total 471s
+done (12, None, 'all', 'tuned_vs_untuned', 60, 100) 7s total 471s
+done (12, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 471s
+done (12, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 1s total 472s
+done (12, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 472s
+done (12, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 473s
+done (12, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 473s
+done (12, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 474s
+done (12, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 474s
+done (12, None, 'all', 'tuned_vs_untuned', 120, 20) 5s total 476s
+done (12, None, 'all', 'tuned_vs_untuned', 120, 100) 6s total 477s
+done (12, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 1s total 478s
+done (12, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 478s
+done (12, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 1s total 479s
+done (12, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 479s
+done (12, None, 'all', 'tuned_vs_untuned', 240, 20) 11s total 485s
+done (12, None, 'window', 'tuned_vs_untuned', 60, 100) 7s total 486s
+done (12, None, 'all', 'tuned_vs_untuned', 240, 100) 12s total 486s
+done (12, None, 'window', 'tuned_vs_untuned', 60, 20) 7s total 486s
+done (12, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 486s
+done (12, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 0s total 486s
+done (12, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 486s
+done (12, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 486s
+done (12, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 487s
+done (12, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 487s
+done (12, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 488s
+done (12, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 1s total 488s
+done (12, None, 'window', 'tuned_vs_untuned', 120, 100) 6s total 492s
+done (12, None, 'window', 'tuned_vs_untuned', 120, 20) 6s total 492s
+done (12, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 0s total 493s
+done (12, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 0s total 493s
+done (12, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 0s total 493s
+done (12, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 2s total 493s
+done (12, None, 'window', 'tuned_vs_untuned', 240, 20) 11s total 499s
+done (12, None, 'window', 'tuned_vs_untuned', 240, 100) 11s total 499s
+done (13, None, 'all', 'tuned_vs_untuned', 60, 100) 6s total 500s
+done (13, None, 'all', 'tuned_vs_untuned', 60, 20) 7s total 500s
+done (13, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 500s
+done (13, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 500s
+done (13, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 500s
+done (13, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 0s total 501s
+done (13, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 0s total 501s
+done (13, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 1s total 501s
+done (13, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 0s total 502s
+done (13, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 503s
+done (13, None, 'all', 'tuned_vs_untuned', 120, 20) 6s total 506s
+done (13, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 1s total 508s
+done (13, None, 'all', 'tuned_vs_untuned', 120, 100) 7s total 508s
+done (13, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 509s
+done (13, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 509s
+done (13, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 2s total 511s
+done (13, None, 'all', 'tuned_vs_untuned', 240, 100) 11s total 514s
+done (13, None, 'window', 'tuned_vs_untuned', 60, 20) 6s total 515s
+done (13, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 515s
+done (13, None, 'all', 'tuned_vs_untuned', 240, 20) 14s total 515s
+done (13, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 516s
+done (13, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 516s
+done (13, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 517s
+done (13, None, 'window', 'tuned_vs_untuned', 60, 100) 7s total 517s
+done (13, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 518s
+done (13, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 0s total 518s
+done (13, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 0s total 518s
+done (13, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 518s
+done (13, None, 'window', 'tuned_vs_untuned', 120, 100) 6s total 522s
+done (13, None, 'window', 'tuned_vs_untuned', 120, 20) 7s total 523s
+done (13, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 523s
+done (13, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 524s
+done (13, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 525s
+done (13, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 1s total 525s
+done (13, None, 'window', 'tuned_vs_untuned', 240, 100) 10s total 529s
+done (13, None, 'window', 'tuned_vs_untuned', 240, 20) 11s total 529s
+done (14, None, 'all', 'tuned_vs_untuned', 60, 20) 5s total 530s
+done (14, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 530s
+done (14, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 530s
+done (14, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 531s
+done (14, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 1s total 531s
+done (14, None, 'all', 'tuned_vs_untuned', 60, 100) 6s total 531s
+done (14, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 532s
+done (14, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 532s
+done (14, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 533s
+done (14, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 533s
+done (14, None, 'all', 'tuned_vs_untuned', 120, 20) 6s total 536s
+done (14, None, 'all', 'tuned_vs_untuned', 120, 100) 7s total 537s
+done (14, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 1s total 538s
+done (14, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 538s
+done (14, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 539s
+done (14, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 1s total 539s
+done (14, None, 'all', 'tuned_vs_untuned', 240, 20) 9s total 542s
+done (14, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 543s
+done (14, None, 'all', 'tuned_vs_untuned', 240, 100) 11s total 544s
+done (14, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 544s
+done (14, None, 'window', 'tuned_vs_untuned', 60, 20) 6s total 545s
+done (14, None, 'window', 'tuned_vs_untuned', 60, 100) 6s total 545s
+done (14, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 545s
+done (14, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 545s
+done (14, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 546s
+done (14, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 546s
+done (14, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 547s
+done (14, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 1s total 547s
+done (14, None, 'window', 'tuned_vs_untuned', 120, 20) 3s total 548s
+done (14, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 549s
+done (14, None, 'window', 'tuned_vs_untuned', 120, 100) 5s total 550s
+done (14, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 550s
+done (14, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 551s
+done (14, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 2s total 552s
+done (14, None, 'window', 'tuned_vs_untuned', 240, 100) 9s total 557s
+done (15, None, 'all', 'tuned_vs_untuned', 60, 20) 6s total 557s
+done (14, None, 'window', 'tuned_vs_untuned', 240, 20) 10s total 557s
+done (15, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 558s
+done (15, None, 'all', 'tuned_vs_untuned', 60, 100) 6s total 558s
+done (15, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 558s
+done (15, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 1s total 558s
+done (15, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 558s
+done (15, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 559s
+done (15, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 559s
+done (15, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 560s
+done (15, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 560s
+done (15, None, 'all', 'tuned_vs_untuned', 120, 20) 6s total 564s
+done (15, None, 'all', 'tuned_vs_untuned', 120, 100) 6s total 564s
+done (15, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 1s total 565s
+done (15, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 565s
+done (15, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 566s
+done (15, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 2s total 567s
+done (15, None, 'all', 'tuned_vs_untuned', 240, 20) 11s total 571s
+done (15, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 572s
+done (15, None, 'window', 'tuned_vs_untuned', 60, 20) 6s total 572s
+done (15, None, 'all', 'tuned_vs_untuned', 240, 100) 12s total 573s
+done (15, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 573s
+done (15, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 573s
+done (15, None, 'window', 'tuned_vs_untuned', 60, 100) 6s total 573s
+done (15, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 574s
+done (15, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 574s
+done (15, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 575s
+done (15, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 575s
+done (15, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 1s total 576s
+done (15, None, 'window', 'tuned_vs_untuned', 120, 20) 6s total 579s
+done (15, None, 'window', 'tuned_vs_untuned', 120, 100) 6s total 579s
+done (15, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 580s
+done (15, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 580s
+done (15, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 1s total 582s
+done (15, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 582s
+done (15, None, 'window', 'tuned_vs_untuned', 240, 20) 10s total 585s
+done (15, None, 'window', 'tuned_vs_untuned', 240, 100) 10s total 586s
+done (16, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 586s
+done (16, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 587s
+done (16, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 587s
+done (16, None, 'all', 'tuned_vs_untuned', 60, 20) 5s total 587s
+done (16, None, 'all', 'tuned_vs_untuned', 60, 100) 6s total 587s
+done (16, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 1s total 588s
+done (16, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 588s
+done (16, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 589s
+done (16, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 589s
+done (16, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 589s
+done (16, None, 'all', 'tuned_vs_untuned', 120, 20) 6s total 593s
+done (16, None, 'all', 'tuned_vs_untuned', 120, 100) 7s total 594s
+done (16, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 1s total 594s
+done (16, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 595s
+done (16, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 596s
+done (16, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 1s total 596s
+done (16, None, 'all', 'tuned_vs_untuned', 240, 20) 12s total 601s
+done (16, None, 'all', 'tuned_vs_untuned', 240, 100) 12s total 602s
+done (16, None, 'window', 'tuned_vs_untuned', 60, 20) 6s total 602s
+done (16, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 602s
+done (16, None, 'window', 'tuned_vs_untuned', 60, 100) 6s total 602s
+done (16, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 602s
+done (16, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 0s total 603s
+done (16, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 0s total 603s
+done (16, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 603s
+done (16, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 604s
+done (16, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 604s
+done (16, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 1s total 605s
+done (16, None, 'window', 'tuned_vs_untuned', 120, 100) 7s total 609s
+done (16, None, 'window', 'tuned_vs_untuned', 120, 20) 7s total 609s
+done (16, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 611s
+done (16, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 611s
+done (16, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 1s total 612s
+done (16, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 612s
+done (16, None, 'window', 'tuned_vs_untuned', 240, 20) 10s total 614s
+done (16, None, 'window', 'tuned_vs_untuned', 240, 100) 10s total 614s
+done (17, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 615s
+done (17, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 615s
+done (17, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 616s
+done (17, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 1s total 617s
+done (17, None, 'all', 'tuned_vs_untuned', 60, 20) 5s total 617s
+done (17, None, 'all', 'tuned_vs_untuned', 60, 100) 6s total 618s
+done (17, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 618s
+done (17, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 619s
+done (17, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 619s
+done (17, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 620s
+done (17, None, 'all', 'tuned_vs_untuned', 120, 100) 6s total 623s
+done (17, None, 'all', 'tuned_vs_untuned', 120, 20) 8s total 624s
+done (17, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 624s
+done (17, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 2s total 624s
+done (17, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 625s
+done (17, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 1s total 626s
+done (17, None, 'all', 'tuned_vs_untuned', 240, 100) 9s total 629s
+done (17, None, 'all', 'tuned_vs_untuned', 240, 20) 10s total 630s
+done (17, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 630s
+done (17, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 631s
+done (17, None, 'window', 'tuned_vs_untuned', 60, 20) 6s total 631s
+done (17, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 631s
+done (17, None, 'window', 'tuned_vs_untuned', 60, 100) 6s total 632s
+done (17, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 632s
+done (17, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 632s
+done (17, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 633s
+done (17, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 633s
+done (17, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 1s total 634s
+done (17, None, 'window', 'tuned_vs_untuned', 120, 20) 6s total 637s
+done (17, None, 'window', 'tuned_vs_untuned', 120, 100) 6s total 637s
+done (17, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 638s
+done (17, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 638s
+done (17, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 1s total 639s
+done (17, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 639s
+done (17, None, 'window', 'tuned_vs_untuned', 240, 100) 8s total 642s
+done (18, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 643s
+done (18, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 644s
+done (17, None, 'window', 'tuned_vs_untuned', 240, 20) 11s total 644s
+done (18, None, 'all', 'tuned_vs_untuned', 60, 20) 6s total 645s
+done (18, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 1s total 645s
+done (18, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 645s
+done (18, None, 'all', 'tuned_vs_untuned', 60, 100) 6s total 645s
+done (18, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 647s
+done (18, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 647s
+done (18, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 648s
+done (18, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 648s
+done (18, None, 'all', 'tuned_vs_untuned', 120, 20) 7s total 652s
+done (18, None, 'all', 'tuned_vs_untuned', 120, 100) 7s total 653s
+done (18, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 1s total 653s
+done (18, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 654s
+done (18, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 2s total 654s
+done (18, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 1s total 655s
+done (18, None, 'all', 'tuned_vs_untuned', 240, 100) 13s total 661s
+done (18, None, 'all', 'tuned_vs_untuned', 240, 20) 13s total 661s
+done (18, None, 'window', 'tuned_vs_untuned', 60, 20) 7s total 661s
+done (18, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 661s
+done (18, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 661s
+done (18, None, 'window', 'tuned_vs_untuned', 60, 100) 6s total 661s
+done (18, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 662s
+done (18, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 662s
+done (18, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 662s
+done (18, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 663s
+done (18, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 663s
+done (18, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 1s total 664s
+done (18, None, 'window', 'tuned_vs_untuned', 120, 100) 6s total 667s
+done (18, None, 'window', 'tuned_vs_untuned', 120, 20) 6s total 667s
+done (18, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 668s
+done (18, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 668s
+done (18, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 669s
+done (18, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 1s total 669s
+done (18, None, 'window', 'tuned_vs_untuned', 240, 20) 11s total 675s
+done (18, None, 'window', 'tuned_vs_untuned', 240, 100) 11s total 675s
+done (19, None, 'all', 'tuned_vs_untuned', 60, 20) 7s total 676s
+done (19, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 676s
+done (19, None, 'all', 'tuned_vs_untuned', 60, 100) 7s total 676s
+done (19, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 676s
+done (19, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 0s total 676s
+done (19, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 676s
+done (19, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 0s total 676s
+done (19, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 677s
+done (19, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 678s
+done (19, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 678s
+done (19, None, 'all', 'tuned_vs_untuned', 120, 20) 6s total 682s
+done (19, None, 'all', 'tuned_vs_untuned', 120, 100) 6s total 682s
+done (19, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 1s total 683s
+done (19, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 683s
+done (19, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 684s
+done (19, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 1s total 684s
+done (19, None, 'all', 'tuned_vs_untuned', 240, 20) 10s total 687s
+done (19, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 688s
+done (19, None, 'all', 'tuned_vs_untuned', 240, 100) 10s total 688s
+done (19, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 689s
+done (19, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 689s
+done (19, None, 'window', 'tuned_vs_untuned', 60, 20) 6s total 690s
+done (19, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 690s
+done (19, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 691s
+done (19, None, 'window', 'tuned_vs_untuned', 60, 100) 7s total 692s
+done (19, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 0s total 692s
+done (19, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 692s
+done (19, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 1s total 693s
+done (19, None, 'window', 'tuned_vs_untuned', 120, 20) 7s total 696s
+done (19, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 697s
+done (19, None, 'window', 'tuned_vs_untuned', 120, 100) 7s total 697s
+done (19, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 0s total 698s
+done (19, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 698s
+done (19, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 0s total 698s
+done (19, None, 'window', 'tuned_vs_untuned', 240, 20) 13s total 705s
+done (20, None, 'all', 'tuned_vs_untuned', 60, 20) 7s total 705s
+done (20, None, 'all', 'tuned_vs_untuned', 60, 100) 7s total 705s
+done (19, None, 'window', 'tuned_vs_untuned', 240, 100) 13s total 705s
+done (20, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 0s total 705s
+done (20, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 706s
+done (20, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 706s
+done (20, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 1s total 706s
+done (20, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 707s
+done (20, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 707s
+done (20, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 707s
+done (20, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 708s
+done (20, None, 'all', 'tuned_vs_untuned', 120, 20) 6s total 711s
+done (20, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 1s total 712s
+done (20, None, 'all', 'tuned_vs_untuned', 120, 100) 7s total 712s
+done (20, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 713s
+done (20, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 714s
+done (20, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 1s total 714s
+done (20, None, 'all', 'tuned_vs_untuned', 240, 100) 10s total 718s
+done (20, None, 'all', 'tuned_vs_untuned', 240, 20) 11s total 719s
+done (20, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 719s
+done (20, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 719s
+done (20, None, 'window', 'tuned_vs_untuned', 60, 20) 6s total 720s
+done (20, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 720s
+done (20, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 720s
+done (20, None, 'window', 'tuned_vs_untuned', 60, 100) 6s total 720s
+done (20, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 0s total 721s
+done (20, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 0s total 721s
+done (20, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 721s
+done (20, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 0s total 721s
+done (20, None, 'window', 'tuned_vs_untuned', 120, 20) 6s total 726s
+done (20, None, 'window', 'tuned_vs_untuned', 120, 100) 6s total 726s
+done (20, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 727s
+done (20, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 728s
+done (20, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 728s
+done (20, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 2s total 729s
+done (20, None, 'window', 'tuned_vs_untuned', 240, 100) 9s total 730s
+done (20, None, 'window', 'tuned_vs_untuned', 240, 20) 9s total 730s
+done (21, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 731s
+done (21, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 731s
+done (21, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 0s total 732s
+done (21, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 1s total 733s
+done (21, None, 'all', 'tuned_vs_untuned', 60, 20) 6s total 734s
+done (21, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 735s
+done (21, None, 'all', 'tuned_vs_untuned', 60, 100) 6s total 735s
+done (21, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 736s
+done (21, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 736s
+done (21, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 737s
+done (21, None, 'all', 'tuned_vs_untuned', 120, 20) 6s total 737s
+done (21, None, 'all', 'tuned_vs_untuned', 120, 100) 6s total 739s
+done (21, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 2s total 739s
+done (21, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 740s
+done (21, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 1s total 741s
+done (21, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 2s total 741s
+done (21, None, 'window', 'tuned_vs_untuned', 60, 20) 7s total 748s
+done (21, None, 'all', 'tuned_vs_untuned', 240, 100) 12s total 748s
+done (21, None, 'window', 'tuned_vs_untuned', 60, 100) 7s total 748s
+done (21, None, 'all', 'tuned_vs_untuned', 240, 20) 12s total 749s
+done (21, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 749s
+done (21, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 0s total 749s
+done (21, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 749s
+done (21, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 749s
+done (21, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 750s
+done (21, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 750s
+done (21, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 751s
+done (21, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 1s total 751s
+done (21, None, 'window', 'tuned_vs_untuned', 120, 100) 5s total 754s
+done (21, None, 'window', 'tuned_vs_untuned', 120, 20) 5s total 754s
+done (21, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 755s
+done (21, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 755s
+done (21, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 756s
+done (21, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 1s total 756s
+done (21, None, 'window', 'tuned_vs_untuned', 240, 20) 10s total 761s
+done (21, None, 'window', 'tuned_vs_untuned', 240, 100) 11s total 762s
+done (22, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 763s
+done (22, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 763s
+done (22, None, 'all', 'tuned_vs_untuned', 60, 20) 7s total 763s
+done (22, None, 'all', 'tuned_vs_untuned', 60, 100) 7s total 763s
+done (22, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 764s
+done (22, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 1s total 764s
+done (22, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 765s
+done (22, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 766s
+done (22, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 767s
+done (22, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 767s
+done (22, None, 'all', 'tuned_vs_untuned', 120, 20) 6s total 769s
+done (22, None, 'all', 'tuned_vs_untuned', 120, 100) 6s total 769s
+done (22, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 1s total 770s
+done (22, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 770s
+done (22, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 771s
+done (22, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 1s total 771s
+done (22, None, 'all', 'tuned_vs_untuned', 240, 20) 9s total 776s
+done (22, None, 'all', 'tuned_vs_untuned', 240, 100) 10s total 777s
+done (22, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 777s
+done (22, None, 'window', 'tuned_vs_untuned', 60, 20) 6s total 777s
+done (22, None, 'window', 'tuned_vs_untuned', 60, 100) 6s total 778s
+done (22, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 778s
+done (22, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 0s total 778s
+done (22, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 778s
+done (22, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 779s
+done (22, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 779s
+done (22, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 779s
+done (22, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 1s total 780s
+done (22, None, 'window', 'tuned_vs_untuned', 120, 20) 6s total 783s
+done (22, None, 'window', 'tuned_vs_untuned', 120, 100) 6s total 783s
+done (22, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 785s
+done (22, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 2s total 785s
+done (22, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 786s
+done (22, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 2s total 787s
+done (22, None, 'window', 'tuned_vs_untuned', 240, 20) 12s total 792s
+done (22, None, 'window', 'tuned_vs_untuned', 240, 100) 12s total 792s
+done (23, None, 'all', 'tuned_vs_untuned', 60, 20) 7s total 793s
+done (23, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 793s
+done (23, None, 'all', 'tuned_vs_untuned', 60, 100) 6s total 793s
+done (23, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 793s
+done (23, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 794s
+done (23, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 1s total 794s
+done (23, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 794s
+done (23, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 795s
+done (23, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 795s
+done (23, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 796s
+done (23, None, 'all', 'tuned_vs_untuned', 120, 20) 5s total 798s
+done (23, None, 'all', 'tuned_vs_untuned', 120, 100) 6s total 800s
+done (23, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 1s total 800s
+done (23, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 801s
+done (23, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 801s
+done (23, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 1s total 802s
+done (23, None, 'all', 'tuned_vs_untuned', 240, 100) 10s total 807s
+done (23, None, 'all', 'tuned_vs_untuned', 240, 20) 12s total 807s
+done (23, None, 'window', 'tuned_vs_untuned', 60, 100) 6s total 807s
+done (23, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 807s
+done (23, None, 'window', 'tuned_vs_untuned', 60, 20) 7s total 808s
+done (23, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 808s
+done (23, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 808s
+done (23, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 808s
+done (23, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 810s
+done (23, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 810s
+done (23, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 1s total 811s
+done (23, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 811s
+done (23, None, 'window', 'tuned_vs_untuned', 120, 20) 4s total 811s
+done (23, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 2s total 813s
+done (23, None, 'window', 'tuned_vs_untuned', 120, 100) 6s total 814s
+done (23, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 814s
+done (23, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 815s
+done (23, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 1s total 816s
+done (23, None, 'window', 'tuned_vs_untuned', 240, 20) 9s total 820s
+done (24, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 821s
+done (24, None, 'all', 'tuned_vs_untuned', 60, 20) 7s total 821s
+done (24, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 822s
+done (23, None, 'window', 'tuned_vs_untuned', 240, 100) 11s total 822s
+done (24, None, 'all', 'tuned_vs_untuned', 60, 100) 7s total 822s
+done (24, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 823s
+done (24, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 1s total 823s
+done (24, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 824s
+done (24, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 824s
+done (24, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 824s
+done (24, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 825s
+done (24, None, 'all', 'tuned_vs_untuned', 120, 100) 6s total 828s
+done (24, None, 'all', 'tuned_vs_untuned', 120, 20) 6s total 828s
+done (24, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 0s total 829s
+done (24, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 1s total 829s
+done (24, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 0s total 829s
+done (24, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 2s total 831s
+done (24, None, 'window', 'tuned_vs_untuned', 60, 20) 6s total 835s
+done (24, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 835s
+done (24, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 836s
+done (24, None, 'all', 'tuned_vs_untuned', 240, 20) 12s total 837s
+done (24, None, 'all', 'tuned_vs_untuned', 240, 100) 12s total 837s
+done (24, None, 'window', 'tuned_vs_untuned', 60, 100) 7s total 837s
+done (24, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 837s
+done (24, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 837s
+done (24, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 838s
+done (24, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 838s
+done (24, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 839s
+done (24, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 1s total 840s
+done (24, None, 'window', 'tuned_vs_untuned', 120, 20) 5s total 842s
+done (24, None, 'window', 'tuned_vs_untuned', 120, 100) 6s total 843s
+done (24, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 843s
+done (24, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 844s
+done (24, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 845s
+done (24, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 1s total 845s
+done (24, None, 'window', 'tuned_vs_untuned', 240, 100) 9s total 849s
+done (24, None, 'window', 'tuned_vs_untuned', 240, 20) 11s total 850s
+done (25, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 850s
+done (25, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 851s
+done (25, None, 'all', 'tuned_vs_untuned', 60, 20) 6s total 851s
+done (25, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 851s
+done (25, None, 'all', 'tuned_vs_untuned', 60, 100) 6s total 851s
+done (25, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 1s total 852s
+done (25, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 852s
+done (25, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 853s
+done (25, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 854s
+done (25, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 854s
+done (25, None, 'all', 'tuned_vs_untuned', 120, 20) 7s total 858s
+done (25, None, 'all', 'tuned_vs_untuned', 120, 100) 8s total 858s
+done (25, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 1s total 859s
+done (25, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 860s
+done (25, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 860s
+done (25, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 1s total 861s
+done (25, None, 'all', 'tuned_vs_untuned', 240, 20) 11s total 864s
+done (25, None, 'all', 'tuned_vs_untuned', 240, 100) 10s total 864s
+done (25, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 865s
+done (25, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 865s
+done (25, None, 'window', 'tuned_vs_untuned', 60, 20) 6s total 866s
+done (25, None, 'window', 'tuned_vs_untuned', 60, 100) 6s total 866s
+done (25, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 866s
+done (25, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 866s
+done (25, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 867s
+done (25, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 867s
+done (25, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 1s total 868s
+done (25, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 868s
+done (25, None, 'window', 'tuned_vs_untuned', 120, 100) 5s total 871s
+done (25, None, 'window', 'tuned_vs_untuned', 120, 20) 6s total 871s
+done (25, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 872s
+done (25, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 872s
+done (25, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 1s total 873s
+done (25, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 873s
+done (25, None, 'window', 'tuned_vs_untuned', 240, 100) 10s total 878s
+done (26, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 879s
+done (26, None, 'all', 'tuned_vs_untuned', 60, 20) 6s total 879s
+done (25, None, 'window', 'tuned_vs_untuned', 240, 20) 11s total 880s
+done (26, None, 'all', 'tuned_vs_untuned', 60, 100) 7s total 880s
+done (26, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 880s
+done (26, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 880s
+done (26, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 1s total 881s
+done (26, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 881s
+done (26, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 882s
+done (26, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 882s
+done (26, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 883s
+done (26, None, 'all', 'tuned_vs_untuned', 120, 20) 5s total 885s
+done (26, None, 'all', 'tuned_vs_untuned', 120, 100) 5s total 886s
+done (26, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 1s total 886s
+done (26, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 887s
+done (26, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 888s
+done (26, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 1s total 888s
+done (26, None, 'all', 'tuned_vs_untuned', 240, 100) 9s total 892s
+done (26, None, 'all', 'tuned_vs_untuned', 240, 20) 11s total 893s
+done (26, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 894s
+done (26, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 894s
+done (26, None, 'window', 'tuned_vs_untuned', 60, 20) 7s total 894s
+done (26, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 894s
+done (26, None, 'window', 'tuned_vs_untuned', 60, 100) 7s total 895s
+done (26, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 895s
+done (26, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 895s
+done (26, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 896s
+done (26, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 896s
+done (26, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 1s total 897s
+done (26, None, 'window', 'tuned_vs_untuned', 120, 20) 6s total 900s
+done (26, None, 'window', 'tuned_vs_untuned', 120, 100) 6s total 900s
+done (26, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 901s
+done (26, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 901s
+done (26, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 902s
+done (26, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 1s total 903s
+done (26, None, 'window', 'tuned_vs_untuned', 240, 20) 9s total 906s
+done (27, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 907s
+done (26, None, 'window', 'tuned_vs_untuned', 240, 100) 10s total 907s
+done (27, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 908s
+done (27, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 1s total 908s
+done (27, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 908s
+done (27, None, 'all', 'tuned_vs_untuned', 60, 100) 6s total 909s
+done (27, None, 'all', 'tuned_vs_untuned', 60, 20) 7s total 909s
+done (27, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 910s
+done (27, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 910s
+done (27, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 911s
+done (27, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 911s
+done (27, None, 'all', 'tuned_vs_untuned', 120, 100) 5s total 914s
+done (27, None, 'all', 'tuned_vs_untuned', 120, 20) 7s total 915s
+done (27, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 2s total 915s
+done (27, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 916s
+done (27, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 917s
+done (27, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 1s total 917s
+done (27, None, 'all', 'tuned_vs_untuned', 240, 100) 12s total 923s
+done (27, None, 'window', 'tuned_vs_untuned', 60, 20) 7s total 923s
+done (27, None, 'all', 'tuned_vs_untuned', 240, 20) 12s total 923s
+done (27, None, 'window', 'tuned_vs_untuned', 60, 100) 6s total 924s
+done (27, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 0s total 924s
+done (27, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 924s
+done (27, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 924s
+done (27, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 925s
+done (27, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 925s
+done (27, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 925s
+done (27, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 926s
+done (27, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 1s total 927s
+done (27, None, 'window', 'tuned_vs_untuned', 120, 100) 4s total 928s
+done (27, None, 'window', 'tuned_vs_untuned', 120, 20) 5s total 929s
+done (27, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 2s total 929s
+done (27, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 930s
+done (27, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 1s total 931s
+done (27, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 931s
+done (27, None, 'window', 'tuned_vs_untuned', 240, 20) 11s total 937s
+done (28, None, 'all', 'tuned_vs_untuned', 60, 20) 6s total 937s
+done (28, None, 'all', 'tuned_vs_untuned', 60, 100) 6s total 937s
+done (27, None, 'window', 'tuned_vs_untuned', 240, 100) 11s total 938s
+done (28, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 938s
+done (28, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 938s
+done (28, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 938s
+done (28, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 1s total 938s
+done (28, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 939s
+done (28, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 939s
+done (28, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 940s
+done (28, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 940s
+done (28, None, 'all', 'tuned_vs_untuned', 120, 20) 6s total 943s
+done (28, None, 'all', 'tuned_vs_untuned', 120, 100) 6s total 944s
+done (28, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 1s total 945s
+done (28, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 945s
+done (28, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 946s
+done (28, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 1s total 947s
+done (28, None, 'all', 'tuned_vs_untuned', 240, 20) 11s total 951s
+done (28, None, 'all', 'tuned_vs_untuned', 240, 100) 11s total 951s
+done (28, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 952s
+done (28, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 952s
+done (28, None, 'window', 'tuned_vs_untuned', 60, 20) 6s total 952s
+done (28, None, 'window', 'tuned_vs_untuned', 60, 100) 6s total 952s
+done (28, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 952s
+done (28, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 953s
+done (28, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 953s
+done (28, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 954s
+done (28, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 954s
+done (28, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 1s total 955s
+done (28, None, 'window', 'tuned_vs_untuned', 120, 20) 5s total 957s
+done (28, None, 'window', 'tuned_vs_untuned', 120, 100) 5s total 958s
+done (28, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 958s
+done (28, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 959s
+done (28, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 959s
+done (28, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 1s total 960s
+done (29, None, 'all', 'tuned_vs_untuned', 60, 20) 7s total 967s
+done (28, None, 'window', 'tuned_vs_untuned', 240, 20) 13s total 967s
+done (28, None, 'window', 'tuned_vs_untuned', 240, 100) 13s total 968s
+done (29, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 968s
+done (29, None, 'all', 'tuned_vs_untuned', 60, 100) 8s total 968s
+done (29, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 968s
+done (29, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 968s
+done (29, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 1s total 969s
+done (29, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 0s total 969s
+done (29, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 970s
+done (29, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 970s
+done (29, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 971s
+done (29, None, 'all', 'tuned_vs_untuned', 120, 20) 6s total 974s
+done (29, None, 'all', 'tuned_vs_untuned', 120, 100) 6s total 974s
+done (29, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 1s total 975s
+done (29, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 975s
+done (29, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 976s
+done (29, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 1s total 977s
+done (29, None, 'all', 'tuned_vs_untuned', 240, 20) 10s total 980s
+done (29, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 981s
+done (29, None, 'all', 'tuned_vs_untuned', 240, 100) 11s total 982s
+done (29, None, 'window', 'tuned_vs_untuned', 60, 20) 6s total 983s
+done (29, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 983s
+done (29, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 983s
+done (29, None, 'window', 'tuned_vs_untuned', 60, 100) 6s total 983s
+done (29, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 984s
+done (29, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 984s
+done (29, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 984s
+done (29, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 985s
+done (29, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 1s total 986s
+done (29, None, 'window', 'tuned_vs_untuned', 120, 20) 7s total 989s
+done (29, None, 'window', 'tuned_vs_untuned', 120, 100) 7s total 989s
+done (29, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 990s
+done (29, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 990s
+done (29, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 991s
+done (29, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 1s total 991s
+done (30, None, 'all', 'tuned_vs_untuned', 60, 20) 7s total 998s
+done (30, None, 'all', 'tuned_vs_untuned', 60, 100) 7s total 998s
+done (29, None, 'window', 'tuned_vs_untuned', 240, 20) 14s total 998s
+done (30, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 999s
+done (30, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 0s total 999s
+done (29, None, 'window', 'tuned_vs_untuned', 240, 100) 13s total 999s
+done (30, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 999s
+done (30, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 1s total 999s
+done (30, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 1000s
+done (30, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 1000s
+done (30, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 1001s
+done (30, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 1002s
+done (30, None, 'all', 'tuned_vs_untuned', 120, 20) 5s total 1004s
+done (30, None, 'all', 'tuned_vs_untuned', 120, 100) 5s total 1004s
+done (30, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 1s total 1005s
+done (30, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 1005s
+done (30, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 1006s
+done (30, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 1s total 1006s
+done (30, None, 'all', 'tuned_vs_untuned', 240, 20) 10s total 1011s
+done (30, None, 'window', 'tuned_vs_untuned', 60, 20) 6s total 1012s
+done (30, None, 'all', 'tuned_vs_untuned', 240, 100) 11s total 1012s
+done (30, None, 'window', 'tuned_vs_untuned', 60, 100) 6s total 1012s
+done (30, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 1012s
+done (30, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 1013s
+done (30, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 1013s
+done (30, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 1013s
+done (30, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 1015s
+done (30, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 1015s
+done (30, None, 'window', 'tuned_vs_untuned', 120, 100) 3s total 1016s
+done (30, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 1s total 1016s
+done (30, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 1016s
+done (30, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 1017s
+done (30, None, 'window', 'tuned_vs_untuned', 120, 20) 5s total 1017s
+done (30, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 1018s
+done (30, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 1018s
+done (30, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 1s total 1019s
+done (31, None, 'all', 'tuned_vs_untuned', 60, 20) 7s total 1025s
+done (31, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 1026s
+done (31, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 1026s
+done (31, None, 'all', 'tuned_vs_untuned', 60, 100) 7s total 1026s
+done (30, None, 'window', 'tuned_vs_untuned', 240, 100) 11s total 1027s
+done (30, None, 'window', 'tuned_vs_untuned', 240, 20) 11s total 1027s
+done (31, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 1027s
+done (31, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 1s total 1028s
+done (31, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 1028s
+done (31, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 1029s
+done (31, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 1029s
+done (31, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 1029s
+done (31, None, 'all', 'tuned_vs_untuned', 120, 20) 7s total 1034s
+done (31, None, 'all', 'tuned_vs_untuned', 120, 100) 8s total 1035s
+done (31, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 2s total 1035s
+done (31, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 2s total 1036s
+done (31, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 1036s
+done (31, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 2s total 1038s
+done (31, None, 'all', 'tuned_vs_untuned', 240, 20) 10s total 1039s
+done (31, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 1041s
+done (31, None, 'all', 'tuned_vs_untuned', 240, 100) 11s total 1041s
+done (31, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 1042s
+done (31, None, 'window', 'tuned_vs_untuned', 60, 20) 6s total 1042s
+done (31, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 1042s
+done (31, None, 'window', 'tuned_vs_untuned', 60, 100) 6s total 1044s
+done (31, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 2s total 1044s
+done (31, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 1045s
+done (31, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 1045s
+done (31, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 1046s
+done (31, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 1s total 1046s
+done (31, None, 'window', 'tuned_vs_untuned', 120, 100) 5s total 1047s
+done (31, None, 'window', 'tuned_vs_untuned', 120, 20) 6s total 1048s
+done (31, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 1048s
+done (31, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 1049s
+done (31, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 1049s
+done (31, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 1s total 1051s
+done (32, None, 'all', 'tuned_vs_untuned', 60, 20) 6s total 1055s
+done (32, None, 'all', 'tuned_vs_untuned', 60, 100) 6s total 1057s
+done (32, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 1057s
+done (31, None, 'window', 'tuned_vs_untuned', 240, 20) 11s total 1057s
+done (32, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 1057s
+done (31, None, 'window', 'tuned_vs_untuned', 240, 100) 11s total 1057s
+done (32, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 1058s
+done (32, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 1s total 1058s
+done (32, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 1059s
+done (32, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 1059s
+done (32, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 1059s
+done (32, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 1060s
+done (32, None, 'all', 'tuned_vs_untuned', 120, 20) 7s total 1064s
+done (32, None, 'all', 'tuned_vs_untuned', 120, 100) 8s total 1065s
+done (32, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 1s total 1065s
+done (32, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 1066s
+done (32, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 1067s
+done (32, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 1s total 1068s
+done (32, None, 'all', 'tuned_vs_untuned', 240, 20) 9s total 1069s
+done (32, None, 'all', 'tuned_vs_untuned', 240, 100) 9s total 1070s
+done (32, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 1070s
+done (32, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 1071s
+done (32, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 1071s
+done (32, None, 'window', 'tuned_vs_untuned', 60, 20) 5s total 1072s
+done (32, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 1072s
+done (32, None, 'window', 'tuned_vs_untuned', 60, 100) 6s total 1073s
+done (32, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 1074s
+done (32, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 1074s
+done (32, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 1075s
+done (32, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 1s total 1076s
+done (32, None, 'window', 'tuned_vs_untuned', 120, 20) 5s total 1077s
+done (32, None, 'window', 'tuned_vs_untuned', 120, 100) 5s total 1077s
+done (32, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 1078s
+done (32, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 1078s
+done (32, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 1079s
+done (32, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 1s total 1079s
+done (32, None, 'window', 'tuned_vs_untuned', 240, 100) 10s total 1086s
+done (33, None, 'all', 'tuned_vs_untuned', 60, 20) 8s total 1086s
+done (32, None, 'window', 'tuned_vs_untuned', 240, 20) 12s total 1087s
+done (33, None, 'all', 'tuned_vs_untuned', 60, 100) 7s total 1087s
+done (33, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 1087s
+done (33, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 1087s
+done (33, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 1s total 1087s
+done (33, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 1087s
+done (33, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 1088s
+done (33, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 1088s
+done (33, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 1089s
+done (33, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 1089s
+done (33, None, 'all', 'tuned_vs_untuned', 120, 20) 6s total 1093s
+done (33, None, 'all', 'tuned_vs_untuned', 120, 100) 7s total 1093s
+done (33, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 1s total 1094s
+done (33, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 1095s
+done (33, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 1095s
+done (33, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 1s total 1096s
+done (33, None, 'all', 'tuned_vs_untuned', 240, 20) 11s total 1100s
+done (33, None, 'all', 'tuned_vs_untuned', 240, 100) 11s total 1100s
+done (33, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 1101s
+done (33, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 1101s
+done (33, None, 'window', 'tuned_vs_untuned', 60, 20) 6s total 1101s
+done (33, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 1102s
+done (33, None, 'window', 'tuned_vs_untuned', 60, 100) 6s total 1102s
+done (33, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 1102s
+done (33, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 1103s
+done (33, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 1103s
+done (33, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 1104s
+done (33, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 1s total 1104s
+done (33, None, 'window', 'tuned_vs_untuned', 120, 20) 6s total 1107s
+done (33, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 1108s
+done (33, None, 'window', 'tuned_vs_untuned', 120, 100) 6s total 1108s
+done (33, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 1109s
+done (33, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 0s total 1109s
+done (33, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 1110s
+done (33, None, 'window', 'tuned_vs_untuned', 240, 100) 12s total 1116s
+done (33, None, 'window', 'tuned_vs_untuned', 240, 20) 13s total 1116s
+done (34, None, 'all', 'tuned_vs_untuned', 60, 20) 8s total 1117s
+done (34, None, 'all', 'tuned_vs_untuned', 60, 100) 7s total 1117s
+done (34, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 1117s
+done (34, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 1117s
+done (34, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 1s total 1118s
+done (34, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 1118s
+done (34, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 1119s
+done (34, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 1119s
+done (34, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 1120s
+done (34, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 1120s
+done (34, None, 'all', 'tuned_vs_untuned', 120, 20) 5s total 1123s
+done (34, None, 'all', 'tuned_vs_untuned', 120, 100) 6s total 1123s
+done (34, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 1s total 1124s
+done (34, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 1124s
+done (34, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 1125s
+done (34, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 1s total 1125s
+done (34, None, 'all', 'tuned_vs_untuned', 240, 100) 11s total 1131s
+done (34, None, 'all', 'tuned_vs_untuned', 240, 20) 12s total 1132s
+done (34, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 1133s
+done (34, None, 'window', 'tuned_vs_untuned', 60, 100) 7s total 1133s
+done (34, None, 'window', 'tuned_vs_untuned', 60, 20) 7s total 1133s
+done (34, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 1133s
+done (34, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 1133s
+done (34, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 1134s
+done (34, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 1134s
+done (34, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 1135s
+done (34, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 1135s
+done (34, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 1s total 1136s
+done (34, None, 'window', 'tuned_vs_untuned', 120, 20) 6s total 1138s
+done (34, None, 'window', 'tuned_vs_untuned', 120, 100) 6s total 1139s
+done (34, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 1140s
+done (34, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 1140s
+done (34, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 1141s
+done (34, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 1s total 1141s
+done (34, None, 'window', 'tuned_vs_untuned', 240, 20) 11s total 1146s
+done (35, None, 'all', 'tuned_vs_untuned', 60, 20) 6s total 1147s
+done (35, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 1147s
+done (34, None, 'window', 'tuned_vs_untuned', 240, 100) 12s total 1148s
+done (35, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 1148s
+done (35, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 1148s
+done (35, None, 'all', 'tuned_vs_untuned', 60, 100) 7s total 1148s
+done (35, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 1s total 1149s
+done (35, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 1149s
+done (35, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 1150s
+done (35, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 1150s
+done (35, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 1151s
+done (35, None, 'all', 'tuned_vs_untuned', 120, 100) 6s total 1154s
+done (35, None, 'all', 'tuned_vs_untuned', 120, 20) 7s total 1154s
+done (35, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 1s total 1155s
+done (35, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 1155s
+done (35, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 1s total 1156s
+done (35, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 1156s
+done (35, None, 'window', 'tuned_vs_untuned', 60, 20) 6s total 1162s
+done (35, None, 'all', 'tuned_vs_untuned', 240, 20) 12s total 1162s
+done (35, None, 'all', 'tuned_vs_untuned', 240, 100) 12s total 1163s
+done (35, None, 'window', 'tuned_vs_untuned', 60, 100) 7s total 1163s
+done (35, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 1163s
+done (35, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 1163s
+done (35, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 1164s
+done (35, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 1164s
+done (35, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 1164s
+done (35, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 1165s
+done (35, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 1165s
+done (35, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 1s total 1166s
+done (35, None, 'window', 'tuned_vs_untuned', 120, 20) 5s total 1168s
+done (35, None, 'window', 'tuned_vs_untuned', 120, 100) 5s total 1169s
+done (35, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 1169s
+done (35, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 1170s
+done (35, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 1171s
+done (35, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 2s total 1172s
+done (35, None, 'window', 'tuned_vs_untuned', 240, 20) 10s total 1175s
+done (36, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 1176s
+done (36, None, 'all', 'tuned_vs_untuned', 60, 20) 6s total 1177s
+done (36, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 1177s
+done (35, None, 'window', 'tuned_vs_untuned', 240, 100) 11s total 1177s
+done (36, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 1177s
+done (36, None, 'all', 'tuned_vs_untuned', 60, 100) 6s total 1178s
+done (36, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 1s total 1179s
+done (36, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 1179s
+done (36, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 1180s
+done (36, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 1180s
+done (36, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 1181s
+done (36, None, 'all', 'tuned_vs_untuned', 120, 20) 4s total 1182s
+done (36, None, 'all', 'tuned_vs_untuned', 120, 100) 5s total 1183s
+done (36, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 1s total 1183s
+done (36, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 1184s
+done (36, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 1s total 1184s
+done (36, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 1185s
+done (36, None, 'window', 'tuned_vs_untuned', 60, 100) 7s total 1191s
+done (36, None, 'window', 'tuned_vs_untuned', 60, 20) 7s total 1192s
+done (36, None, 'all', 'tuned_vs_untuned', 240, 20) 12s total 1192s
+done (36, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 1192s
+done (36, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 1192s
+done (36, None, 'all', 'tuned_vs_untuned', 240, 100) 12s total 1193s
+done (36, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 1193s
+done (36, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 1193s
+done (36, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 1194s
+done (36, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 1194s
+done (36, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 1194s
+done (36, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 1s total 1195s
+done (36, None, 'window', 'tuned_vs_untuned', 120, 20) 6s total 1199s
+done (36, None, 'window', 'tuned_vs_untuned', 120, 100) 6s total 1199s
+done (36, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 2s total 1200s
+done (36, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 2s total 1201s
+done (36, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 1s total 1202s
+done (36, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 2s total 1202s
+done (36, None, 'window', 'tuned_vs_untuned', 240, 20) 11s total 1205s
+done (36, None, 'window', 'tuned_vs_untuned', 240, 100) 10s total 1205s
+done (37, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 1206s
+done (37, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 1207s
+done (37, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 1s total 1207s
+done (37, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 1208s
+done (37, None, 'all', 'tuned_vs_untuned', 60, 20) 6s total 1208s
+done (37, None, 'all', 'tuned_vs_untuned', 60, 100) 6s total 1208s
+done (37, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 1209s
+done (37, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 1209s
+done (37, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 1211s
+done (37, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 1211s
+done (37, None, 'all', 'tuned_vs_untuned', 120, 20) 6s total 1214s
+done (37, None, 'all', 'tuned_vs_untuned', 120, 100) 7s total 1214s
+done (37, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 1s total 1215s
+done (37, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 1216s
+done (37, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 1216s
+done (37, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 2s total 1217s
+done (37, None, 'all', 'tuned_vs_untuned', 240, 20) 11s total 1221s
+done (37, None, 'window', 'tuned_vs_untuned', 60, 20) 7s total 1222s
+done (37, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 2s total 1223s
+done (37, None, 'all', 'tuned_vs_untuned', 240, 100) 12s total 1223s
+done (37, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 1223s
+done (37, None, 'window', 'tuned_vs_untuned', 60, 100) 7s total 1224s
+done (37, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 1224s
+done (37, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 1224s
+done (37, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 1224s
+done (37, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 0s total 1225s
+done (37, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 1225s
+done (37, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 0s total 1225s
+done (37, None, 'window', 'tuned_vs_untuned', 120, 20) 6s total 1229s
+done (37, None, 'window', 'tuned_vs_untuned', 120, 100) 6s total 1230s
+done (37, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 1231s
+done (37, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 1231s
+done (37, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 1232s
+done (37, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 1s total 1233s
+done (37, None, 'window', 'tuned_vs_untuned', 240, 20) 10s total 1235s
+done (37, None, 'window', 'tuned_vs_untuned', 240, 100) 10s total 1235s
+done (38, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 0s total 1235s
+done (38, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 0s total 1235s
+done (38, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 1236s
+done (38, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 0s total 1236s
+done (38, None, 'all', 'tuned_vs_untuned', 60, 20) 8s total 1240s
+done (38, None, 'all', 'tuned_vs_untuned', 60, 100) 7s total 1240s
+done (38, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 1241s
+done (38, None, 'all', 'tuned_vs_untuned', 120, 100) 5s total 1241s
+done (38, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 1241s
+done (38, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 1242s
+done (38, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 1242s
+done (38, None, 'all', 'tuned_vs_untuned', 120, 20) 7s total 1243s
+done (38, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 1s total 1243s
+done (38, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 1244s
+done (38, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 2s total 1244s
+done (38, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 2s total 1245s
+done (38, None, 'window', 'tuned_vs_untuned', 60, 20) 6s total 1250s
+done (38, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 1252s
+done (38, None, 'all', 'tuned_vs_untuned', 240, 20) 11s total 1252s
+done (38, None, 'window', 'tuned_vs_untuned', 60, 100) 6s total 1252s
+done (38, None, 'all', 'tuned_vs_untuned', 240, 100) 11s total 1252s
+done (38, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 1253s
+done (38, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 1253s
+done (38, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 1253s
+done (38, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 1254s
+done (38, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 1254s
+done (38, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 1254s
+done (38, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 1s total 1255s
+done (38, None, 'window', 'tuned_vs_untuned', 120, 20) 5s total 1257s
+done (38, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 1258s
+done (38, None, 'window', 'tuned_vs_untuned', 120, 100) 6s total 1259s
+done (38, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 1259s
+done (38, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 1260s
+done (38, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 1s total 1260s
+done (38, None, 'window', 'tuned_vs_untuned', 240, 20) 11s total 1266s
+done (39, None, 'all', 'A_vs_B_sameS', 60, (20, 20)) 1s total 1266s
+done (39, None, 'all', 'A_vs_B_ownS', 60, (20, 20)) 1s total 1267s
+done (38, None, 'window', 'tuned_vs_untuned', 240, 100) 13s total 1267s
+done (39, None, 'all', 'tuned_vs_untuned', 60, 20) 7s total 1267s
+done (39, None, 'all', 'tuned_vs_untuned', 60, 100) 8s total 1268s
+done (39, None, 'all', 'A_vs_B_sameS', 60, (100, 20)) 1s total 1268s
+done (39, None, 'all', 'A_vs_B_ownS', 60, (100, 20)) 1s total 1268s
+done (39, None, 'all', 'A_vs_B_sameS', 120, (20, 20)) 1s total 1269s
+done (39, None, 'all', 'A_vs_B_ownS', 120, (20, 20)) 1s total 1270s
+done (39, None, 'all', 'A_vs_B_sameS', 120, (100, 20)) 1s total 1270s
+done (39, None, 'all', 'A_vs_B_ownS', 120, (100, 20)) 1s total 1271s
+done (39, None, 'all', 'tuned_vs_untuned', 120, 20) 5s total 1272s
+done (39, None, 'all', 'tuned_vs_untuned', 120, 100) 6s total 1273s
+done (39, None, 'all', 'A_vs_B_sameS', 240, (20, 20)) 1s total 1274s
+done (39, None, 'all', 'A_vs_B_ownS', 240, (20, 20)) 1s total 1275s
+done (39, None, 'all', 'A_vs_B_sameS', 240, (100, 20)) 1s total 1275s
+done (39, None, 'all', 'A_vs_B_ownS', 240, (100, 20)) 1s total 1276s
+done (39, None, 'all', 'tuned_vs_untuned', 240, 20) 8s total 1278s
+done (39, None, 'window', 'A_vs_B_sameS', 60, (20, 20)) 1s total 1279s
+done (39, None, 'window', 'A_vs_B_ownS', 60, (20, 20)) 1s total 1280s
+done (39, None, 'all', 'tuned_vs_untuned', 240, 100) 9s total 1280s
+done (39, None, 'window', 'A_vs_B_sameS', 60, (100, 20)) 1s total 1281s
+done (39, None, 'window', 'A_vs_B_ownS', 60, (100, 20)) 1s total 1281s
+done (39, None, 'window', 'tuned_vs_untuned', 60, 20) 7s total 1282s
+done (39, None, 'window', 'A_vs_B_sameS', 120, (20, 20)) 1s total 1283s
+done (39, None, 'window', 'tuned_vs_untuned', 60, 100) 7s total 1283s
+done (39, None, 'window', 'A_vs_B_ownS', 120, (20, 20)) 1s total 1284s
+done (39, None, 'window', 'A_vs_B_sameS', 120, (100, 20)) 1s total 1284s
+done (39, None, 'window', 'A_vs_B_ownS', 120, (100, 20)) 1s total 1285s
+done (39, None, 'window', 'tuned_vs_untuned', 120, 100) 6s total 1287s
+done (39, None, 'window', 'tuned_vs_untuned', 120, 20) 7s total 1287s
+done (39, None, 'window', 'A_vs_B_ownS', 240, (20, 20)) 1s total 1288s
+done (39, None, 'window', 'A_vs_B_sameS', 240, (20, 20)) 1s total 1289s
+done (39, None, 'window', 'A_vs_B_sameS', 240, (100, 20)) 1s total 1290s
+done (39, None, 'window', 'A_vs_B_ownS', 240, (100, 20)) 1s total 1290s
+done (39, None, 'window', 'tuned_vs_untuned', 240, 100) 6s total 1291s
+done (39, None, 'window', 'tuned_vs_untuned', 240, 20) 8s total 1292s

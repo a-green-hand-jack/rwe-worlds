@@ -1,0 +1,12 @@
+{\footnotesize\setlength{\tabcolsep}{2.5pt}
+\begin{tabular}{@{}l c c c c c c@{}}
+\toprule
+Search at $n=60$ (accuracy points) & evaluated & reported & true & \shortstack{gap\\(95\% interval)} & \shortstack{gap without\\own demos} & predicted \\
+\midrule
+\textsf{dspy} tool ($t$, 24 draws) & 19 & 35.7 & 29.1 & 6.6 (3.9--9.3) & 4.8 (2.1--7.5) & 5.4 \\
+replay $B=20$, pool-bootstrap* & 20 & -- & -- & 5.8 (5.2--6.5) & -- & -- \\
+replay $B=20$, with draw noise & 20 & -- & -- & 5.8 (4.9--6.7) & -- & -- \\
+\midrule
+\multicolumn{7}{@{}p{\dimexpr\linewidth-5pt\relax}}{*Used for the verdict: not consistent (tool gap 0.15 above the interval; 24 draws, tested).} \\
+\bottomrule
+\end{tabular}}

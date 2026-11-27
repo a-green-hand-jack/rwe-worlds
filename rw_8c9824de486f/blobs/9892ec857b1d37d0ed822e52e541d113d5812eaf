@@ -1,0 +1,77 @@
+"""Stage B: evaluate selection x inference rules on the held-out models of one (split, fold).
+usage: python 05_eval.py <data_dir> <work_dir> <split> <fold> <out_dir> [rules comma list]
+Output: <out_dir>/<split>_<fold>_<tag>.parquet, one row per (model, k, rule, inference, draw)."""
+import os, sys, pickle, time, numpy as np, pandas as pd
+from scipy.stats import spearmanr
+sys.path.insert(0, os.path.dirname(__file__))
+from common import *
+from fa import complete, predict_row, design_risk
+from state import loo_predictions
+import select_rules as SR, infer_rules as IR
+
+def metrics(pred, z, sd, T, e_loo_raw, delta, gap, floorj):
+    err = (pred[T] - z[T]); raw = err * sd[T]
+    row = dict(n_targets=len(T), rmse_raw=float(np.sqrt(np.mean(raw ** 2))), mae_raw=float(np.mean(np.abs(raw))),
+               rmse_std=float(np.sqrt(np.mean(err ** 2))), floor_raw=float(np.sqrt(np.mean(e_loo_raw[T] ** 2))),
+               delta_mean=float(np.nanmean(delta[T])), floorj_mean=float(np.nanmean(floorj[T])), gap_mean=float(np.nanmean(gap[T])))
+    if len(T) >= 3 and np.ptp(pred[T]) > 0:
+        row["spearman"] = float(spearmanr(pred[T], z[T])[0])
+    else:
+        row["spearman"] = np.nan
+    return row
+
+def main():
+    data_dir, work, split, fold, out = sys.argv[1:6]; fold = int(fold)
+    rules = sys.argv[6].split(",") if len(sys.argv) > 6 else ["S0", "S6"]
+    tag = sys.argv[7] if len(sys.argv) > 7 else "main"
+    Y, mods, tasks, et = load_matrix(data_dir)
+    st = pickle.load(open(os.path.join(work, "state", f"{split}_{fold}.pkl"), "rb"))
+    train, test, mu, sd = st["train"], st["test"], st["mu"], st["sd"]
+    Z = (Y - mu) / sd; mask = ~np.isnan(Y)
+    Ztr = Z[train]; N = Y.shape[1]
+    cover = mask[train].sum(0).astype(float); rawsd = sd
+    cost = np.nanmedian(et[train], 0); cost = np.where(np.isnan(cost), np.nanmedian(cost), cost)
+    rows = []; t0 = time.time()
+    need_completed = {r for r in rules if r in ("S4", "S5")}
+    Xc = {}
+    for r, fit in st["fits"].items():
+        if need_completed: Xc[r] = complete(Ztr, fit)
+    for m in test:
+        obs = np.where(mask[m])[0]; z = Z[m]
+        floor_fit = st["fits"][st["best_rank"]["loo"]]
+        e_loo = np.zeros(N); e_loo[obs] = (loo_predictions(floor_fit, obs, z[obs]) - z[obs]) * sd[obs]   # raw points
+        rng_m = np.random.default_rng(SEED * 31 + int(m))
+        for k in K_GRID:
+            if len(obs) <= k: continue
+            r = st["best_rank"][k]; fit = st["fits"][r]
+            for rule in rules:
+                if rule == "S0": sets = [SR.s0_random(obs, k, rng_m) for _ in range(D_RANDOM)]
+                elif rule == "S1": sets = [SR.s1_popular(obs, k, cover)]
+                elif rule == "S2": sets = [SR.s2_variance(obs, k, rawsd)]
+                elif rule == "S6": sets = [SR.s6_greedy(fit, obs, k)]
+                elif rule == "S6u": sets = [SR.s6_unrun(fit, obs, k)]                     # target = benchmarks not yet run
+                elif rule == "S6s": sets = [SR.s6_swap(fit, obs, k)]                    # greedy + single-swap local search
+                elif rule == "S6r": sets = [SR.s6_greedy(fit, obs, k, target=obs)]      # own-run-set target variant
+                elif rule == "S6c": sets = [SR.s6_greedy(fit, obs, k, cost=cost)]       # cost-aware (gain per unit cost)
+                elif rule == "S4": sets = [SR.s4_pivqr(Xc[r], obs, k)]
+                elif rule == "S5": sets = [SR.s5_cluster(Xc[r], obs, k, rng_m)]
+                else: raise ValueError(rule)
+                for d, S in enumerate(sets):
+                    S = np.asarray(S); T = np.setdiff1d(obs, S)
+                    base = dict(split=split, fold=fold, model=int(m), k=k, rule=rule, draw=d, rank=r, runset=len(obs),
+                                cost_sel=float(cost[S].sum()))
+                    # T1 prediction (known-parameter risk under the fitted model) for the same S and targets, raw points
+                    dr = design_risk(fit, S); base["t1_rmse_raw"] = float(np.sqrt(np.mean(dr[T] * sd[T] ** 2)))
+                    base["t1_floor_raw"] = float(np.sqrt(np.mean(fit["psi"][T] * sd[T] ** 2)))
+                    for inf in ("P5", "P1", "P0"):
+                        if inf == "P5": pred = IR.p5_fa(fit, S, z[S])
+                        elif inf == "P1": pred = IR.p1_offset(N, z[S])
+                        else: pred = IR.p0_mean(N)
+                        rows.append({**base, "inf": inf, **metrics(pred, z, sd, T, e_loo, st["delta"], st["gap"], st["floor"])})
+    df = pd.DataFrame(rows)
+    os.makedirs(out, exist_ok=True)
+    df.to_parquet(os.path.join(out, f"{split}_{fold}_{tag}.parquet"))
+    print(split, fold, tag, len(df), round(time.time() - t0, 1), "s", flush=True)
+
+if __name__ == "__main__":
+    main()

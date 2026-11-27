@@ -1,0 +1,21 @@
+# tab_side_info
+
+**Claim carried:** C6: gains from side information X credited to calibration only if they exceed the linear-with-X arm.
+
+**Shows:** E6, T2 arms (f and X), one block per dataset and n: mean width, coverage with Wilson 95% CI, paired width ratio to the PPI++ arm that uses f only, on the same draws (longtable); bold = shortest valid width; Floor with X is a model-based prediction (no coverage, no paired CI); dagger = coverage fails the win rule.
+
+**How to read:** a gain from X is credited to calibration only if the calibrated +X row (B3) or the selected row (B5) is shorter than the vector PPI++ and OLS-adjusted rows at valid coverage; a ratio at or above 1 means no gain over f-only PPI++.
+
+**Computed on** (from the rows drawn):
+- datasets/scenarios: alphafold, census_education, census_healthcare, census_income, syn_x_t10.0_t20.0, syn_x_t10.0_t20.6, syn_x_t10.6_t20.0, syn_x_t10.6_t20.6
+- n: 100, 1000, 1600, 200, 400
+- N: 4000, 5000
+- tier: T2
+- methods: calib_x, floor_x, gbm_aipw, ols_adj, select_x, selectmin_x, vec_ppipp_x
+- constructions: wald
+- sampling: synthetic_iid, with_replacement
+- base seeds: 20303302.0, 20306324.0, 20309389.0, 20384150.0, 20447706.0, 20519607.0, 20520632.0, 20604176.0, 20650073.0, 20675232.0, 20684059.0, 20723506.0, 20822055.0, 20915925.0, 20969298.0, 20981533.0, 21022155.0, 21025412.0, 21240728.0, 21260197.0
+- code commits: 146848fb9a8459fac152ed67ffd429c934ecc49c, 1c26f15b4e5d3118fe084785180f68b7c48e7644, 1f50af5637e104678ea206560d15bb0de112b141, 30a9badedb06060432391515204a8e6ef0e5c53b, 5e11b915d25abfdb3dc37480525a5cacb80b16f3, 71c2df18f5b90d97b4b3a65bb1ee9aaaed7fc159, b778f5a45f821ec23ce123e5ece1fa98a9b1abac, f7cde9586b0286b709e013b3a70a4e33d56cceb1, f7ffea997cdce4147adb4c9e4e2834381882296c
+- n (and N) per dataset: alphafold n=200, 1000 (N=5000); census_education n=200, 1000 (N=5000); census_healthcare n=200, 1000 (N=5000); census_income n=200, 1000 (N=5000); syn_x_t10.0_t20.0 n=100, 400, 1600 (N=4000); syn_x_t10.0_t20.6 n=100, 400, 1600 (N=4000); syn_x_t10.6_t20.0 n=100, 400, 1600 (N=4000); syn_x_t10.6_t20.6 n=100, 400, 1600 (N=4000)
+- Monte-Carlo repetitions per row: min 1000, max 1000
+- rows: 140

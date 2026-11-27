@@ -1,0 +1,8 @@
+criterion,value,ci_lo,ci_hi,met,overall_verdict
+"(1) pooled held-out gain >= 0.05, CI excludes 0, leave-one-mechanism-out",0.0336527442050282,-0.2848164802763854,0.3377709787934809,False,not supported
+"(1') same, leave-one-family-out",-0.0094306169466422,-0.2665274683009301,0.2151086277832117,False,not supported
+(2) gain positive in >= 4 of 6 held-out mechanisms and survives deleting any one,3.0,,,False,not supported
+"(3i) part (i) on D*: gain >= 0.05, CI excludes 0",0.1249401531842642,0.0690643392505054,0.3176281981670263,True,not supported
+"(3ii) part (ii) bias: gain >= 0.05, CI excludes 0 (corner x curvature)",0.0077851139410467,-0.3267648243525258,0.2274750861849375,False,not supported
+(3ii') part (ii) bias: S_bar,0.0437324943582706,-0.0091021677565725,0.0835964069258008,False,not supported
+(4) within-cell excess of S over null: median CI above 0 and above bootstrap SE,0.0006997855531728,-0.0001497794419937,0.0026764741830464,False,not supported

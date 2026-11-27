@@ -1,0 +1,96 @@
+"""Fig 2 (claims M2, M3): per dataset (columns) and model,
+row 1: share of instances with P_c^eps >= threshold against budget m (filled, CI band; open markers = strict P_c, eps = 0);
+row 2: mean per-instance Pearson correlation of a run with the exact phi against budget (aggregate agreement);
+row 3: distribution of the per-instance P_c (share of instances with P_c <= x, x < 1) at the reference budget.
+
+The reference budget is the shap default where it samples (German, ACS-Employment) and the largest sampling budget where the default
+enumerates all coalitions (d <= 10, deterministic): see figstyle.ref_budget. It is printed in the panel label.
+Reads: sensitivity, instance_level, cells. Usage: python fig2_headline.py DATA_DIR OUT_PREFIX [--estimator shap_kernel --l1 False]
+"""
+import argparse
+import numpy as np, pandas as pd, matplotlib as mpl, matplotlib.pyplot as plt
+import matplotlib.ticker
+import figstyle as fs
+
+ap = argparse.ArgumentParser()
+ap.add_argument("data"); ap.add_argument("out")
+ap.add_argument("--estimator", default="shap_kernel"); ap.add_argument("--l1", default="False")
+ap.add_argument("--eps", type=float, default=0.05); ap.add_argument("--thr", type=float, default=0.9)
+ap.add_argument("--kind", default="topk3")
+a = ap.parse_args()
+fs.setup()
+
+sens, p1 = fs.load(a.data, "sensitivity")
+inst, p2 = fs.load(a.data, "instance_level")
+cells, p3 = fs.load(a.data, "cells")
+fs.require(sens, ["dataset", "model", "estimator", "l1_reg", "budget_m", "kind", "eps", "threshold", "R", "share", "ci_lo", "ci_hi"], "sensitivity")
+fs.require(inst, ["dataset", "model", "estimator", "l1_reg", "budget_m", "instance_id", "kind", "R", "n_correct", "mean_pearson"], "instance_level")
+fs.require(cells, ["dataset", "model", "estimator", "l1_reg", "budget_m", "R", "is_default_budget", "evals_per_run"], "cells")
+
+def pick(d): return d[(d.estimator == a.estimator) & (d.l1_reg == a.l1) & (d.kind == a.kind)]
+S = pick(sens); S = S[np.isclose(S.threshold, a.thr) & (S.R > 1)]   # R = 1 (exact enumeration) is not a sampling budget
+tol, strict = S[np.isclose(S.eps, a.eps)], S[np.isclose(S.eps, 0.0)]
+I = pick(inst)
+ref = fs.ref_budget(cells, a.estimator, a.l1)
+rng = np.random.default_rng(0)  # fixed seed: bootstrap for the aggregate (Pearson) panel only
+
+def boot_mean(x, B=1000):
+    x = np.asarray(x, float)
+    m = rng.choice(x, (B, len(x))).mean(1)
+    return x.mean(), *np.percentile(m, [2.5, 97.5])
+
+dsets = [d for d in fs.DATASET_TITLE if d in set(tol.dataset)]
+if not dsets: raise SystemExit("no dataset in sensitivity.csv matches the selection")
+fig, ax = plt.subplots(3, len(dsets), figsize=(fs.WIDTH_IN, 4.5), sharey="row", squeeze=False)
+rows = []
+for j, ds in enumerate(dsets):
+    for m in fs.MODELS:
+        st = fs.MODEL_STYLE[m]
+        t = tol[(tol.dataset == ds) & (tol.model == m)].sort_values("budget_m")
+        if t.empty: continue  # absent cell stays absent
+        u = strict[(strict.dataset == ds) & (strict.model == m)].sort_values("budget_m")
+        ax[0, j].fill_between(t.budget_m, t.ci_lo, t.ci_hi, color=st["color"], alpha=0.18, lw=0)
+        ax[0, j].plot(t.budget_m, t.share, color=st["color"], ls=st["ls"], marker=st["marker"], label=st["label"])
+        ax[0, j].plot(u.budget_m, u.share, color=st["color"], lw=0.6, ls=":", marker=st["marker"], mfc="white", ms=3)
+        g = I[(I.dataset == ds) & (I.model == m) & (I.R > 1)]
+        agg = pd.DataFrame([(b, *boot_mean(gb.mean_pearson.values)) for b, gb in g.groupby("budget_m")],
+                           columns=["budget_m", "mean", "lo", "hi"]).sort_values("budget_m")
+        ax[1, j].fill_between(agg.budget_m, agg.lo, agg.hi, color=st["color"], alpha=0.18, lw=0)
+        ax[1, j].plot(agg.budget_m, agg["mean"], color=st["color"], ls=st["ls"], marker=st["marker"])
+        rows += [dict(dataset=ds, model=m, panel="share_pc_eps", **r) for r in t[["budget_m", "share", "ci_lo", "ci_hi", "n_instances"]].to_dict("records")]
+        rows += [dict(dataset=ds, model=m, panel="share_pc_strict", **r) for r in u[["budget_m", "share", "ci_lo", "ci_hi", "n_instances"]].to_dict("records")]
+        rows += [dict(dataset=ds, model=m, panel="mean_pearson", **r) for r in agg.to_dict("records")]
+        r0 = ref[(ref.dataset == ds) & (ref.model == m)]
+        if r0.empty: continue
+        b0 = int(r0.budget_m.iloc[0])
+        gg = g[g.budget_m == b0]
+        pc = np.sort((gg.n_correct / gg.R).values)
+        below = pc[pc < 1]
+        xs = np.r_[0, below, 1]; ys = np.r_[0, np.arange(1, len(below) + 1), len(below)] / len(pc)
+        ax[2, j].step(xs, ys, where="post", color=st["color"], ls=st["ls"])
+        rows += [dict(dataset=ds, model=m, panel="cdf_pc", budget_m=b0, x=x, y=(k + 1) / len(pc), n_instances=len(pc)) for k, x in enumerate(below)]
+    ax[0, j].set_title(fs.DATASET_TITLE[ds])
+    rb = ref[ref.dataset == ds]
+    for r_ in (0, 1):
+        ax[r_, j].set_xscale("log")
+        ms = sorted(set(S[S.dataset == ds].budget_m))
+        ax[r_, j].set_xticks([ms[0], ms[len(ms) // 2], ms[-1]] if len(ms) > 2 else ms)
+        ax[r_, j].xaxis.set_major_formatter(mpl.ticker.ScalarFormatter()); ax[r_, j].xaxis.set_minor_formatter(mpl.ticker.NullFormatter())
+        for x in sorted(set(rb.budget_m)): ax[r_, j].axvline(x, color="0.5", lw=0.6, ls="--", zorder=0)
+    ax[1, j].set_xlabel("budget $m$")
+    bl = sorted(set(rb.budget_m))
+    ax[2, j].set_xlabel("$P_c$ at $m=$" + "/".join(map(str, bl)))
+    ax[2, j].set_xlim(0, 1); ax[0, j].set_ylim(-0.02, 1.02)
+ax[0, 0].set_ylabel(f"share with\n$P_c^\\epsilon \\geq {a.thr}$")
+ax[1, 0].set_ylabel("mean Pearson $r$\nvs exact")
+ax[2, 0].set_ylabel("share of instances\nwith $P_c \\leq x$")
+ymax = max([ax[2, j].get_ylim()[1] for j in range(len(dsets))]); ax[2, 0].set_ylim(0, min(1.0, ymax))
+h, l = ax[0, 0].get_legend_handles_labels()
+from matplotlib.lines import Line2D
+h += [Line2D([], [], color="0.3", marker="o", ms=3), Line2D([], [], color="0.3", lw=0.6, ls=":", marker="o", mfc="white", ms=3)]
+l += [f"$P_c^\\epsilon$, $\\epsilon={a.eps}$ (band: 95% CI)", "strict $P_c$, $\\epsilon=0$"]
+fig.legend(h, l, loc="upper center", ncol=4, frameon=False, handlelength=2.2, bbox_to_anchor=(0.5, 1.0), columnspacing=1.0)
+fig.tight_layout(pad=0.4, h_pad=0.5, w_pad=0.5, rect=(0, 0, 1, 0.91))
+fs.save(fig, a.out, pd.DataFrame(rows), [p1, p2, p3],
+        note=f"estimator={a.estimator}; l1_reg={a.l1}; kind={a.kind}; eps={a.eps}; thr={a.thr}; sampling budgets only (R>1); row 3 at the reference budget "
+             f"(shap default where it samples, else the largest sampling budget; per cell: {ref.groupby('dataset').budget_m.agg(lambda x: sorted(set(x))).to_dict()}); absent cells not drawn")

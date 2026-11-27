@@ -1,0 +1,78 @@
+# Pre-analysis note (committed before any real-data result table was read)
+
+Status of this note: written after the code and the synthetic calibration, **while the core batch (`scripts/run_core_all.sh`) was
+already running**. Before this note I had looked at (i) MT-Bench-human (6 models) and ~28 Arena-55k pairs to debug the search and
+(ii) the synthetic runs. No threshold below was tuned on a real-data summary; the margins come from the synthetic calibration
+(`scripts/04_synthetic.py`, `04b_synthetic_pflip.py`: all rows **synthetic**) and are fixed here.
+
+## Definitions as implemented
+- Estimator: BT-MLE on pair-aggregated counts, tie = half a win to each side, ridge 1e-4 on theta (`src/btlib.py`).
+- Conclusion "a above b" (ordered by the fitted theta). Alteration cost: 1 comparison = 1 (delete; outcome change b-win/tie->a-win,
+  a-win/tie->b-win; free-choice insertion as extension). A tie turned into a win costs 1, a win turned into a loss costs 1 (cost-2 variant = sensitivity).
+- k\* = smallest alteration count for which the exact refit has theta_a - theta_b <= 0 (ties of the fitted scores count as flipped);
+  it is a **verified upper bound** found by search (iterated re-linearisation, checked by Frank-Wolfe on the continuous relaxation);
+  k_lin = first-order (influence) estimate without refit; gmax = largest single-alteration first-order effect on the gap;
+  z = gap / SE (z_fisher: model-based; z_boot: cluster bootstrap B=500; z_boot_cmp: comparison-level bootstrap);
+  F = k\* gmax / SE_boot, Q = F / z = k\* gmax / gap (SE cancels).
+- Null: simulate from the fitted BT on the same graph and n_ij with the dataset tie rate (clipped to 2 min(p,1-p)), preserving the mean score of
+  every pair exactly; labelled synthetic; R = 20 replicates, 300 z-stratified pairs per dataset, same estimator and search.
+
+## Sizes (fixed)
+Real data: k\*, z, Q for **all** M(M-1)/2 pairs per dataset (Arena 2016; judges 2016 each; MT-Bench 15; NBA season <= 435), both families.
+Bootstrap B=500 (cluster) and B=500 (comparison), seed 0. Null R=20 x 300 pairs. Random baselines (02_random.py): 60 pairs per dataset x 300 draws x f in
+{.005,.01,.02,.05,.1,.15,.2,.3,.5}. Subsampling (05_scaling.py): fractions 1/32..1, 5 draws, 40 pairs. Z-strata: [0,1),[1,2),[2,4),[4,8),[8,inf);
+the **declared z-range** for all aggregate statements is z_fisher in [1,8] (below 1 the pair is not separated; above 8 the pairs are an extrapolation of the
+bootstrap and the search).
+
+## What the synthetic calibration says (synthetic BT data, M in {12,30}, N 2e3..1.28e5, density {1,.25}, tie {0,.3}; 3 reps; 11,520 pairs with 1<z<12)
+- Scaling: log k\* = a + b log z + c log N + d log P: b = 1.11 (delete) / 1.13 (flip), c = 0.45 / 0.43 (theory 1 and 0.5), residual sd 0.23 / 0.20 (log).
+- Q = k\* gmax / gap under correctly specified BT: delete mean log Q = -0.03 (Q ~ 0.97; 0.90 sparse-no-ties .. 1.06 dense-ties), instance-level sd of mean log Q = 0.06 within a
+  configuration; flip: mean log Q = +0.21, depends on density (sparse 1.08-1.10, dense 1.28-1.35 because the capacity of the top-influence alterations is used up). So **Q is not >= 1** under exact refit
+  (the brief's inequality holds for the linear regime only) and its baseline depends on graph and family: Q is only read against its own null (same graph).
+- First-order search: k_lin / k_ver median 1.26 (delete; first-order overestimates because influence grows as data is removed), 0.97 (flip).
+- Random-deletion flip probability conditional on the observed sample: P_flip(f) = Phi(-z sqrt((1-f)/f)) (RMSE 0.010 over 5,000+ cells), **not** the Brief's Phi(-z sqrt(1-f))
+  (RMSE 0.070, biased -0.036). Consequence: the noise-equivalent fraction f_q = z^2/(z^2 + c_q^2), c_q = |Phi^-1(q)|, is below 0.8 only for z < ~2 at q=16%.
+- Search quality on 53 tiny problems (M=3,4, N=30-70; exhaustive enumeration): iterated re-linearisation = Frank-Wolfe = exact minimum in 53/53; ceil(LP relaxation over theta\*) = exact in 53/53.
+
+## Revision 2 (after the review in `experiment-repo`#5; this version is the single source of the numbers in force)
+Disclosure: the summaries of Arena-55k (Delta, Q real vs null for delete and flip, top-1 pair) had been read when this revision was written; the changes below make the
+rules stricter or define statistics for every pair, and none was chosen to favour an Arena outcome. Changes: C2 primary statistic = equal-budget comparison; C4/C1 use an equivalence
+(TOST-type) rule with margin 0.15; C1 compares each data set with its own null; C5 tests a design term only where a design has >= 2 units; extra search checks at scale; B >= 300 for
+headline matched contrasts; C3 headline = published-view definition.
+
+## Decision rules (margins fixed now)
+- **Equivalence rule used for C1 and C4.** Delta (below) is "equivalent to the null" only if the whole 95% interval lies inside (-0.15, +0.15) on the log scale (0.15 = 2.5 x the
+  instance-level sd 0.06 of mean log Q in the synthetic null); "differs" if the whole interval lies beyond +0.15 or beyond -0.15;
+  else "inconclusive at this size". Intervals from a jackknife over models are coarse for M = 6 (MT-Bench) and said so in the tables.
+- **C1 scale.** Per dataset and family: Delta = mean over pairs in z_fisher in [1,8] of log Q_real - log Q_null(z) against the data set's **own** null (same graph, counts, tie rate).
+  "F collapses on z" is claimed for a family only for the data sets with Delta equivalent to 0 (count and share reported); the pooled null is a descriptive panel only. The empirical exponents of
+  log k\* on log z and log N (within dataset by subsampling and pooled) are reported as measured (synthetic: 1.11-1.13 and 0.43-0.45), not as "k\* proportional to z sqrt N";
+  the band [0.95, 1.28] for z and [0.28, 0.60] for N decides "consistent with the synthetic BT behaviour". Raw k\*/N falling with N: declared if the subsampling slope of log(k\*/N) on log N is < -0.2 with a CI excluding 0.
+- **C2 noise vs intent (primary = equal budget).** For each pair in the declared range: P_flip of uniformly random deletion / random outcome change at budgets 0.5 k\*, k\* and 2 k\* (300 draws, pair-specific) against the
+  adversary's success (1 at k\*, by verification), together with F = k\* gmax / SE_boot (the adversary's size in noise SE units). rho_q = k_rand,q / k\* (q = 16%) only where random reaches q within f <= 0.5, and
+  the share of pairs where it does is reported with it. "Adversary is far below noise" = random P_flip at k\* below 5% for >= 90% of the pairs of a z-stratum, stated per stratum.
+- **C4 design vs statistics.** Delta as in C1 per member; contrast between members of a matched contrast = difference of their Delta from a joint cluster bootstrap with B = 300 (headline contrasts, 30 z-stratified pairs
+  per member and family); "design difference" only if the interval of the difference lies beyond +-0.15.
+- **C3.** Survival curves on the pairs that are CI-separated under the published-view definition (non-overlapping 95% percentile-bootstrap model intervals, cluster bootstrap B=500); sensitivity: pairs whose bootstrap gap CI excludes 0. Fraction with k\* > b in SE units (k\* gmax / SE_boot) and in sqrt(N) units; no threshold.
+- **C5.** log k\* regression with covariates log z, log N, log density, tie rate (z in [1,8]). Held-out units: datasets (judges, NBA seasons, MT-Bench/Arena members). A design term is tested **only where a design has >= 2 units**
+  (llm-judge: the judges and GPT-4; sports: seasons; crowd: 55k, single-turn subset, 140k slices when run); crowd(55k alone) and expert(MT-Bench human alone) have no held-out replicate. "Design term helps": paired
+  difference of held-out squared errors across held-out units (with and without the term), bootstrap interval across units excluding 0; units counted and stated; else "no evidence".
+- **C6.** First-order accurate if median |k_lin/k\* - 1| < 0.10; search tight if k\* <= 1.05 ceil(LP relaxation) on the small real anchors (LP relaxation = multi-start Nelder-Mead over theta\*, a lower-bound **candidate**, labelled so in every table;
+  exact for fixed theta\* only; a certificate only on the small anchors where it coincides with the exhaustive minimum). At scale (Arena, M=64, k\* in the hundreds): (i) stronger independent search on 40 pairs per family
+  (randomised restarts / perturbation from the best solution, Frank-Wolfe from several initial points at k\*-1, k\*-2, ...), reported as the distribution of k\*_improved / k\*_standard; (ii) planted instances
+  (data built so that a known alteration of size k_p flips a pair): the search must find <= k_p; the ratio is reported.
+
+## Revision 3 (after the request of `idea-review-repo` in `experiment-repo`#7; written before any of the runs below were made)
+Disclosure: the real-data results (Delta for all 91 data sets, the C5 table, the Arena-55k SE of the bootstrap) had been seen when this revision was written. The rules below do not tune anything to them: sizes and counts are fixed here.
+Why: Q = k* g_max / gap sits near 1 by the first-order identity, so a Delta inside +-0.15 supports "no design-specific misfit" only if the test can see a misfit. This revision adds (i) a positive control, (ii) the SE ratio the published CI sees, (iii) first-order and null-mean references for C5.
+- **Positive control (`scripts/14_positive_control.py`).** Synthetic data (all rows `synthetic=1`) simulated from the fitted BT of two real graphs: Arena-55k (M = 64, 1,275 pairs, same pair counts and tie rate, N = 57,477;
+  comparisons are put in random blocks of 20 as the resampling unit because the real prompts are almost all singletons) and MT-Bench human (M = 6 complete graph, N = 3,355, the real 80 question clusters). Departures at the comparison level, on the logit scale:
+  (a) `overdisp` question x model random effect, sd tau in {0.25, 0.5, 1.0}, shared by the comparisons of a cluster; (b) `position` bias b in {0.25, 0.5, 1.0}, each pair has a fixed share pi_ij ~ U(0.2, 0.8) of comparisons in which its first-named model is listed first,
+  a listed-first model gains b; (c) `cyclic` rank-2 antisymmetric component u_i v_j - u_j v_i rescaled to sd c over pairs, c in {0.1, 0.2, 0.4, 0.8}; (d) `pairdev` independent antisymmetric pair deviations of sd c in {0.1, 0.2, 0.4, 0.8}; plus the no-departure case
+  (specificity, `none`). Outcome of each comparison: win / loss / tie with p = sigmoid(eta) and tie probability min(tie rate, 2 min(p, 1-p)), the same rule as the null.
+  Each simulated data set goes through the same rule as the real data: BT fit on pair-aggregated counts, own same-graph null (8 replicates, 300 pairs), Delta(log Q) = mean over pairs with z_fisher in [1,8] of log Q - log Q_null, jackknife interval over models, margin 0.15, delete and flip.
+  Pairs are a z-spread sample of the 300 pairs in z_fisher in [0.7, 10] (Arena) or all (M = 6). Replicates: 5 per condition on Arena-55k, 20 on MT-Bench human (null: 8 replicates on Arena-55k, 20 on the 6-model graph, which has only 15 pairs). Reported per condition: Delta, interval, share of replicates whose interval lies inside / beyond +-0.15 (detected = beyond, or the pooled mean beyond),
+  and the smallest departure size whose pooled interval leaves +-0.15 (reported as "not reached" if none does). "Q is insensitive to this departure" is the reported outcome where no size is detected. SE ratios of the same simulated data sets are recorded (cluster and comparison bootstrap, B = 200). Before this revision a smoke test of the code (one replicate of Arena-55k `overdisp` 0.5 with 2 null replicates and 60 pairs, two replicates of MT-Bench human `overdisp` 1.0) had been run to check that it runs: Delta was within +-0.03 in all of them; the largest size per mechanism was extended to 2.0 / 0.8 after the smoke test showed that a block effect of 0.5 hardly moves the Arena SE.
+- **SE ratio (`scripts/13_se_ratio.py`).** Per real data set: median over pairs with z_fisher in [1,8] of se_boot(cluster) / se_fisher and se_boot(comparison) / se_fisher; null: the same from 4 same-graph parametric replicates (comparison bootstrap, B = 200; independent comparisons by construction, so the cluster ratio is not defined for a null).
+- **C5 references.** Held-out (leave-one-data-set-out) RMSE of log k* for: intercept only, log z only, the base model, the first-order k_lin rescaled by the median log bias of the training units, and the null mean k at the pair's z (own null, no search on the real data), the latter raw and rescaled by the training median log bias; on the same held-out units
+  as the design comparison (designs with >= 2 units) and on all units; bootstrap over units.

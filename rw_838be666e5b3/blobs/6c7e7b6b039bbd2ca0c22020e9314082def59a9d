@@ -1,0 +1,14 @@
+"""E3 reference cells with the T2 arms (side information X) on the sets that carry X: n = 500 (the reference n), same cell
+ids as `exp3_real.py`, hence the same seeds and draws, so the T2 arms are paired with the T1 arms of the reference cell.
+usage: python exp3_T2ref.py PROCS"""
+import sys
+from common import *
+
+procs = int(sys.argv[1])
+T2_CFG = dict(cals=["linear", "spline", "isotonic"], K=5, n_knots=5, T2=True, gbm=True, gbm_iter=100, gbm_leaf=8,
+              safe_among=["linear", "spline", "isotonic"])
+cells = []
+for nm, N in (("census_healthcare", 10000), ("census_income", 10000), ("census_education", 10000), ("alphafold", 8000)):
+    pop = load_pool(nm)
+    cells.append(dict(id=f"{nm}_n500_N{N}", pop=pop, n=500, N=N, R=2000, cfg=T2_CFG))
+run_grid("exp3t2", cells, procs)

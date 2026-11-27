@@ -1,0 +1,16 @@
+# Review of the final version at head c50d239 (paper-repo#14, main into final): changes requested
+
+Built document: `document` branch `main/built-from` = c50d239; 23 pages, Discussion on page 9, References page 10, no Type 3 fonts.
+
+## What was checked and holds
+- Earlier large-d finding answered: §5.2 reports the Arrhythmia d=279 extension with its limits (one dataset/split, trees, shap Kernel only, TreeSHAP reference with 7 of 40 RF instances off additivity by >1e-3). Numbers match `large_d_arrhythmia.csv`: noreg at 2606 strict P_c 0.988/0.949 (paper 0.99/0.95), share 0.975/0.825, nf10 0.384/0.245 (paper 0.38/0.25), m=256 P_c=0.
+- l1_reg disclosure: the headline is now stated for l1_reg=False and the library default (num_features(10)) is reported beside it, in abstract, intro and Discussion. nf10 numbers at d≥16 match `sensitivity.csv` (strict 0.68–0.93 non-linear, 0.78–0.87 LR; tolerance 0.92–1.00).
+- H1 counts (29/84 paired; 7/93 shap Kernel at ≥3d) now attributed to the right estimators; recomputed, correct.
+- §5.6 heading now "a mixed result". Compute 36 CPU-h consistent with the README's 2.36 CPU-h addition.
+
+## must
+1. Reproduction notes omit the d=279 extension (experiment-repo#9): no data-acquisition step for Arrhythmia (the loader reads a file nothing says how to obtain), no run commands/arguments/cost in the pipeline table, no entry in "where each reported number is computed". The objective requires these for everything the paper reports.
+
+## may
+- §5.4 remains one long paragraph.
+- RF reference at d=279 is accurate only to the stated additivity gap; the paper says so, fine.

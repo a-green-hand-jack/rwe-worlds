@@ -1,0 +1,12 @@
+#!/bin/sh
+# Fetch the sample of accepted NeurIPS papers (proceedings PDFs) into the directory $1.
+set -e
+d=${1:?dir}; mkdir -p "$d"
+f() { curl -sfL -m 120 -o "$d/$1.pdf" "https://proceedings.neurips.cc/paper_files/paper/$2/file/$3-Paper-Conference.pdf"; }
+f markovian22  2022 03a9a9c1e15850439653bb971a4ad4b3
+f staggered22  2022 3103b25853719847502559bf67eb4037
+f bipartite22  2022 f7f043c3438ba9e385c51bcf50ed007e
+f embeddings22 2022 64587794695be22545d91c838243fcf8
+f covdesign23  2023 760b5def8dcb1156aac454e9c0f5f406
+f mabnet24     2024 40223e204a9e18dd8b01d7d11ea97939
+f hocmp24      2024 94f008bcc2a5eb785fb8e0ad7aedd4fc

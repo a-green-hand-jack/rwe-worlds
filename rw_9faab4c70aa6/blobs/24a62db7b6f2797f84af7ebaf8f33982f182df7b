@@ -1,0 +1,9 @@
+\begin{abstract}
+Prompt and configuration search picks the best of many candidates on benchmark items and reports that score.
+We measure its gap to the chosen configuration's fresh accuracy on 1500 MMLU-Pro items and 128 configurations of Qwen2.5-1.5B-Instruct.
+Searching 100 configurations on 30 items reports $0.390$ for a configuration of fresh accuracy $0.277$; the gap falls to $0.025$ at 400 items, and up to 100 items the reported gain over the default is at least four times the real one.
+The search log predicts the gap of exhaustive search within $6\%$ up to 100 items, overshooting at most a third beyond.
+With all configurations exactly equal, a naive test declares that tuning helped in $54\%$ of draws (nominal $5\%$).
+At equal budget, a max-$t$ lower bound covers its nominal level on the real pool, is narrower than held-out and Bonferroni bounds, and spends no items; it undercovers over successive halving's evaluated configurations ($81$--$86\%$) and in exact-null synthetic worlds at 240 items ($91$--$93\%$).
+A live DSPy search at 60 items has gap $0.066$, the replay $0.058$; we study one small model and one benchmark.
+\end{abstract}

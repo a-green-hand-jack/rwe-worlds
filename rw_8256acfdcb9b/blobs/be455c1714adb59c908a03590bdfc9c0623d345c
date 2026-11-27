@@ -1,0 +1,130 @@
+"""Randomised Shapley estimators that run on a precomputed value table v (2^d,) of one instance.
+
+The value function (instance, model, background, output space) is fixed by the table; an estimator only
+decides which coalitions are looked up, so its randomness is the same as a run against the model.
+Budget m = number of non-trivial coalition evaluations (model evaluations = m * B_background).
+"""
+import io, contextlib, warnings
+import numpy as np
+from math import comb
+
+
+# ---------- shap library, unchanged, against a lookup "model" ----------
+class ShapLookup:
+    """shap.KernelExplainer / PermutationExplainer run as shipped on the value table of one instance.
+
+    One sentinel background row is used, so a synthetic row is x on S and the sentinel off S; the lookup
+    decodes S as (row == x) and returns the table value (which already averages over the real B-row
+    background). f(sentinel)=v(empty), f(x)=v(full).
+    """
+
+    def __init__(self, v, x):
+        import shap
+        self.shap = shap
+        self.v, self.x, self.d = v, np.asarray(x, float), len(x)
+        self.pw = (1 << np.arange(self.d)).astype(np.int64)
+        self.sentinel = (self.x - 1e6)[None, :]
+        self.calls = 0
+        self.kx = shap.KernelExplainer(self._f, self.sentinel)
+
+    def _f(self, Z):
+        Z = np.atleast_2d(Z)
+        idx = ((Z == self.x[None, :]) @ self.pw)
+        self.calls += len(idx)
+        return self.v[idx]
+
+    def kernel(self, m, seed, l1_reg=False):
+        np.random.seed(seed)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            return np.asarray(self.kx.shap_values(self.x[None, :], nsamples=int(m), l1_reg=l1_reg, silent=True)).ravel()
+
+
+# ---------- own estimators (nested streams) ----------
+def _kernel_p(d):
+    s = np.arange(1, d)
+    p = (d - 1.0) / (s * (d - s))
+    return p / p.sum()
+
+
+def paired_kernel_stream(d, T, rng):
+    """T paired samples (z, 1-z) with |z| from the Shapley-kernel distribution; returns int masks (T,), complements (T,)."""
+    p = _kernel_p(d)
+    sizes = rng.choice(np.arange(1, d), size=T, p=p)
+    # uniform subset of given size: rank random keys
+    keys = rng.random((T, d))
+    ranks = keys.argsort(1).argsort(1)
+    z = ranks < sizes[:, None]
+    pw = 1 << np.arange(d)
+    zi = (z * pw).sum(1)
+    return zi.astype(np.int64), (((1 << d) - 1) - zi).astype(np.int64)
+
+
+class UnbiasedKernel:
+    """Unbiased (paired) Kernel SHAP of Covert & Lee (2021) with a plug-in variance estimate.
+
+    phi_hat = A^{-1}(b_hat - 1 (1'A^{-1}b_hat - (v1-v0)) / 1'A^{-1}1), b_hat = mean_t u_t,
+    u_t = mean of z (v(z)-v0) over the pair t.  Var(phi_hat) ~= L Cov(u) L' / T, L = A^{-1}(I - 1 1'A^{-1}/(1'A^{-1}1)).
+    """
+
+    def __init__(self, d):
+        self.d = d
+        p = _kernel_p(d)
+        s = np.arange(1, d)
+        a_off = (p * s * (s - 1) / (d * (d - 1))).sum()
+        a_diag = (p * s / d).sum()
+        A = np.full((d, d), a_off)
+        np.fill_diagonal(A, a_diag)
+        self.Ainv = np.linalg.inv(A)
+        one = np.ones(d)
+        self.c = self.Ainv @ one
+        self.den = one @ self.c
+        self.L = self.Ainv - np.outer(self.c, self.c) / self.den  # since Ainv 1 1' Ainv / den
+        self.pw = 1 << np.arange(d)
+
+    def u(self, v, zi, zc):
+        """per-pair vectors u_t (T,d)."""
+        v0 = v[0]
+        zb = ((zi[:, None] >> np.arange(self.d)) & 1).astype(float)
+        a = zb * (v[zi] - v0)[:, None]
+        b = (1 - zb) * (v[zc] - v0)[:, None]
+        return 0.5 * (a + b)
+
+    def estimate(self, v, u, T):
+        """phi_hat and SE from the first T pairs of u."""
+        d = self.d
+        bh = u[:T].mean(0)
+        v0, v1 = v[0], v[-1]
+        phi = self.L @ bh + self.c * (v1 - v0) / self.den
+        cov = np.cov(u[:T].T) / T
+        se = np.sqrt(np.maximum(np.einsum("ij,jk,ik->i", self.L, cov, self.L), 0.0))
+        return phi, se
+
+
+def antithetic_permutation_stream(d, P, rng):
+    """P random permutations (P,d)."""
+    return rng.random((P, d)).argsort(1)
+
+
+def permutation_estimate(v, perms, npairs):
+    """Antithetic permutation estimator from the first npairs permutations (each used forward and reversed).
+    Evaluations: 2(d-1) non-trivial coalitions per pair. Returns phi_hat, SE (from per-pair estimates)."""
+    pi = perms[:npairs]
+    P, d = pi.shape
+    est = np.zeros((P, d))
+    for rev in (False, True):
+        q = pi[:, ::-1] if rev else pi
+        bits = (1 << q).astype(np.int64)
+        masks = np.cumsum(bits, 1)  # prefix coalition after adding position k
+        vals = v[masks]  # (P,d); last = v(full)
+        prev = np.concatenate([np.full((P, 1), v[0]), vals[:, :-1]], 1)
+        contrib = vals - prev
+        np.put_along_axis(est, q, np.take_along_axis(est, q, 1) + contrib, 1)
+    est *= 0.5
+    phi = est.mean(0)
+    se = est.std(0, ddof=1) / np.sqrt(P) if P > 1 else np.full(d, np.nan)
+    return phi, se
+
+
+def pairs_for_budget(m, d):
+    return max(1, int(m // (2 * (d - 1))))

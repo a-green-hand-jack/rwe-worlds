@@ -1,0 +1,20 @@
+\begingroup\setlength{\tabcolsep}{2.5pt}
+\begin{tabular}{lrrrrrrrrr}
+\toprule
+ & \multicolumn{3}{c}{interpolation} & \multicolumn{3}{c}{extrapolation} & \multicolumn{3}{c}{lineage-held-out} \\
+\cmidrule(lr){2-4} \cmidrule(lr){5-7} \cmidrule(lr){8-10}
+Method & bias$^2$ & var. & MSE & bias$^2$ & var. & MSE & bias$^2$ & var. & MSE \\
+\midrule
+uniform $\times$ mean & -0.01 & 1.01 & 1.00 & 0.00 & 1.00 & 1.00 & -0.01 & 1.01 & 1.00 \\
+stratified $\times$ mean & 0.00 & 0.66 & 0.66 & 0.00 & 0.72 & 0.72 & 0.00 & 0.71 & 0.71 \\
+uniform $\times$ cal. reg. & 0.06 & 0.56 & 0.62 & 0.58 & 0.58 & 1.17 & 0.06 & 0.56 & 0.62 \\
+anchor $\times$ IRT plug-in & 1.32 & 0.23 & 1.55 & 4.80 & 0.16 & 4.96 & 1.60 & 0.25 & 1.85 \\
+balanced $\times$ mean & 0.03 & 0.53 & 0.56 & 0.09 & 0.59 & 0.69 & 0.03 & 0.59 & 0.62 \\
+uniform $\times$ IRT model & 0.32 & 0.37 & 0.69 & 4.29 & 0.27 & 4.56 & 0.35 & 0.39 & 0.74 \\
+uniform $\times$ diff. IRT & 0.07 & 0.46 & 0.53 & 0.23 & 0.52 & 0.74 & 0.07 & 0.50 & 0.56 \\
+balanced $\times$ cal. reg. & 0.03 & 0.50 & 0.53 & 0.09 & 0.52 & 0.61 & 0.03 & 0.55 & 0.58 \\
+balanced $\times$ diff. IRT & 0.08 & 0.38 & 0.46 & 0.27 & 0.42 & 0.69 & 0.11 & 0.43 & 0.54 \\
+PPS $\times$ diff. IRT & 0.06 & 0.39 & 0.46 & 0.28 & 0.45 & 0.73 & 0.07 & 0.44 & 0.51 \\
+\bottomrule
+\end{tabular}
+\endgroup

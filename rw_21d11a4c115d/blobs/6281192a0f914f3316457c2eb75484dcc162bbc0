@@ -1,0 +1,8 @@
+{
+ "table": "tableA1_exploratory",
+ "split": "grouped",
+ "design": "fixed",
+ "inputs": {
+  "gap.csv": "c8dddd8293e9"
+ }
+}

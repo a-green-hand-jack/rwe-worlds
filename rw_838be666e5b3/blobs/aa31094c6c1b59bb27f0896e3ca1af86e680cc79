@@ -1,0 +1,56 @@
+dataset,n,N,tier,is_reference_n,coverage_arm,coverage_package,coverage_unclipped,arm_valid_strict,arm_valid_loose,class_vs_package_strict,class_vs_package_loose,baseline_strict,baseline_valid_strict,baseline_loose,baseline_valid_loose,ratio_baseline_strict,ratio_baseline_loose,class_vs_baseline_strict,class_vs_baseline_loose
+alphafold,30,8000,T1,0,0.8424,0.8494,0.8406,0.0,0,no gain,no gain,package,0,package,0,1.0131859724569274,1.0131859724569274,no gain,no gain
+alphafold,100,8000,T1,0,0.9326,0.9216,0.912,0.0,0,no gain,no gain,package,0,package,0,0.9997814289423744,0.9997814289423744,no gain,no gain
+alphafold,300,8000,T1,0,0.9496,0.9444,0.9412,1.0,1,no gain,no gain,package,1,package,1,1.0010564700666773,1.0010564700666773,no gain,no gain
+alphafold,500,8000,T1,1,0.9452,0.9436,0.942,1.0,1,no gain,no gain,package,0,package,1,1.0000829544729128,1.0000829544729128,no gain,no gain
+alphafold,1000,8000,T1,0,0.9418,0.9384,0.938,0.0,1,no gain,no gain,package,0,package,0,0.9991786691431076,0.9991786691431076,no gain,no gain
+alphafold,3000,8000,T1,0,0.948,0.9474,0.9474,1.0,1,no gain,no gain,package,1,package,1,0.9993487393523351,0.9993487393523351,no gain,no gain
+ballots,30,5000,T1,0,0.8058,0.8552,0.8898,0.0,0,small / undecided,small / undecided,package,0,package,0,0.929770892449499,0.929770892449499,small / undecided,small / undecided
+ballots,100,5000,T1,0,0.8994,0.9176,0.921,0.0,0,no gain,no gain,package,0,package,0,0.9971956517922426,0.9971956517922426,no gain,no gain
+ballots,300,5000,T1,0,0.948,0.949,0.949,1.0,1,no gain,no gain,package,1,package,1,1.0005064862495616,1.0005064862495616,no gain,no gain
+ballots,500,5000,T1,1,0.946,0.9475,0.9475,1.0,1,no gain,no gain,package,1,package,1,1.0003557737715845,1.0003557737715845,no gain,no gain
+census_education,30,10000,T1,0,0.9218,0.9006,0.8982,0.0,0,small / undecided,small / undecided,package,0,package,0,1.0854013066585784,1.0854013066585784,small / undecided,small / undecided
+census_education,100,10000,T1,0,0.9386,0.9336,0.933,0.0,0,small / undecided,small / undecided,package,0,package,0,1.0254342860320498,1.0254342860320498,small / undecided,small / undecided
+census_education,300,10000,T1,0,0.9495,0.9445,0.9445,1.0,1,no gain,no gain,package,1,package,1,1.0082373879687805,1.0082373879687805,no gain,no gain
+census_education,500,10000,T1,1,0.9465,0.947,0.9465,1.0,1,no gain,no gain,package,1,package,1,1.0048422398019328,1.0048422398019328,no gain,no gain
+census_education,1000,10000,T1,0,0.952,0.95,0.9495,1.0,1,no gain,no gain,package,1,package,1,1.0022479043796906,1.0022479043796906,no gain,no gain
+census_education,3000,10000,T1,0,0.949,0.948,0.948,1.0,1,no gain,no gain,package,1,package,1,1.0008273879845575,1.0008273879845575,no gain,no gain
+census_healthcare,30,10000,T1,0,0.9266,0.9186,0.9142,0.0,0,small / undecided,small / undecided,package,0,package,0,1.054534480152988,1.054534480152988,small / undecided,small / undecided
+census_healthcare,100,10000,T1,0,0.9496,0.943,0.9426,1.0,1,no gain,no gain,package,0,package,1,1.018165996907667,1.018165996907667,no gain,no gain
+census_healthcare,300,10000,T1,0,0.958,0.9565,0.9565,1.0,1,no gain,no gain,package,1,package,1,1.0059099381507386,1.0059099381507386,no gain,no gain
+census_healthcare,500,10000,T1,1,0.9475,0.9465,0.9465,1.0,1,no gain,no gain,package,1,package,1,1.0033873068111796,1.0033873068111796,no gain,no gain
+census_healthcare,1000,10000,T1,0,0.952,0.952,0.952,1.0,1,no gain,no gain,package,1,package,1,1.001699283475803,1.001699283475803,no gain,no gain
+census_healthcare,3000,10000,T1,0,0.9525,0.9525,0.9525,1.0,1,no gain,no gain,package,1,package,1,1.000441275162479,1.000441275162479,no gain,no gain
+census_income,30,10000,T1,0,0.824,0.7944,0.7864,0.0,0,small / undecided,small / undecided,unclipped,0,unclipped,0,1.0960033510961504,1.0960033510961504,small / undecided,small / undecided
+census_income,100,10000,T1,0,0.8832,0.8802,0.8712,0.0,0,no gain,no gain,unclipped,0,unclipped,0,1.0364648695583527,1.0364648695583527,small / undecided,small / undecided
+census_income,300,10000,T1,0,0.925,0.92,0.919,0.0,0,no gain,no gain,unclipped,0,unclipped,0,1.011967169574871,1.011967169574871,no gain,no gain
+census_income,500,10000,T1,1,0.939,0.938,0.9345,0.0,0,no gain,no gain,unclipped,0,unclipped,0,1.0075233731741384,1.0075233731741384,no gain,no gain
+census_income,1000,10000,T1,0,0.949,0.953,0.9485,1.0,1,no gain,no gain,unclipped,1,unclipped,1,1.0034263959865253,1.0034263959865253,no gain,no gain
+census_income,3000,10000,T1,0,0.95,0.946,0.949,1.0,1,no gain,no gain,unclipped,1,unclipped,1,1.0007026137699515,1.0007026137699515,no gain,no gain
+forest,30,1000,T1,0,0.9052,0.8916,0.888,0.0,0,small / undecided,small / undecided,package,0,package,0,1.097105693176066,1.097105693176066,small / undecided,small / undecided
+forest,100,1000,T1,0,0.9364,0.9254,0.9232,0.0,0,small / undecided,small / undecided,package,0,package,0,1.0194882225084454,1.0194882225084454,small / undecided,small / undecided
+forest,200,1000,T1,1,0.9432,0.938,0.938,0.0,1,no gain,no gain,package,0,package,0,1.0068462872132318,1.0068462872132318,no gain,no gain
+forest,300,1000,T1,0,0.9474,0.9452,0.9452,1.0,1,no gain,no gain,package,1,package,1,1.003712114399011,1.003712114399011,no gain,no gain
+forest,500,1000,T1,0,0.9516,0.9486,0.9486,1.0,1,no gain,no gain,package,1,package,1,1.0013338603829165,1.0013338603829165,no gain,no gain
+galaxies,30,10000,T1,0,0.9184,0.9124,0.9074,0.0,0,small / undecided,small / undecided,package,0,package,0,1.0444742751928993,1.0444742751928993,small / undecided,small / undecided
+galaxies,100,10000,T1,0,0.9388,0.9332,0.9304,0.0,0,no gain,no gain,package,0,package,0,1.014945382521494,1.014945382521494,no gain,no gain
+galaxies,300,10000,T1,0,0.948,0.943,0.943,1.0,1,no gain,no gain,package,1,package,1,1.0050791898853624,1.0050791898853624,no gain,no gain
+galaxies,500,10000,T1,1,0.943,0.94,0.9415,1.0,1,no gain,no gain,unclipped,1,package,1,1.0020905971549678,1.0025797059832549,no gain,no gain
+galaxies,1000,10000,T1,0,0.947,0.9465,0.9465,1.0,1,no gain,no gain,package,1,package,1,1.001043327540713,1.001043327540713,no gain,no gain
+galaxies,3000,10000,T1,0,0.9505,0.9505,0.9505,1.0,1,no gain,no gain,package,1,package,1,1.0002929514259111,1.0002929514259111,no gain,no gain
+gene_expression,30,10000,T1,0,0.9422,0.9216,0.9156,0.0,1,small / undecided,gain,unclipped,0,unclipped,0,0.9267081913219508,0.9267081913219508,small / undecided,gain
+gene_expression,100,10000,T1,0,0.9508,0.9398,0.9416,1.0,1,gain,gain,unclipped,0,unclipped,1,0.9741703419732468,0.9741703419732468,small / undecided,small / undecided
+gene_expression,300,10000,T1,0,0.954,0.95,0.9495,1.0,1,small / undecided,small / undecided,unclipped,1,unclipped,1,0.9916742478680796,0.9916742478680796,no gain,no gain
+gene_expression,500,10000,T1,1,0.9545,0.954,0.956,1.0,1,small / undecided,small / undecided,unclipped,1,unclipped,1,0.9943505656846068,0.9943505656846068,no gain,no gain
+gene_expression,1000,10000,T1,0,0.9485,0.9515,0.947,1.0,1,no gain,no gain,unclipped,1,unclipped,1,0.9956871659474636,0.9956871659474636,no gain,no gain
+gene_expression,3000,10000,T1,0,0.953,0.9535,0.9535,1.0,1,no gain,no gain,package,1,package,1,0.9981038120386316,0.9981038120386316,no gain,no gain
+plankton,30,10000,T1,0,0.9274,0.8864,0.8988,0.0,0,small / undecided,small / undecided,package,0,package,0,1.1161807147486338,1.1161807147486338,small / undecided,small / undecided
+plankton,100,10000,T1,0,0.9558,0.9238,0.9212,1.0,1,no gain,no gain,package,0,package,0,1.0140413682516043,1.0140413682516043,no gain,no gain
+plankton,300,10000,T1,0,0.9502,0.9376,0.9378,1.0,1,no gain,no gain,package,0,package,0,1.001569773379594,1.001569773379594,no gain,no gain
+plankton,500,10000,T1,1,0.9506,0.9474,0.9474,1.0,1,no gain,no gain,package,1,package,1,1.0005742630175074,1.0005742630175074,no gain,no gain
+plankton,1000,10000,T1,0,0.9498,0.9444,0.9444,1.0,1,no gain,no gain,package,1,package,1,1.0007167432768511,1.0007167432768511,no gain,no gain
+plankton,3000,10000,T1,0,0.947,0.9482,0.9482,1.0,1,no gain,no gain,package,1,package,1,1.0005741430884525,1.0005741430884525,no gain,no gain
+alphafold,500,8000,T2,1,0.9385,0.9436,0.942,0.0,0,no gain,no gain,package,0,package,1,1.004304793072043,1.004304793072043,no gain,no gain
+census_education,500,10000,T2,1,0.948,0.947,0.9465,1.0,1,no gain,no gain,package,1,package,1,1.0088029930317803,1.0088029930317803,no gain,no gain
+census_healthcare,500,10000,T2,1,0.949,0.9465,0.9465,1.0,1,no gain,no gain,package,1,package,1,1.0043900426041863,1.0043900426041863,no gain,no gain
+census_income,500,10000,T2,1,0.937,0.938,0.9345,0.0,0,no gain,no gain,unclipped,0,unclipped,0,1.0087193872362763,1.0087193872362763,no gain,no gain

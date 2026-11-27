@@ -1,0 +1,15 @@
+# Data contract: what each figure/table reads
+
+Long-format files (CSV/Parquet, or JSON for small ones), one per figure, written by `experiment-repo`'s code; each file's header or a sibling `*.meta.json` carries: analysis commit, matrix (M×N after filter, cell/revision rule), split (group / temporal / LOO), number of held-out groups, k-grid, seeds, bootstrap procedure (B, resampling unit). Names below are what the figure code expects; analysis may propose others, the contract is then updated, not worked around.
+
+| Item | Rows | Columns |
+|---|---|---|
+| Fig. 1 curve | one per (method, k) | `method` (S6+P5, S0+P5, meanoffset, floor-all-others, T1-predicted), `k`, `N`, `n_models_at_k`, `n_excluded_at_k`, `rmse_std`, `rmse_raw`, `lo`, `hi` (group-bootstrap CI), `rand_q10`, `rand_q90` (draw-to-draw spread of random-k), `subset` (`all` / `fixed_kmax`) ; plus `kstar.json`: ε, k*, CI, predicted band, δ, Δ |
+| Fig. 2 | spectrum: `index`, `eigenvalue`, `noise_edge`; rank estimates: `estimator`, `r`; coverage matrix: boolean M×N plus task-type labels; CV error vs rank: `rank`, `rmse`, `lo`, `hi` | |
+| Fig. 3 | `regime` (separated / decaying / real), `k`, `predicted`, `measured`, `lo`, `hi`; estimation term vs M: `M`, `est_term_pred`, `est_term_meas`, `lo`, `hi`; real: floor, design, misfit decomposition per k | |
+| Fig. 4 / Table 2 | per k ∈ {1,2,3,5,8,12,20}: `diff_mean` (design − random), `lo90`, `hi90`, `lo95`, `hi95`, `delta`, `Delta`, `verdict` ∈ {design helps, random matches, undecided}, `n_groups` | |
+| Fig. 5 | `condition_family`, `condition_value`, `quantity` (k*(ε), gap-to-floor, or verdict), `value`, `lo`, `hi`, `n_groups`; ladder: `misspec_level`, plus the real matrix position | |
+| Table 1 | filter steps: `rule`, `n_models`, `n_tasks`, `n_cells`, `missing_rate`; final shape; `split`, `n_groups_heldout`, `n_models_heldout` | |
+| Table 3 | `epsilon`, `k_pred_lo`, `k_pred_hi`, `k_emp`, `k_emp_lo`, `k_emp_hi`; per task-type error | |
+
+Units: every error appears in both standardised and raw score points; raw points state the scale (MTEB main score ×100).

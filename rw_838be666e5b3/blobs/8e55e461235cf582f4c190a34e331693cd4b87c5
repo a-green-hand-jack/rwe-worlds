@@ -1,0 +1,21 @@
+# tab_constructions
+
+**Claim carried:** C5: whether the interval construction changes width and coverage, for every estimator including PPI++.
+
+**Shows:** E5: per dataset, n and method, mean width (empirical coverage %) under each interval construction (columns are the constructions that were run, named as in cells.csv: wald = normal quantile, t, wilson, wald_trunc = Wald clipped to [0, 1], boot_t = studentised bootstrap, run only for the pooled linear and isotonic-calibrated estimators, cp = Clopper-Pearson, labels only; a column appears only if a cell has it and -- = not run for that estimator); dagger = coverage fails the win rule. Longtable.
+
+**How to read:** read across a row: same estimator, same draws, different construction; compare the daggers of one row to see whether any construction brings coverage to the pre-fixed rule. At small n the reference (PPI++) is itself daggered, so a dagger there is not specific to one method.
+
+**Computed on** (from the rows drawn):
+- datasets/scenarios: alphafold, ballots, census_healthcare, forest, galaxies, plankton, syn_binary_a-4.0
+- n: 100, 200, 25, 400, 50, 800
+- N: 1000, 10000, 5000, 8000
+- tier: T1
+- methods: calib_iso, calib_spline, labels_cp, labels_z, pooled_linear, ppi, ppipp, select
+- constructions: boot_t, cp, t, wald, wald_trunc, wilson
+- sampling: labeled_only_resample, synthetic_iid, with_replacement
+- base seeds: 20268564.0, 20391674.0, 20431011.0, 20525305.0, 20591259.0, 20638179.0, 20645220.0, 20648157.0, 20680141.0, 20682109.0, 20813591.0, 20815216.0, 20822065.0, 20891807.0, 20898535.0, 20908213.0, 20911145.0, 20990647.0, 21107382.0, 21252651.0, 21256101.0
+- code commits: 136837bff17a2f504011ef89b75c04bcfc1b72d1, 146848fb9a8459fac152ed67ffd429c934ecc49c, 1f50af5637e104678ea206560d15bb0de112b141, 30a9badedb06060432391515204a8e6ef0e5c53b, 5e11b915d25abfdb3dc37480525a5cacb80b16f3, 71c2df18f5b90d97b4b3a65bb1ee9aaaed7fc159, f7cde9586b0286b709e013b3a70a4e33d56cceb1, f7ffea997cdce4147adb4c9e4e2834381882296c
+- n (and N) per dataset: alphafold n=25, 50, 200 (N=8000); ballots n=25, 50, 200 (N=5000); census_healthcare n=25, 50, 200 (N=10000); forest n=25, 50, 200 (N=1000); galaxies n=25, 50, 200 (N=10000); plankton n=50, 100, 400 (N=10000); syn_binary_a-4.0 n=100, 200, 800 (N=8000)
+- Monte-Carlo repetitions per row: min 2000, max 2000
+- rows: 588

@@ -1,0 +1,12 @@
+{
+ "figure": "fig2_headline",
+ "width_in": 5.5,
+ "height_in": 4.5,
+ "inputs": {
+  "results/tables/sensitivity.csv": "108616632ee9f3979338e07461e928e81d5683ffe25e65b6f1d989a8fd2241c1",
+  "results/tables/instance_level.parquet": "c5194d3bd8910f275ef9b14a5db1a280cb779ecb73fb2c31dd7abb57cfb06c35",
+  "results/tables/cells.csv": "3266aaca4ea1f015193d53732614c8a75bfce1c998cbbf0b28dfb88aeb155ed3"
+ },
+ "note": "estimator=shap_kernel; l1_reg=False; kind=topk3; eps=0.05; thr=0.9; sampling budgets only (R>1); row 3 at the reference budget (shap default where it samples, else the largest sampling budget; per cell: {'acs_employment': [2080], 'acs_income': [511], 'german': [2088], 'gmsc': [511], 'pima': [127]}); absent cells not drawn",
+ "scope": "Intervals resample instances of one trained model per dataset x model (one seed, B=50 random background rows); variance from retraining and from the background is not in them (floors b and c measure those separately)."
+}

@@ -1,0 +1,14 @@
+"""Set the floor-misfit ratio (floor_mse / T1 noise term, k = 20 fixed subset) beside the ladder diagnostics of each real matrix/hold-out (story-repo#8), and the rank
+correlation of each diagnostic with the ratio over the 5 matrices (n = 5: descriptive only, no test). usage: python 42_ladder_vs_ratio.py <results_dir>"""
+import os, sys, pandas as pd
+from scipy.stats import spearmanr
+R = sys.argv[1]; d = pd.read_csv(os.path.join(R, "ladder", "ladder_real_matrices.csv"))
+m = pd.read_csv(os.path.join(R, "floor_misfit_summary.csv")).set_index("holdout"); o = pd.read_csv(os.path.join(R, "olb", "ct_decomposition.csv")); o = o[(o.subset == "fixed") & (o.k == 13)].set_index("split")
+ratio, lo, hi = {}, {}, {}
+for s in "GST": ratio[("MTEB", s)] = m.loc[s, "ratio_floor_to_pred"]; lo[("MTEB", s)] = (m.loc[s, "noise_pred"] + m.loc[s, "noise_misfit_lo90"]) / m.loc[s, "noise_pred"]; hi[("MTEB", s)] = (m.loc[s, "noise_pred"] + m.loc[s, "noise_misfit_hi90"]) / m.loc[s, "noise_pred"]
+for s in "GS": x = o.loc[s]; ratio[("OLB", s)] = (x.noise_pred + x.noise_misfit) / x.noise_pred; lo[("OLB", s)] = (x.noise_pred + x.noise_misfit_lo90) / x.noise_pred; hi[("OLB", s)] = (x.noise_pred + x.noise_misfit_hi90) / x.noise_pred
+d["floor_ratio"] = [ratio[(a, b)] for a, b in zip(d.matrix, d.split)]; d["floor_ratio_lo90"] = [lo[(a, b)] for a, b in zip(d.matrix, d.split)]; d["floor_ratio_hi90"] = [hi[(a, b)] for a, b in zip(d.matrix, d.split)]
+d = d.sort_values("floor_ratio"); d.to_csv(os.path.join(R, "ladder", "ladder_vs_floor_ratio.csv"), index=False)
+rows = [dict(diagnostic=c, spearman_with_floor_ratio=spearmanr(d[c], d.floor_ratio)[0], n_matrices=len(d)) for c in ["calib", "calib_med", "kurt", "rescorr", "het", "link", "top1_share", "top3_share", "participation_ratio", "participation_ratio_over_N"]]
+pd.DataFrame(rows).round(3).to_csv(os.path.join(R, "ladder", "ladder_vs_floor_ratio_rank_corr.csv"), index=False)
+pd.set_option("display.width", 250); print(d[["matrix", "split", "floor_ratio", "floor_ratio_lo90", "floor_ratio_hi90", "calib", "calib_med", "kurt", "rescorr", "het", "link"]].round(2).to_string()); print(pd.DataFrame(rows).round(2).to_string())

@@ -1,0 +1,4 @@
+#!/bin/bash
+# usage: launch_bg.sh DATASET MODEL SPEC START END R   (one 1-CPU job of background_sens.py)
+cd /hutian/repo
+ht-resource run local-compute --cpus 1 --memory 3000 --note "bg $1 $2 $3 $4-$5" -- env TMPDIR=/hutian/tmp python3 -u scripts/background_sens.py $1 $2 $3 $4 $5 $6

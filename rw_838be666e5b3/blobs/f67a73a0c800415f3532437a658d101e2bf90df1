@@ -1,0 +1,81 @@
+"""Fig 3 (C3; C1 check as the last panel): width ratio to PPI++ vs n, predicted n* marked (shaded interval)."""
+import numpy as np
+import matplotlib.pyplot as plt
+import style, schema, captions, propdraw
+from matplotlib.ticker import NullFormatter, ScalarFormatter
+from common import CFG, nice
+
+style.apply()
+df, nr = schema.drop_not_run(schema.load("breakeven.csv"))
+for _a in (("breakeven.csv", "ratio_vs_ppipp", "ratio_lo", "ratio_hi"),):
+    schema.check_ci(df, *_a)
+pdf_, _ = schema.drop_not_run(schema.load("prop_check.csv"))
+schema.check_ci(pdf_, "prop_check.csv", "meas_excess_width", "meas_excess_width_lo", "meas_excess_width_hi")
+def build(name, sets, with_c1, ncol, claim_note):
+    ncol = min(ncol, len(sets) + with_c1)
+    nrow = int(np.ceil((len(sets) + with_c1) / ncol))
+    fig, axs = plt.subplots(nrow, ncol, figsize=(style.FULL_W, 1.55 * nrow + 0.6), squeeze=False)
+    for ax, d in zip(axs.flat, sets):
+        g = df[df.dataset == d]
+        for i, (c, h) in enumerate(g.groupby("calibrator")):
+            h = h.sort_values("n")
+            lab, col, mkr = style.method_style(c)[:3]
+            ax.plot(h.n, h.ratio_vs_ppipp, "-", marker=mkr, color=col, ms=2.8, label=lab)
+            ax.fill_between(h.n, h.ratio_lo, h.ratio_hi, color=col, alpha=0.18, lw=0)
+            ns = h.pred_nstar.dropna()
+            if len(ns):
+                lo_, hi_, mid_ = h.pred_nstar_lo.iloc[0], h.pred_nstar_hi.iloc[0], ns.iloc[0]
+                nmin, nmax = h.n.min(), h.n.max()
+                if mid_ > nmax * 1.5 or mid_ < nmin / 1.5:     # predicted n* outside the grid: say so, do not stretch the axis
+                    side = "above" if mid_ > nmax * 1.5 else "below"
+                    ax.text(0.97, 0.95 - 0.2 * i, f"pred. $n^*$={mid_:.2g}\n({side} grid)", transform=ax.transAxes, ha="right", va="top",
+                            fontsize=style.FONT, color=col)
+                else:
+                    ax.axvspan(max(lo_, nmin / 1.5), min(hi_, nmax * 1.5), color=col, alpha=0.12, lw=0)
+                    ax.axvline(mid_, color=col, ls=":", lw=0.9)
+        ax.axhline(1, color="k", lw=0.6)
+        ax.set_xscale("log")
+        ax.xaxis.set_minor_formatter(NullFormatter())
+        ax.xaxis.set_major_formatter(ScalarFormatter())
+        ax.set_title(nice(d), loc="left", fontsize=style.FONT)
+        ax.set_xlabel("labels $n$")
+        if ax in axs[:, 0]:
+            ax.set_ylabel("width / PPI++ width")
+    for ax in axs.flat[len(sets) + with_c1:]:
+        ax.axis("off")
+    if with_c1:
+        cax = axs.flat[len(sets)]
+        propdraw.draw(cax, pdf_)          # C1: predicted vs measured excess width, identity line
+        cax.set_xlabel("predicted / floor width"); cax.set_ylabel("measured / floor width")
+    hs = {}
+    for ax in axs.flat:
+        for h, l in zip(*ax.get_legend_handles_labels()):
+            hs.setdefault(l, h)
+    fig.legend(list(hs.values()), list(hs), ncol=len(hs), loc="lower center", fontsize=style.FONT, frameon=False, handletextpad=0.3, columnspacing=1.2)
+    fig.tight_layout(h_pad=0.6, w_pad=0.5, rect=(0, 0.07, 1, 1))
+    style.save(fig, name)
+    return claim_note
+
+
+main_sets = [d for d in CFG["breakeven_panels"] if d in set(df.dataset)]
+miss = [d for d in CFG["breakeven_panels"] if d not in set(df.dataset)]
+if miss:
+    raise SystemExit(f"config breakeven_panels names datasets not in breakeven.csv: {miss}")
+build("fig_breakeven", main_sets, True, 4, None)
+real = [d for d in CFG["real_sets"] if d in set(df.dataset)]
+rest = sorted(set(df.dataset) - set(real))
+if set(real) | set(rest) != set(df.dataset):
+    raise SystemExit("breakeven.csv datasets are not covered by the all-panel split")
+build("fig_breakeven_all_a", real, False, 3, None)
+build("fig_breakeven_all_b", rest, False, 4, None)
+SHOWS = ("width of the cross-fitted calibrated interval divided by PPI++ width (paired) against the number of labels n, per dataset and calibrator, with 95% CI band; "
+         "dotted line and shaded band = predicted n* with its interval; text = predicted n* lies outside the plotted grid.")
+READ = "crossing of the curve through 1 should sit at the dotted line if the formula holds; a curve that never crosses in the grid means n* was not reached there. "
+captions.write("figures", "fig_breakeven", "C3: learning a calibrator from the same labels pays only above a break-even n, which the formula predicts.",
+    SHOWS + " The last panel (C1) is predicted against measured excess width over the floor.",
+    READ + "Last panel: both axes as a fraction of the floor width (filled = synthetic cell, hollow centre = real dataset), identity dashed; points on it, within their CI, mean the closed-form gap holds; estimators without a closed form are not drawn. "
+    "Panels shown: " + ", ".join(nice(d) for d in main_sets) + "; the others are in fig_breakeven_all_a (the nine real datasets) and fig_breakeven_all_b (monotone-transformed predictors and synthetic designs).", df,
+    extra="Last panel computed on prop_check.csv:\n" + captions.computed_on(pdf_))
+dfa, dfb = df[df.dataset.isin(real)], df[df.dataset.isin(rest)]
+captions.write("figures", "fig_breakeven_all_a", "C3 (appendix): the break-even panels for the nine real datasets (the reference grid of breakeven.csv).", SHOWS, READ, dfa)
+captions.write("figures", "fig_breakeven_all_b", "C3 (appendix): the break-even panels for the monotone-transformed predictors (stress) and the synthetic designs.", SHOWS, READ, dfb)

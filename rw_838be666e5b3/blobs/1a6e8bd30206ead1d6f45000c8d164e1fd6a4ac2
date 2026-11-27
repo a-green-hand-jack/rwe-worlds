@@ -1,0 +1,6 @@
+group,baseline,curves,bracketed,bracketed_within_factor3,censored_left,censored_right,censored_consistent_with_prediction,bracketed_datasets,bracketed_misses
+quad_n_sweep,package,5,3,3,1,1,2,syn_quad_c0.05;syn_quad_c0.1;syn_quad_c0.2,
+reference_grid,package,9,1,0,0,8,8,gene_expression,gene_expression
+reference_grid,best,9,1,0,0,8,8,gene_expression,gene_expression
+shapes,package,4,2,2,2,0,2,syn_binary;syn_binary_a-4.5,
+stress_monotone_transform,package,5,5,4,0,0,0,alphafold_logit;census_healthcare_logit;census_income_log;forest_logit;galaxies_logit,census_income_log

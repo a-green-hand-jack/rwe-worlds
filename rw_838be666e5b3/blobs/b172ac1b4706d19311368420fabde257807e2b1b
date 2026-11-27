@@ -1,0 +1,112 @@
+"""Calibrators g(Z): fit on a training part of the labels, return a predict function.
+
+Z is a 1-D array (T1: the predictor output f) or a 2-D array (T2: columns f, X...).
+Each `make_*` returns `fit(Z, y) -> predict(Z)`.
+"""
+import numpy as np
+from sklearn.isotonic import IsotonicRegression
+
+
+def _design(Z):
+    Z = np.asarray(Z, float)
+    return Z[:, None] if Z.ndim == 1 else Z
+
+
+def make_mean():
+    def fit(Z, y):
+        c = float(np.mean(y))
+        return lambda Zn: np.full(len(Zn), c)
+    return fit
+
+
+def make_linear():
+    """OLS on (1, Z). Falls back to the mean if Z has no spread."""
+    def fit(Z, y):
+        A = np.column_stack([np.ones(len(y)), _design(Z)])
+        coef = np.linalg.lstsq(A, y, rcond=None)[0]
+        return lambda Zn: np.column_stack([np.ones(len(Zn)), _design(Zn)]) @ coef
+    return fit
+
+
+def make_isotonic():
+    """Increasing isotonic regression of y on f (1-D)."""
+    def fit(Z, y):
+        ir = IsotonicRegression(increasing=True, out_of_bounds="clip")
+        ir.fit(Z, y)
+        return ir.predict
+    return fit
+
+
+def _bspline_basis(x, knots, degree=3):
+    """Cubic B-spline basis on clamped knots; constant extrapolation outside the knot range."""
+    from scipy.interpolate import BSpline
+    lo, hi = knots[0], knots[-1]
+    t = np.r_[[lo] * degree, knots, [hi] * degree]
+    return BSpline.design_matrix(np.clip(x, lo, hi), t, degree).toarray()
+
+
+def make_spline(n_knots=5, min_unique=12):
+    """OLS on a cubic B-spline of f with `n_knots` quantile knots (df = n_knots + 2).
+    With fewer than `min_unique` distinct values of f it falls back to stratum means."""
+    def fit(Z, y):
+        z = np.asarray(Z, float).ravel()
+        u = np.unique(z)
+        if len(u) < min_unique:
+            return make_bins(len(u))(z, y)
+        knots = np.unique(np.quantile(z, np.linspace(0, 1, n_knots)))
+        if len(knots) < 3:
+            return make_linear()(z, y)
+        B = _bspline_basis(z, knots)
+        coef = np.linalg.lstsq(B, y, rcond=None)[0]
+        return lambda Zn: _bspline_basis(np.asarray(Zn, float).ravel(), knots) @ coef
+    return fit
+
+
+def make_bins(k=5):
+    """Stratum means over k quantile bins of f (post-stratification on f)."""
+    def fit(Z, y):
+        z = np.asarray(Z, float).ravel()
+        u = np.unique(z)
+        if len(u) <= k:
+            edges = (u[1:] + u[:-1]) / 2
+        else:
+            edges = np.unique(np.quantile(z, np.linspace(0, 1, k + 1)[1:-1]))
+        idx = np.searchsorted(edges, z, side="right")
+        nb = len(edges) + 1
+        means = np.full(nb, float(np.mean(y)))
+        for b in range(nb):
+            m = idx == b
+            if m.any():
+                means[b] = y[m].mean()
+        return lambda Zn: means[np.searchsorted(edges, np.asarray(Zn, float).ravel(), side="right")]
+    return fit
+
+
+def make_gbm(max_iter=100, max_leaf_nodes=8, learning_rate=0.1, min_samples_leaf=20):
+    """Small histogram gradient boosting on (f, X): the flexible T2 calibrator."""
+    from sklearn.ensemble import HistGradientBoostingRegressor
+
+    def fit(Z, y):
+        m = HistGradientBoostingRegressor(
+            max_iter=max_iter, max_leaf_nodes=max_leaf_nodes, learning_rate=learning_rate,
+            min_samples_leaf=min(min_samples_leaf, max(2, len(y) // 10)), early_stopping=False,
+            random_state=0)
+        m.fit(_design(Z), y)
+        return lambda Zn: m.predict(_design(Zn))
+    return fit
+
+
+def make_spline_add(n_knots=5, min_unique=12):
+    """Calibrated f plus linear X: OLS on [cubic B-spline of f (column 0), X columns]."""
+    def fit(Z, y):
+        Z = np.asarray(Z, float)
+        z, X = Z[:, 0], Z[:, 1:]
+        knots = np.unique(np.quantile(z, np.linspace(0, 1, n_knots)))
+        if len(np.unique(z)) < min_unique or len(knots) < 3:
+            A = np.column_stack([np.ones(len(z)), z, X])
+            coef = np.linalg.lstsq(A, y, rcond=None)[0]
+            return lambda Zn: np.column_stack([np.ones(len(Zn)), np.asarray(Zn, float)]) @ coef
+        A = np.column_stack([_bspline_basis(z, knots), X])
+        coef = np.linalg.lstsq(A, y, rcond=None)[0]
+        return lambda Zn: np.column_stack([_bspline_basis(np.asarray(Zn, float)[:, 0], knots), np.asarray(Zn, float)[:, 1:]]) @ coef
+    return fit

@@ -1,0 +1,47 @@
+"""Fragility versus N by random subsampling of comparisons (without replacement) at fractions of each data set.
+usage: 05_scaling.py UNIT [--reps 5] [--npairs 40]"""
+import argparse, os, sys, time
+import numpy as np, pandas as pd
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src")); sys.path.insert(0, os.path.dirname(__file__))
+import btlib as B, analysis as A
+from core01 import OUT, get
+
+FRACS = [1 / 32, 1 / 16, 1 / 8, 1 / 4, 1 / 2, 1.0]
+
+
+def subsample(d, frac, rng):
+    n = len(d["s"])
+    idx = np.sort(rng.choice(n, int(round(frac * n)), replace=False)) if frac < 1 else np.arange(n)
+    dd = dict(d)
+    for k in ("ci", "cj", "s", "cluster"):
+        dd[k] = d[k][idx]
+    return dd
+
+
+def main():
+    ap = argparse.ArgumentParser(); ap.add_argument("unit"); ap.add_argument("--reps", type=int, default=5)
+    ap.add_argument("--npairs", type=int, default=40); ap.add_argument("--seed", type=int, default=0)
+    a = ap.parse_args()
+    d = get(a.unit)
+    rows = []
+    for frac in FRACS:
+        for rep in range(a.reps if frac < 1 else 1):
+            rng = np.random.default_rng([a.seed, int(frac * 1000), rep])
+            dd = subsample(d, frac, rng)
+            P = A.Prepared(dd)
+            order = np.argsort(-P.theta)
+            Hinv = np.linalg.inv(P.H)
+            pairs = [(order[r], order[s]) for r in range(P.M) for s in range(r + 1, P.M)]
+            z = np.array([(P.theta[x] - P.theta[y]) / np.sqrt(B.make_d(P.M, x, y) @ Hinv @ B.make_d(P.M, x, y)) for x, y in pairs])
+            pick = sorted(set(np.argsort(z)[np.linspace(0, len(z) - 1, min(a.npairs, len(z))).astype(int)]))
+            for fam in ("delete", "flip"):
+                for r in A.all_pairs(P, P.cnt, fam, th0=P.theta, pairs=[pairs[i] for i in pick]):
+                    r.update(unit=a.unit, design=P.design, frac=frac, rep=rep, family=fam, N=P.N, M=P.M, density=P.g.P / (P.M * (P.M - 1) / 2), tie_rate=P.tie_rate)
+                    rows.append(r)
+        print(a.unit, frac, flush=True)
+    os.makedirs(f"{OUT}/scaling", exist_ok=True)
+    pd.DataFrame(rows).to_parquet(f"{OUT}/scaling/{a.unit.replace(':', '_')}.parquet")
+
+
+if __name__ == "__main__":
+    main()

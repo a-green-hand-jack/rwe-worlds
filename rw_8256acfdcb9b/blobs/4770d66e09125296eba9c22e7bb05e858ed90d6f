@@ -1,0 +1,12 @@
+#!/bin/bash
+# usage: make_all.sh RESULT_TABLES_DIR OUT_ROOT   -> OUT_ROOT/figures/*.{pdf,csv,json}, OUT_ROOT/tables/*.{tex,csv,json}
+# RESULT_TABLES_DIR = results/tables of paper-repo (the delivered result tables). Fails on the first missing table or column.
+set -e
+D=$1; O=$2; H=$(cd "$(dirname "$0")" && pwd)
+S=$H/figs; [ -d "$S" ] || S=$H   # repo layout (figs/, tables/) or the flat delivered layout (figures/code/)
+T=$H/tables; [ -d "$T" ] || T=$H
+mkdir -p "$O/figures" "$O/tables"
+for f in fig1_concept fig2_headline fig3_margin fig4_budget fig5_floors fig6_certificate fig7_floor_b figA_background figB_m5_robust; do python3 "$S/$f.py" "$D" "$O/figures/${f}"; done
+python3 "$S/fig7_floor_b.py" "$D" "$O/figures/figA_floor_b_sampled" --datasets acs_income pima gmsc --floora largest_sampled
+python3 "$S/caption_ranges.py" "$O/figures"
+for t in tab1_design tab2_guidance tab3_certificate tabA1_sensitivity tabA2_h1; do python3 "$T/$t.py" "$D" "$O/tables/${t}"; done

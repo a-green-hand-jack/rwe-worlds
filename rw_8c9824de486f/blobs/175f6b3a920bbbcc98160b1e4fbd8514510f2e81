@@ -1,0 +1,22 @@
+"""Stage 2: task metadata (type, eval splits, main-score name, modalities, languages) from the mteb package
+(installed version recorded in the output). Metadata only: no scores are read from the package.
+Every task name present in cells_raw.parquet is looked up with mteb.get_task (superseded tasks included).
+usage: python 02_taskmeta.py <work_dir>"""
+import sys, os, pandas as pd, mteb
+out = sys.argv[1]
+names = sorted(pd.read_parquet(os.path.join(out, "cells_raw.parquet"), columns=["task"]).task.unique())
+rows, bad = [], []
+for n in names:
+    try:
+        m = mteb.get_task(n).metadata
+    except Exception:
+        bad.append(n); continue
+    el = m.eval_langs
+    nl = len(el) if isinstance(el, (list, dict)) else None
+    rows.append(dict(task=m.name, type=m.type, category=m.category, eval_splits="|".join(m.eval_splits or []),
+                     main_score_name=m.main_score, n_langs=nl, modalities="|".join(sorted(m.modalities or [])),
+                     domains="|".join(m.domains or []), superseded_by=getattr(m, "superseded_by", None)))
+df = pd.DataFrame(rows)
+df.to_parquet(os.path.join(out, "task_meta.parquet"))
+print("mteb", mteb.__version__, "found", len(df), "not found", len(bad), bad)
+print(df.type.value_counts().head(12)); print(df.modalities.value_counts())

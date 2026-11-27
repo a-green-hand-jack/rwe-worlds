@@ -1,0 +1,50 @@
+# Review of Version 1 (paper-repo#7, main -> release), head e2be742
+
+Read: the built `main/document.pdf` (built-from e2be742, 21 pages; main text ends on p. 9, references p. 9-10, appendix and
+NeurIPS checklist follow), from the abstract on. Checked against `results/` and `code/README.md` at e2be742.
+
+## What it claims, and whether the evidence carries it
+- On MTEB (238 embedding models x 328 tasks, whole organisations held out, common target set that no rule can select):
+  designed (greedy V-optimal, factor model) selection beats random by ~1.9 RMSE points at k=2,3 and is equivalent at the
+  quarter-of-floor margin from k=8; no other inference rule beats the factor model by more than that margin; error within
+  2 points of the floor at k~8, within 1 point at 32-50; floor ~5 points, 2.5x the model's prediction, unexplained.
+- Spot-checked against the result files: `ct_contrast.csv` (gains 1.58/1.88/1.87/1.23/0.81/0.49 with intervals, verdicts, share of
+  models 86-96%), `ct_decomposition.csv` at k=20 (45.7 = 11.8 + 17.9 + 20.7 - 4.7), `floor_misfit_summary.csv` (ratio 2.52, 7.9, 9.6,
+  1.73 with the model's organisation in training, 55% removed), `floor_by_rank.csv` (5.06, 4.89 at rank 24, 4.76 at best rank),
+  `ct_kstar.csv` (k* 32 [20,50], 5 [3,8], not reached at delta). Text, Table 1 and Fig. 1 agree with them.
+  The Table 4 statements (P3 +1.04 at k=1, P2 +0.15/+0.29 at k=20/32, P6 within 0.32, P1 -1.5 to -3.4) agree with the printed table.
+- The paper reports what it computed, qualifies the post-hoc quantities (second margin, S6s, S3/S5/S7 on 20 splits, the training-side k*
+  rule) as such, and states that T and S rest on 13 and 22 models. No claim found that its evidence does not support.
+
+## Strongest objections a venue reviewer would raise, and what answers them
+1. Novelty: the method is classical (PPCA + greedy Bayesian V-optimal design) and the paper says so. The contribution is the protocol
+   (organisation hold-out, common target set), the measured curve of how many benchmarks are needed, and a decomposition that
+   fails to explain the floor. That is an honest but modest contribution; it is answered by the protocol evidence and the negative result.
+2. The main claim rests on one matrix of embedding models, not LLMs. Answered in the version only by the explicit scope statement
+   (Sec. 7); the second matrix (Open LLM Leaderboard) is in `dev`, not in this version. For `final` the objective's evaluation on a
+   second matrix and the claims of scope must rest on it.
+3. Margins: the pre-set margin (0.1 points) is unreachable, so the verdicts that carry the story use a second margin declared before the
+   contrast but after the unreachability was known. Answered by showing both and labelling which was pre-set.
+4. Floor 2.5x the model: unexplained; ladder of misspecifications does not reproduce it. Answered by reporting it as a limitation
+   and refusing to offer the risk as a rule for k.
+5. Baselines: S1, S2, S4, S3, S5, S7 and P1-P6 are covered; adaptive selection is not tested on real data (S7 is not adaptive).
+6. Readability: dense, many rule names (S0-S7, P0-P6), and the main text carries the margin/verdict machinery before the results.
+
+## Findings (all `may`; none `must` for a release)
+- may: Abstract uses "the floor" and "a quarter of the floor" before it is defined in the next sentence; define it on first use
+  ("the error when all other benchmarks are given") and drop one of the three margins from the abstract.
+- may: Eq. (5) writes `||v||^2 T`; say it is the largest squared loading norm times |T|. "the noise" in Eq. (4) includes the
+  design term at C (F_pred(C) = psi_T + D_T(C)); name it so that "noise 11.8" is not read as pure noise.
+- may: `code/README.md` step 3 calls the coverage filter "Table 1"; in the paper it is Table 2. Make the table numbering in the
+  README, `figtab/README.md` and the paper agree.
+- may: Checklist item 8 gives hardware but no run times; `code/README.md` has the measured times; cite them.
+- may: Related work: add work on predicting benchmark performance from other benchmarks / low-rank structure of LLM benchmark matrices
+  and IRT-based LLM evaluation beyond the item-level papers cited, as a reviewer in this area would expect them.
+- may: Fig. 1a top axis annotation "k/N = 0.01  0.1" is cramped; the figure is otherwise legible.
+
+## Not held against the version (work in progress)
+Second matrix, adaptive-vs-batch synthetic check, greedy-vs-exhaustive and fixed-rank sensitivity are in `dev`, and the version
+makes no statement about them.
+
+## Conclusion
+Approve for `release`. For `final` the second-matrix result, the scope of the claims on it, and the `may` findings above will be read again.

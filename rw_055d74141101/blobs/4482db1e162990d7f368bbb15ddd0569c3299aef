@@ -1,0 +1,33 @@
+{
+ "inputs": {
+  "sensitivity.csv": {
+   "sha256": "ba65b07e7dbd60aa43993e7184b4067a91d1a0367831592b2fcb8e0e1b324136",
+   "rows": 18,
+   "dataset": [
+    "arena55k",
+    "arena55k@noties",
+    "mtbench_gpt4",
+    "mtbench_gpt4@t1",
+    "mtbench_gpt4@t2",
+    "mtbench_human",
+    "mtbench_human@t1",
+    "mtbench_human@t2",
+    "nba_2005"
+   ],
+   "design": [
+    "crowd",
+    "expert",
+    "llm_judge",
+    "sports"
+   ],
+   "perturbation": [
+    "delete",
+    "flip"
+   ],
+   "synthetic": [
+    "0"
+   ]
+  }
+ },
+ "note": "value [95% CI] (core value of the same data set); delete column is empty for the cost-2 rows (a cost applies to flips only)"
+}

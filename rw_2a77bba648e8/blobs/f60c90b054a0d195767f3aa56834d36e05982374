@@ -1,0 +1,86 @@
+"""Two explanations from quantities that need no new simulation.   python analysis/explain_cells.py RAWDIR OUTDIR [SUFFIX]   (SUFFIX "_block" for the confirmatory block, rawC: appended to the file names; its conf_ runs are accepted)
+(1) exposure_spread_d.csv: for the threshold mechanism (d), the distribution of the exposure f (treated-neighbour fraction) implied by Bernoulli(p) on the realised
+    degrees (exact binomial mixture over the first three graph draws): its SD, the share of units whose f is within +-0.15 of the threshold THETA (a unit can
+    cross the threshold), the share with f above THETA, next to the realised bias and RMSE ratio of the Chin regression at s = 0.5, sigma = 0.5.
+(2) b_dispersion.csv: for the count response (b), the exact population prediction of the bias, the degree dispersion (CV^2 of the degrees, HM/AM of the degrees)
+    and the realised bias at s = 0.5; the tree-like form is s (HM(d)/AM(d) - 1).
+Both use Bernoulli designs with the iid baseline on unperturbed graphs; synthetic cells use the first three graph draws, real graphs their single graph."""
+import glob
+import json
+import os
+import subprocess
+import sys
+from datetime import date
+
+import numpy as np
+import pandas as pd
+from scipy.stats import binom
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import agg  # noqa: E402
+from gate import mech, sim  # noqa: E402
+
+
+def f_mixture(deg, p):
+    """exact distribution of f = Bin(d_i, p)/d_i over a uniformly chosen unit: returns (values f, probabilities)"""
+    ds, cnt = np.unique(deg, return_counts=True)
+    w = cnt / cnt.sum()
+    fs, ps = [], []
+    for d, wt in zip(ds, w):
+        k = np.arange(d + 1)
+        fs.append(k / d)
+        ps.append(wt * binom.pmf(k, d, p))
+    return np.concatenate(fs), np.concatenate(ps)
+
+
+def main(rawdir, out, suffix=""):
+    rows_d, rows_b = [], []
+    for fpath in sorted(glob.glob(os.path.join(rawdir, "*.pkl"))):
+        run = agg.Run(fpath)
+        cfg = run.cfg
+        if cfg.get("design", "bern") != "bern" or cfg.get("base", "iid") != "iid" or cfg.get("q_edge", 0) or cfg.get("base_sd", 1.0) != 1.0:
+            continue
+        if not run.id.startswith(("core_SBM_n3000", "fam_", "real_", "conf_")):
+            continue
+        gs = []
+        for gi in range(min(run.G, 3)):
+            rng = np.random.default_rng(sim.seed_of(cfg.get("seed", 0), cfg["family"], cfg.get("n", 0), cfg["d"], gi, cfg.get("tag", ""), "graph"))
+            gs.append(sim.make_graph(cfg, gi, rng))
+        deg = np.concatenate([g.deg.astype(int) for g in gs])
+        dm = np.mean([g.dbar for g in gs])
+        f, pr = f_mixture(deg, cfg["p"])
+        mu = pr @ f
+        sdf = float(np.sqrt(pr @ (f - mu) ** 2))
+        near = float(pr[np.abs(f - mech.THETA) <= 0.15].sum())
+        above = float(pr[f >= mech.THETA - 1e-12].sum())
+        cv2 = float(deg.var() / deg.mean() ** 2)
+        for j, (mname, s) in enumerate(run.cols):
+            if s != 0.5 or mname not in ("b", "d"):
+                continue
+            xc = run.err("chin", j, 0.5)
+            xd = run.err("dm", j, 0.5)
+            bias = float(np.nanmean(xc))
+            rm_c = float(np.sqrt(np.nanmean(xc ** 2)))
+            rm_d = float(np.sqrt(np.nanmean(xd ** 2)))
+            base = dict(run_id=run.id, graph=cfg["family"], d=float(dm), p=cfg["p"], s=s)
+            if mname == "d":
+                rows_d.append(dict(base, sd_f=sdf, mean_f=float(mu), share_f_within_015_of_theta=near, share_f_at_or_above_theta=above, bias=bias,
+                                   log_rmse_ratio_to_dm=float(np.log(rm_c / rm_d))))
+            else:
+                am = deg.mean()
+                hm = 1 / np.mean(1 / deg)
+                rows_b.append(dict(base, cv2_degree=cv2, hm_over_am_minus_1=float(hm / am - 1), pred_tree=float(s * (hm / am - 1)), bias=bias))
+    td, tb = pd.DataFrame(rows_d), pd.DataFrame(rows_b)
+    os.makedirs(out, exist_ok=True)
+    commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, cwd=os.path.dirname(os.path.abspath(__file__))).stdout.strip()
+    for nm, v in (("exposure_spread_d", td), ("b_dispersion", tb)):
+        v.to_csv(os.path.join(out, nm + suffix + ".csv"), index=False)
+        json.dump(dict(script="analysis/explain_cells.py", code_commit=commit, seed=20261125, n_draws="3000; sigma 0.5, s 0.5", date=str(date.today()), rows=len(v)),
+                  open(os.path.join(out, nm + suffix + ".meta.json"), "w"), indent=1)
+    pd.set_option("display.width", 250)
+    print(td.round(3).to_string()); print(tb.round(3).to_string())
+
+
+if __name__ == "__main__":
+    main(*sys.argv[1:4])

@@ -1,0 +1,20 @@
+"""M5 fit with grid censoring handled: slope of log m* vs log margin (interval-censored Gaussian regression), instance bootstrap.
+usage: mstar_tobit.py DATASET [OUT_DIR]  -> OUT_DIR/mstar_tobit_<dataset>.csv ; `mstar_tobit.py merge [OUT_DIR]` -> OUT_DIR/mstar_tobit.csv"""
+import sys, os, glob
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+import pandas as pd
+from shapreliab import derive as D
+
+arg = sys.argv[1]
+out = sys.argv[2] if len(sys.argv) > 2 else "results/tables"
+if arg == "merge":
+    parts = sorted(glob.glob(os.path.join(out, "mstar_tobit_*.csv")))
+    pd.concat([pd.read_csv(p, keep_default_na=False) for p in parts]).to_csv(os.path.join(out, "mstar_tobit.csv"), index=False)
+    for p in parts:
+        os.remove(p)
+else:
+    il = pd.read_parquet(os.path.join(out, "instance_level.parquet"))
+    il = il[il.dataset == arg]
+    pi = pd.read_csv(os.path.join(out, "mstar_per_instance.csv"), keep_default_na=False)
+    pi = pi[pi.dataset == arg].assign(mstar_evals=lambda x: pd.to_numeric(x.mstar_evals), margin_gk=lambda x: pd.to_numeric(x.margin_gk))
+    D.mstar_tobit(il, pi, 150).to_csv(os.path.join(out, f"mstar_tobit_{arg}.csv"), index=False)

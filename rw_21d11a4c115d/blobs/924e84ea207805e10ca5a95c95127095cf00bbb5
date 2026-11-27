@@ -1,0 +1,18 @@
+\section{A closed-form risk and when random selection is close to greedy}\label{sec:theory}
+Write $b_j=D_j^{-1/2}w_j$ for the noise-whitened loading of benchmark $j$ ($w_j$ is row $j$ of $W$), and $\Sigma_S=(I+\sum_{j\in S}b_jb_j^\top)^{-1}$ for the posterior covariance of $z$ given $x_S$.
+
+\begin{proposition}\label{prop:risk}
+Under the factor model with known $\mu,W,D$, the Gaussian-conditioning predictor of $x_T$ from $x_S$ ($S\cap T=\emptyset$) has expected squared error
+\begin{equation}\label{eq:risk}
+\mathrm{Risk}(S)=\underbrace{\mathrm{tr}\!\big(W_T\Sigma_SW_T^\top\big)}_{\text{reducible}}+\underbrace{\mathrm{tr}(D_T)}_{\text{floor}}.
+\end{equation}
+\end{proposition}
+The floor is the idiosyncratic noise on the measured score, which no choice of $S$ removes; the reducible part is nonincreasing in $S$. Greedy A-optimal selection maximises its one-step decrease. We do not claim a guarantee for greedy: the objective is not shown to be submodular, and the submodularity ratio $\gamma$ \citep{das2011submodular} that we estimate by sampling is an upper bound on the true ratio, so $1-e^{-\hat\gamma}$ is a heuristic.
+
+\begin{lemma}\label{lem:jensen}
+For $S$ drawn uniformly without replacement with $|S|=k$ and $A=\sum_jb_jb_j^\top$, $\ \mathbb{E}\,\mathrm{tr}(W\Sigma_SW^\top)\ \ge\ \mathrm{tr}\big(W(I+\tfrac{k}{N}A)^{-1}W^\top\big)$.
+\end{lemma}
+It follows from $\mathbb{E}\sum_{j\in S}b_jb_j^\top=\tfrac{k}{N}A$ and the operator convexity of the matrix inverse.
+
+\paragraph{When random is close to greedy.}
+Let $\ell_j=b_j^\top A^{-1}b_j$ be the leverage of benchmark $j$ (so $\sum_j\ell_j=r$) and $\mu_{\rm coh}=N\max_j\ell_j/r$ the coherence. The matrix Chernoff bound \citep[Thm.~1.1, Rem.~5.3]{tropp2012user} for $k$ independent uniform draws gives $\lambda_{\min}(A^{-1/2}\sum_ib_{J_i}b_{J_i}^\top A^{-1/2})\ge(1-\varepsilon)k/N$ with probability at least $1-\eta$ once $k\ge 2\mu_{\rm coh}\,r\log(r/\eta)/\varepsilon^2$; on that event the reducible risk of the random set is at most $\mathrm{tr}(W(I+(1-\varepsilon)\tfrac{k}{N}A)^{-1}W^\top)$. Low coherence thus favours random selection. The condition is sufficient, not a prediction of $k^*$: for $\varepsilon=0.5,\eta=0.1$ it requires $k\ge 506$ and $742$ on the two MTEB pools, 171 on HELM MMLU ($N=57$) and 459 on a synthetic problem with $N=60$, more than can be run (Appendix~\ref{app:theory}). The source bound is for draws with replacement; we check the without-replacement case numerically, not by proof. Derivations are in Appendix~\ref{app:theory}.

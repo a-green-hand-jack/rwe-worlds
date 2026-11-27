@@ -1,0 +1,105 @@
+"""Selectors and predictors. A selector sees only training-fold quantities (standardised training matrix Ytr, FA fit, candidate set C,
+target set T) and returns a list of benchmark indices (nested prefix for the sequential selectors). Predictors map the new model's
+standardised scores on S to its standardised scores on T."""
+import numpy as np
+from scipy.linalg import qr
+from sklearn.covariance import LedoitWolf
+from sklearn.linear_model import RidgeCV
+from .fa import cov_of, condition
+
+# ---------------------------------------------------------------- selectors
+def sel_greedy_A(Ctx, kmax, rng=None):
+    """Greedy Bayesian A-optimal: add the candidate that most reduces the summed posterior variance of the target set."""
+    C = cov_of(Ctx['W'], Ctx['D']).copy(); T = Ctx['T']; cand = list(Ctx['C']); S = []
+    for _ in range(kmax):
+        col = C[:, cand]; gain = (col[T] ** 2).sum(0) / np.maximum(np.diag(C)[cand], 1e-12)
+        j = cand[int(np.argmax(gain))]; S.append(j); cand.remove(j)
+        c = C[:, j].copy(); C -= np.outer(c, c) / max(c[j], 1e-12)
+    return S
+
+def sel_greedy_D(Ctx, kmax, rng=None):
+    """Greedy D-optimal on the latent z: maximise logdet(I + W_S' D_S^-1 W_S)."""
+    W, D = Ctx['W'], Ctx['D']; r = W.shape[1]; A = np.eye(r); cand = list(Ctx['C']); S = []
+    for _ in range(kmax):
+        Ai = np.linalg.inv(A); Wc = W[cand]
+        gain = np.einsum('ij,jk,ik->i', Wc, Ai, Wc) / D[cand]
+        j = cand[int(np.argmax(gain))]; S.append(j); cand.remove(j); A += np.outer(W[j], W[j]) / D[j]
+    return S
+
+def sel_maxvar(Ctx, kmax, rng=None):
+    sd = Ctx['raw_sd'][Ctx['C']]; return [Ctx['C'][i] for i in np.argsort(-sd)[:kmax]]
+
+def sel_onefactor(Ctx, kmax, rng=None):
+    Y = Ctx['Ytr'][:, Ctx['C']]; Cr = np.corrcoef(Y.T); ev, U = np.linalg.eigh(Cr); u = np.abs(U[:, -1])
+    return [Ctx['C'][i] for i in np.argsort(-u)[:kmax]]
+
+def sel_pivqr(Ctx, kmax, rng=None):
+    _, _, piv = qr(Ctx['Ytr'][:, Ctx['C']], pivoting=True, mode='economic'); return [Ctx['C'][i] for i in piv[:kmax]]
+
+def sel_leverage(Ctx, kmax, rng=None):
+    r = Ctx['r']; _, _, Vt = np.linalg.svd(Ctx['Ytr'][:, Ctx['C']], full_matrices=False)
+    lev = (Vt[:r] ** 2).sum(0); return [Ctx['C'][i] for i in np.argsort(-lev)[:kmax]]
+
+def sel_kmedoids(Ctx, k, rng):
+    """k-medoids on d = 1 - |corr| between candidate benchmarks (alternating assignment/medoid update, 10 random inits, best cost)."""
+    Cc = Ctx['C']; Dm = 1 - np.abs(np.corrcoef(Ctx['Ytr'][:, Cc].T)); n = len(Cc); best, bc = None, np.inf
+    for _ in range(10):
+        med = rng.choice(n, k, replace=False)
+        for _it in range(50):
+            lab = Dm[:, med].argmin(1); new = med.copy()
+            for a in range(k):
+                mem = np.where(lab == a)[0]
+                if len(mem): new[a] = mem[Dm[np.ix_(mem, mem)].sum(1).argmin()]
+            if (np.sort(new) == np.sort(med)).all(): break
+            med = new
+        cost = Dm[:, med].min(1).sum()
+        if cost < bc: best, bc = med.copy(), cost
+    return [Cc[i] for i in best]
+
+SEQUENTIAL = {'greedyA': sel_greedy_A, 'greedyD': sel_greedy_D, 'maxvar': sel_maxvar, 'onefactor': sel_onefactor,
+              'pivqr': sel_pivqr, 'leverage': sel_leverage}
+PER_K = {'kmedoids': sel_kmedoids}
+
+# ---------------------------------------------------------------- predictors
+class Predictors:
+    """Per-fold state (training matrix only); predict(name, S, T, xS) -> (n,|T|) standardised predictions."""
+    def __init__(self, Ytr, W, D, seed=0):
+        self.Ytr = Ytr; self.Sfa = cov_of(W, D)
+        self.Slw = LedoitWolf().fit(Ytr).covariance_
+        self.ridge_cache = {}; self._si = None
+    def _softimpute_state(self):
+        """Soft-Impute (Mazumder-Hastie-Tibshirani) shrinkage level chosen on the training matrix only (10% random cells held out, 3 repeats,
+        lambda in {.005,.01,.02,.05,.1,.2,.4} x sigma_1); then the shrinkage operator P = V diag((s-lam)+/s) V' of the full training SVD is kept
+        and a new row is completed by the fixed point of x_T = [P x]_T with x_S observed ('fold-in' Soft-Impute)."""
+        Y = self.Ytr; rng = np.random.default_rng(0); M, N = Y.shape
+        def fit_full(Yf, obs, lam, n_iter=100):
+            Zc = np.where(obs, Yf, 0.0)
+            for _ in range(n_iter):
+                U, s_, Vt = np.linalg.svd(np.where(obs, Yf, Zc), full_matrices=False); Zc = (U * np.maximum(s_ - lam, 0)) @ Vt
+            return Zc
+        s1 = np.linalg.svd(Y, compute_uv=False)[0]; best = (np.inf, None)
+        for c in (0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.4):
+            e = []
+            for _ in range(3):
+                obs = rng.random(Y.shape) > 0.1; Zc = fit_full(Y, obs, c * s1, 40); e.append(((Zc - Y)[~obs] ** 2).mean())
+            if np.mean(e) < best[0]: best = (np.mean(e), c)
+        lam = best[1] * s1; _, s_, Vt = np.linalg.svd(Y, full_matrices=False); sh = np.maximum(s_ - lam, 0) / s_
+        self._si = ((Vt.T * sh) @ Vt, best[1])
+    def predict(self, name, S, T, xS):
+        S = list(S); T = list(T)
+        if name == 'colmean': return np.zeros((xS.shape[0], len(T)))
+        if name == 'fa': return condition(self.Sfa, S, T, xS)
+        if name == 'lw': return condition(self.Slw, S, T, xS)
+        if name == 'onefactor':
+            z = self.Ytr[:, S].mean(1); beta = (self.Ytr[:, T].T @ (z - z.mean())) / ((z - z.mean()) ** 2).sum()
+            return np.outer(xS.mean(1) - z.mean(), beta)
+        if name == 'ridge':
+            m = RidgeCV(alphas=np.logspace(-2, 3, 12), fit_intercept=False).fit(self.Ytr[:, S], self.Ytr[:, T])
+            return m.predict(xS)
+        if name == 'softimpute':
+            if self._si is None: self._softimpute_state()
+            P_ = self._si[0]; return xS @ np.linalg.solve((np.eye(len(T)) - P_[np.ix_(T, T)]).T, P_[np.ix_(T, S)]).T
+        if name == 'knn':
+            kk = min(10, self.Ytr.shape[0]); d = ((xS[:, None, :] - self.Ytr[None][:, :, S]) ** 2).sum(2)
+            nn = np.argsort(d, 1)[:, :kk]; return self.Ytr[:, T][nn].mean(1)
+        raise KeyError(name)

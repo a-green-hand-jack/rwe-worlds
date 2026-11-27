@@ -1,0 +1,75 @@
+\section{Results}
+\label{sec:results}
+
+Unless stated otherwise, results are for Bernoulli assignment and $\sigma=0.5$ on the synthetic graphs of Section~\ref{sec:design}; intervals are Monte Carlo intervals with graph draws as the unit of replication.
+
+\subsection{Variance follows leverage; bias does not}
+\label{sec:varbias}
+
+\paragraph{Variance.}
+The sampling variance of the regression estimator follows $\sigma^2L/n$. Where the specification is correct (the plain SBM at $\sigma=0.5$, the no-spillover column and mechanism (a) at $s=\tfrac12$; the 42 cells of the $n$, $d$ and $p$ slices), log SD falls with $n$ with slope $-0.50$, rises with $1+d$ with slope $+0.55$ [0.547, 0.556] and falls with $p(1-p)$ with slope $-0.50$ (predicted: $\pm\tfrac12$; Figure~\ref{fig:var}, Appendix~\ref{app:extra}). The $d$ slope is not $\tfrac12$ because realised leverage scales as $L\propto(1+d)^{1.09}$ over 210 graph draws.
+
+\paragraph{Bias.}
+The population-OLS prediction of the bias (Eq.~\ref{eq:bias}; exact in form, it uses the true response and the realised graph) lies inside the Monte Carlo interval of the measured bias (Figure~\ref{fig:bias}) in 85.1\% of 1224 cells, and in 86.7\% with the finite-$n$ centring of the fit (added post hoc). The median absolute bias over $p$ and $s$ varies by under 15\% across $d=5,20,80$ for the diffusion and interaction mechanisms (e), (f); it rises for the saturating mechanism (c) from 0.19 to 0.33 and for the threshold mechanism (d) from 0.17 to 0.45--0.48. The bias of the count mechanism (b) equals $s\,[\mathrm{HM}(d_i)/\mathrm{AM}(d_i)-1]$ (correlation 0.999 over 60 runs; exact for tree-like neighbourhoods, untested beyond), so it falls with $d$ where degrees are near-Poisson (SBM, ER: 0.115, 0.025, 0.007 at $d=5,20,80$ on the SBM) and not on Barab\'asi--Albert ($-0.12$ to $-0.16$), Stanford3 ($-0.26$ to $-0.44$) or ego-Facebook ($-0.27$ to $-0.41$). For the saturating mechanism the bias changes sign at $p=0.397$ [0.393, 0.401] at $d=20$ on a grid of step 0.05, where the population-OLS prediction, which uses the true response, is 0.397, as the curvature term predicts; this tests the extrapolation account and does not locate the bias-free $p$ for a practitioner (Figure~\ref{fig:pdep}, Appendix~\ref{app:extra}: $d=5$, 80).
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=\linewidth]{fig3_bias_sd.pdf}
+\caption{\textbf{Bias and SD of the regression estimator (units of $\gate=1$) against mean degree $d$ (row A, $p=\tfrac12$) and treated share $p$ (row B, $d=20$).} Core SBM (near-Poisson degrees), $s=0.5$, $\sigma=0.5$. Columns group mechanisms (a)--(f) by the regression's specification error. Orange filled: bias; blue open: SD; bars: 95\% Monte Carlo intervals; dashed: DM bias. Zero crossings are interpolated except (c) at $d=20$.}
+\label{fig:bias}
+\end{figure}
+
+\subsection{Where regression wins and where it loses}
+\label{sec:regime}
+
+The regression has smaller RMSE than DM whenever the spillover share is large enough for DM's bias $-s\gate$ to exceed the regression's error (Figure~\ref{fig:regime}; ``wins'' is the paired interval below zero). Over the grid of this study (Table~\ref{tab:regime}, Appendix~\ref{app:extra}) regression wins in 79.6\%, 77.8\%, 69.9\%, 55.8\% and 31.3\% of cells at $\sigma=0.25,0.5,1,2,4$ ($\sigma=2,4$ are post-freeze extensions). At $\sigma=0.5$ it is 0.49 for the threshold mechanism (d) and 0.75--0.87 for the others. The break-even spillover share $s^*$ at $d=20$ is about 0.19 for (a), (b), (c), (e), 0.25 for (f), and does not exist for (d), where regression loses at every share on every synthetic graph.
+
+The failure on the threshold mechanism does not transfer to the thinned real graphs: regression wins on (d) at all three degrees (log ratio $-1.19$ to $-0.33$ on ego-Facebook, $-1.15$ to $-0.89$ on Stanford3) and in every other real-graph row except (b) at $d=80$ on ego-Facebook, where it wins in two of three shares. The cause is not diagnosed. At $d\approx20$, $p=\tfrac12$ the real graphs are not nearer the threshold (share of exposures within $\pm0.15$ of it 0.56--0.57, synthetic 0.64--0.68) but more spread (SD 0.20--0.21, synthetic 0.11--0.13), with about a third of the bias (0.20--0.25, synthetic 0.68--0.77). A degree tail (Barab\'asi--Albert), clustering (Watts--Strogatz) or both (Holme--Kim) does not reproduce it, and log-normal degrees only part of the way at $d=20$; a wide exposure spread goes with the smaller bias at $d=20$ but not at $d=80$ (exploratory; Appendix~\ref{app:extra}).
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=\linewidth]{fig1_regime_map.pdf}
+\caption{\textbf{Where the regression estimator beats difference in means (DM).} (A) $\log_2$ of RMSE(regression)/RMSE(DM) at the core cell (SBM, $d=20$, $p=\tfrac12$, $\sigma=0.5$) over the spillover share $s$ and mechanisms (a)--(f), and for the two real graphs thinned to $d=20$. Blue: regression better; orange: DM better; a dot: paired 95\% interval contains 0. (B) Break-even share $s^*$ against $d$ with 95\% intervals for $\sigma=0.25,0.5,1$; at $d=5$ it is only bounded (arrow); triangle at 1: (d) at $d=20$, where DM wins at every $s$. Mechanism (e) at $s=0.9$ is truncated at $K=30$ steps.}
+\label{fig:regime}
+\end{figure}
+
+\paragraph{Can the regime be read off the data?}
+A rule that recommends regression when its own estimate of the spillover share, $\hat s=1-\hat\beta_z/\hat\tau$, exceeds its HC0 standard error is right in 91.8\% [89.3, 93.8] of 1440 cells; here a win is a point estimate of the log ratio below zero. Always using regression is right in 80.2\% [74.7, 85.4] of these cells, so the rule adds 12 points [7, 16], at the price of recommending regression wrongly in about a quarter of the cells where DM is better.
+
+\paragraph{Flexible learners do not remove the problem.}
+On 12--14 cells per mechanism at 200 draws per graph (Figure~\ref{fig:tiers}), none of lasso, ridge, random forest, gradient boosting and a simplified adaptive-threshold H\'ajek estimator has a smaller median RMSE than the regression on mechanisms (a), (b), (c), (e), (f): the five learners' median ratios there are 1.6--3.8. On the threshold mechanism (d), boosting, forests and the adaptive H\'ajek estimator cannot be told apart from it (median ratios 0.99 [0.70, 1.18], 1.09 [0.76, 1.59], 1.02 [0.59, 1.73]); lasso and ridge are twice it. A small untuned graph neural network (13 cells, 50 draws) is the best learner, yet its RMSE exceeds the regression's in 66 of 91 cell--mechanism rows (paired interval above zero) and is smaller in 5, all on (d).
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=0.9\linewidth]{fig5_tiers.pdf}
+\caption{\textbf{RMSE relative to DM by information tier at the core cell.} Dot: RMSE(estimator)/RMSE(DM), log axis ($<1$ beats DM); bar: 95\% paired bootstrap interval; one dot per mechanism. Tier G: graph known; Tier A: data-adaptive (the adaptive-threshold H\'ajek is simplified); Tier O: oracle form (``fitted $\rho$'' profiles the one shape parameter on a grid and is unstable at $d\ge20$, Appendix~\ref{app:extra}). Filled: the 200-draw set on which Tier G and A are paired; open: H\'ajek and Tier O from the 3000-draw set of the same cell.}
+\label{fig:tiers}
+\end{figure}
+
+\subsection{Graph-cluster randomisation}
+\label{sec:cluster}
+
+Cluster designs move the exposures towards the corners, which shrinks the extrapolation and the bias, and reduce the effective sample to about the number of clusters. At $d=20$ the regression under a cluster design has a lower RMSE than the Bernoulli regression in 68 of 78 graph--mechanism--clustering comparisons and than cluster DM in 62, and than a H\'ajek estimator in 68\% of 132 further cells (Appendix~\ref{app:extra}); for the threshold mechanism (d) it beats cluster DM in 2 of 16. Cluster-bootstrap intervals cover in 83\% of 396 cluster cells (Figure~\ref{fig:cluster}, Appendix~\ref{app:extra}).
+
+\subsection{Confidence intervals do not reach nominal coverage}
+\label{sec:coverage}
+
+The 95\% HC0 interval of the regression covers the true GATE in 73.6\% of the 1800 Bernoulli cells of Figure~\ref{fig:cov}. Coverage is set by the size of the bias relative to the SD and not by leverage: the mean is 93\%, 92\%, 87\%, 67\% and 16\% for $|{\rm bias}|/{\rm SD}$ in $\le0.25$, 0.25--0.5, 0.5--1, 1--2 and $>2$.
+
+An interval widened by a bound on the unidentified part \citep{armstrong2020simple} covers only by being wide: on the 666 block cells it covers 0.99 (HC0 at 90\%: 0.70) at 8--14 times the width of HC0 (by stratum of $|{\rm bias}|/{\rm SD}$), no better than HC0 inflated to the same width (coverage difference $-0.010$, $[-0.020, -0.002]$ over 24 groups). Most of the width is noise in the estimated curvature (7, 25, 109 at $d=5$, 20, 80 with the response removed; true value at most 4.7). Using the true curvature (infeasible) the interval has at most about the oracle's width ($\kappa=0.25$, the grid floor) and covers 0.91 of the block's smooth cells (uniform inflation: 0.90; the original cells do not reach 0.90) but 0.59 of (b) and (e), whose bias is not curvature; a feasible estimate's cost is not measured (exploratory, Appendix~\ref{app:extra}). On the threshold mechanism outside the observed exposures, where we expected failure, it covers 0.998 of 27 cells.
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=\linewidth]{fig9_coverage.pdf}
+\caption{\textbf{Coverage of the regression's 95\% interval tracks bias, not leverage.} One point per cell ($n=1800$ Bernoulli cells, mechanisms (a)--(f), $\sigma=0.5$, all families, $d\in\{5,20,80\}$, $p$ grid); HC0 interval over 3000 draws; Monte Carlo SE $\le0.009$. (A) Coverage against $|{\rm bias}|/{\rm SD}$ (log axis). (B) Coverage against leverage $L$ for cells with $|{\rm bias}|/{\rm SD}<0.25$ (orange) and the rest (grey). Dashed: 0.95; large dots: bin means.}
+\label{fig:cov}
+\end{figure}
+
+\subsection{A data-computable diagnostic: not supported}
+\label{sec:diag}
+
+We tested the diagnostic specified before the runs (Section~\ref{sec:design}) on 6 mechanism groups and 7 graph families (Figure~\ref{fig:diag}; Table~\ref{tab:accept} in Appendix~\ref{app:extra} gives each criterion). \emph{Part (i) is met on its discriminating cells}: where the misfit share is at least 0.2, $L$ beats the best degree benchmark by 0.125 held-out $R^2$ [0.069, 0.318], and the departure of realised variance from $\sigma^2L/n$ has median ratio 1.59 over the 9251 rows of those cells. The \emph{combined score is not supported}: the pooled held-out gain over the best benchmark is 0.034 [$-0.285$, 0.338] leaving out mechanisms and $-0.009$ [$-0.267$, 0.215] leaving out families; it is positive for 3 of 6 held-out mechanisms (4 are required). For the bias, neither $\bar S$ (0.044 [$-0.009$, 0.084]) nor corner distance times estimated curvature (0.008 [$-0.327$, 0.227]) clears the benchmark.
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=0.85\linewidth]{fig7_diagnostic.pdf}
+\caption{\textbf{A data-computable diagnostic against trivial benchmarks.} (A, B) Held-out predicted against realised log RMSE, one point per cell ($n=2178$), leaving one mechanism out: (A) the combined score, (B) the best degree benchmark. Orange: discriminating set D; grey: tie cells; solid: $y=x$; dotted: held-out constant prediction. (C) Held-out $R^2$ gain over the best benchmark by held-out group and pooled (diamond), 95\% group-resampling intervals; dashed: threshold 0.05. Blocks: part (i) on D$^*$; the combined score leaving out mechanisms / families. Filled: specified before the runs; open: exploratory $S_{\rm adj}$.}
+\label{fig:diag}
+\end{figure}
+
+The gains must be read next to absolute held-out $R^2$ of log $|{\rm bias}|$: on the 1224 cells where the population-OLS prediction exists, every data-computable predictor has a negative absolute held-out $R^2$ (from $-0.06$ to $-0.26$, a constant $-0.24$; Table~\ref{tab:accept}), while the population-OLS prediction, which needs the true response, reaches 0.987. An exploratory noise-adjusted $S$ gains 0.20 [0.10, 0.30] over a benchmark that is no better than a constant, but its confirmatory test on 666 new cells was inconclusive (Appendix~\ref{app:extra}), so it is not evidence. We conclude that these data give \emph{no evidence of a useful data-computable bias score}, which is not evidence that none exists: the intervals include both. One reading is that the bias is determined by the response at the corners, which data inside the observed exposure range do not identify; this is an interpretation, not a test.

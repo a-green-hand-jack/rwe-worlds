@@ -1,0 +1,89 @@
+# Code: which benchmarks to run for a new model, and how many
+
+Reproduces every number, table and figure input of the paper from the pinned MTEB results. Pre-registration: `../prereg/PREREG.md`
+(append-only; deviations are listed at its end). Result files: `../results/`. Matrix (derived, small): `../data/`.
+**Delivered tree (paper-repo):** `code/`, `results/`; the working repository's `prereg/` is `results/prereg/` and its `data/` is `results/data/` there (`code/deliver.sh` copies the mapping).
+
+## Environment
+CPU only. Python 3.11.2; numpy 2.4.6, scipy 1.17.1, pandas 3.0.6, pyarrow 26.0.0, scikit-learn 1.9.1, matplotlib 3.11.2, torch 2.14.1+cpu
+(see `requirements.lock`; torch is used by no script that produces a reported number — all models are numpy/scipy). Step 2 additionally
+needs `mteb==2.27.24` (task metadata only; no score is read from it). All BLAS work is single-threaded (`OMP_NUM_THREADS=1`) and
+jobs are parallelised by (split, fold); results do not depend on the thread count. Global seed `20261126` (`common.SEED`); every
+derived seed is a function of it, of the split/fold and of the model index (no use of Python's `hash`).
+
+## Data
+```
+git clone https://github.com/embeddings-benchmark/results mteb_results   # CC0-1.0, ~0.6 GB history
+git -C mteb_results checkout 6dabbcc68c28ea5f180ce7df79347b3ca9cc6383
+```
+(raw results are not stored in this repository; `data/` holds the derived matrix: `matrix_long.parquet` (model, task, score, eval_time),
+`models.csv` (org group, release date, run-set size), `tasks.csv` (task type, n_models), `coverage_filter.csv` (the coverage table of Appendix A), `matrix_summary.json`.)
+
+## Pipeline (W = scratch dir, D = `data/`, R = result dir of the stage-B parquet files, `results/` = delivered result files)
+Times are wall-clock measured on the shared 4-CPU job containers (host load varied); `NP` = number of parallel processes (default 4).
+| step | command | what it does | output | measured time |
+|---|---|---|---|---|
+| 1 | `python code/01_extract.py mteb_results/results $W` | flatten raw tree to cells | `$W/cells_raw.parquet`, `model_meta.parquet` | ~3 min |
+| 2 | `python code/02_taskmeta.py $W` | task type/splits from `mteb` (metadata only) | `$W/task_meta.parquet` | ~1 min |
+| 3 | `python code/03_build_matrix.py $W data` | rules R1–R7 of PREREG B: one revision per model, dedup, org groups, coverage filter | `data/*` (238 models x 328 tasks, 45,775 cells) | <1 min |
+| 4 | `bash code/04_states.sh data $W` | stage A per fold: standardisation, factor-analysis fits for all ranks, inner group-CV rank choice per k, floors, margins | `$W/state/{G_0..G_9,T_0,S_0}.pkl` | 290 s (4 procs) |
+| 5 | `python code/06_delta_table.py $W prereg/delta_by_fold.csv` | collects margins (committed before any contrast) | `prereg/delta_by_fold.csv` | <1 min |
+| 6 | `bash code/22_ct_all.sh data $W $R/ct S0,S1,S2,S4,S6,S6T,S6c ct 50` | **primary stage B, common target set** (`21_eval_ct.py`), 50 shared C/T splits | `$R/ct/*_ct.parquet` | 216 s (4 procs) |
+| 7 | `python code/24_aggregate_ct.py data $R/ct results ct` | curves, excess over floor, S6-vs-S0 contrast and verdicts, k*(eps), decomposition (group bootstrap B=5000) | `results/ct_*.csv`, `ct_run_meta.json` | 16 s |
+| 8 | `bash code/22_ct_all.sh data $W $R/ctx S0,S6,S5,S6s,S3,S7,INF ctx 20` after `12_extra_all.sh` | baselines (S3, S5, S6s, S7) and pipelines P2–P4, P6 on the C/T score, 20 splits | `$R/ctx/*_ctx.parquet` (aggregate with step 7, tag `ctx`); then `python code/37_pipeline_table.py data $R/ctx results/table3_pipelines_ct.csv ctx` (pipelines S0/S6 x P0-P6, paired differences from P5) | `results/table3_pipelines_ct.csv` | see log |
+| 9 | `bash code/07_eval_all.sh data $W $R` ; `bash code/12_extra_all.sh data $W $R` ; `python code/08_aggregate.py data $R results` ; `python code/17_theory.py data $R results` | **secondary** score R_m \ S (the pre-amendment protocol, PREREG Deviation 3): stage B, baseline tuning (`state2.py`, `baselines.py`), aggregation | `results/*_rms.csv`, `table1_*` | 24 s + 55 s + 5 min |
+| 10 | `python code/09_structure.py data $W results` | spectrum, three rank estimators, CV-vs-rank, coverage | `results/fig2_*` | ~3 min |
+| 11 | `bash code/26_inner_all.sh data $W $W/inner` ; `python code/32_inner_kstar.py data $W/inner results` | post hoc training-side k*(eps) rule (`25_inner_states.py`) vs empirical k* | `results/inner_*.csv` | ~10 min |
+| 12 | `bash code/27_random_folds.sh data $W $W/ctR` ; `python code/24_aggregate_ct.py data $W/ctR results/sens_randomfold ct` ; `python code/35_misfit_summary.py results` | random-model hold-out sensitivity; floor misfit summary | `results/sens_randomfold/`, `floor_misfit_summary.csv` | ~8 min |
+| 13 | `python code/33_floor_rank.py data $W results/floor_by_rank.csv` | floor RMSE by factor rank (is the floor a floor under shift?) | `results/floor_by_rank.csv` | few min |
+| 14 | `bash code/31_scope_ct_all.sh data $Wsc $Wsc/out` ; `python code/34_scope_agg.py $Wsc $Wsc/out results` | scope sweeps on the C/T score: training size, missing rate, logit, task-suite and type granularity (`30_scope_ct.py`) | `results/scope_ct_*.csv` | ~10 min |
+| 15 | `python code/10_synth.py $W/synth` ; `python code/29_synth_tables.py $W/synth/synth_raw.csv results/synth` ; `python code/28_diagnostics.py data $W results/ladder 20` | synthetic study (estimation term vs M, misspecification ladder), diagnostics and placement rule | `results/synth/*`, `results/ladder/*` | 25 min / <1 min / ~5 min |
+| 16 | `bash code/14_cells_all.sh data $W $W/cells` ; `python code/18_table3.py data $W/cells results` | per task-type / per-task error accounting | `results/table3_*` | ~20 min |
+| 17 | `python code/11_unit_t3.py results/unit_t3.json` | unit test of the adaptivity claim (T3) | `results/unit_t3.json` | <1 min |
+| 18 | `python code/transfer/olb_extract.py ...`, `olb_matrix.py ...`, `bash code/23_olb_all.sh` | transfer check on the Open LLM Leaderboard per-subtask matrix (4507 x 39) | `/hutian/data/work_olb/ct`, aggregated with `MC_KGRID=1,2,3,5,8,13 python code/24_aggregate_ct.py $OLB $Wolb/ct results/olb ct` (`$OLB` = the OLB data directory, `$Wolb` = its work dir); training-side rule on OLB: `bash code/26b_inner_olb.sh $OLB $Wolb $Wolb/inner` then `MC_KGRID=1,2,3,5,8,13 python code/32_inner_kstar.py $OLB $Wolb/inner results/olb` | `results/olb/ct_*`, `results/olb/inner_*` | see log |
+| 19 | `python code/19_greedy_check.py` | greedy S6 vs exhaustive/swap search of its own objective | printed | few min |
+| 20 | `bash code/39_rank_sens.sh /abs/data $Wrk $Wrk/res` ; `python code/41_rank_sens_summary.py results` ; `python code/43_rank_paired.py /abs/data $ctx $Wrk results/sens_rank/paired_vs_innercv.csv` | fixed-rank sensitivity of the C/T result on G (ranks 4, 8, 12; 20 splits; PREREG 4j) | `results/sens_rank/` | ~1 h on 4 CPUs |
+| 21 | `python code/38_synth_adaptive.py ...` | adaptive interview S7 vs batch S6 vs S0 on the synthetic ladder (PREREG 4i) | `results/synth/synth_adaptive.csv` (each rule on its own unrevealed set); `SA_COMMON=1 SA_LEVELS=<rung> python code/38_synth_adaptive.py out.csv 8 80` per rung, merged into `synth_adaptive_common.csv` (common target set) | ~1 h; ~4-5 min per rung |
+| 22 | `python code/40_ladder_real.py data $W $OLB $Wolb results/ladder results/ladder` ; `python code/42_ladder_vs_ratio.py results` | ladder diagnostics on OLB G/S and MTEB S/T and their rank correlation with the floor-misfit ratio (PREREG 4k) | `results/ladder/ladder_real_matrices*.csv/json`, `ladder_vs_floor_ratio*.csv` | few min |
+| 23 | `BASE=/abs/dir bash code/44_olb_uploader.sh` (`$BASE/data` = the OLB data directory with the `org` column of `models.csv` replaced by `up:<uploader>`, 717 groups) | OLB G with uploaders instead of family stems as the held-out groups (PREREG 4l): S0 and S6 with P5/P1, the same 50 splits, k grid and ranks; `state.py`, `21_eval_ct.py`, `24_aggregate_ct.py` | `results/olb_uploader/ct_*` (copied from `$BASE/res`) | ~1 h on 4 CPUs |
+
+## Figures and tables of the paper
+The figures and tables are built by `figtab/` (repository `figtab-repo`, delivered under `figtab/` in `paper-repo`) from the files in `results/` only; no number is typed in.
+Build, with the repository root as the working directory: `ANALYSIS_COMMIT=<sha of this analysis> bash figtab/build_all.sh results` (runs the eight `make_*` modules, then `figtab/check_pdf.py` on every figure; each output has a sidecar `<file>.json` listing its inputs with their sha256).
+The `figtab/` file names keep the earlier numbering: `tab1_coverage` is printed as Table 2 and `tab2_primary_contrast` as Table 1. The map below was checked against the sidecars and the printed numbering of the system build of `paper-repo` `main` 3f15b47; "step" is the row of the pipeline table above that writes the file.
+
+| Paper item as printed | figtab file | module of `figtab/` | input files under `results/` | written by (step) |
+|---|---|---|---|---|
+| Figure 1 (main) | `fig1_error_vs_k.pdf` | `make_fig1` | `ct_curves.csv`, `ct_contrast.csv`, `ct_kstar.csv`, `ct_run_meta.json`, `ct_excess_curve_ct_G_fixed.csv` | `24_aggregate_ct.py` (7) |
+| Table 1 (main) | `tab2_primary_contrast.tex` | `make_tables` | `ct_curves.csv`, `ct_contrast.csv`, `ct_kstar.csv` | `24_aggregate_ct.py` (7) |
+| Figure 2 (main) | `fig3_theory_vs_measurement.pdf` | `make_fig3` | `synth/synth_summary.csv`, `synth/synth_estimation_fit.csv`, `ct_decomposition.csv`, `floor_misfit_summary.csv`, `ct_run_meta.json` | `29_synth_tables.py` (15); `24_aggregate_ct.py` (7); `35_misfit_summary.py` (12) |
+| Table 2 (App. A) | `tab1_coverage.tex` | `make_tables` | `table1_filter.csv`, `table1_splits.csv`, `table1_shape.json`, `ct_curves.csv` | `08_aggregate.py` (9); `24_aggregate_ct.py` (7) |
+| Figure 3 (App. B) | `fig4_scope_map.pdf` | `make_fig4` | `ct_kstar.csv`, `ct_curves.csv`, `scope_ct_kstar.csv`, `scope_ct_curves.csv`, `ladder/ladder_placement.json`, `olb/ct_kstar.csv`, `olb/ct_curves.csv` | `24_aggregate_ct.py` (7, 18); `34_scope_agg.py` (14); `28_diagnostics.py` (15) |
+| Figure 4 (App.) | `fig2_spectrum.pdf` | `make_fig2` | `fig2_spectrum.csv`, `fig2_rank_estimates.csv`, `fig2_cv_vs_rank.csv`, `fig2_summary.json` | `09_structure.py` (10) |
+| Figure 5 (App.) | `fig3c_estimation_vs_M.pdf` | `make_fig3` | `synth/synth_summary.csv`, `synth/synth_estimation_fit.csv` | `29_synth_tables.py` (15) |
+| Table 3 (App.) | `tabA_kstar_all.tex` | `make_tables` | `ct_kstar.csv` | `24_aggregate_ct.py` (7) |
+| Table 4 (App.) | `tab3_pipelines.tex` | `make_table3` | `table3_pipelines_ct.csv` | `37_pipeline_table.py` (8) |
+| Table 5 (App.) | `tabA_pipelines_TS.tex` | `make_table3` | `table3_pipelines_ct.csv` | `37_pipeline_table.py` (8) |
+| Table 6 (App.) | `tab2b_olb.tex` | `make_table_olb` | `olb/ct_curves.csv`, `olb/ct_contrast.csv`, `olb/ct_kstar.csv`, `olb/ct_decomposition.csv` | `24_aggregate_ct.py` (18) |
+| Table 7 (App.) | `tab4_ksrule.tex` | `make_table_ksrule` | `inner_kstar.csv`, `olb/inner_kstar.csv` | `32_inner_kstar.py` (11, 18) |
+
+Results not read by any figure or table (the uploader-grouping sensitivity `olb_uploader/`, fixed-rank `sens_rank/`, random hold-out `sens_randomfold/`, ladder diagnostics, `unit_t3.json`, the secondary-score `*_rms.csv`) are quoted in the text from the files named in `results/COLUMNS.md`.
+
+## Modules
+`common.py` constants (k grid, ranks, seed), matrix loading, group/temporal/strength splits. `fa.py` probabilistic factor analysis with
+missing data (EM, noise floor 1e-2), posterior for a new row, closed-form design risk (T1). `select_rules.py` selection rules S0–S7
+(S6 greedy Bayesian V-optimal design with Sherman–Morrison gains; S3 wrapper and S6u checked against brute force). `infer_rules.py`,
+`baselines.py` inference rules P0–P6. `state.py`, `state2.py` per-fold fits. `mteb_cells.py` cell/revision/organisation rules.
+
+## Definitions the result files rely on
+* Score = MTEB `main_score` x 100 ("raw points"); errors are RMSE in raw points unless the column says `_std` (standardised per training benchmark).
+* **Primary score (common target set, `ct_*` files):** 50 fixed random splits of the 328 benchmarks into a candidate pool C and a target set T (|T| = 109, stratified by task type, never selectable).
+  A held-out model reveals k benchmarks chosen among its observed C cells; every rule is scored on the model's observed T cells (RMSE, raw points), per split, then averaged over the model's
+  eligible splits (>= k observed C and >= 37 observed T cells; a model enters k if eligible in >= 20 splits). The floor is the same model's error on the same T with all its observed C cells revealed.
+  `subset = fixed`: models that enter at k_max = 109 (the same models at every k).  `results/COLUMNS.md` lists each column and the function that computes it.
+* **Secondary score (`*_rms.csv`):** targets are the model's remaining observed cells R_m \ S (they change with k); models with run set <= k are excluded and counted (`n_excluded_at_k`).
+* Held-out units are organisation groups (10 folds over 83 groups); everything (standardisation, factor fit, rank, margins) is fitted on training models
+  only. `T`: train on the 70% earliest releases, test on later ones; `S`: train on the 75% weakest by additive offset, test on the strongest 25%.
+* Floor = the model's own error when all other benchmarks of its run set are revealed (leave-one-benchmark-out).
+* Curve CI: group bootstrap (resample held-out groups, B=5000), mean over models with equal weight per model. `gain_mean` = RMSE(S0) - RMSE(S6) (positive: S6 better).
+* `k_emp = 9999` means the threshold was not reached on the grid.

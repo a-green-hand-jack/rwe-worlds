@@ -1,0 +1,21 @@
+import pymupdf,re,glob,json
+out=[]
+for f in sorted(glob.glob('/hutian/venue_data/pdfs/*.pdf')):
+    d=pymupdf.open(f)
+    pages=[p.get_text() for p in d]
+    ref=next(i for i,t in enumerate(pages) if re.search(r'^\s*(References|REFERENCES|Bibliography)\s*$',t,re.M))
+    main=''.join(pages[:ref])+re.split(r'^\s*(?:References|REFERENCES|Bibliography)\s*$',pages[ref],flags=re.M)[0]
+    # abstract: between 'Abstract' and first '1 Introduction'
+    m=re.search(r'\bAbstract\b(.*?)\n\s*1\s*\n?\s*Introduction',main,re.S)
+    ab=m.group(1).strip() if m else ''
+    # headings
+    heads=re.findall(r'^\s*(\d+(?:\.\d+)?)\s*\n?\s*([A-Z][^\n]{2,70})$',main,re.M)
+    # intro
+    mi=re.search(r'\n\s*1\s*\n?\s*Introduction\s*\n(.*?)\n\s*2\s*\n?\s*[A-Z]',main,re.S)
+    intro=mi.group(1) if mi else ''
+    firstfig=[i+1 for i,t in enumerate(pages[:ref+1]) if re.search(r'^\s*Figure 1\s*[:.]',t,re.M)]
+    nb=len(re.findall(r'^\s*[••]\s',intro,re.M))
+    out.append(dict(f=f.split('/')[-1],abstract=ab,abs_words=len(ab.split()),intro_words=len(intro.split()),main_words=len(main.split()),fig1_page=firstfig,headings=[h[0]+' '+h[1] for h in heads][:40],bullets_in_intro=nb,
+      contrib='contribut' in intro.lower()))
+    print(out[-1]['f'],'abs',out[-1]['abs_words'],'intro',out[-1]['intro_words'],'main_words',out[-1]['main_words'],'fig1 page',firstfig,'contrib',out[-1]['contrib'],'bullets',nb)
+json.dump(out,open('/hutian/venue_data/struct.json','w'),indent=1)

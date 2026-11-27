@@ -1,0 +1,22 @@
+\section{Related work}
+\label{sec:related}
+
+\paragraph{Selection bias and adaptive reuse of data.}
+That the best of many estimates is optimistic is classical: the minimum cross-validation error is biased downward when it is used both to choose a model and to report its error \citep{cawley2010,tibshirani2009}, and bootstrap corrections for this optimism date to the .632+ estimator \citep{efron1997}.
+Cross-validation estimates the error of the fitting \emph{procedure}, not of the model it returned \citep{bates2023}; we keep these two targets apart (Section~\ref{sec:setting}).
+Valid inference after selecting the best of $K$ is studied in econometrics as inference on winners \citep{andrews2024} and in statistics through simultaneous intervals over the candidate set \citep{berk2013} and Gaussian approximations to maxima \citep{chernozhukov2013}.
+The closest work to one of our protocols is the simultaneous post-selection confidence bound for the selected model when selection and evaluation use the same sample \citep{rink2025}.
+Adaptive reuse of a holdout set has been analysed through differential privacy and stability \citep{dwork2015stoc,dwork2015science} and through the Ladder mechanism for leaderboards \citep{blum2015}.
+Empirically, meta-analyses of leaderboards and of ImageNet reproductions find little adaptive overfitting in model rankings, and large absolute drops only under distribution shift \citep{roelofs2019,recht2019}.
+We differ in the object and the design: a single \emph{searched} LLM configuration, a size measured against ground truth on fresh items of the same pool (so no distribution shift), explained through quantities visible in the search log, and the consequence for decisions drawn from reported scores.
+
+\paragraph{Prompt and pipeline search.}
+Tools that search instructions, demonstrations or whole programs score candidates on a set of items and report the selected configuration, among them DSPy and MIPRO \citep{khattab2024,opsahlong2024}, APE, OPRO, ProTeGi and GEPA \citep{zhou2023,yang2024,pryzant2023,agrawal2025}.
+Best-arm identification reduces the evaluation cost of the selection \citep{shi2024} but not the optimism of the score on the search items.
+Our configuration space (instruction wording, answer format, demonstrations) and searchers (random, coordinate search, successive halving) mirror the structure of these tools; whether replay on a grid behaves like a real tool is tested once rather than assumed (Section~\ref{sec:tool}).
+
+\paragraph{Prompt sensitivity and evaluation uncertainty.}
+Performance varies widely across semantically equivalent prompt formats \citep{sclar2024} and across prompt templates \citep{polo2024}, and multiple-choice accuracy depends on option position and letters \citep{zheng2024,pezeshkpour2024}.
+This spread of true configuration quality is what a search exploits, and we report how much of it is letter bias.
+Item-sampling error bars for a \emph{fixed} system are standard \citep{miller2024}; we extend them to a system chosen on the same items.
+All experiments use MMLU-Pro \citep{wang2024}.

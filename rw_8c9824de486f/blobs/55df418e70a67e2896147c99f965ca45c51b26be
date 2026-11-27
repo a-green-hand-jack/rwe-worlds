@@ -1,0 +1,23 @@
+{
+ "B": 5000,
+ "resampling_unit": "org group",
+ "n_ct_splits": 50,
+ "tags": [
+  "ct"
+ ],
+ "k_grid": [
+  1,
+  2,
+  3,
+  5,
+  8,
+  13
+ ],
+ "n_heldout_models": {
+  "G": 4507,
+  "T": 747,
+  "S": 1127,
+  "R": 4507
+ },
+ "protocol": "common target set, PREREG Deviation 3"
+}

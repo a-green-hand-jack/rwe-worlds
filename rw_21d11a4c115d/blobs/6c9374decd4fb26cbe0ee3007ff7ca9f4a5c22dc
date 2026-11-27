@@ -1,0 +1,121 @@
+"""C4: closed-form risk of the linear-Gaussian model vs empirical k-curves, in three tiers + real data.
+ Risk(S; T) = tr(W_T Sigma_post W_T') + tr(D_T),  Sigma_post = (I + W_S' D_S^-1 W_S)^-1  (measured-score target, T disjoint from S).
+ reducible part = tr(W_T Sigma_post W_T')/|T|; floor = tr(D_T)/|T|.
+ Tier 1: synthetic, true parameters.  Tier 2: synthetic, parameters fitted on M_train rows.  Tier 3: parametric bootstrap from the model fitted
+ to a real matrix.  Real: formula with the training-fold fit vs the empirical grouped-K-fold k-curve (random S).
+python3 theory.py <data_out> <results_raw> <results>"""
+import sys, os, pickle, numpy as np, pandas as pd
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+sys.path.insert(0, os.path.dirname(__file__))
+from bmk.fa import fit_fa, cov_of, condition
+from bmk.protocol import grouped_folds, fit_fold, make_transform
+dout, rawd, resd = sys.argv[1:4]
+K = [1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20]
+
+def reducible(W, D, S, T):
+    A = np.linalg.inv(np.eye(W.shape[1]) + (W[S].T / D[S]) @ W[S]); WT = W[T]
+    return np.einsum('ij,jk,ik->', WT, A, WT)
+
+def one_rep(Wtrue, Dtrue, M_train, M_test, r_fit, rng, n_draws, fit=True, frac_T=0.3):
+    N, r = Wtrue.shape
+    gen = lambda m: rng.standard_normal((m, r)) @ Wtrue.T + rng.standard_normal((m, N)) * np.sqrt(Dtrue)
+    Ytr, Yte = gen(M_train), gen(M_test)
+    if fit:
+        mu = Ytr.mean(0); W, D = fit_fa(Ytr - mu, r_fit); Yte = Yte - mu
+    else: W, D = Wtrue, Dtrue
+    Sg = cov_of(W, D); perm = rng.permutation(N); nT = int(round(frac_T * N)); T = np.sort(perm[:nT]); C = perm[nT:]
+    out = []
+    for k in K:
+        emp, pred = [], []
+        for _ in range(n_draws):
+            S = list(rng.choice(C, k, replace=False)); pv = condition(Sg, S, list(T), Yte[:, S])
+            emp.append(((pv - Yte[:, T]) ** 2).mean()); pred.append(reducible(W, D, S, T) / nT)
+        floor = D[T].mean()
+        out.append((k, np.mean(pred), np.mean(emp) - floor, floor, np.mean(emp)))
+    return out
+
+def synth_params(rng, N=60, r=4):
+    W = np.zeros((N, r)); W[:, 0] = 0.85 + 0.1 * rng.standard_normal(N)
+    for l in range(1, r): W[:, l] = rng.standard_normal(N) * 0.4 / l
+    D = rng.uniform(0.08, 0.25, N); return W, D
+
+rows, gaprows = [], []
+def add(dsid, tier, reps):
+    arr = np.array([[x[1:] for x in rep] for rep in reps])    # reps x K x (pred, emp_red, floor, emp)
+    for i, k in enumerate(K):
+        pr = arr[:, i, 0].mean(); em = arr[:, i, 1]; lo, hi = np.percentile(em, [2.5, 97.5]) if len(em) > 1 else (np.nan, np.nan)
+        se = em.std(ddof=1) / np.sqrt(len(em)) if len(em) > 1 else np.nan
+        excl = bool(em.mean() < 2 * se) if len(em) > 1 else False
+        rows.append((dsid, tier, k, pr, em.mean(), lo, hi, excl, arr[:, i, 2].mean()))
+    d = pd.DataFrame([r for r in rows if r[0] == dsid and r[1] == tier], columns=['d', 't', 'k', 'p', 'e', 'lo', 'hi', 'x', 'f'])
+    d = d[~d.x]; g = (d.p - d.e).abs() / d.e
+    gaprows.append((dsid, tier, float(np.median(g)), float(g.max()), int((~d.x).sum()), int(len(d))))
+
+rng = np.random.default_rng(2026)
+# Tier 1: true parameters; Tier 2: fitted on M_train rows
+for rep_name, (M_train, M_test, nrep) in {'synthetic_N60_r4': (110, 4000, 8), 'synthetic_N60_r4_M60': (60, 4000, 8), 'synthetic_N60_r4_M250': (250, 4000, 8),
+                                          'synthetic_N60_r4_M600': (600, 4000, 8), 'synthetic_N60_r4_M2000': (2000, 4000, 8)}.items():
+    reps = []
+    for _ in range(nrep):
+        W, D = synth_params(rng); reps.append(one_rep(W, D, M_train, M_test, 4, rng, 100, fit=False))
+    if rep_name == 'synthetic_N60_r4': add(rep_name, 'true', reps)
+    reps = []
+    for _ in range(nrep):
+        W, D = synth_params(rng); reps.append(one_rep(W, D, M_train, M_test, 4, rng, 100, fit=True))
+    add(rep_name, 'fitted', reps)
+# Tier 3: parametric bootstrap from the fitted real-data models
+for di, ds in enumerate(['mteb_eng', 'mteb_multi', 'helm_mmlu']):
+    rng = np.random.default_rng(5000 + di)       # own stream per dataset: the bootstrap tier does not depend on what ran before
+    D_ = np.load(f"{dout}/{ds}.npz", allow_pickle=True); X = D_['X']; M, N = X.shape
+    f = f"{rawd}/{ds}__grouped__fixed.pkl"
+    if os.path.exists(f):     # the space of the fitted model = the transform the main run used; rank = median of its fold ranks
+        R0 = pickle.load(open(f, 'rb')); Xz = make_transform(X, R0.get('transform') or 'identity')[0](X); r = int(np.median([i['r_eff'] for i in R0['info']]))
+    else: Xz = X; r = int(pd.read_csv(f"{resd}/datasets.csv").set_index('dataset').loc[ds, 'r_eff'])
+    Y = (Xz - Xz.mean(0)) / Xz.std(0)
+    W, Dd = fit_fa(Y, r)
+    reps = [one_rep(W, Dd, M, 3000, r, rng, 100, fit=True) for _ in range(24)]
+    add(ds, 'bootstrap', reps)
+    # Real: formula with the training-fold fit vs the empirical grouped K-fold curve (random S), both in the space of the fitted model, i.e. the
+    # transform the main run used (z = standardised transform(x)); the same draws feed the formula and the empirical error (paired).
+    f = f"{rawd}/{ds}__grouped__fixed.pkl"
+    if os.path.exists(f):
+        R = pickle.load(open(f, 'rb')); SEED = R['seed']; ranks = [x for x in (1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25) if x <= N // 3]
+        fwd, _ = make_transform(X, R.get('transform') or 'identity'); Zx = fwd(X); NDR = 30
+        nT = int(round(0.3 * N)); Kv = [k for k in K if k <= min(N // 2, int(0.7 * N))]
+        pe = np.zeros((M, len(Kv))); pp = np.zeros((len(Kv)))     # per-model empirical squared error (mean over partitions and draws); predicted (test-row weighted)
+        fl = np.zeros(M); n_tot = 0; rr = np.random.default_rng(7)
+        for fi, (tr, te) in enumerate(R['folds']):
+            F = fit_fold(Zx, tr, ranks, SEED + fi); Sg = cov_of(F['W'], F['D']); Yte = (Zx[te] - F['mu']) / F['sd']
+            for p in range(R['n_part']):
+                perm = np.random.default_rng([SEED, fi, p]).permutation(N); T = np.sort(perm[:nT]); C = perm[nT:]
+                fl[te] += F['D'][T].mean() / R['n_part']
+                for i, k in enumerate(Kv):
+                    for _ in range(NDR):
+                        S = list(rr.choice(C, k, replace=False)); pv = condition(Sg, S, list(T), Yte[:, S])
+                        pe[te, i] += ((pv - Yte[:, T]) ** 2).mean(1) / (R['n_part'] * NDR)
+                        pp[i] += len(te) * reducible(F['W'], F['D'], S, T) / nT / (R['n_part'] * NDR)
+            n_tot += len(te)
+        pred = pp / n_tot
+        tested = np.sort(np.concatenate([b for _, b in R['folds']])); fam = R['family'][tested]
+        ufam, fi_ = np.unique(fam, return_inverse=True); bc = np.random.default_rng(0).multinomial(len(ufam), np.ones(len(ufam)) / len(ufam), size=2000)
+        nf = np.bincount(fi_); floor = fl[tested].mean(); bf = (bc @ np.bincount(fi_, weights=fl[tested])) / (bc @ nf)
+        for i, k in enumerate(Kv):
+            e = pe[tested, i]; s_ = np.bincount(fi_, weights=e)
+            b = (bc @ s_) / (bc @ nf) - bf; emp = e.mean() - floor
+            lo, hi = np.percentile(b, [2.5, 97.5]); se = b.std()
+            rows.append((ds, 'real', k, pred[i], emp, lo, hi, bool(emp < 2 * se), floor))
+        d = pd.DataFrame([r_ for r_ in rows if r_[0] == ds and r_[1] == 'real'], columns=['d', 't', 'k', 'p', 'e', 'lo', 'hi', 'x', 'f'])
+        dg = d[~d.x]; g = (dg.p - dg.e).abs() / dg.e
+        gaprows.append((ds, 'real', float(np.median(g)) if len(g) else np.nan, float(g.max()) if len(g) else np.nan, int(len(dg)), int(len(d))))
+pd.DataFrame(rows, columns=['dataset', 'tier', 'k', 'predicted_reducible', 'empirical_reducible', 'ci_lo', 'ci_hi', 'excluded', 'floor']).to_csv(f"{resd}/theory.csv", index=False)
+pd.DataFrame(gaprows, columns=['dataset', 'tier', 'median_rel_gap', 'max_rel_gap', 'n_k_used', 'n_k_total']).to_csv(f"{resd}/theory_gap.csv", index=False)
+print(pd.DataFrame(gaprows, columns=['dataset', 'tier', 'median_rel_gap', 'max_rel_gap', 'n_k_used', 'n_k_total']))
+
+# shape-versus-offset diagnostic: gap of the k-dependent part, (pred(k) - pred(k_last)) vs (emp(k) - emp(k_last)), and the offset at k_last
+th = pd.read_csv(f"{resd}/theory.csv"); srows = []
+for (d, t), g in th.groupby(['dataset', 'tier'], sort=False):
+    g = g.sort_values('k'); kl = g.k.max(); last = g.iloc[-1]; gg = g[g.k < kl]
+    dp = gg.predicted_reducible.values - last.predicted_reducible; de = gg.empirical_reducible.values - last.empirical_reducible
+    srows.append((d, t, float(last.empirical_reducible - last.predicted_reducible), float(last.empirical_reducible), float(np.median(np.abs(dp - de) / np.abs(de))),
+                  float(np.corrcoef(g.predicted_reducible, g.empirical_reducible)[0, 1]), float(np.mean(g.predicted_reducible / g.empirical_reducible))))
+pd.DataFrame(srows, columns=['dataset', 'tier', 'offset_at_kmax', 'empirical_at_kmax', 'median_rel_gap_of_k_dependent_part', 'corr_pred_emp', 'mean_ratio_pred_over_emp']).to_csv(f"{resd}/theory_shape.csv", index=False)

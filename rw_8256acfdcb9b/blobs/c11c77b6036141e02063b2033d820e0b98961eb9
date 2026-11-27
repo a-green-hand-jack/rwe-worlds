@@ -1,0 +1,19 @@
+\paragraph{Data and models.}
+We use five public binary-classification tables, chosen to span the number of players $d$: German Credit \citep{hofmann1994german} ($d=20$, 1000 rows), ACS Employment ($d=16$) and ACS Income ($d=10$) from the 2018 one-year person file for California \citep{ding2021}, Pima Indians Diabetes \citep{smith1988pima} ($d=8$) and Give Me Some Credit \citep{gmsc2011} ($d=10$).
+For each dataset we fit logistic regression (LR), a random forest (RF, 100 trees, minimum leaf size 5), gradient boosting (XGBoost \citep{chen2016xgboost}, 200 trees, depth 4) and a scikit-learn \citep{pedregosa2011sklearn} MLP (one hidden layer of $32$ units below $5000$ training rows, two of $64$ otherwise), on one train/test split; training sets are capped at 30\,000 rows.
+Held-out AUC and the output space explained are in Table~\ref{tab:design} (Appendix~\ref{app:tables}).
+The instances to explain are drawn at random from the test split, not selected by margin: 40 for German Credit, 60 for ACS Employment and 100 for each of the other datasets.
+The unit of generalisation is the dataset: with five populations we report each dataset on its own, and any pooled statement is descriptive.
+
+\paragraph{Estimators and budgets.}
+We run (i) the unchanged \texttt{KernelExplainer} of the \texttt{shap} package \citep{lundberg2017} (version 0.51.0) with its default sampling, with \texttt{l1\_reg} set to \texttt{False}, \texttt{"auto"} (deprecated; the default of earlier versions) and \texttt{"num\_features(10)"} (the default of this version); \texttt{l1\_reg=False}, the unregularised weighted regression, is what we call the \texttt{shap} Kernel explainer, and the library's default is reported beside it; (ii) unbiased paired Kernel SHAP \citep{covert2021}; and (iii) antithetic permutation sampling \citep{mitchell2022}.
+The \texttt{shap} default budget is $m=2d+2048$ coalitions; for $d\le10$ this exceeds the $2^d-2$ non-trivial coalitions, so the explainer enumerates all of them at its default budget and is deterministic.
+For $d\ge16$ we use $m\in\{32,64,128,256,1024,2d{+}2048,4096,16384\}$; for $d\le10$ we use $5$, $10$, $15$, $25$ and $50\%$ of the $2^d-2$ coalitions plus the default.
+Each run costs $(m+1)B+1$ model evaluations (background included), and comparisons between estimators are made at equal evaluations; the antithetic estimator uses whole pairs of permutations, so it uses at most $m$ coalitions except that one pair, the minimum, costs $38$ coalitions at $m=32$ on German Credit.
+Each cell is repeated $R=100$ times with independent seeds, except for German LR ($R=30$), German and ACS-Employment MLP ($R=60$) and ACS-Employment LR ($R=30$), which were cut for cost; the deterministic default budgets at $d\le10$ have $R=1$.
+
+\paragraph{Statistics.}
+All intervals resample instances (2000 bootstrap resamples); repeats are collapsed to per-instance counts first and are never treated as independent evidence about the population.
+The headline compares cells by effect size with interval width, not by significance tests on correlated rows; paired differences between estimators use the same instances in both arms and carry the smallest difference that the sample can resolve.
+A single seed fixes the split, the models, the $B=50$ random-row background and the explained instances, so the intervals contain instance-to-instance variability but not variance from retraining or from the background, which floors (b) and (c) measure separately.
+The per-cell budgets and repeats are in Table~\ref{tab:design} (Appendix~\ref{app:tables}).

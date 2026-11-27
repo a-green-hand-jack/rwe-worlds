@@ -1,0 +1,11 @@
+#!/bin/bash
+# Transfer check on the Open LLM Leaderboard per-subtask matrix (39 benchmarks): stage A + common-target-set stage B.
+# usage: 23_olb_all.sh <olb_data_dir> <work_dir> <out_dir>
+export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
+export MC_KGRID=1,2,3,5,8,13 MC_RANKS=1,2,3,4,6,8,12,16
+cd "$(dirname "$0")"
+D=$1; W=$2; O=$3
+LIST=$( for f in 0 1 2 3 4 5 6 7 8 9; do echo "G $f"; done; echo "S 0" )
+echo "$LIST" | xargs -P 4 -L 1 sh -c "python3 -u state.py $D $W \$0 \$1"
+echo "$LIST" | xargs -P 4 -L 1 sh -c "python3 -u 21_eval_ct.py $D $W \$0 \$1 $O S1,S2,S4,S5,S6,S6T ct 50"
+echo HUTIAN_WAKE: olb done

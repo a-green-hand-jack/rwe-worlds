@@ -1,0 +1,19 @@
+{
+  "analysis_commit": "66252a8",
+  "figure": "figtab/tab2_primary_contrast.tex",
+  "inputs": [
+    {
+      "path": "results/ct_curves.csv",
+      "sha256": "27bb53a8af520ef897a78082d20f92e2740e8ddc528ea9fbabe78522dfaa9fcc"
+    },
+    {
+      "path": "results/ct_contrast.csv",
+      "sha256": "7a8fa6d36151ba95d90958d7fd55f61d299285e3006472c28fd172b13f7ce3b5"
+    },
+    {
+      "path": "results/ct_kstar.csv",
+      "sha256": "6d0b99469087ef97c84a3cb110b13097b41ce8c81fc05849f7fbd80b879c1f4c"
+    }
+  ],
+  "script": "figtab/make_tables.py"
+}

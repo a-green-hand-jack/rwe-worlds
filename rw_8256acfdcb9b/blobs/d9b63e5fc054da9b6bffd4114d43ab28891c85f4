@@ -1,0 +1,74 @@
+"""Floor b by background, paired with the run floor a on the same instances (Outline rev 6, M6).
+usage: floor_b_table.py [OUT_DIR]   (reads results/floors/bB_*.csv written by floor_b_by_background.py, and tables/floors.parquet)
+One row per dataset x model x background x k (B50 is the floor b of floors.py, same instances, same K).
+Agreement of an instance = n_agree / n_pairs (pairwise identical top-k sets among the K background draws); instance-bootstrap CI.
+Floor a on the same instances: the run-to-run agreement of independent runs of (i) shap_kernel (l1_reg False) and (ii) kernel_paired at
+ 'default' = 2d+2048 (d >= 16 only; for d <= 10 the shap default is exact and has no run-to-run spread), and
+ 'largest_sampled' = the largest sampled budget of the cell (d <= 10: 511 or 127 ~ 2^d / 2; d >= 16: 16384).
+paired_diff_* = b minus a per instance (negative: the background changes the top-k more than a rerun does)."""
+import sys, os, glob
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+import numpy as np, pandas as pd
+from shapreliab.derive import boot_idx, ci
+
+out = sys.argv[1] if len(sys.argv) > 1 else "results/tables"
+fl = pd.read_parquet(os.path.join(out, "floors.parquet"))
+a = fl[fl.floor == "a_run"]
+
+
+def agree(df, by):
+    g = df.groupby(by + ["instance_id"]).agg(n_agree=("n_agree", "sum"), n_pairs=("n_pairs", "sum")).reset_index()
+    g["agree"] = g.n_agree / g.n_pairs
+    return g
+
+
+def floor_a(ds, kind, k, which):
+    h = a[(a.dataset == ds) & (a.model == kind) & (a.k == k)]
+    d = {"german": 20, "acs_employment": 16, "acs_income": 10, "gmsc": 10, "pima": 8}[ds]
+    if which == "default":
+        if d <= 10:
+            return None
+        h = h[h.budget_m == 2 * d + 2048]
+    else:
+        h = h[h.budget_m == h.budget_m.max()]
+    res = {}
+    for est, l1 in (("shap_kernel", "False"), ("kernel_paired", "NA")):
+        x = h[(h.estimator == est) & (h.l1_reg.astype(str) == l1)]
+        if len(x):
+            res[est] = (int(x.budget_m.iloc[0]), x.groupby("instance_id").apply(lambda z: z.n_agree.sum() / z.n_pairs.sum()), int(x.n_models.iloc[0]))
+    return res
+
+
+def boot(v):
+    m = v[boot_idx(len(v))].mean(1)
+    return ci(m)
+
+
+rows = []
+for f in sorted(glob.glob("results/floors/bB_*.csv")):
+    bb = pd.read_csv(f)
+    ds, kind = bb.dataset.iloc[0], bb.model.iloc[0]
+    K = int(bb.n_models.iloc[0])
+    inst = sorted(bb.instance_id.unique())
+    allb = bb
+    for (spec, k), g in allb.groupby(["background", "k"]):
+        g = g.sort_values("instance_id")
+        v = (g.n_agree / g.n_pairs).to_numpy()
+        lo, hi = boot(v)
+        row = dict(dataset=ds, model=kind, background=spec, k=int(k), n_instances=len(g), K=int(g.n_models.iloc[0]), agreement=v.mean(), ci_lo=lo, ci_hi=hi)
+        for which in ("default", "largest_sampled"):
+            fa = floor_a(ds, kind, int(k), which)
+            for est, (m_, s, Ka) in (fa or {}).items():
+                s = s.reindex(g.instance_id).to_numpy()
+                ok = ~np.isnan(s)
+                tag = f"{which}_{est}"
+                row[f"floor_a_{tag}_budget_m"] = m_
+                row[f"floor_a_{tag}_R"] = Ka
+                row[f"floor_a_{tag}"] = s[ok].mean()
+                dlt = v[ok] - s[ok]
+                row[f"paired_diff_{tag}"] = dlt.mean()
+                row[f"paired_diff_{tag}_ci_lo"], row[f"paired_diff_{tag}_ci_hi"] = boot(dlt)
+        rows.append(row)
+res = pd.DataFrame(rows)
+res.to_csv(os.path.join(out, "floor_b_by_background.csv"), index=False)
+print(res.shape)

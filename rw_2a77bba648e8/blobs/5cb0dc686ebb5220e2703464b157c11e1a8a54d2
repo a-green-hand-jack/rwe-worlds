@@ -1,0 +1,30 @@
+"""Parity of the Tier A learners with the regression on the threshold mechanism (d): median RMSE ratio to Chin with 95% bootstrap intervals.
+Two resamplings: cells (as for the tier figure) and runs (all the cells of a run together; the cells of a run share graphs and draws).
+Usage: parity_d.py tierA_cells.csv out.csv"""
+import sys
+import numpy as np
+import pandas as pd
+
+a = pd.read_csv(sys.argv[1])
+k = a[a.s > 0].copy()
+ch = k[k.estimator == "chin"][["run_id", "mechanism", "s", "rmse"]].rename(columns={"rmse": "rmse_chin"})
+k = k.merge(ch, on=["run_id", "mechanism", "s"])
+k["lr"] = k.rmse / k.rmse_chin  # ratio scale: the median of an even count averages the two middle ratios, as in the tier summary
+rng = np.random.default_rng(20261126)
+B = 10000
+rows = []
+for mech in ["d", "abcef"]:
+    sub = k[k.mechanism.isin(list(mech))]
+    for est in ["A_lasso", "A_ridge", "A_rf", "A_hgb", "A_ada"]:
+        h = sub[sub.estimator == est].reset_index(drop=True)
+        x = h.lr.to_numpy()
+        med = np.median(x)
+        bc = np.array([np.median(x[rng.integers(0, len(x), len(x))]) for _ in range(B)])
+        runs = h.run_id.unique()
+        grp = {r: h.lr[h.run_id == r].to_numpy() for r in runs}
+        br = np.array([np.median(np.concatenate([grp[r] for r in rng.choice(runs, len(runs))])) for _ in range(B)])
+        rows.append(dict(mechanisms=mech if mech == "d" else "a,b,c,e,f", learner=est, n_cells=len(h), n_runs=len(runs), median_ratio=med,
+                         cell_lo=np.percentile(bc, 2.5), cell_hi=np.percentile(bc, 97.5),
+                         run_lo=np.percentile(br, 2.5), run_hi=np.percentile(br, 97.5), share_below_1=float((x < 1).mean())))
+pd.DataFrame(rows).to_csv(sys.argv[2], index=False)
+print(pd.DataFrame(rows).round(3).to_string())

@@ -1,0 +1,116 @@
+\section{Experiments}
+\label{sec:experiments}
+
+All real-model numbers are for the pool of Section~\ref{sec:method}: 1500 MMLU-Pro items, 128 configurations of Qwen2.5-1.5B-Instruct, mean configuration accuracy $0.274$ (range $0.205$--$0.303$), true spread $\sigmatheta=0.014$ (between-pool interval $0.012$--$0.019$), mean pairwise item-level correlation of configurations $0.66$.
+Intervals are between-pool intervals unless stated; a standard error of the fresh-item accuracy is $0.012$--$0.014$.
+The synthetic arm has exact truth and is used where the real matrix cannot vary the factor.
+
+\subsection{How large is the gap?}
+\label{sec:size}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{../figures/fig1.pdf}
+\caption{Size of the gap on the real pool (1500 MMLU-Pro items, 128 configurations of Qwen2.5-1.5B-Instruct). Left: search, report, verify. Right: random search over $B$ configurations on $n$ items, truth the accuracy on the pool items outside $S$; $2000$ draws of $S$ per cell. Top: accuracy reported on $S$ and fresh accuracy of the selected configuration ($B=100$), with the fresh accuracy of the default, of the mean and of the best configuration of the pool. Bottom: gap for $B=5,20,100$; bands are $95\%$ between-pool intervals, the grey band $\pm1.96$ standard errors of one fresh-item accuracy. Open markers: $n=400$, where $S$ is $27\%$ of the pool (whole-pool reading of the gap $0.018$ against $0.025$ for $B=100$).}
+\label{fig:size}
+\end{figure}
+
+Searching $B=100$ of the 128 configurations on $n=30$ items reports $0.390$ for a configuration whose accuracy on fresh items is $0.277$ (gap $0.113$); the gap falls to $0.077$ at $n=60$, $0.059$ at $100$, $0.038$ at $200$ and $0.025$ at $400$ (Figure~\ref{fig:size}).
+It grows with the number of configurations evaluated: at $n=60$ it is $0.036$, $0.058$, $0.077$ and $0.079$ for $5$, $20$, $100$ and all $128$.
+All 35 cells (seven searchers, five sizes) have a between-pool interval that excludes zero.
+At $n=400$ the gap against the items outside $S$ exceeds the whole-pool reading by $N/(N-n)$, and the point is flagged.
+
+The size has to be read against what tuning delivers.
+The default configuration scores $0.262$ on fresh items, the selected one $0.277$ at $n=30$ and $0.287$ at $n=400$, the average configuration $0.274$ and the best configuration of the pool $0.303$.
+A reader of the reported scores sees an improvement over the default of $0.125$ at $n=30$, $0.095$ at $60$ and $0.049$ at $400$, against fresh improvements of $0.015$, $0.017$ and $0.025$: for $n\le100$ the reported improvement is at least four times the real one.
+
+\subsection{What drives the gap?}
+\label{sec:drivers}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{../figures/fig2.pdf}
+\caption{Drivers of the gap. (a) Real pool: measured gap against the search-log prediction $\kappa\bar\sigma/\sqrt n$ for exhaustive search over $8$, $32$ or $128$ configurations drawn from the whole pool, its central half or its densest window, $n\in\{60,120,240\}$ (shade: true spread over the standard error of one configuration), and for the cells of Figure~\ref{fig:size} (open); $95\%$ between-pool intervals. (b) Synthetic worlds with exact truth ($504$ cells, $4$ worlds $\times150$ draws; intervals over worlds in the source file). (c) Real pool, $n=60$: gap against configurations evaluated by each searcher.}
+\label{fig:drivers}
+\end{figure}
+
+The prediction $\kappa\bar\sigma/\sqrt n$ from the search log alone is $0.95$, $1.02$, $1.06$, $1.16$ and $1.26$ times the measured gap of exhaustive search at $n=30,\dots,400$: it matches within $6\%$ for $n\le100$ and overshoots by $16\%$ at $n=200$ and $26\%$ at $n=400$, where $S$ is $27\%$ of the pool (Figure~\ref{fig:drivers}a). Across the $15$ cells of exhaustive and random ($B=20,100$) search the slope of the measured gap on the prediction is $1.15$ ($1.09$--$1.19$), so by the rule fixed in advance (slope interval containing $1$) it does not track the gap, though its mean error ($0.005$) is inside the tolerance ($0.015$) and the prediction is an upper end of the gap in $80\%$ of the cells.
+Over subsets of the space and $n\in\{60,120,240\}$ (21 cells) the slope of the gap on the prediction is $1.01$ ($0.92$--$1.08$) with mean error $0.0025$ against a tolerance of $0.011$, so it tracks; the ratio is $0.93$--$1.01$ in every cell where $\sigmatheta$ is below $3.2$ standard errors of one configuration and $1.07$--$1.32$ where it is above $3.5$ (correlation over 21 cells $0.85$).
+$K_{\mathrm{eff}}$ is $7.9$--$8.5$ for $K=128$, $4.0$--$4.2$ for $B=20$ and $7.2$--$7.8$ for $B=100$: the configurations are correlated and compete like about eight independent ones.
+In the synthetic arm, where $n$, $K$ and $\sigmatheta$ are set, the gap rises with $K$, falls with $n$ and, at large $n$, with $\sigmatheta$ (at $K=128$, $n=800$: $0.047$ at $\sigmatheta=0$, $0.022$ at $0.04$); the prediction is within $7\%$ at $\sigmatheta=0$ and overshoots by $20$--$30\%$ at $n=400$ and $60$--$75\%$ at $n=800$ when $\sigmatheta>0$ (Figure~\ref{fig:drivers}b).
+
+At equal evaluation budget exhaustive search is not distinguishable from random search over $100$ configurations (paired difference $+0.002$, interval $-0.0004$ to $0.0046$ at $n=60$), hill climbing, which visits $18$ configurations on average, matches random search over $20$, and successive halving reports less optimism ($0.062$ against $0.077$ at $100$ evaluations; paired difference $-0.016$, interval $-0.022$ to $-0.010$); its final choice is between two survivors (Figure~\ref{fig:drivers}c).
+Putting a search item among the demonstrations raises the probability of answering it correctly by $\Delta_{\mathrm{leak}}=0.42$ (interval $0.22$--$0.62$ over nine probe items), so a search that places $k$ of its $n$ items in the prompt overstates by about $(k/n)\Delta_{\mathrm{leak}}$: $0.042$ for three demonstrations at $n=30$.
+
+\subsection{Do reported scores mislead decisions?}
+\label{sec:decisions}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{../figures/fig3.pdf}
+\caption{Decisions from reported scores. (a) Synthetic worlds in which all $128$ configurations are equally accurate: rate of declaring that tuning helped over the default configuration (one-sided $5\%$ rules; $B$ configurations evaluated; intervals over $6$ worlds $\times500$ draws). (b) Real pool: the rate (over all draws) of declaring a help although the tuned configuration is not better than the default on the items outside $S$, for all $128$ configurations and for the $74$ configurations within $0.02$ of each other in accuracy (a near-null, not an exact null); $B=100$, intervals from $40$ resampled pools and therefore coarse. (c) Two independent searches, $A$ with $100$ and $B$ with $20$ (5:1) or both $20$ (1:1) evaluations: fraction of draws in which the reported score favours $A$.}
+\label{fig:decisions}
+\end{figure}
+
+\emph{Tuned versus untuned.}
+On synthetic worlds in which all configurations are exactly equally accurate and $n=120$, the naive test declares that tuning helped in $32\%$ of draws when $20$ configurations are evaluated and $54\%$ when $100$ are, against a nominal $5\%$; the max-t test declares in $1.6\%$ and $4.5\%$ and the held-out test in $6\%$ (Figure~\ref{fig:decisions}).
+On the real pool tuning does help on average (mean fresh gain $+0.019$), so the naive test declares a help in $68\%$ of draws at $n=120$ with $100$ evaluations; what it overstates is the size.
+In $4.5\%$ of all draws (interval $0$--$0.22$) the naive test declares a help although the selected configuration is not better than the default on fresh items; max-t does so in $1.1\%$ and the held-out test in $0.8\%$ (such draws are $6.2\%$ of the total, so these are joint rates, not sizes).
+In the densest window of $74$ configurations within $0.02$ in accuracy, a near-null and not an exact null, the rates are $9.7\%$ (naive), $1.4\%$ (max-t) and $1.5\%$ (held-out) of all draws, $14.9\%$ of which have a non-positive gain; no excess over nominal is claimed.
+
+\emph{Tuned versus tuned.}
+At $n=120$, when system~A searches $100$ configurations and system~B $20$, the larger search has the higher reported score in $74\%$ of draws on the synthetic exact null and in $57\%$ (own search sets) to $71\%$ (shared set) on the real pool, although the true difference of the deployed configurations is zero ($0.0005$ on the real pool); at equal budgets ($20$ against $20$, own search sets) it is $45\%$ and $47\%$, and on a shared set $40\%$ and $37\%$, because equal reported scores do not count.
+The significance test rarely fires ($2\%$ synthetic, $2$--$5\%$ real), so the distortion is in the direction of the reported comparison, not in the size of the test.
+
+\subsection{Which reporting protocol is reliable?}
+\label{sec:protocols}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{../figures/fig4.pdf}
+\caption{Reporting protocols at $N_{\mathrm{tot}}=120$ items shared by search and report, random search over $100$ of $128$ configurations. Filled diamonds: real pool (truth: accuracy of the deployed configuration on the pool items outside the $N_{\mathrm{tot}}$ items; $2000$ draws; $95\%$ between-pool intervals from $40$ resampled pools, coarse); ticks: the same cell scored against the truth raised by $1.645$ standard errors; open circles: synthetic worlds with $\sigma_\theta=0$ (intervals over $8$ worlds). (a) Probability that the point report exceeds the true accuracy of the deployed configuration ($0.5$ is calibrated; cross-fit targets the mean accuracy of its fold-trained configurations). (b) Coverage and (c) mean width, in accuracy points, of one-sided $95\%$ lower bounds.}
+\label{fig:protocols}
+\end{figure}
+
+\begin{table}[t]
+\centering
+\caption{Reporting protocols at $N_{\mathrm{tot}}=120$, random search over $100$ configurations (the cell of Figure~\ref{fig:protocols}); real intervals are between-pool ($40$ resampled pools), synthetic intervals are over $8$ worlds, in which all $128$ configurations have the same true accuracy. Width and cost are in accuracy points; cost is the accuracy of the deployed configuration minus that of the naive protocol's, which is inside the noise for the splits. Real coverage and overstatement are scored against the fresh-item accuracy (the anti-conservative scoring).}
+\label{tab:protocols}
+\input{../tables/tab2}
+\end{table}
+
+At $N_{\mathrm{tot}}=120$ and random search over $100$ configurations the naive report exceeds the fresh accuracy of the deployed configuration in $91\%$ of draws (bias $+0.052$); the optimism bootstrap does in $62\%$ ($+0.014$) and the .632 variant in $66\%$ ($+0.017$); cross-fit and the held-out splits are near $50\%$ (cross-fit estimates the mean accuracy of its fold-trained configurations, not the deployed one) (Figure~\ref{fig:protocols}, Table~\ref{tab:protocols}).
+Holding out items costs little here: the deployed configuration of a 20\% or 50\% split is $0.0007$ or $0.0025$ less accurate than the one the naive protocol deploys, inside the noise.
+
+Among lower bounds over the declared space, the max-t bound covers $97.0\%$ (interval $93.3$--$99.4$) with mean width $0.069$ at $N_{\mathrm{tot}}=120$ and $95.7\%$ ($92.5$--$98.1$), width $0.050$, at $240$; Bonferroni and \v{S}id\'ak cover $99.5\%$ at $120$ and $98.9\%$ at $240$ with widths $0.092$ and $0.066$; the held-out bounds cover $96.0$--$96.7\%$ at $120$ with widths $0.092$ (50\%) and $0.140$ (20\%), and the unadjusted bound on the selected configuration covers $69\%$.
+On the real pool the max-t bound is therefore valid in every primary random-search cell and the narrowest valid bound, and, unlike the held-out bounds, it spends no items on reporting.
+
+\emph{Where the cheap bound fails.}
+The bound is valid for a fixed candidate set, but under adaptive search the choice of that set matters (Figure~\ref{fig:coverage}).
+On the real pool, over the declared space, it covers $96$--$99\%$ for random search, hill climbing and successive halving at $N_{\mathrm{tot}}=120$ and $240$; in the synthetic worlds with no spread in true accuracy ($\sigma_\theta=0$) it holds at $N_{\mathrm{tot}}=120$ ($95.6\%$ for random search over $100$) but falls to $92.4\%$ ($91.3$--$93.6$) at $240$, and with spread ($\sigma_\theta=0.01$, $0.03$) it is at least $96\%$. Where it undercovers it is also narrow.
+Over the configurations the search evaluated it covers $95$--$97\%$ for random search and $94\%$ ($88$--$97$) and $92\%$ ($88$--$96$) for hill climbing at $120$ and $240$ (inconclusive: the conservative scoring gives $0.98$--$0.99$), but only $81$--$86\%$ for successive halving, whose evaluated set is the two configurations that reach the last round; the conservative scoring gives $0.93$--$0.96$, so the bound is invalid there.
+The synthetic arm shows the same pattern at $N_{\mathrm{tot}}=120$ ($95\%$, $95\%$ and $48$--$65\%$) and a weaker one at $240$ ($91\%$, $93\%$ and $40$--$58\%$).
+A bound that is simultaneous over what was evaluated is valid only if that set was fixed before the data were seen; after adaptive elimination only the declared space is.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{../figures/fig5.pdf}
+\caption{Coverage of the one-sided $95\%$ max-t lower bound by searcher and candidate set, at $N_{\mathrm{tot}}=120$ and $240$: declared set (all $128$ configurations) or evaluated set (the configurations the search touched; for successive halving, the last-round survivors). Searchers: random search with $20$ or $100$ evaluations, hill climbing, successive halving with $20$ or $100$ full-set-equivalent evaluations. Filled: real pool ($40$ resampled pools $\times$ $200$ draws, $95\%$ between-pool intervals; tick: conservative scoring); open: synthetic worlds with $\sigma_\theta=0$ ($8$ worlds $\times$ $500$ draws).}
+\label{fig:coverage}
+\end{figure}
+
+\subsection{Does a real search tool agree with the replay?}
+\label{sec:tool}
+
+We ran the \texttt{dspy} 3.0.4 optimiser \texttt{BootstrapFewShotWithRandomSearch} live with the study's scorer as its language model: $19$ candidate programs ($16$ sets of bootstrapped and labelled demonstrations, and three baselines: zero-shot, labels only, unshuffled), trained and validated on the same $n=60$ items $S$, $24$ draws of $S$, truth the selected program's accuracy on $400$ pool items outside $S$ (Table~\ref{tab:tool}, Appendix~\ref{app:definitions}).
+It reports $0.357$ for programs with fresh accuracy $0.291$, a gap of $0.066$ (interval over draws $0.039$--$0.093$; positive in $20$ of $24$ draws); not scoring a program's demonstration items on themselves lowers it to $0.048$, so $0.018$ is leakage. The search-log prediction from the $19\times60$ scores is $0.054$, $0.82$ times the gap.
+Random search over $20$ configurations replayed at $n=60$ gives $0.058$. By the rule fixed before the run (the tool's mean inside the replay's pool-bootstrap interval, $0.052$--$0.065$) the result is \emph{not consistent}: the tool's mean is $0.0015$ above the upper end, and inside the corrected interval ($0.049$--$0.067$).
+The difference of $0.008$ has a standard error of $0.013$, nearly all of it the tool's: $24$ draws neither separate the replay from the tool nor show them equal.
+
+
+\subsection{Beyond the measured matrix}
+\label{sec:beyond}
+
+A generative model fitted to the matrix (Section~\ref{sec:method}) predicts the measured gap on held-out items to within the interval of the measurement in $24$ of $24$ split-half checks and in $23$ of $24$ when fitted on $75$ of the $128$ configurations only; it overstates the gap by about $6\%$ ($+0.0035$ on a measured gap of $0.062$).
+The measurement interval is $0.039$ wide, so this is a weak test, and it does not tell the three models of dependence between configurations apart.
+Extended to $n=800$ and $K=512$, outside the validated support $n\le200$, $K\le128$, the max-t bound covers $96$--$99\%$ and Bonferroni $99$--$100\%$ (Figure~\ref{fig:beyond}).

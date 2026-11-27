@@ -1,0 +1,21 @@
+For a tabular model, a SHAP value per feature is estimated once by a randomised, budget-limited algorithm, and the reader draws a conclusion from that single result: which feature mattered most, which three mattered, whether a feature pushed the score up or down.
+The literature on Shapley estimators measures how close an estimate is to the exact Shapley value, usually in $\ell_2$, averaged over instances and at chosen budgets \citep{lundberg2017,covert2021,mitchell2022,musco2025}.
+A small average error does not say that a particular run returns the conclusion the exact values would give: when two features are nearly tied, a tiny error swaps them.
+Our question is therefore how far one randomised, budget-limited SHAP run can be treated as a reliable basis for a prediction, where the prediction is the conclusion a reader draws.
+
+We answer it for the unchanged \texttt{shap} Kernel explainer and two sampled alternatives, on four model classes and five public tabular datasets, with the value function fixed so that the randomness of the explainer is not confused with the choice of what is explained (Section~\ref{sec:setting}).
+The reference is the exact Shapley value of that value function, obtained by enumerating all coalitions once per instance, so every run is scored against the quantity it estimates.
+For each instance we measure the probability $P_c$ that a run returns the exact top-$k$ set, a tolerance-aware version that forgives swaps across an exact near tie, and the agreement of two runs, and we summarise a dataset--model cell by the share of its instances for which one run is correct with probability at least $0.9$.
+We compare the explainer's own noise with the noise from drawing another background and from retraining the model, and we test whether a certificate computed from one run is a better check than running twice.
+
+\paragraph{Results.}
+In these cells the answer is conditional, and the condition is explicit.
+(i)~At the \texttt{shap} default budget with \texttt{l1\_reg=False}, one run returns the exact top-3 set with probability at least $0.9$ for $0.90$--$1.00$ of the instances of each cell on the two datasets with $d\ge16$, and for every instance once swaps across near ties are forgiven (Section~\ref{sec:headline}); the library's default regularisation, \texttt{num\_features(10)}, is biased and does worse, markedly so at $d=279$.
+(ii)~The failures are the instances whose third and fourth features are nearly tied; the mean correlation with the exact values, at least $0.97$ at every budget of $3d$ or more, does not flag them: read strictly, the decision-level share lies $3$ to $21$ points below it at the reference budget (Section~\ref{sec:margin}).
+(iii)~Below the default a run cannot be treated as reliable, and the budget a margin requires grows roughly as $g^{-1.5}$ to $g^{-2}$ in the margin $g$, neither confirming nor refuting the $g^{-2}$ of a Gaussian argument (Section~\ref{sec:budget}).
+(iv)~With a background of $50$ random rows, two runs of the Kernel explainer agree on the top-3 set far more often than two exactly explained backgrounds or two retrained models; the noisier paired Kernel estimator does not show this in general (Section~\ref{sec:floors}).
+(v)~A certificate from one run is not a clear improvement over running twice (Section~\ref{sec:cert}).
+
+\paragraph{Scope.}
+The headline rests on two populations and one trained model per model class, with one seed and a marginal value function with $B=50$ random background rows; its intervals resample instances and do not contain training or background variance.
+Code, the result tables behind every figure and table, and the reproduction notes are released with the paper.

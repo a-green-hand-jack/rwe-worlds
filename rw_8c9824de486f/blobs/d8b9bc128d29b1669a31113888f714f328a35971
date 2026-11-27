@@ -1,0 +1,64 @@
+"""C4 synthetic checks: T1 (known params) vs measured, estimation term vs M, misspecification ladder, S6 vs S0.
+usage: python 10_synth.py <out_dir> [quick]"""
+import os, sys, json, numpy as np, pandas as pd
+sys.path.insert(0, os.path.dirname(__file__))
+from fa import fit_fa, posterior_row, design_risk
+from synth import *
+import select_rules as SR
+
+out = sys.argv[1]; quick = len(sys.argv) > 2
+K = [1, 2, 3, 5, 8, 12, 20, 32]
+N = 120; N_TEST = 150; DENS = 0.6; D = 20
+SEEDS = range(3) if quick else range(8)
+rows = []
+
+def mask_like(M, N, rng, dens=DENS):
+    """missingness with a heterogeneous per-model coverage (like the real matrix): per-model prob ~ Beta"""
+    p = rng.beta(2.0, 2.0 * (1 - dens) / dens, size=(M, 1)); return rng.random((M, N)) < p
+
+def eval_cfg(M, regime, level, r_true, seed, rank_fit):
+    g = generate(M + N_TEST, N, r_true, regime, level, seed * 1000 + 17)
+    Y = g["Y"]; Ytr, Yte = Y[:M], Y[M:]
+    rng = np.random.default_rng(seed + 5)
+    msk = mask_like(M, N, rng); Ytr_m = np.where(msk, Ytr, np.nan)
+    Ztr, m_, s_ = standardise_cols(Ytr_m, Ytr_m) if False else (None, None, None)
+    mu = np.nanmean(Ytr_m, 0); sd = np.nanstd(Ytr_m, 0); Ztr = (Ytr_m - mu) / sd; Zte = (Yte - mu) / sd
+    fit = fit_fa(Ztr, rank_fit)
+    # truth on the standardised scale: only exact in the correct model, used for the known-parameter T1 curve
+    tr_mu = (g["mu"] - mu) / sd; trV = g["V"] / sd[:, None]; trpsi = g["psi"] / sd ** 2
+    truth = dict(mu=tr_mu, V=trV, psi=trpsi)
+    res = []
+    for k in K:
+        errs = {"S6": [], "S0": []}; t1_true = []; t1_fit = []; e_floor = []
+        for i in range(N_TEST):
+            z = Zte[i]; cand = np.arange(N)
+            S6 = SR.s6_greedy(fit, cand, k)
+            sets = {"S6": [S6], "S0": [rng.choice(N, k, replace=False) for _ in range(D)]}
+            for rule, ss in sets.items():
+                e = []
+                for S in ss:
+                    T = np.setdiff1d(cand, S)
+                    zz, _ = posterior_row(fit, S, z[S]); pred = fit["mu"][T] + fit["V"][T] @ zz
+                    e.append(np.mean((pred - z[T]) ** 2) )
+                errs[rule].append(np.mean(e))
+            T = np.setdiff1d(cand, S6)
+            t1_fit.append(np.mean(design_risk(fit, S6)[T])); t1_true.append(np.mean(design_risk(truth, S6)[T])) 
+            # measured error of the *true-parameter* posterior with the same S6 (isolates the estimation term)
+            zt, _ = posterior_row(truth, S6, z[S6]); pt = truth["mu"][T] + truth["V"][T] @ zt; e_floor.append(np.mean((pt - z[T]) ** 2))
+        res.append(dict(M=M, regime=regime, level=level, seed=seed, k=k, rank_fit=rank_fit, mse_S6=np.mean(errs["S6"]), mse_S0=np.mean(errs["S0"]),
+                        t1_true=np.mean(t1_true), t1_fit=np.mean(t1_fit), mse_trueparams_S6=np.mean(e_floor)))
+    return res
+
+def run(M, regime, level, r_true, rank_fit, label):
+    for s in SEEDS:
+        rows.extend(eval_cfg(M, regime, level, r_true, s, rank_fit))
+        print(label, M, s, flush=True)
+
+for M in ([60, 120, 240] if quick else [40, 80, 160, 320, 640]):
+    run(M, "separated", "L0_correct", 6, 6, "sep")
+run(240 if not quick else 120, "decaying", "L0_correct", 40, 8, "dec")
+for lv in LEVELS[1:]:
+    run(240 if not quick else 120, "separated", lv, 6, 6, lv)
+df = pd.DataFrame(rows); os.makedirs(out, exist_ok=True)
+df.to_csv(os.path.join(out, "synth_raw.csv"), index=False)
+print(df.groupby(["regime", "level", "M", "k"])[["mse_S6", "mse_S0", "t1_true", "t1_fit", "mse_trueparams_S6"]].mean().round(3).head(40))

@@ -1,0 +1,68 @@
+"""Holme-Kim against the other graph families on the threshold mechanism (d): the regression's bias and log RMSE ratio to DM (exploratory).
+    python analysis/hk_compare.py ORIG_TABLES BLOCK_CELLS_DIR OUT.csv [EXPOSURE_SPREAD_ORIG EXPOSURE_SPREAD_BLOCK]
+ORIG_TABLES holds cells.parquet and ratios.parquet of the original runs, BLOCK_CELLS_DIR those of the confirmatory block (`make_cells.py` on rawC).
+Population: mechanism (d), Bernoulli(p = 0.5), iid baseline with SD 1, no edge noise, noise level 0.5, s in {0.25, 0.5, 0.75}, d in {20, 80}; one row per (graph, run, d, s):
+the original SBM core, ER, WS, BA, DCSBM and the two real graphs, and the block's SBM, HK and LN (the block has new seeds and graph draws, 10 graphs x 300 draws per run).
+bias = mean of (tau_hat - tau)/tau of the chin regression with its MC interval; log_ratio = log(RMSE chin / RMSE DM), paired bootstrap interval (as in ratios.parquet)."""
+import json
+import os
+import subprocess
+import sys
+from datetime import date
+
+import pandas as pd
+from scipy.stats import spearmanr
+
+KEEP_ORIG = ("SBM", "ER", "WS", "BA", "DCSBM", "Stanford3", "ego-Facebook")
+SS = (0.25, 0.5, 0.75)
+
+
+def pick(c, r, source):
+    c = c[(c.mechanism == "d") & (c.p == 0.5) & (c.estimator == "chin") & (c.baseline == "iid") & (c.design == "bern") & (c.edge_noise_q == 0) & (c.sigma == 0.5)
+          & c.d_target.isin([20, 80]) & c.s.isin(SS) & (c.base_sd == 1.0)]
+    r = r[(r.estimator == "chin") & (r.mechanism == "d") & (r.sigma == 0.5)][["cell_id", "log_ratio", "log_ratio_lo", "log_ratio_hi"]]
+    x = c.merge(r, on="cell_id")
+    x["source"] = source
+    return x
+
+
+def main(orig, block, out, spread_orig=None, spread_block=None):
+    co, ro = pd.read_parquet(f"{orig}/cells.parquet"), pd.read_parquet(f"{orig}/ratios.parquet")
+    cb, rb = pd.read_parquet(f"{block}/cells.parquet"), pd.read_parquet(f"{block}/ratios.parquet")
+    o = pick(co, ro, "original")
+    # the original runs' run ids that are the core of each family (not the n, fine-s, low-baseline or degree-baseline variants)
+    o = o[o.graph.isin(KEEP_ORIG) & ~o.run_id.str.startswith(("fine_", "n_SBM", "lowbase_", "base_"))]
+    b = pick(cb, rb, "block")
+    x = pd.concat([o, b])
+    x["family"] = x.graph
+    cols = ["source", "family", "run_id", "d_target", "d", "s", "n", "clustering_coef", "dmax", "bias", "bias_mc_lo", "bias_mc_hi", "log_ratio", "log_ratio_lo", "log_ratio_hi"]
+    x = x[cols].sort_values(["d_target", "s", "source", "family"])
+    os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
+    x.to_csv(out, index=False)
+    pd.set_option("display.width", 250)
+    print(x.round(3).to_string(index=False))
+    # mean over s per (source, family, d): the row the text quotes
+    g = x.groupby(["source", "family", "d_target"]).agg(bias_mean=("bias", "mean"), log_ratio_mean=("log_ratio", "mean"), clustering=("clustering_coef", "first"), dmax=("dmax", "first")).reset_index()
+    g.to_csv(out.replace(".csv", "_mean_over_s.csv"), index=False)
+    print(g.round(3).to_string(index=False))
+    if spread_orig and spread_block:
+        sp = pd.concat([pd.read_csv(spread_orig).assign(source="original"), pd.read_csv(spread_block).assign(source="block")])
+        sp = sp[(sp.p == 0.5) & (sp.s == 0.5) & sp.d.round(-1).isin([20, 80])]
+        sp = sp[~sp.run_id.str.startswith(("n_", "fine_", "lowbase_", "base_"))]
+        sp.to_csv(out.replace(".csv", "_exposure.csv"), index=False)
+        print(sp.round(3).to_string(index=False))
+        # descriptive, exploratory: rank correlation of the exposure SD with the regression's bias and log ratio over the graphs of each degree (one run each, n = number of graphs)
+        sp = sp.assign(dd=sp.d.round(-1).astype(int))
+        rows = []
+        for dd, h in sp.groupby("dd"):
+            if len(h) >= 5:
+                rows.append(dict(d=dd, n_graphs=len(h), spearman_sdf_bias=spearmanr(h.sd_f, h.bias)[0], spearman_sdf_logratio=spearmanr(h.sd_f, h.log_rmse_ratio_to_dm)[0]))
+        pd.DataFrame(rows).to_csv(out.replace(".csv", "_exposure_rank.csv"), index=False)
+        print(pd.DataFrame(rows).round(2).to_string(index=False))
+    commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, cwd=os.path.dirname(os.path.abspath(__file__))).stdout.strip()
+    json.dump(dict(script="analysis/hk_compare.py", code_commit=commit, date=str(date.today()), rows=len(x), note="exploratory; mechanism (d), p=0.5, sigma 0.5, iid baseline, Bernoulli"),
+              open(out.replace(".csv", ".meta.json"), "w"), indent=1)
+
+
+if __name__ == "__main__":
+    main(*sys.argv[1:6])

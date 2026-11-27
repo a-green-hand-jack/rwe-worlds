@@ -1,0 +1,12 @@
+\section{Related work}\label{sec:related}
+\paragraph{Cheaper evaluation of one benchmark.}
+Anchor points \citep{vivek2024anchor}, efficient benchmarking \citep{perlitz2024efficient}, tinyBenchmarks \citep{polo2024tiny}, metabench \citep{kipnis2024metabench} and IRT-based adaptive item selection \citep{fluid2025} reduce the number of \emph{items} needed to estimate a model's score on one benchmark. We choose whole benchmarks, and the target is the score on \emph{other} benchmarks.
+
+\paragraph{Cross-benchmark predictability.}
+A few capability components computed from many models predict downstream scores \citep{ruan2024observational}, and skill-level scaling laws transfer across families \citep{polo2024sloth} and \citet{perlitz2024benchbench} show that benchmark agreement depends on protocol choices. Among the work we read, none treats the choice of the $k$ runs as a design problem.
+
+\paragraph{Matrix completion.}
+Low-rank completion \citep{candes2009exact,mazumder2010spectral}, probabilistic PCA \citep{tipping1999probabilistic} and probabilistic matrix factorisation \citep{salakhutdinov2007pmf,hernandezlobato2014pmf,udell2016glrm} supply our predictors. They assume random observed cells; here the evaluator chooses them.
+
+\paragraph{Choosing what to observe.}
+Cold-start item selection in recommenders \citep{elahi2016active}, column subset selection \citep{mahoney2009cur} and sensor placement \citep{krause2005sensors,ranieri2014framesense} choose which entries to observe, and greedy selection for linear prediction has guarantees through the submodularity ratio \citep{das2011submodular,bian2017greedy}. Our selector is the Bayesian linear-Gaussian instance; we test it on benchmark matrices, where models cluster in families.

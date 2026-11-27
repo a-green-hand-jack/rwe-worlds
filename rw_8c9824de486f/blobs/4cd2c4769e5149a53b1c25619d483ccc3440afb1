@@ -1,0 +1,111 @@
+% Verified = title/venue/ID seen in the literature search or the starter list during this study.
+@inproceedings{hendrycks2021mmlu,
+  title={Measuring Massive Multitask Language Understanding}, author={Hendrycks, Dan and Burns, Collin and Basart, Steven and Zou, Andy and Mazeika, Mantas and Song, Dawn and Steinhardt, Jacob},
+  booktitle={ICLR}, year={2021}, note={arXiv:2009.03300}}
+@inproceedings{muennighoff2023mteb,
+  title={{MTEB}: Massive Text Embedding Benchmark}, author={Muennighoff, Niklas and Tazi, Nouamane and Magne, Lo{\"i}c and Reimers, Nils},
+  booktitle={EACL}, year={2023}, note={arXiv:2210.07316}}
+@article{liang2023helm,
+  title={Holistic Evaluation of Language Models}, author={Liang, Percy and others},
+  journal={Transactions on Machine Learning Research}, year={2023}, note={arXiv:2211.09110}}
+@inproceedings{zheng2023judging,
+  title={Judging {LLM}-as-a-Judge with {MT-Bench} and Chatbot Arena}, author={Zheng, Lianmin and others},
+  booktitle={NeurIPS Datasets and Benchmarks}, year={2023}, note={arXiv:2306.05685}}
+@inproceedings{polo2024tinybenchmarks,
+  title={{tinyBenchmarks}: evaluating {LLM}s with fewer examples}, author={Polo, Felipe Maia and Weber, Lucas and Choshen, Leshem and Sun, Yuekai and Xu, Gongjun and Yurochkin, Mikhail},
+  booktitle={ICML}, year={2024}, note={arXiv:2402.14992}}
+@article{kipnis2024metabench,
+  title={metabench -- A Sparse Benchmark of Reasoning and Knowledge in Large Language Models}, author={Kipnis, Alex and Voudouris, Konstantinos and Buschoff, Luca M. Schulze and Schulz, Eric},
+  journal={arXiv preprint arXiv:2407.12844}, year={2024}}
+@article{perlitz2024benchbench,
+  title={Do These {LLM} Benchmarks Agree? Fixing Benchmark Evaluation with {BenchBench}}, author={Perlitz, Yotam and others},
+  journal={arXiv preprint arXiv:2407.13696}, year={2024}}
+@inproceedings{ruan2024observational,
+  title={Observational Scaling Laws and the Predictability of Language Model Performance}, author={Ruan, Yangjun and Maddison, Chris J. and Hashimoto, Tatsunori},
+  booktitle={NeurIPS}, year={2024}, note={arXiv:2405.10938}}
+@article{polo2024sloth,
+  title={Sloth: scaling laws for {LLM} skills to predict multi-benchmark performance across families}, author={Polo, Felipe Maia and others},
+  journal={arXiv preprint arXiv:2412.06540}, year={2024}}
+@article{zhuo2024bigcodebench,
+  title={{BigCodeBench}: Benchmarking Code Generation with Diverse Function Calls and Complex Instructions}, author={Zhuo, Terry Yue and others},
+  journal={arXiv preprint arXiv:2406.15877}, year={2024}}
+@inproceedings{vivek2024anchor,
+  title={Anchor Points: Benchmarking Models with Much Fewer Examples}, author={Vivek, Rajan and Ethayarajh, Kawin and Yang, Diyi and Kiela, Douwe},
+  booktitle={EACL}, year={2024}, doi={10.18653/v1/2024.eacl-long.95}}
+@inproceedings{rashid2002getting,
+  title={Getting to know you: learning new user preferences in recommender systems}, author={Rashid, Al Mamunur and Albert, Istvan and Cosley, Dan and Lam, Shyong K. and McNee, Sean M. and Konstan, Joseph A. and Riedl, John},
+  booktitle={IUI}, year={2002}, doi={10.1145/502716.502737}}
+@inproceedings{golbandi2011adaptive,
+  title={Adaptive bootstrapping of recommender systems using decision trees}, author={Golbandi, Nadav and Koren, Yehuda and Lempel, Ronny},
+  booktitle={WSDM}, year={2011}, doi={10.1145/1935826.1935910}}
+@article{elahi2016survey,
+  title={A survey of active learning in collaborative filtering recommender systems}, author={Elahi, Mehdi and Ricci, Francesco and Rubens, Neil},
+  journal={Computer Science Review}, year={2016}, doi={10.1016/j.cosrev.2016.05.002}}
+@article{candes2009exact,
+  title={Exact Matrix Completion via Convex Optimization}, author={Cand{\`e}s, Emmanuel J. and Recht, Benjamin},
+  journal={Foundations of Computational Mathematics}, year={2009}, doi={10.1007/s10208-009-9045-5}}
+@article{candes2010power,
+  title={The Power of Convex Relaxation: Near-Optimal Matrix Completion}, author={Cand{\`e}s, Emmanuel J. and Tao, Terence},
+  journal={IEEE Transactions on Information Theory}, year={2010}, doi={10.1109/tit.2010.2044061}}
+@article{tipping1999ppca,
+  title={Probabilistic Principal Component Analysis}, author={Tipping, Michael E. and Bishop, Christopher M.},
+  journal={Journal of the Royal Statistical Society: Series B}, year={1999}, doi={10.1111/1467-9868.00196}}
+@inproceedings{boutsidis2009css,
+  title={An Improved Approximation Algorithm for the Column Subset Selection Problem}, author={Boutsidis, Christos and Mahoney, Michael W. and Drineas, Petros},
+  booktitle={SODA}, year={2009}, doi={10.1137/1.9781611973068.105}}
+@inproceedings{das2011submodular,
+  title={Submodular meets Spectral: Greedy Algorithms for Subset Selection, Sparse Approximation and Dictionary Selection}, author={Das, Abhimanyu and Kempe, David},
+  booktitle={ICML}, year={2011}, note={arXiv:1102.3975}}
+@inproceedings{bian2017guarantees,
+  title={Guarantees for Greedy Maximization of Non-submodular Functions with Applications}, author={Bian, Andrew An and Buhmann, Joachim M. and Krause, Andreas and Tschiatschek, Sebastian},
+  booktitle={ICML}, year={2017}, note={arXiv:1703.02100}}
+@article{mulder2009multidimensional,
+  title={Multidimensional Adaptive Testing with Optimal Design Criteria for Item Selection}, author={Mulder, Joris and van der Linden, Wim J.},
+  journal={Psychometrika}, year={2009}, doi={10.1007/s11336-008-9097-5}}
+@inproceedings{houlsby2014coldstart,
+  title={Cold-start Active Learning with Robust Ordinal Matrix Factorization}, author={Houlsby, Neil and Hern{\'a}ndez-Lobato, Jos{\'e} Miguel and Ghahramani, Zoubin},
+  booktitle={ICML}, series={PMLR 32}, year={2014}}
+@article{mazumder2010spectral,
+  title={Spectral Regularization Algorithms for Learning Large Incomplete Matrices}, author={Mazumder, Rahul and Hastie, Trevor and Tibshirani, Robert},
+  journal={Journal of Machine Learning Research}, volume={11}, pages={2287--2322}, year={2010}}
+@article{chaloner1995bayesian,
+  title={Bayesian Experimental Design: A Review}, author={Chaloner, Kathryn and Verdinelli, Isabella},
+  journal={Statistical Science}, volume={10}, number={3}, year={1995}, doi={10.1214/ss/1177009939}}
+
+@article{burnell2023structure,
+  author    = {Burnell, Ryan and Hao, Han and Conway, Andrew R. A. and Hernandez-Orallo, Jose},
+  title     = {Revealing the structure of language model capabilities},
+  journal   = {arXiv preprint arXiv:2306.10062},
+  year      = {2023}
+}
+
+@article{ilic2024evidence,
+  author    = {Ili{\'c}, David and Gignac, Gilles E.},
+  title     = {Evidence of interrelated cognitive-like capabilities in large language models: Indications of artificial general intelligence or achievement?},
+  journal   = {Intelligence},
+  volume    = {106},
+  pages     = {101858},
+  year      = {2024},
+  doi       = {10.1016/j.intell.2024.101858}
+}
+
+@article{zhou2025lost,
+  author    = {Zhou, Hongli and Huang, Hui and Zhao, Ziqing and Han, Lvyuan and Wang, Huicheng and Chen, Kehai and Yang, Muyun and Bao, Wei and Dong, Jian and Xu, Bing and Zhu, Conghui and Cao, Hailong and Zhao, Tiejun},
+  title     = {Lost in Benchmarks? Rethinking Large Language Model Benchmarking with Item Response Theory},
+  journal   = {arXiv preprint arXiv:2505.15055},
+  year      = {2025}
+}
+
+@article{hofmann2025fluid,
+  author    = {Hofmann, Valentin and Heineman, David and Magnusson, Ian and Lo, Kyle and Dodge, Jesse and Sap, Maarten and Koh, Pang Wei and Wang, Chun and Hajishirzi, Hannaneh and Smith, Noah A.},
+  title     = {Fluid Language Model Benchmarking},
+  journal   = {arXiv preprint arXiv:2509.11106},
+  year      = {2025}
+}
+
+@inproceedings{polo2024promptEval,
+  author    = {Polo, Felipe Maia and Xu, Ronald and Weber, Lucas and Silva, M{\'i}rian and Bhardwaj, Onkar and Choshen, Leshem and de Oliveira, Allysson Flavio Melo and Sun, Yuekai and Yurochkin, Mikhail},
+  title     = {Efficient multi-prompt evaluation of {LLM}s},
+  booktitle = {Advances in Neural Information Processing Systems 37},
+  year      = {2024}
+}

@@ -1,0 +1,17 @@
+\begingroup\scriptsize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}p{2.3in}rrrr@{}}\toprule
+Filter step & Models & Tasks & Cells & Missing \\\midrule
+R1-R5 cells (text tasks, one revision/model, split, dataset revision, subsets) & 412 & 904 & 57{,}730 & 84\% \\
+iter 0: tasks with $\geq$ 50 models & 334 & 350 & 48{,}282 & 59\% \\
+iter 0: models with $\geq$ 30 tasks & 244 & 350 & 46{,}907 & 45\% \\
+iter 1: tasks with $\geq$ 50 models & 244 & 328 & 45{,}857 & 43\% \\
+iter 1: models with $\geq$ 30 tasks & 238 & 328 & 45{,}775 & 41\% \\
+iter 2: tasks with $\geq$ 50 models & 238 & 328 & 45{,}775 & 41\% \\
+iter 2: models with $\geq$ 30 tasks & 238 & 328 & 45{,}775 & 41\% \\
+\midrule Final matrix & 238 & 328 & 45{,}775 & 41.4\% \\
+\midrule Split & Held-out models & Held-out groups & Training models & Models, groups at $k_{\max}$ \\\midrule
+G: group-held-out & 238 & 83 & -- & 154, 51 \\
+S: strongest quarter & 60 & 32 & 178 & 22, 11 \\
+T: temporal & 68 & 37 & -- & 13, 4 \\
+\bottomrule\end{tabular}
+\endgroup

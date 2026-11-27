@@ -1,0 +1,51 @@
+"""Table 1 (claim M1, section 4): design and reference per dataset x model. LaTeX tabular (booktabs), 8 pt via \\footnotesize.
+Reads cells.csv; one row per dataset x model for the default estimator. Missing cells are not written.
+Usage: python tab1_design.py DATA_DIR OUT_PREFIX [--estimator E]
+"""
+import argparse, os, sys
+import numpy as np, pandas as pd
+_here = os.path.dirname(os.path.abspath(__file__))
+for _d in (_here, os.path.join(_here, "..", "figs")):   # figstyle.py: next to this script (delivered layout) or in ../figs (repo layout)
+    sys.path.insert(0, _d)
+import figstyle as fs
+
+ap = argparse.ArgumentParser()
+ap.add_argument("data"); ap.add_argument("out"); ap.add_argument("--estimator", default="shap_kernel"); ap.add_argument("--l1", default="False")
+a = ap.parse_args()
+c, p1 = fs.load(a.data, "cells")
+fs.require(c, ["dataset", "model", "estimator", "l1_reg", "budget_m", "d", "model_auc", "evals_per_run", "output_space", "reference_class",
+               "n_instances", "R", "is_default_budget"], "cells")
+c = c[(c.estimator == a.estimator) & (c.l1_reg == a.l1)]
+fmt = lambda x: f"{int(round(x)):,}".replace(",", "\\,")
+rows = []
+for ds in fs.DATASET_TITLE:
+    for m in fs.MODELS:
+        g = c[(c.dataset == ds) & (c.model == m)]
+        if g.empty: continue
+        dflt = g[g.is_default_budget == True]
+        if dflt.empty: raise SystemExit(f"{ds}/{m}: no default-budget row in cells.csv")
+        r = dflt.iloc[0]
+        s_ = g[g.R > 1]  # sampling budgets (R = 1 is exact enumeration: deterministic)
+        rows.append(dict(dataset=ds, model=m, d=int(r.d), output=r.output_space.split(" (")[0], ref=r.reference_class, auc=r.model_auc,
+                         n=int(g.n_instances.max()), R=int(s_.R.max()), R_min=int(s_.R.min()), default_exact=bool(r.R == 1), evals_default=r.evals_per_run,
+                         evals_min=s_.evals_per_run.min(), evals_max=s_.evals_per_run.max()))
+if not rows: raise SystemExit("no cell for the selected estimator")
+df = pd.DataFrame(rows)
+out = ["{\\footnotesize\\setlength{\\tabcolsep}{3pt}", "\\begin{tabular}{@{}llrllrrrrr@{}}", "\\toprule",
+       "Dataset & Model & $d$ & Output & Ref. & AUC & $n$ & $R$ & Default evals & Sampling grid (evals) \\\\", "\\midrule"]
+prev = None
+for r in df.itertuples():
+    if prev is not None and r.dataset != prev: out.append("\\addlinespace")
+    name = fs.DATASET_TITLE[r.dataset] if r.dataset != prev else ""
+    R = f"{r.R}" if r.R == r.R_min else f"{r.R_min}--{r.R}"
+    dflt = fmt(r.evals_default) + ("$^{\\mathrm{x}}$" if r.default_exact else "")
+    out.append(f"{name} & {r.model.upper()} & {r.d} & {r.output} & {r.ref} & {r.auc:.3f} & {r.n} & {R} & {dflt} & {fmt(r.evals_min)}--{fmt(r.evals_max)} \\\\")
+    prev = r.dataset
+out += ["\\bottomrule", "\\end{tabular}}"]
+os.makedirs(os.path.dirname(a.out) or ".", exist_ok=True)
+open(a.out + ".tex", "w").write("\n".join(out) + "\n")
+df.to_csv(a.out + ".csv", index=False)
+import json
+json.dump({"table": os.path.basename(a.out), "inputs": fs.inputs([p1]),
+           "note": f"estimator={a.estimator}; l1_reg={a.l1}; one row per dataset x model; evals include background rows; superscript x: the default budget enumerates all coalitions "
+                   "(exact, deterministic, R=1); R = repeats at the sampling budgets (range where cells differ); n = explained instances"}, open(a.out + ".json", "w"), indent=1)

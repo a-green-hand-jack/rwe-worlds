@@ -1,0 +1,7 @@
+# ICML 2027 template kit (unmodified)
+
+Files in `icml2027/` are the contents of `icml2027.zip` as returned by `ht-role venue icml` on 2026-11-14
+(official source: https://media.icml.cc/Conferences/ICML2027/styles/icml2027.zip). Not edited. `SHA256SUMS` lists the files.
+
+For `paper-repo`: copy `icml2027.sty`, `icml2027.bst`, `fancyhdr.sty` into `paper/` and start `paper/main.tex` from
+`example_paper.tex`; keep `\usepackage{icml2027}` (submission mode, anonymous); do not alter the style file.

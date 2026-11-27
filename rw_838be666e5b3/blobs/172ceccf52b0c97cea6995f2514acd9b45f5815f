@@ -1,0 +1,295 @@
+"""Table 1 (width, coverage with Wilson CI, paired ratio vs PPI++), Table 2 (E5 constructions),
+Table 3 (E6 T2 arms) and the full appendix grid, as booktabs LaTeX fragments in tables/."""
+import sys
+import numpy as np
+import pandas as pd
+import style, schema, captions
+from common import CFG, nice, headline, primary, reference, complete_arms
+
+NOM = CFG["nominal"]
+
+
+def esc(s):
+    return str(s).replace("_", "\\_").replace("&", "\\&").replace("%", "\\%")
+
+
+def fnum(x, d=3):
+    """Three significant figures (datasets are in their own units: 0.03 to 13000)."""
+    if pd.isna(x):
+        return "--"
+    v = float(f"{x:.{d}g}")
+    if abs(v) >= 1e6:         # degenerate intervals (bootstrap-t at tiny n): mantissa and exponent
+        m, e = f"{v:.1e}".split("e")
+        return f"${m}\\!\\times\\!10^{{{int(e)}}}$"
+    return f"{v:.0f}" if abs(v) >= 10 ** (d - 1) else f"{v:.{max(0, d - 1 - int(np.floor(np.log10(abs(v)))))}f}" if v else "0"
+
+
+def cov_cell(r):
+    if pd.isna(r.coverage):
+        return "--"
+    s = f"{100*r.coverage:.1f}\\,[{100*r.cov_lo:.1f},{100*r.cov_hi:.1f}]"
+    return s if r.valid == 1 else s + "$^\\dagger$"
+
+
+def ratio_cell(r):
+    if r.method == "ppipp":
+        return "1"
+    if pd.isna(r.ratio_lo):       # floor: model-based predicted ratio, no paired CI
+        return f"{r.ratio_vs_ppipp:.3f}\\,(predicted)"
+    return f"{r.ratio_vs_ppipp:.3f}\\,[{r.ratio_lo:.3f},{r.ratio_hi:.3f}]"
+
+
+def unclip_cell(r):
+    if r.method == "ppipp_unclip":
+        return "1"
+    if pd.isna(r.get("ratio_vs_unclip")) or pd.isna(r.get("ratio_unclip_lo")):
+        return "--"
+    return f"{r.ratio_vs_unclip:.3f}\\,[{r.ratio_unclip_lo:.3f},{r.ratio_unclip_hi:.3f}]"
+
+
+def body(df, label_of, unclip=False):
+    lines = []
+    for (d, _n), g in df.groupby(["dataset", "n"], sort=True):
+        ok = g[(g.valid == 1) & (g.method != "floor")]   # the floor is a bound, never a winner
+        best = ok.width_mean.min() if len(ok) else np.nan
+        first = True
+        order = {m: i for i, m in enumerate(style.METHODS)}
+        for _, r in g.assign(_o=g.method.map(order)).sort_values(["tier", "_o"]).iterrows():
+            w = fnum(r.width_mean)
+            if r.valid == 1 and r.method != "floor" and r.width_mean == best:
+                w = f"\\textbf{{{w}}}"
+            name = f"{esc(nice(d))} ($n$={int(r.n)})" if first else ""
+            lines.append(f"{name} & {esc(label_of(r))} & {w} & {cov_cell(r)} & {ratio_cell(r)}" + (f" & {unclip_cell(r)}" if unclip else "") + " \\\\")
+            first = False
+        lines.append("\\midrule")
+    return lines[:-1]
+
+
+def wrap(lines, cols="llrrr", head="Dataset & Method & Width & Coverage (\\%) [Wilson 95\\%] & Width / PPI++ [95\\% CI]", tight=False):
+    """longtable: the appendix tables run over a page (repeat the header; place in single-column mode or \\onecolumn)."""
+    out = ["\\begin{longtable}{" + cols + "}", "\\toprule", head + " \\\\", "\\midrule", "\\endhead", *lines, "\\bottomrule",
+           "\\end{longtable}"]
+    return ["{\\scriptsize\\setlength{\\tabcolsep}{2pt}" if tight else "{\\setlength{\\tabcolsep}{2pt}", *out, "}"]
+
+
+SHORT = {"calib_spline": "Calib. (spline)", "calib_iso": "Calib. (isotonic)", "select": "Selected",
+         "pooled_linear": "Pooled linear", "labels_cp": "Labels (C-P)", "labels_z": "Labels (z)"}      # appendix table: narrow method column
+
+
+def write(name, lines):
+    p = style.outdir("tables") / f"{name}.tex"
+    p.write_text("\n".join(lines) + "\n")
+    print("wrote", p)
+
+
+def label(r):
+    base = style.method_style(r.method)[0]
+    return base if r.construction in ("wald", None) or pd.isna(r.construction) else f"{base} ({r.construction})"
+
+
+CLS = {"no gain": "none", "small / undecided": "small", "gain": "gain"}
+
+
+def ratio_block(t, arms):
+    """Second block of tab_main: paired ratios to package PPI++, to the unclipped PPI++ (headline arm), classes (pre-fixed
+    margin, headline.csv) and the floor in both units. B5 is added when it is drawn (complete for every dataset with X)."""
+    hl = schema.load("headline.csv").set_index(["dataset", "tier", "n"])
+    useB5 = any(a[1] == "select_x" for a in arms)
+    rows = []
+    for d, g in t.groupby("dataset", sort=True):
+        n = int(g.n.iloc[0])
+        def rc(m, tier="T1"):
+            r = g[(g.method == m) & (g.tier == tier)]
+            return None if r.empty else r.iloc[0]
+        def fmt(r):
+            return "--" if r is None else f"{r.ratio_vs_ppipp:.3f} [{r.ratio_lo:.3f},{r.ratio_hi:.3f}]"
+        h = hl.loc[(d, "T1", n)]
+        sel = rc("select")
+        if abs(sel.ratio_vs_ppipp - h.ratio) > 5e-4:
+            sys.exit(f"headline.csv and cells.csv disagree on the selected arm at {d} n={n}: {h.ratio} vs {sel.ratio_vs_ppipp}")
+        cells_ = [fmt(rc("ppipp_unclip")), fmt(sel) + ("" if sel.valid == 1 else "$^\\dagger$"), CLS[h.classification],
+                  f"{h.ratio_vs_unclip:.3f} [{h.ratio_unclip_lo:.3f},{h.ratio_unclip_hi:.3f}]", CLS[h.classification_vs_unclip],
+                  f"{h.ratio_vs_valid_baseline:.3f} [{h.ratio_valid_lo:.3f},{h.ratio_valid_hi:.3f}]", {"package": "P", "unclipped": "U"}[h.baseline_used] + ("" if h.baseline_valid == 1 else "$^\\ddagger$"),
+                  CLS[h.classification_vs_valid_baseline], f"{h.floor_ratio:.3f}", f"{h.floor_ratio_measured:.3f}"]
+        if useB5:
+            b = rc("select_x", "T2")
+            h2 = hl.loc[(d, "T2", n)] if (d, "T2", n) in hl.index else None
+            cells_ += ["--", "--"] if b is None else [fmt(b) + ("" if b.valid == 1 else "$^\\dagger$"), CLS[h2.classification] + ("" if h2.baseline_valid == 1 else "$^\\ddagger$")]
+        rows.append(f"{esc(nice(d))} & " + " & ".join(cells_) + " \\\\")
+    heads = ["PPI++ unclipped", "Selected", "class", "Selected", "class", "Selected", "base", "class", "asympt.", "meas."] + (["Selected", "class"] if useB5 else [])
+    cs = "l" + "r" * 2 + "l" + "rl" + "rll" + "rr" + ("rl" if useB5 else "")
+    k = len(heads)
+    return ["\\begin{tabular}{" + cs + "}", "\\toprule",
+            "& \\multicolumn{3}{c}{Ratio to package PPI++ [95\\% CI]} & \\multicolumn{2}{c}{to unclipped PPI++} & \\multicolumn{3}{c}{to strongest valid baseline} & \\multicolumn{2}{c}{Floor / PPI++}" + (" & \\multicolumn{2}{c}{Ratio, with $X$}" if useB5 else "") + " \\\\",
+            "\\cmidrule(lr){2-4}\\cmidrule(lr){5-6}\\cmidrule(lr){7-9}\\cmidrule(lr){10-11}" + ("\\cmidrule(lr){12-13}" if useB5 else ""),
+            "Dataset & " + " & ".join(heads) + " \\\\", "\\midrule", *rows, "\\bottomrule", "\\end{tabular}"]
+
+
+def main_table(t):
+    """Wide main-text table: one row per dataset; cell = width (coverage %); dagger = fails win rule;
+    last columns = paired ratio to PPI++ [95% CI] of the two calibrated arms. For table* in the two-column layout."""
+    arms = complete_arms(t, CFG["table_main"])   # a column no dataset has, or a T2 column some X-dataset lacks, is not drawn
+    dropped = [a[0] for a in CFG["table_main"] if a not in arms]
+    wl = []
+    for d, g in t.groupby("dataset", sort=True):
+        cells_ = []
+        for lab, m, tier in arms:
+            r = g[(g.method == m) & (g.tier == tier)]
+            if r.empty:
+                cells_.append("--"); continue
+            r = r.iloc[0]
+            cells_.append(f"{fnum(r.width_mean)} ({100*r.coverage:.1f})" + ("$^\\dagger$" if r.valid != 1 else ""))
+        wl.append(f"{esc(nice(d))} & {int(g.n.iloc[0])} & " + " & ".join(cells_) + " \\\\")
+    # two stacked blocks so the table fits the 6.75 in text width at \footnotesize
+    k = len(arms)
+    whead = "Dataset & $n$ & " + " & ".join(a[0] for a in arms)
+    write("tab_main", [
+        "\\begingroup\\setlength{\\tabcolsep}{4pt}",
+        "\\begin{tabular}{lr" + "r" * k + "}", "\\toprule",
+        f"& & \\multicolumn{{{k}}}{{c}}{{Mean width (coverage \\%)}} \\\\", f"\\cmidrule(lr){{3-{k+2}}}",
+        whead + " \\\\", "\\midrule", *wl, "\\bottomrule", "\\end{tabular}", "\\endgroup", "", "\\vspace{6pt}", "", "\\begingroup\\scriptsize\\setlength{\\tabcolsep}{1.5pt}", *ratio_block(t, arms), "\\endgroup"])
+    hb = schema.load("headline.csv")
+    hb = hb[(hb.tier == "T1") & hb.set_index(["dataset", "n"]).index.isin(list(zip(t.dataset, t.n)))]
+    diff = hb[hb.classification_vs_valid_baseline != hb.classification_vs_best]
+    nbad = int((hb.baseline_valid != 1).sum())
+    best_note = (" Strongest valid baseline (Outline rev. 9): in each cell the narrower of the package PPI++ (P) and the unclipped PPI++ (U) among those whose coverage passes the rule; "
+                 f"a double dagger means neither passes and the narrower of the two is used ({nbad} of {len(hb)} cells: " + ", ".join(nice(r.dataset) for r in hb[hb.baseline_valid != 1].itertuples()) + "). "
+                 + ("The narrower of the two regardless of validity (`ratio_vs_best_ppipp`) gives the same class in all " + f"{len(hb)} cells." if diff.empty else
+                    "The narrower regardless of validity (`classification_vs_best`) gives a different class in: " + "; ".join(f"{nice(r.dataset)} n={int(r.n)}: {r.classification_vs_valid_baseline} vs {r.classification_vs_best}" for r in diff.itertuples()) + "."))
+    if any(a[1] == "select_x" for a in arms):
+        h2 = schema.load("headline.csv"); h2 = h2[(h2.tier == "T2") & (h2.is_reference_n == 1)]
+        best_note += (f" The columns Ratio, with X (T2 cells only) are ratios to the package PPI++ with its class; a double dagger there marks the T2 cells in which neither baseline passes the coverage rule ({int((h2.baseline_valid != 1).sum())} of {len(h2)}: "
+                      + ", ".join(nice(r.dataset) for r in h2[h2.baseline_valid != 1].itertuples()) + "); against the strongest valid baseline their ratios are "
+                      + ", ".join(f"{nice(r.dataset)} {r.ratio_vs_valid_baseline:.3f}" for r in h2.itertuples()) + ", all classed " + "/".join(sorted(set(h2.classification_vs_valid_baseline))) + ".")
+    used = pd.concat([t[(t.method == a[1]) & (t.tier == a[2])] for a in arms + [("", "ppipp_unclip", "T1")]])
+    captions.write("tables", "tab_main", "C2/C4: width and coverage of every arm per dataset, and the headline arm's paired width ratio to both PPI++ baselines with its pre-fixed class and the floor in two units.",
+        "one row per dataset at its headline n; first block: cell = mean width in each dataset's own units (empirical coverage %), dagger = misses the win rule; second block: paired width ratio with 95% CI of PPI++ with the unclipped tuning (the calibrated spline arm is in tab_headline_full), and of the selected interval to the package PPI++ (`ppi-python` 0.2.3, clips the estimated tuning to [0, 1]), to the unclipped PPI++ and to the strongest valid baseline of the two, each with its class under the margin fixed before the runs (none = CI inside [0.98, 1.02]; gain = CI upper bound below 0.95 and valid; small = otherwise; classes from headline.csv, checked against the ratio in cells.csv); floor/PPI++ = estimated within-class floor as the ratio of the standard deviations (asympt.) and in measured-width units (meas.), neither a bound. Two stacked blocks in one table*, centred; use with \\footnotesize." + best_note + (f" Column(s) not shown because the reference-n results are missing for at least one dataset they apply to: {', '.join(dropped)}." if dropped else ""),
+        "ratio below 1 with CI below 1 = shorter than PPI++; coverage is read next to width so a short interval that under-covers is visible.", used)
+
+
+cells, nr = schema.drop_not_run(schema.load("cells.csv"))
+which = sys.argv[1:] or ["t1", "t2", "t3", "t4", "t5"]      # "full" (the 3000-line ledgers of every cell and every not-run cell) only on request: python tables.py full
+if "t1" in which:
+    t = headline(primary(reference(cells[(cells.exp == "E3") & (cells.tier == "T1")])))
+    write("tab_headline_full", wrap(body(t, label, unclip=True), "llrrrr",
+          "Dataset & Method & Width & Coverage (\\%) [Wilson 95\\%] & Width / PPI++ [95\\% CI] & Width / unclipped PPI++ [95\\% CI]", tight=True))
+    captions.write("tables", "tab_headline_full", "C2/C4: width, coverage with Wilson CI and paired ratio to PPI++ for every T1 arm at each headline n.",
+        "one block per dataset; bold = shortest valid width (floor excluded); dagger = coverage fails the win rule; the last column is the paired ratio to PPI++ with the tuning left unclipped (the PPI++ row of the same name; `--` where the file has none, e.g. the floor).", "read the ratio column against 1 and the coverage column against the nominal level.", t)
+    main_table(headline(primary(reference(cells[cells.exp == "E3"]))))
+if "t2" in which:
+    t = cells[(cells.exp == "E5") & (cells.tier == "T1") & cells.method.isin(CFG["construction_methods"])]
+    if len(t):
+        cons = [c for c in ("wald", "t", "wilson", "wald_trunc", "boot_t", "cp") if c in set(t.construction)]
+        lines = []
+        for (d, n), g in t.groupby(["dataset", "n"], sort=True):
+            first = True
+            for m in CFG["construction_methods"]:
+                row = []
+                for c in cons:
+                    r = g[(g.method == m) & (g.construction == c)]
+                    row.append("--" if r.empty else f"{fnum(r.iloc[0].width_mean)} ({100*r.iloc[0].coverage:.1f})" + ("$^\\dagger$" if r.iloc[0].valid != 1 else ""))
+                name = f"{esc(nice(d))} & {int(n)}" if first else " & "
+                if all(x == "--" for x in row):
+                    continue
+                lines.append(f"{name} & {esc(SHORT.get(m, style.method_style(m)[0]))} & " + " & ".join(row) + " \\\\")
+                first = False
+            lines.append("\\midrule")
+        write("tab_constructions", wrap(lines[:-1], "lrl" + "r" * len(cons), "Dataset & $n$ & Method & " + " & ".join(esc(c) for c in cons), tight=True))
+        captions.write("tables", "tab_constructions", "C5: whether the interval construction changes width and coverage, for every estimator including PPI++.",
+            "E5: per dataset, n and method, mean width (empirical coverage %) under each interval construction (columns are the constructions that were run, named as in cells.csv: wald = normal quantile, t, wilson, wald_trunc = Wald clipped to [0, 1], boot_t = studentised bootstrap, run only for the pooled linear and isotonic-calibrated estimators, cp = Clopper-Pearson, labels only; a column appears only if a cell has it and -- = not run for that estimator); dagger = coverage fails the win rule. Longtable.",
+            "read across a row: same estimator, same draws, different construction; compare the daggers of one row to see whether any construction brings coverage to the pre-fixed rule. At small n the reference (PPI++) is itself daggered, so a dagger there is not specific to one method.", t)
+if "t3" in which:
+    t = primary(cells[(cells.exp == "E6") & (cells.tier == "T2")])
+    if len(t):
+        write("tab_side_info", wrap(body(t, label)))
+        captions.write("tables", "tab_side_info", "C6: gains from side information X credited to calibration only if they exceed the linear-with-X arm.", "E6, T2 arms (f and X), one block per dataset and n: mean width, coverage with Wilson 95% CI, paired width ratio to the PPI++ arm that uses f only, on the same draws (longtable); bold = shortest valid width; Floor with X is a model-based prediction (no coverage, no paired CI); dagger = coverage fails the win rule.", "a gain from X is credited to calibration only if the calibrated +X row (B3) or the selected row (B5) is shorter than the vector PPI++ and OLS-adjusted rows at valid coverage; a ratio at or above 1 means no gain over f-only PPI++.", t)
+if "t4" in which:      # scoring of the break-even prediction: one row per population (curve), calib_spline
+    b = schema.load("breakeven.csv")
+    b = b[b.calibrator == "calib_spline"]
+    key = ["dataset", "group"]
+    cols = ["pred_nstar", "pred_nstar_lo", "pred_nstar_hi", "meas_nstar", "meas_win_below", "meas_win_at", "meas_censor", "pred_within_factor3", "grid_min", "grid_max"]
+    same = b.groupby(key)[cols].nunique(dropna=False).max()
+    if (same > 1).any():
+        sys.exit(f"breakeven.csv: a population has different scoring columns across its rows: {list(same[same > 1].index)}")
+    pop = b.groupby(key, sort=False)[cols].first().reset_index()
+    nn = b.groupby(key, sort=False).N.agg(lambda x: sorted(set(x))).reset_index(name="Ns")
+    pop = pop.merge(nn, on=key)
+    GROUPS = [("quad_n_sweep", "Quadratic designs"), ("shapes", "Other synthetic shapes"), ("reference_grid", "Real datasets"),
+              ("stress_monotone_transform", "Monotone-transformed predictors (stress)")]
+    if set(pop.group) - {g for g, _ in GROUPS}:
+        sys.exit(f"breakeven.csv has groups the scoring table does not place: {set(pop.group) - {g for g, _ in GROUPS}}")
+    def meas(r):
+        if r.meas_censor == "bracket":
+            return f"win between {int(r.meas_win_below)} and {int(r.meas_win_at)}"
+        if r.meas_censor == "left":
+            return f"win at the smallest $n$ ({int(r.meas_win_at)})"
+        if r.meas_censor == "right":
+            return f"no win up to {int(r.grid_max)}"
+        sys.exit(f"unknown meas_censor {r.meas_censor}")
+    yn = lambda v: "--" if pd.isna(v) else ("yes" if v == 1 else "no")
+    lines, tot_b, tot_ok = [], 0, 0
+    for g, title in GROUPS:
+        sub = pop[pop.group == g].sort_values("dataset")
+        lines.append(f"\\multicolumn{{6}}{{l}}{{\\emph{{{title}}}}} \\\\")
+        for r in sub.itertuples():
+            ci = "exact" if pd.isna(r.pred_nstar_lo) else f"[{fnum(r.pred_nstar_lo, 2)}, {fnum(r.pred_nstar_hi, 2)}]"
+            br = r.meas_censor == "bracket"
+            lines.append(f"{esc(nice(r.dataset))} & {fnum(r.pred_nstar, 2)} {ci} & {int(r.grid_min)}--{int(r.grid_max)} & {meas(r)} & "
+                         f"{yn(r.pred_within_factor3) if br else '--'} & {yn(r.pred_within_factor3)} \\\\")
+        nb = int((sub.meas_censor == "bracket").sum()); ok = int(((sub.meas_censor == "bracket") & (sub.pred_within_factor3 == 1)).sum())
+        tot_b += nb; tot_ok += ok
+        lines.append(f"\\multicolumn{{6}}{{r}}{{bracketed {nb} of {len(sub)} ({ok} within the factor); censored {len(sub) - nb}}} \\\\")
+        lines.append("\\midrule")
+    real_b = int(((pop.group == "reference_grid") & (pop.meas_censor == "bracket")).sum())
+    real_ok = int(((pop.group == "reference_grid") & (pop.meas_censor == "bracket") & (pop.pred_within_factor3 == 1)).sum())
+    write("tab_breakeven_scoring", wrap(lines[:-1], "lrlllr", "Population & Predicted $n^\\ast$ [interval] & Grid $n$ & Measured crossing & Scored within $\\times 3$ & Flag in file", tight=True))
+    realb = b[b.group == "reference_grid"].groupby(key, sort=False)[["meas_censor", "meas_win_below", "meas_win_at", "pred_within_factor3"]].first()
+    realbest = b[b.group == "reference_grid"].groupby(key, sort=False)[["meas_censor_best", "meas_win_below_best", "meas_win_at_best", "pred_within_factor3_best"]].first()
+    best_same = bool((realb.fillna(-1).values == realbest.fillna(-1).values).all())
+    best_other = int(b[b.group != "reference_grid"].meas_censor_best.notna().sum())
+    cens = pop[pop.meas_censor != "bracket"]
+    flagged = int((cens.pred_within_factor3 == 1).sum())
+    captions.write("tables", "tab_breakeven_scoring", "C3: scoring of the break-even prediction, one row per population (curve), calibrated (spline) arm.",
+        "one row per population of breakeven.csv (calibrator `calib_spline`; the synthetic populations are run at several N with one prediction and one measured curve, so they are one row here; N is in breakeven.csv); predicted n* = K/(K-1) d_eff sigma2_res / Delta with the pool-bootstrap interval on real pools (`exact` = synthetic population, no interval); grid = smallest and largest n run; measured crossing = the pair of grid sizes between which the calibrated arm first wins against PPI++ under the pre-fixed rule (`win between a and b`), or `win at the smallest n` (left-censored) or `no win up to n_max` (right-censored); `Scored` = within the pre-fixed factor of 3 in n, only for bracketed rows; `Flag in file` = `pred_within_factor3` as written by analysis, which is 1 for " + f"{flagged} of the {len(cens)} censored populations (it counts a censored measurement as within the factor whenever the prediction lies beyond the grid on that side) and is not a confirmation. Grouped as the text: quadratic / shapes / real / stress; longtable." + (" Against the narrower of the two PPI++ variants (`*_best` columns, written for the real datasets only) the bracket, the censoring and the flag of every real dataset are the same as shown." if best_same and not best_other else " WARNING: the `*_best` columns of breakeven.csv differ from the ones shown or exist outside the real datasets; this table does not show them."),
+        f"count the `Scored` column: {tot_b} populations are bracketed, {tot_ok} of them within the factor; {tot_b - real_b} bracketed synthetic and stress populations, {tot_ok - real_ok} within the factor; real datasets {real_b} bracketed ({real_ok} within the factor), the other {int((pop.group == 'reference_grid').sum()) - real_b} censored.", b)
+if "t5" in which:      # decomp.csv: arms differing in one ingredient on the same draws; r = (SD ratio) x (SE/SD factor ratio)
+    dc = schema.load("decomp.csv")
+    arms = [("ppi++", "PPI++ (package)"), ("ppi++_oracle_lambda", "PPI++, population-optimal $\\lambda$"), ("ols_insample", "In-sample OLS slope"),
+            ("pool_linear", "Cross-fitted linear"), ("ppi++_on_cf_linear", "PPI++ on cross-fitted linear"), ("pool_spline", "Cross-fitted spline")]
+    same = dc[dc.arm.isin(["ppi++_recentred_data", "ppi++_recentred_oracle"])]
+    twin = dc[dc.arm == "ppi++"].merge(same, on=["dataset", "shift_sd", "n"], suffixes=("", "_r"))
+    twin_same = bool(((twin.ratio_vs_ppipp_r - 1).abs().lt(1e-9) & (twin.sd_ratio_vs_ppipp_r - 1).abs().lt(1e-9)).all()) and len(twin)
+    ns = CFG["decomp_n"]
+    dc = dc[dc.n.isin(ns) & dc.arm.isin([a for a, _ in arms])]
+    lines = []
+    for (d, sh), g in dc.groupby(["dataset", "shift_sd"], sort=True):
+        first = True
+        for n in ns:
+            for a, lab in arms:
+                r = g[(g.n == n) & (g.arm == a)]
+                if r.empty:
+                    continue
+                r = r.iloc[0]
+                pop = (esc(nice(d)) + (f", predictor shifted by {sh:g} sd($Y$)" if sh else "")) if first else ""
+                nn = f"{int(n)}" if a == arms[0][0] else ""
+                lines.append(f"{pop} & {nn} & {lab} & {r.ratio_vs_ppipp:.3f} & {r.sd_ratio_vs_ppipp:.3f} & {r.se_over_sd:.3f} & "
+                             f"{100*r.coverage:.1f}\\,[{100*r.cov_lo:.1f},{100*r.cov_hi:.1f}] \\\\")
+                first = False
+        lines.append("\\midrule")
+    write("tab_decomp", wrap(lines[:-1], "llrrrrr", "Population & $n$ & Arm & Width / PPI++ & SD / PPI++ & SE / SD & Coverage (\\%) [Wilson 95\\%]", tight=True))
+    captions.write("tables", "tab_decomp", "C2/C8 (appendix): where the width gap to the package PPI++ comes from, arm by arm on the same draws.",
+        "decomp.csv (3000 draws per cell, one draw shared by all arms): width ratio to the package PPI++ (`ppi-python` 0.2.3, tuning clipped to [0, 1]) = (SD ratio of the point estimates over the draws) x (the arm's SE/SD divided by the package PPI++'s SE/SD; SE/SD = mean estimated standard error over the SD of the estimates); SE/SD below 1 = the estimated standard error is too small. Arms: package PPI++; PPI++ with the population-optimal tuning (`ppi++_oracle_lambda`: no estimation noise in lambda); in-sample OLS slope and cross-fitted linear, pooled; PPI++ on the cross-fitted linear predictor; cross-fitted spline. n = " + ", ".join(str(n) for n in ns) + " (decomp.csv has more). "
+        + ("The two `recentred` arms of decomp.csv equal the package PPI++ to 1e-9 in every cell and are not shown." if twin_same else "WARNING: the `recentred` arms of decomp.csv differ from the package PPI++ and are not shown by this table.") + " Longtable.",
+        "SD ratio below 1 = the point estimate is less variable than PPI++'s; SE/SD below 1 = the interval is shorter than the spread of the estimate warrants, so read both with coverage: a short interval whose SE/SD is below 1 under-covers.", dc)
+if "full" in which:
+    t = primary(cells).sort_values(["exp", "dataset", "n", "tier", "method"])   # primary construction only; other constructions are in tab_constructions
+    lines = []
+    for (e, d, n, N), g in t.groupby(["exp", "dataset", "n", "N"], sort=False):
+        for _, r in g.iterrows():
+            lines.append(f"{e} & {esc(nice(d))} & {int(n)} & {int(N)} & {esc(label(r))} & {fnum(r.width_mean)} & "
+                         f"{cov_cell(r)} & {ratio_cell(r)} \\\\")
+    write("tab_full_grid", ["\\begin{longtable}{lllllrrr}", "\\toprule",
+          "Exp & Dataset & $n$ & $N$ & Method & Width & Coverage (\\%) & Width / PPI++ \\\\", "\\midrule", "\\endhead",
+          *lines, "\\bottomrule", "\\end{longtable}"])
+if len(nr):
+    write("tab_not_run", [f"% not run: {r.exp} {r.dataset} n={r.n} {r.method} ({r.get('valid_reason', '')})" for _, r in nr.iterrows()])

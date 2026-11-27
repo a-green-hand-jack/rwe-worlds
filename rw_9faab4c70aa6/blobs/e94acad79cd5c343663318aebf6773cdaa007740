@@ -1,0 +1,74 @@
+"""C8: a real search tool on the same pool.  DSPy's BootstrapFewShotWithRandomSearch (dspy 3.0.4, the package's own optimiser, default
+num_candidate_programs = 16, i.e. 19 candidate programs incl. zero-shot, labels-only and unshuffled few-shot) is run live on
+S = n pool items (trainset = valset = S), with the study's scorer as its language model (analysis/dspy_lm.py: Qwen2.5-1.5B-Instruct, direct
+answer, letter log-probs).  The tool picks the program with the best score on S; we record that score (reported), the accuracy of the
+selected program on `n_truth` random pool items outside S (truth), the accuracy on S without the program's own demonstration items
+(the leakage part), and the full S-by-program 0/1 matrix the tool computed (for the search-log predictor).
+One JSON line per draw.  Resumable: draws already in the file are skipped.
+Usage: python run_c8.py --out FILE --draws 0,7,14 [--n 60] [--n-truth 400] [--threads 4]"""
+import sys, os, json, time, argparse, random
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "analysis"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+import numpy as np, pandas as pd, dspy
+from harness import Harness, fmt_item
+from dspy_lm import LetterLM
+
+ap = argparse.ArgumentParser(); ap.add_argument("--out", required=True); ap.add_argument("--draws", required=True)
+ap.add_argument("--n", type=int, default=60); ap.add_argument("--n-truth", type=int, default=400); ap.add_argument("--threads", type=int, default=4)
+ap.add_argument("--pool", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "pool.pkl"))
+a = ap.parse_args(); draws = [int(x) for x in a.draws.split(",")]
+done = set()
+if os.path.exists(a.out): done = {json.loads(l)["draw"] for l in open(a.out)}
+
+d = pd.read_pickle(a.pool); P = d[~d.is_demo].reset_index(drop=True)   # same item order as the matrix rows
+assert len(P) == 1500
+text = [fmt_item(r.question, list(r.options), "dot").strip() for r in P.itertuples()]
+t2i = {t: i for i, t in enumerate(text)}
+h = Harness(threads=a.threads)
+lm = LetterLM(h, {t: i for t, i in t2i.items()})
+dspy.configure(lm=lm, adapter=dspy.ChatAdapter(), disable_history=True)
+
+
+class QA(dspy.Signature):
+    """Answer the multiple-choice question with the letter of the correct option."""
+    question: str = dspy.InputField()
+    answer: str = dspy.OutputField(desc="the letter of the correct option")
+
+
+def example(i): return dspy.Example(question=text[i], answer=P.answer[i]).with_inputs("question")
+def metric(gold, pred, trace=None): return float(pred.answer.strip().upper()[:1] == gold.answer)
+def acc(prog, ids):
+    ok = []
+    for i in ids: ok.append(metric(example(i), prog(question=text[i])))
+    return np.array(ok)
+def demo_items(prog):
+    out = []
+    for dm in prog.predictors()[0].demos:
+        q = dm["question"] if isinstance(dm, dict) else dm.question
+        out.append(t2i[q])
+    return out
+
+
+for dr in draws:
+    if dr in done: continue
+    t0 = time.time(); calls0 = lm.calls
+    rng = np.random.default_rng([31, a.n, dr]); S = rng.choice(len(P), a.n, replace=False)
+    rest = np.setdiff1d(np.arange(len(P)), S); T = np.random.default_rng([32, a.n, dr]).choice(rest, a.n_truth, replace=False)
+    opt = dspy.teleprompt.BootstrapFewShotWithRandomSearch(metric=metric, max_bootstrapped_demos=2, max_labeled_demos=2,
+                                                           num_candidate_programs=16, num_threads=1)
+    best = opt.compile(dspy.Predict(QA), trainset=[example(i) for i in S])
+    cand = best.candidate_programs                                    # sorted by score; keep the tool's own order via seed
+    cand = sorted(cand, key=lambda c: c["seed"])
+    sub = np.array([[float(x) for x in c["subscores"]] for c in cand])  # (programs, n), same order as S
+    dem = [demo_items(c["program"]) for c in cand]
+    sel = [k for k, c in enumerate(cand) if c["program"] is best][0]
+    sel_acc_S = sub[sel].mean()
+    in_S = np.array([i not in set(dem[sel]) for i in S])
+    leak_free = sub[sel][in_S].mean() if in_S.any() else np.nan
+    truth = acc(best, T)
+    rec = dict(draw=dr, n=a.n, n_truth=a.n_truth, S=S.tolist(), T=T.tolist(), seeds=[c["seed"] for c in cand], selected=sel, n_programs=len(cand),
+               reported=float(sel_acc_S), reported_leak_free=float(leak_free), n_demo_in_S=int(len(set(dem[sel]))), truth=float(truth.mean()),
+               truth_se=float(truth.std(ddof=1) / np.sqrt(len(truth))), score_matrix=sub.astype(int).tolist(), demo_items=dem,
+               lm_calls=lm.calls - calls0, lm_forward=len(lm.log), seconds=time.time() - t0, dspy=dspy.__version__)
+    with open(a.out, "a") as f: f.write(json.dumps(rec) + "\n")
+    print(f"draw {dr}: reported {sel_acc_S:.3f} leak-free {leak_free:.3f} truth {truth.mean():.3f} gap {sel_acc_S - truth.mean():+.3f} sel seed {cand[sel]['seed']} {time.time()-t0:.0f}s", flush=True)

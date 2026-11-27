@@ -1,0 +1,53 @@
+"""results/synthetic_calibration.csv: the synthetic-BT calibration numbers quoted in PREANALYSIS.md, recomputed from the raw synthetic files
+($BT_RESULTS/synthetic/bt_check.parquet, pflip_check.parquet from 04_synthetic.py / 04b_synthetic_pflip.py and search/tiny_exact.parquet from
+03_search_validity.py).  Every row is SYNTHETIC.  Pair range: 1 < z < 12 with k* > 0 (as in the PREANALYSIS text).
+Q = k* gmax / gap.  `instance_sd_*`: sd across the replicate instances (3 per configuration) of the instance's mean log Q, per configuration
+(M, N, density, tie rate); reported as the mean and the maximum over the 16+ configurations (the margin 0.15 = 2.5 x 0.06 used the maximum)."""
+import os, sys
+import numpy as np, pandas as pd
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src")); sys.path.insert(0, os.path.dirname(__file__))
+from core01 import OUT
+import importlib
+T6 = importlib.import_module("06_tables")
+
+
+def main():
+    rows = []
+
+    def add(q, fam, v, n, setting=""):
+        rows.append(dict(quantity=q, perturbation=fam, value=v, n=n, setting=setting, synthetic=1))
+    raw = pd.read_parquet(f"{OUT}/synthetic/bt_check.parquet")
+    add("pair_rows_total", "both", len(raw), len(raw), "all synthetic pair rows (M in {12,30}, N 2e3..1.28e5, density {1,.25}, tie {0,.3}, 3 reps)")
+    b = raw[(raw.z > 1) & (raw.z < 12) & (raw.k_ver > 0)]
+    for fam, x in b.groupby("family"):
+        X = np.c_[np.ones(len(x)), np.log(x.z), np.log(x.N), np.log(x.density)]; y = np.log(x.k_ver.to_numpy())
+        c = np.linalg.lstsq(X, y, rcond=None)[0]; r = y - X @ c
+        for nm, v in zip(["intercept", "exponent_log_z", "exponent_log_N", "exponent_log_density"], c):
+            add(nm, fam, v, len(x), "OLS of log k* on log z, log N, log density (theory: z 1, N 0.5)")
+        add("residual_sd_log_k", fam, r.std(), len(x), "same regression")
+        lq = np.log(x.k_ver * x.gmax / x.gap)
+        add("mean_log_Q", fam, lq.mean(), len(x), "all configurations")
+        for (dens, tie), d in lq.groupby([x.density, x.tie]):
+            add("mean_log_Q", fam, d.mean(), len(d), f"density {dens:g}, tie rate {tie:g}")
+        g = x.assign(lQ=lq).groupby(["M", "N", "density", "tie", "rep"]).lQ.mean().reset_index()
+        s = g.groupby(["M", "N", "density", "tie"]).lQ.std()
+        add("instance_sd_mean_log_Q_mean_over_configs", fam, s.mean(), len(s), "sd over the replicate instances of an instance's mean log Q")
+        add("instance_sd_mean_log_Q_max_over_configs", fam, s.max(), len(s), "")
+        add("k_lin_over_k_ver_median", fam, (x.k_lin / x.k_ver).median(), len(x), "first-order estimate over verified upper bound")
+    p = pd.read_parquet(f"{OUT}/synthetic/pflip_check.parquet")
+    for nm, c in (("conditional_formula", "formula_conditional"), ("brief_formula", "formula_brief")):
+        e = p.p_flip - p[c]
+        add(f"pflip_rmse_{nm}", "delete", float(np.sqrt((e ** 2).mean())), len(p), "random deletion, measured P_flip minus formula; formula Phi(-z sqrt((1-f)/f)) or Phi(-z sqrt(1-f))")
+        add(f"pflip_bias_{nm}", "delete", float(e.mean()), len(p), "measured minus formula")
+    add("pflip_draws_per_cell", "delete", float(p.n_draw.iloc[0]), len(p), "cells = (N, density, f, pair)")
+    t = pd.read_parquet(f"{OUT}/search/tiny_exact.parquet")
+    for nm, ok in (("iterated", t.k_iterlin == t.k_exact), ("frank_wolfe", t.k_fw == t.k_exact), ("ceil_lp_relaxation", np.ceil(t.lp_relax - 1e-6) == t.k_exact)):
+        add(f"tiny_exact_match_{nm}", "both", float(ok.sum()), len(t), "problems (M=3,4; N=30-70) where the method equals the exhaustive minimum")
+    o = pd.DataFrame(rows)
+    o.to_csv(f"{T6.REPO}/synthetic_calibration.csv", index=False, float_format="%.5g")
+    pd.set_option("display.width", 220, "display.max_colwidth", 60)
+    print(o.to_string())
+
+
+if __name__ == "__main__":
+    main()

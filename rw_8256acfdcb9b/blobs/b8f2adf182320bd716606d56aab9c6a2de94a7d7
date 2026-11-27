@@ -1,0 +1,67 @@
+"""Table 3 (R1). Panel (a): Brier score of each method on its own delivered run, with the base rate of that run's correctness, and the paired
+differences (certificate minus run-twice) under the pre-registered contrast (run-twice delivers its first run) and the matched-deliverable variant
+(run-twice delivers the mean of its two runs); per dataset pooled over the four models and the budget ladder, held-out instances, instance bootstrap CI as supplied.
+Panel (b), the minimum-budget rule: stop at the smallest m whose calibrated probability reaches 0.9 (certificate) or whose two runs agree
+(run-twice); per dataset, the four models pooled (rows model='all'): share of runs that stopped inside the ladder, share of delivered
+runs with the exact top-3 set, mean evaluations used, the evaluations of a flat single run reaching the same share correct, and the relative
+saving with its instance-bootstrap CI. Read only from certificate_budget_rule.csv (held-out instances). LaTeX tabular, booktabs.
+Usage: python tab3_certificate.py DATA_DIR OUT_PREFIX
+"""
+import argparse, json, os, sys
+import numpy as np, pandas as pd
+_here = os.path.dirname(os.path.abspath(__file__))
+for _d in (_here, os.path.join(_here, "..", "figs")):   # figstyle.py: next to this script (delivered layout) or in ../figs (repo layout)
+    sys.path.insert(0, _d)
+import figstyle as fs
+
+ap = argparse.ArgumentParser(); ap.add_argument("data"); ap.add_argument("out"); a = ap.parse_args()
+b, p1 = fs.load(a.data, "certificate_budget_rule")
+sm, p2 = fs.load(a.data, "certificate_summary")
+pd_, p3 = fs.load(a.data, "certificate_paired_diff")
+fs.require(sm, ["dataset", "model", "split", "m", "method", "brier", "base_rate", "n_instances"], "certificate_summary")
+fs.require(pd_, ["dataset", "model", "split", "contrast", "quantity", "m", "diff", "ci_lo", "ci_hi", "label"], "certificate_paired_diff")
+fs.require(b, ["dataset", "model", "method", "threshold", "share_stopped", "share_correct", "mean_evals", "flat_evals_same_share", "evals_saved_frac", "evals_saved_ci_lo", "evals_saved_ci_hi", "n_boot_defined", "n_instances"], "certificate_budget_rule")
+assert b.threshold.nunique() == 1
+agg = b[b.model == "all"].rename(columns={"share_stopped": "stopped", "share_correct": "correct", "mean_evals": "evals", "flat_evals_same_share": "flat"}).reset_index(drop=True)
+def k(x): return "n.a." if not np.isfinite(x) else f"{x/1e3:.0f}k"
+NAME = {"certificate": "certificate", "run_twice": "run-twice"}
+sg = lambda x: ("$+$" if x >= 0 else "$-$") + f"{abs(x):.3f}"[1:]  # no leading zero: |diff| < 1
+A = ["\\noindent{\\footnotesize (a) Calibrated probability that the delivered top-3 set is exact: Brier score.}\\par\\smallskip", "{\\scriptsize\\setlength{\\tabcolsep}{3pt}", "\\begin{tabular}{@{}lccccc@{}}", "\\toprule",
+     " & \\multicolumn{3}{c}{Brier (base rate $p$) on the delivered run} & \\multicolumn{2}{c}{Brier: certificate $-$ run-twice [95\\% CI]} \\\\",
+     "\\cmidrule(lr){2-4}\\cmidrule(l){5-6}",
+     "Dataset & certificate & run-twice, 1st & run-twice, mean & registered (vs 1st) & variant (vs mean) \\\\", "\\midrule"]
+SM = sm[(sm.model == "all") & (sm.m == "all") & (sm.split == "heldout_instance")]
+PD = pd_[(pd_.model == "all") & (pd_.m == "all") & (pd_.split == "heldout_instance") & (pd_.quantity == "brier")]
+arows = []
+for ds in fs.DATASET_TITLE:
+    q = SM[SM.dataset == ds]
+    if q.empty: continue
+    def cell(m): r = q[q.method == m].iloc[0]; return f"{r.brier:.3f} ({r.base_rate:.2f})", r
+    cs = [cell(m) for m in ("certificate", "run_twice", "run_twice_avg")]
+    dd = []
+    for c in ("check_vs_run_twice", "check_vs_run_twice_avg"):
+        r = PD[(PD.dataset == ds) & (PD.contrast == c)].iloc[0]; dd.append(r)
+        arows.append(dict(panel="a", dataset=ds, contrast=c, diff=r["diff"], ci_lo=r.ci_lo, ci_hi=r.ci_hi, label=r.label, n_instances=int(q.n_instances.max()),
+                          **{f"brier_{m}": x[1].brier for m, x in zip(("certificate", "run_twice", "run_twice_avg"), cs)}, **{f"base_rate_{m}": x[1].base_rate for m, x in zip(("certificate", "run_twice", "run_twice_avg"), cs)}))
+    A.append(f"{fs.DATASET_TITLE[ds]} & {cs[0][0]} & {cs[1][0]} & {cs[2][0]} & " + " & ".join(f"{sg(r['diff'])} [{sg(r.ci_lo)},{sg(r.ci_hi)}]" for r in dd) + " \\\\")
+A += ["\\bottomrule", "\\end{tabular}}", "\\medskip", ""]
+out = A + ["\\noindent{\\footnotesize (b) Minimum-budget rule, stop at probability $\\ge 0.9$ (certificate) or agreeing runs (run-twice).}\\par\\smallskip", "{\\scriptsize\\setlength{\\tabcolsep}{3pt}", "\\begin{tabular}{@{}llrrrrr@{}}", "\\toprule",
+       "Dataset & Method & Stopped & Exact & Evals used & Flat evals, same share & Saved [95\\% CI] \\\\", "\\midrule"]
+prev = None
+for ds in fs.DATASET_TITLE:
+    for m in ("certificate", "run_twice"):
+        q = agg[(agg.dataset == ds) & (agg.method == m)]
+        if q.empty: continue
+        r = q.iloc[0]
+        if prev is not None and ds != prev: out.append("\\addlinespace")
+        pc = lambda x: ("$-$" if x < 0 else "") + (f"{100*abs(x):.1f}" if abs(x) < 0.1 else f"{100*abs(x):.0f}")  # one decimal below 10%
+        saved = "n.a." if not np.isfinite(r.evals_saved_frac) else f"{pc(r.evals_saved_frac)}\\% [{pc(r.evals_saved_ci_lo)}, {pc(r.evals_saved_ci_hi)}]"
+        out.append(f"{fs.DATASET_TITLE[ds] if ds != prev else ''} & {NAME[m]} & {100*r.stopped:.0f}\\% & {100*r.correct:.0f}\\% & {k(r.evals)} & {k(r.flat)} & {saved} \\\\")
+        prev = ds
+out += ["\\bottomrule", "\\end{tabular}}"]
+os.makedirs(os.path.dirname(a.out) or ".", exist_ok=True)
+open(a.out + ".tex", "w").write("\n".join(out) + "\n"); agg.assign(panel="b").to_csv(a.out + ".csv", index=False)
+pd.DataFrame(arows).to_csv(a.out + "_panel_a.csv", index=False)
+json.dump({"table": os.path.basename(a.out), "inputs": fs.inputs([p1, p2, p3]),
+           "note": "panel (a): held-out instances, rows model='all', m='all' of certificate_summary / certificate_paired_diff (pooled over the four models and the budget ladder), instance-bootstrap CI as supplied; registered = pre-registered contrast, scored against the correctness of the run each method delivers (certificate: its 2m-coalition run; run-twice: the first of its two m-runs), so the base rates p differ; variant = run-twice delivers the mean of its two runs (same base rate as the certificate within 0.01). panel (b): held-out instances, threshold %.2f, top-3; rows model='all' of certificate_budget_rule.csv (the four models pooled), per dataset; saved = relative saving of the rule against a flat single run with the same share exact (log-m interpolation on the flat grid), instance-bootstrap CI (2000 resamples; n_boot_defined of them had a defined flat comparison, see the csv); negative = more evaluations than the flat run; n.a. = the share exact is outside the flat grid; evaluations = model evaluations incl. background rows "
+                   "(certificate (2m+1)*50+1, run-twice both runs); flat = evaluations of a single run (certificate: 2m coalitions; run-twice: m) with the same share exact" % b.threshold.iloc[0]}, open(a.out + ".json", "w"), indent=1)

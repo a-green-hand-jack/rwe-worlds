@@ -1,0 +1,26 @@
+"""Tables from the synthetic study (`10_synth.py` output synth_raw.csv): estimation term vs training size M and the misspecification ladder.
+Units: standardised squared error (per-benchmark standardised scale of the synthetic matrix), mean over seeds with the standard error over seeds.
+  est_term   = mse_S6 - mse_trueparams_S6   (price of estimating the parameters: same S6 set, estimated vs true parameters)
+  misfit     = mse_S6 - t1_fit              (measured minus T1 evaluated at the fitted parameters)
+  mis_true   = mse_trueparams_S6 - t1_true  (T1 at the true parameters vs measured with the true parameters: 0 if the model is correct)
+  gain       = mse_S0 - mse_S6              (random-k minus S6, paired by seed)
+usage: python 29_synth_tables.py <synth_raw.csv> <out_dir>"""
+import os, sys, numpy as np, pandas as pd
+d = pd.read_csv(sys.argv[1]); out = sys.argv[2]; os.makedirs(out, exist_ok=True)
+d["est_term"] = d.mse_S6 - d.mse_trueparams_S6; d["misfit"] = d.mse_S6 - d.t1_fit; d["mis_true"] = d.mse_trueparams_S6 - d.t1_true; d["gain"] = d.mse_S0 - d.mse_S6
+d["misfit_rel"] = d.misfit / d.mse_S6
+cols = ["mse_S6", "mse_S0", "t1_fit", "t1_true", "mse_trueparams_S6", "est_term", "misfit", "misfit_rel", "mis_true", "gain"]
+def agg(g):
+    r = {c: g[c].mean() for c in cols}; r.update({c + "_se": g[c].std(ddof=1) / np.sqrt(len(g)) for c in cols}); r["n_seeds"] = g.seed.nunique(); return pd.Series(r)
+t = d.groupby(["regime", "level", "M", "k", "rank_fit"]).apply(agg, include_groups=False).reset_index(); t["N_benchmarks"] = 120
+t.to_csv(os.path.join(out, "synth_summary.csv"), index=False)
+e = t[(t.regime == "separated") & (t.level == "L0_correct")]
+rows = []
+for k, g in e.groupby("k"):
+    x = np.log(g.M.values); y = np.log(np.maximum(g.est_term.values, 1e-6))
+    sl = np.polyfit(x, y, 1)[0]; a = float(np.sum(g.est_term * (1.0 / g.M)) / np.sum((1.0 / g.M) ** 2))   # least-squares c in est = c / M
+    rows.append(dict(k=k, loglog_slope=sl, c_in_c_over_M=a, rel_resid_c_over_M=float(np.sqrt(np.mean((g.est_term - a / g.M) ** 2)) / g.est_term.mean())))
+pd.DataFrame(rows).to_csv(os.path.join(out, "synth_estimation_fit.csv"), index=False)
+print(pd.DataFrame(rows).round(3).to_string())
+L = t[t.M == 240]
+print(L[L.k.isin([1, 5, 20])][["regime", "level", "k", "mse_S6", "t1_fit", "misfit_rel", "mis_true", "est_term", "gain"]].round(3).to_string())

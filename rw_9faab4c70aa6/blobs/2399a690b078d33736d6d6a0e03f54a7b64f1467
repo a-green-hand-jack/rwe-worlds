@@ -1,0 +1,18 @@
+"""Validation of the cached prefix/item/suffix path against one un-cached forward per cell, and peak memory.
+Usage: python check_harness.py [threads]"""
+import sys, os, json, resource; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import numpy as np, pandas as pd
+from harness import *
+from run_matrix import demo_text, VARIANTS, DATA
+
+threads = int(sys.argv[1]) if len(sys.argv) > 1 else 2
+pool = pd.read_pickle(DATA + "/pool.pkl"); meta = json.load(open(DATA + "/pool_meta.json"))
+H = Harness(threads=threads); rows = pool.iloc[:3]; worst = 0.0
+for sets, label in [("none", "dot"), ("A", "paren")]:
+    dt = demo_text(pool, meta, sets, label)
+    lp = H.run_group(dt, label, rows, VARIANTS)
+    for r, row in enumerate(rows.itertuples()):
+        for m in (0, 5, 15):
+            ref = H.full_forward_cell(dt, label, row, VARIANTS[m]); k = np.isfinite(ref)
+            worst = max(worst, float(np.abs(lp[r, m][k] - ref[k]).max()))
+print(f"max |logp cached - logp full| = {worst:.2e}; peak RSS {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024:.0f} MB", flush=True)

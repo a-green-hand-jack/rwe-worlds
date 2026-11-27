@@ -1,0 +1,53 @@
+"""Fig. 5 (appendix): design x estimator heat map of the RMSE ratio to uniform|mean at n = 100.
+usage: python3 figures/scripts/fig5_ablation.py CODE_DIR OUT_PDF [interp,extrap[,lineage]]
+Source: results/primary.csv (geometric mean over non-thin benchmarks, 95% family-bootstrap interval).
+Boxed italic value: interval includes 1 (no evidence of a difference to uniform sampling). Blank cell: combination not run. Colour is centred at 1 on a log scale."""
+import sys
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.colors import TwoSlopeNorm
+sys.path.insert(0, __file__.rsplit("/", 1)[0])
+import style, common
+
+style.apply()
+R = common.Results(sys.argv[1])
+splits = (sys.argv[3] if len(sys.argv) > 3 else "interp,extrap").split(",")
+pr = R.vs(R.csv("primary.csv")); pr = pr[(pr.flavour == "non_thin") & (pr.n == 100)]
+pr = pr.assign(design=pr.method.str.split("|").str[0], est=pr.method.str.split("|").str[1])
+pr = pr[~pr.est.str.startswith("fixed:")]
+D = [d for d in common.DESIGN_LABEL if d in set(pr.design)]
+E = [e for e in common.EST_LABEL if e in set(pr.est)] + sorted(set(pr.est) - set(common.EST_LABEL))
+w = style.TEXT_WIDTH_IN
+fig, axs = plt.subplots(len(splits), 1, figsize=(w, 1.55 * len(splits) + 1.0), sharex=True)
+axs = np.atleast_1d(axs)
+cmap = plt.get_cmap("RdBu_r")
+vals = pr.geomean_ratio.values
+lim = max(abs(np.log(vals)).max(), 0.05)
+norm = TwoSlopeNorm(vcenter=0, vmin=-lim, vmax=lim)
+for ax, sp in zip(axs, splits):
+    g = pr[pr.split == sp]
+    M = np.full((len(D), len(E)), np.nan); sig = np.zeros_like(M, bool)
+    for r in g.itertuples():
+        i, j = D.index(r.design), E.index(r.est)
+        M[i, j] = np.log(r.geomean_ratio); sig[i, j] = (r.ci_hi < 1) or (r.ci_lo > 1)
+    im = ax.imshow(np.ma.masked_invalid(M), cmap=cmap, norm=norm, aspect="auto")
+    for i in range(len(D)):
+        for j in range(len(E)):
+            if not np.isnan(M[i, j]):
+                ax.text(j, i, f"{np.exp(M[i, j]):.2f}", ha="center", va="center", fontsize=style.MIN_FONT_PT,
+                        color="white" if abs(M[i, j]) > 0.6 * lim else "black",
+                        fontstyle="normal" if sig[i, j] else "italic")
+                if not sig[i, j]:
+                    ax.add_patch(plt.Rectangle((j - 0.5, i - 0.5), 1, 1, fill=False, ec="0.15", lw=0.7))
+    ax.set_xticks(range(len(E))); ax.set_xticklabels([common.EST_LABEL.get(e, e) for e in E], rotation=40, ha="right")
+    ax.set_yticks(range(len(D))); ax.set_yticklabels([common.DESIGN_LABEL[d] + (" †" if d == "cat" else "") for d in D])
+    ax.set_title(common.SPLIT_LABEL[sp], loc="left")
+    for s in ax.spines.values():
+        s.set_visible(False)
+    ax.tick_params(length=0)
+fig.subplots_adjust(bottom=0.2 if len(splits) < 3 else 0.14, hspace=0.12, left=0.14, right=0.86)
+cb = fig.colorbar(im, ax=axs, shrink=0.8, pad=0.02, aspect=25)
+ticks = np.log([0.5, 0.7, 1, 1.4, 2]); ticks = ticks[(ticks > -lim) & (ticks < lim)]
+cb.set_ticks(ticks); cb.set_ticklabels([f"{np.exp(t):.2g}" for t in ticks]); cb.outline.set_visible(False)
+cb.set_label("RMSE ratio to uniform × mean")
+fig.savefig(sys.argv[2])

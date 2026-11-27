@@ -1,0 +1,24 @@
+"""Open LLM Leaderboard per-subtask matrix from the raw lm-eval result files (open-llm-leaderboard/results, commit aa81ecc3...).
+One row per model dir (org/name): the latest-dated result file that has the full subtask set; cells = per-subtask main metric
+(acc_norm for BBH/GPQA/MuSR, exact_match for MATH-hard subjects, prompt_level_strict_acc for IFEval, acc for MMLU-Pro), x100.
+usage: python olb_extract.py <results_dir> <out_dir>"""
+import os, sys, json, glob, re
+import pandas as pd
+root, out = sys.argv[1:3]; os.makedirs(out, exist_ok=True)
+METRIC = [("leaderboard_bbh_", "acc_norm,none"), ("leaderboard_gpqa_", "acc_norm,none"), ("leaderboard_math_", "exact_match,none"),
+          ("leaderboard_musr_", "acc_norm,none")]
+rows = []
+files = sorted(glob.glob(os.path.join(root, "*", "*", "results_*.json")))
+for f in files:
+    model = "/".join(f.split("/")[-3:-1]); stamp = os.path.basename(f)[8:-5]
+    try: d = json.load(open(f))
+    except Exception: continue
+    r = d.get("results", {}); cells = {}
+    for name, v in r.items():
+        for pre, met in METRIC:
+            if name.startswith(pre) and name not in ("leaderboard_bbh", "leaderboard_gpqa", "leaderboard_math_hard", "leaderboard_musr") and met in v:
+                cells[name] = 100 * v[met]
+    if "leaderboard_ifeval" in r: cells["leaderboard_ifeval"] = 100 * r["leaderboard_ifeval"].get("prompt_level_strict_acc,none", float("nan"))
+    if "leaderboard_mmlu_pro" in r: cells["leaderboard_mmlu_pro"] = 100 * r["leaderboard_mmlu_pro"].get("acc,none", float("nan"))
+    rows.append(dict(model=model, stamp=stamp, n_cells=len(cells), **cells))
+df = pd.DataFrame(rows); df.to_parquet(os.path.join(out, "olb_files.parquet")); print(df.shape, df.n_cells.describe())

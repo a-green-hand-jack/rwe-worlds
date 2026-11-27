@@ -1,0 +1,101 @@
+We report the cells of Table~\ref{tab:design} for the unchanged \texttt{shap} Kernel explainer with \texttt{l1\_reg=False} unless another arm is named; the other arms are in the appendix.
+The \emph{reference budget} of a cell is the \texttt{shap} default $m=2d+2048$ where that samples ($d\ge16$) and, for $d\le10$, where the default enumerates all coalitions and is exact, the largest sampled budget (half of all coalitions).
+At its default budget the explainer enumerates every coalition for $d\le10$, so it is exact there by construction: the evidence at the default budget is German Credit ($d=20$, 40 instances) and ACS Employment ($d=16$, 60), and the three smaller datasets inform the smaller budgets and the other noise sources.
+
+\subsection{The reference is exact and the randomness is where we expect it}
+\label{sec:validity}
+Exact enumeration and interventional TreeSHAP on the same background agree to a relative $L_2$ distance of at most $4\times10^{-6}$ in every forest and boosted-tree cell except Pima RF (median $8\times10^{-4}$, maximum $0.04$, cause unresolved; the enumeration remains the reference), and for $d\le10$ the explainer at its default budget equals the reference to $5\times10^{-15}$.
+For logistic regression the antithetic permutation runs and the \texttt{shap} Kernel runs (\texttt{l1\_reg=False}) have no variance, except at the smallest budgets, where the weighted regression is ill-conditioned and the spread is numerical; the paired Kernel estimator keeps its sampling variance, so the control applies to the other two only.
+With $T=R\|\bar{\hat\phi}-\phi\|^2/\operatorname{tr}\widehat{\mathrm{Cov}}(\hat\phi)$, about one for an unbiased estimator, the paired Kernel and antithetic permutation estimators and \texttt{l1\_reg=False} are unbiased (median $T=0.9$, $0.9$, $1.0$), while \texttt{num\_features(10)} is not (median $440$) and \texttt{auto} is not for some instances (maximum $>2000$); the biased arms are reported separately.
+
+\subsection{At the default budget one run gets the top-3 set, except near ties}
+\label{sec:headline}
+Figure~\ref{fig:headline} is the headline.
+At the \texttt{shap} default budget of the two $d\ge16$ datasets, the share of instances with $P_c^{\varepsilon}\ge0.9$ is $1.00$ in all eight cells, and the share with strict $P_c\ge0.9$ is $1.00$ for logistic regression and $0.90$--$0.97$ for the other models.
+At the reference budget of the $d\le10$ datasets the strict share is $0.79$--$1.00$, the lowest being the random forest on GMSC; the tolerance-aware share is $1.00$ in all $20$ cells.
+The tolerance does the work: with $\varepsilon=0$ the share falls by up to $0.21$, with $\varepsilon\ge0.02$ it is $1.00$ everywhere, and the tolerance-aware share is at least $0.98$ at the thresholds $0.8$ and $0.95$ and for $k\in\{1,5\}$ (Table~\ref{tab:sens}).
+Below the default the share falls quickly: for the non-linear models of the two larger datasets the tolerance-aware share is $0.97$--$1.00$ at $m=128$, $0.65$--$0.97$ at $m=64$ (three to four times $d$) and $0.00$--$0.02$ at $m=32$ (about twice $d$).
+The library's default regularisation is a different setting: \texttt{num\_features(10)} selects ten features by a lasso path and is biased; at the default budget its strict share is $0.68$--$0.93$ on the six non-linear $d\ge16$ cells and $0.78$--$0.87$ for logistic regression, and its tolerance-aware share $0.92$--$1.00$ (Table~\ref{tab:sens}); at $d\le10$ it selects every feature.
+
+One extension reaches $d=279$ (Arrhythmia \citep{guvenir1997arrhythmia}, any arrhythmia against normal; random forest and boosting, $40$ instances, $R=20$, one trained model and one background).
+The reference there is interventional TreeSHAP on the same background, not an enumeration; for the forest its attributions miss additivity by more than $10^{-3}$ on $7$ of the $40$ instances.
+At the default budget $2d+2048=2606$ the top-3 strict $P_c$, averaged over instances, is $0.99$ (boosting) and $0.95$ (forest) for \texttt{l1\_reg=False}, the tolerance-aware one $1.00$, and the share with strict $P_c\ge0.9$ is $0.975$ and $0.825$; the library default \texttt{num\_features(10)} gives $0.38$ and $0.25$, and at $m=256<d$ \texttt{l1\_reg=False} gives $P_c=0$.
+It is one dataset and one split, trees and the \texttt{shap} Kernel explainer only: it shows that the unregularised setting holds at the default budget and the library's default regularisation fails at $d=279$, not the budget law or the floors.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{../figures/fig2_headline.pdf}
+\caption{Single-run reliability of the top-3 set against the budget $m$ (\texttt{shap} Kernel, \texttt{l1\_reg=False}; $R=30$--$100$ runs per instance, $40$--$100$ instances). Top: share of instances with $P_c^{\varepsilon}\ge0.9$ at $\varepsilon=0.05$ (filled, band: $95\%$ instance-bootstrap interval) and with strict $P_c\ge0.9$ (open, dotted); dashed vertical line: \texttt{shap} default $2d+2048$. Middle: mean Pearson correlation between a run and the exact $\phi$. Bottom: share of instances with $P_c\le x$ at the reference budget printed under each panel. The gap between the strict and the tolerance-aware share is a thin tail of instances with $P_c<1$.}
+\label{fig:headline}
+\end{figure}
+
+\subsection{Failures are near ties, and aggregate agreement does not show them}
+\label{sec:margin}
+The failures sit in the instances with the smallest margin (Figure~\ref{fig:margin}).
+At the reference budget the share of instances with strict $P_c\ge0.9$ in the smallest-margin quartile Q1 is $0.60$--$0.87$ for the non-linear models on the two $d\ge16$ datasets (German Credit $0.60$--$0.80$ on $10$ instances, ACS Employment $0.80$--$0.87$ on $15$) and $0.28$ (random forest on GMSC) to $0.88$ on the $d\le10$ ones, against $1.0$ in every other quartile except Q2 of the GMSC random forest ($0.88$).
+The tolerance-aware share is $1.0$ in every quartile, because $P_c^{\varepsilon}$ is satisfied vacuously where the tolerance group is flat, which holds for $0.04$--$0.60$ of the instances of Q1 (up to $0.53$ on the $d\ge16$ datasets), so the strict share is the informative one there.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.8\linewidth]{../figures/fig3_margin.pdf}
+\caption{Share of instances with strict $P_c\ge0.9$ (solid, $95\%$ instance-bootstrap interval) and with $P_c^{\varepsilon}\ge0.9$ (dotted) by within-cell quartile of the exact margin $g_3$ (Q1 smallest) at the reference budget of each cell (\texttt{shap} Kernel, \texttt{l1\_reg=False}); $10$ (German Credit), $15$ (ACS Employment) or $25$ instances per quartile. Grey bars: share of the quartile's instances whose tolerance group is flat, where $P_c^{\varepsilon}$ holds vacuously. The $d\le10$ panels are at a sampled budget ($127$ or $511$), where the default would enumerate.}
+\label{fig:margin}
+\end{figure}
+
+Our pre-specified test of whether aggregate agreement hides them (H1: aggregate agreement is high and the decision-level share at least ten points lower) uses, per cell, the contrast between the mean Pearson correlation and the share with $P_c^{\varepsilon}\ge0.9$ (Table~\ref{tab:h1}).
+Read with the tolerance, it is not supported at a default or reference budget: the contrast is within $0.1$ points of zero in every cell, as it must be where $P_c^{\varepsilon}$ forgives near-tie swaps.
+Read strictly, with $P_c\ge0.9$ in place of $P_c^{\varepsilon}\ge0.9$, the contrast at the reference budget is $3$ to $21$ points for the non-linear models; it reaches the ten points in the random forests on Pima ($13.0$, interval $7.0$--$19.0$) and GMSC ($21.0$, $13.0$--$29.0$) and its interval excludes zero in $9$ of the $15$ cells.
+For the paired Kernel estimator at equal budgets H1 holds in $29$ of the $84$ non-linear cells above the smallest budgets.
+For the \texttt{shap} Kernel explainer, with the tolerance, at $m=32$ (German Credit, ACS Employment) and $m=13$ (Pima) the contrast is $45$--$90$ points, but the mean Pearson correlation is itself below $0.9$ in $8$ of the $9$ non-linear cells, so the aggregate is not high there and H1 holds only for the Pima MLP.
+At budgets of at least $3d$ it holds in $7$ of $93$ non-linear cells: German Credit at $m=64$ for three models ($16$--$33$ points) and one cell each of ACS Employment, ACS Income, GMSC and Pima at $m=25$--$64$.
+At every budget of at least $3d$ the mean Pearson correlation of the \texttt{shap} Kernel explainer is at least $0.97$.
+
+\subsection{Budget, estimators and the margin law}
+\label{sec:budget}
+The error of $\hat\phi$ falls with $m$ at a rate that depends on the estimator (Figure~\ref{fig:budget}a).
+For the paired Kernel and antithetic permutation estimators the log--log slope of the relative $L_2$ error is $-0.49$ to $-0.53$ on every non-linear cell, as sampling theory says; the \texttt{shap} Kernel explainer falls faster, with slopes of $-0.62$ to $-0.66$ on the two larger datasets and $-0.76$ to $-0.91$ on the $d\le10$ ones, while with \texttt{num\_features(10)} the error hardly falls (slope $-0.02$ to $-0.17$) because the estimator is biased.
+At equal numbers of model evaluations neither of our estimators beats the unchanged Kernel explainer (Figure~\ref{fig:budget}b): the paired Kernel estimator has a lower share of exact instances by $0.19$--$0.38$ and a lower tolerance-aware share by $0.04$--$0.10$ in all six non-linear cells of the two larger datasets, beyond the smallest resolvable difference, and antithetic permutation is indistinguishable from it (differences $-0.015$ to $+0.001$ in the strict share, none beyond the smallest resolvable difference).
+The budget that a margin requires grows as the margin shrinks (Figure~\ref{fig:budget}c,d; Table~\ref{tab:guidance} gives observed budgets per margin quartile, not a formula).
+A Gaussian argument suggests $m^*\propto\sigma^2/g^2$ for a pair at margin $g$ and run noise $\sigma/\sqrt m$. We estimate the log--log slope of $m^*$ on the margin by an interval-censored Gaussian regression of $\log m^*$ on $\log g$ (instance-bootstrap interval), because $m^*$ is known only between adjacent grid budgets; it assumes Gaussian residuals, under heavy censoring ($12$--$29$ of $40$--$60$ instances right-censored for the paired Kernel estimator).
+For the exact top-3 set on the two $d\ge16$ datasets the slope for the non-linear models is $-1.4$ to $-1.8$ for the paired Kernel estimator ($-2$ inside the interval in two of six cells) and $-1.7$ to $-2.1$ for antithetic permutation sampling ($-2$ inside the interval in all six cells); for the \texttt{shap} Kernel explainer it is shallower, $-0.8$ to $-1.2$ on the same models.
+The estimate is not stable for the paired Kernel estimator ($-0.65$ to $-1.1$ with every third budget), whereas the permutation slope stays within $-1.6$ to $-2.2$ under every thinning (Appendix~\ref{app:m5}).
+The exponent $-2$ is thus supported for antithetic permutation sampling, not refuted for the paired Kernel estimator and unresolved for the \texttt{shap} Kernel explainer; a probit fit of the share of correct runs on $g\sqrt m/\sigma$, with $\sigma$ estimated per instance from the other budgets, gives for permutation sampling a coefficient of $0.93$--$1.05$ at $m_{\mathrm{eff}}\ge256$ against the predicted $1$.
+For the tolerance-aware criterion, $m^*$ depends little on the margin (slope $+0.1$ to $-0.5$), and on the $d\le10$ datasets the slope is uninformative ($59$--$98\%$ right-censored for the paired Kernel estimator).
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.8\linewidth]{../figures/fig4_budget.pdf}
+\caption{Budget and estimators on German Credit (top) and ACS Employment (bottom), $\texttt{l1\_reg=False}$. (a) Median relative $L_2$ error of $\hat\phi$ against $m$ for the \texttt{shap} Kernel explainer (logistic regression omitted: zero variance); the dotted line has slope $-1/2$. (b) Paired difference, at equal model evaluations and at the default budget, of the share of instances with strict $P_c\ge0.9$ (filled) and $P_c^{\varepsilon}\ge0.9$ (open) between each of our estimators and the \texttt{shap} Kernel explainer; grey bars: smallest resolvable difference. (c) Smallest budget $m^*$ (model evaluations) for strict $P_c\ge0.9$ against the exact margin $g_3$; points: interpolated $m^*$ per margin quartile (secondary, biased toward flat by the grid); open triangles: not reached on the grid; lines: interval-censored fit $\log m^*=a+s\log g_3$. (d) Slope $s$ with instance-bootstrap interval for the \texttt{shap} Kernel explainer, the paired Kernel estimator and antithetic permutation (strict $P_c$ filled, $P_c^{\varepsilon}$ open; logistic regression omitted); dotted: $-2$.}
+\label{fig:budget}
+\end{figure}
+
+\subsection{At $B=50$, a re-drawn background changes the top-3 set more often than a re-run of the \texttt{shap} Kernel explainer}
+\label{sec:floors}
+Figure~\ref{fig:floors} compares three noise floors in one metric, the agreement on the top-3 set of two independent draws, on the same instances within a cell.
+Two runs of the explainer at the reference budget agree for $0.91$--$0.99$ of the pairs in every non-linear cell shown; at a small budget (Figure~\ref{fig:floors}) for $0.62$--$0.90$.
+Two independent backgrounds of $50$ random rows, each explained exactly, agree for $0.27$--$0.69$.
+Retraining gives three floors that we do not pool, since they answer different questions: a bootstrap resample of the training rows ($0.14$--$0.73$), a different seed with the same data ($0.40$--$0.88$) and perturbed hyperparameters ($0.14$--$0.70$; ranges exclude the German MLP), each over models whose held-out AUC is within $0.01$ of the reference model's.
+They rest on one trained model per population and $K=10$ retrained models, fewer where the AUC filter kept fewer (open markers in Figure~\ref{fig:floors}); for the German MLP it kept too few for any retraining floor, so the retraining floors are the weakest numbers of the section.
+In every non-linear cell the explainer floor at the reference budget is above the background floor and above all three retraining floors.
+At $B=50$, then, an instance's top-3 set changes more under another background of the same size, or under a retrained model, than under the randomness of the \texttt{shap} Kernel explainer.
+This is not so for every estimator: the paired Kernel estimator, which is noisier at the same budget (agreement $0.29$--$0.73$ at the reference budget), agrees with itself less than two backgrounds do on Pima, on ACS Income random forest and on GMSC boosting, and more on GMSC random forest and MLP; at the reference budget the paired difference excludes zero in $7$ of the $15$ non-linear cells that have floor-(b) data under this comparison.
+The background floor depends on the size of the background: the median over the $20$ cells of the top-3 agreement of two independent backgrounds ($K=10$ each, $K=6$ for the ACS Employment and German MLPs, which rest on $10$ instances each; exact attributions) is $0.45$ at $B=20$, $0.59$ at $B=50$, $0.75$ at $B=200$ and $0.77$ for $50$ $k$-means medoids.
+It thus mixes the finite size of the background, which shrinks as $B$ grows, with the choice of reference distribution, which does not (Appendix~\ref{app:background}), and we read it at $B=50$ only.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.9\linewidth]{../figures/fig5_floors.pdf}
+\caption{Top-3 agreement of two independent draws (mean over instances, $95\%$ instance-bootstrap interval) for explainer runs (a, at a small and at the reference budget, printed above each panel), two backgrounds of $50$ random rows (b), and retrained models (c: bootstrap sample, seed only, perturbed hyperparameters; AUC within $0.01$ of the reference model). $K=10$ backgrounds or retrained models per cell except open markers ($K<10$ kept after the filter; $K=6$ for the ACS Employment MLP on $30$ instances, and for floor (b) of the German MLP); German MLP retraining floors are n/a (the AUC filter kept $1$ of $24$ bootstrap, $3$ of $24$ hyperparameter, $6$ of $15$ seed retrainings), and its floors a and b rest on $10$ instances. Intervals resample instances of one trained model.}
+\label{fig:floors}
+\end{figure}
+
+\subsection{A one-run certificate against running twice: a mixed result}
+\label{sec:cert}
+A user who wants to know whether a run is reliable can either attach a certificate to one paired Kernel run (the probability, under the run's own estimated covariance, that the top-3 set is unchanged) or run twice and read the overlap.
+We compare their calibrated probabilities of top-3 correctness by the Brier score, paired over instances, with the pre-specified useful margin of $0.01$ (Figure~\ref{fig:cert} in Appendix~\ref{app:tables}).
+Both are approximately calibrated on held-out instances, and the variance estimate behind the certificate has coverage $0.90$--$0.95$ of the exact attributions against a nominal $0.95$.
+The pre-specified contrast, in which each method predicts the correctness of the run it delivers, favours running twice on all five datasets ($+0.019$ on German Credit to $+0.049$ on Pima in Brier score, positive meaning the certificate is worse).
+The two methods are scored on different delivered runs with different base rates, the certificate delivering the longer run (base rate of correct runs $0.31$--$0.53$ against $0.19$--$0.41$; Table~\ref{tab:cert}a); when the run-twice user instead delivers the mean of the two runs, which matches the certificate's deliverable, the certificate is better on all five ($-0.014$ to $-0.025$).
+As a stopping rule at a $0.9$ threshold the certificate reaches the same share of exact instances with $20.4\%$ ($95\%$ interval $16.6$--$24.5$) fewer evaluations than a flat budget on German Credit and $22.6\%$ ($18.1$--$27.6$) on ACS Employment, and with $1.7\%$ and $1.4\%$ on ACS Income and GMSC (not defined on Pima), while stopping on agreement of two runs leaves a lower share exact and costs more than a flat run (Table~\ref{tab:cert}b).
+The certificate is thus better only when the competitor delivers the same quantity.
+

@@ -1,0 +1,14 @@
+arxiv_id,short_name,venue_year,track,refs_start_page_in_arxiv_pdf,main_figures,main_tables,abstract_words,intro_words,bib_entries,notes
+1705.07874,Lundberg&Lee SHAP,NeurIPS 2017,main,10,5,0,194,295,11,arXiv version; refs heading on p10 after 0.13 page
+1806.10758,Hooker et al. ROAR,NeurIPS 2019,main,9,4,0,87,814,44,
+1810.03292,Adebayo et al. Sanity checks,NeurIPS 2018,main,10,7,0,171,990,43,
+1909.06677,Marx et al. Predictive multiplicity,ICML 2020,main,9,3,2,118,740,45,
+2002.11097,Kumar et al. Problems with Shapley,ICML 2020,main,9,1,1,123,391,30,
+2008.05030,Slack et al. Reliable post hoc,NeurIPS 2021,main,11,4,1,223,889,68,arXiv v4
+2106.11959,Gorishniy et al. Revisiting DL tabular,NeurIPS 2021,main,10,3,6,210,704,62,refs start 0.84 page into p10
+2106.14648,Ghalebikesabi et al. Locality,NeurIPS 2021,main,10,7,0,120,541,40,
+2107.07436,Jethani et al. FastSHAP,ICLR 2022,main,10,5,2,103,,45,intro not parsed
+2202.00734,Dasgupta et al. Faithfulness,ICML 2022,main,17,4,2,87,1282,50,arXiv version extended beyond ICML page limit; excluded from page statistics
+2206.01254,Han et al. Which explanation,NeurIPS 2022,main,11,3,1,240,559,35,
+2303.01179,Fumagalli et al. SHAP-IQ,NeurIPS 2023,main,11,5,0,175,516,49,
+2410.01917,Musco&Witter Leverage SHAP,ICLR 2025,main,12,3,1,183,,48,arXiv v3 post-dates camera-ready; intro not parsed

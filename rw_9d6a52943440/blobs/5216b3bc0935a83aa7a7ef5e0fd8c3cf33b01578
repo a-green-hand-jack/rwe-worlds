@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Download the 13 score matrices (+ model lists) at the commit pinned by data.md. ~80 MB.
+set -euo pipefail
+C=55faff496947789f94e6b5908c77cbc3e84f81ad
+B=https://raw.githubusercontent.com/socialfoundations/benchmark-prediction/$C
+D=${1:-data/raw}; mkdir -p "$D"
+for f in arc_challenge bbh gpqa ifeval mmlu_pro musr openllm_math commonsense gsm legalbench math med_qa mmlu; do
+  curl -fsSL -o "$D/scores_$f.jbl" "$B/data/scores/$f.jbl"
+done
+for f in arc_challenge bbh gpqa ifeval mmlu_pro musr openllm_math; do
+  curl -fsSL -o "$D/${f}_models.jbl" "$B/data/scores/${f}_models.jbl"
+done
+curl -fsSL -o "$D/openllm_model_list.txt" "$B/data/openllm_model_list.txt"
+curl -fsSL -o "$D/helm_model_list.txt" "$B/data/helm_model_list.txt"
+sha256sum "$D"/* > "$D/SHA256SUMS"

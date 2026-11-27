@@ -1,0 +1,61 @@
+#!/bin/bash
+# Aggregate the run files into the result tables.   scripts/aggregate_all.sh WORKDIR
+# WORKDIR holds the raw directories written by `scripts/grid.py` (raw, rawA, rawX, rawF, rawG, rawP, rawZ, rawS, rawD, rawC); tables go to WORKDIR/tables
+set -euo pipefail
+W=$1
+HERE=$(cd "$(dirname "$0")/.." && pwd)
+export PYTHONPATH=$HERE/src
+py() { python3 "$HERE/analysis/$1" "${@:2}"; }
+O=$W/tables
+mkdir -p "$O"
+# every frozen-grid run enters once; the rerun with the `bz` functional replaces the original
+py merge_raw.py "$W/all" "$W/rawS" "$W/raw" "$W/rawX" "$W/rawF" "$W/rawG" "$W/rawP" "$W/rawZ"
+# the diagnostic analysis uses the frozen grid and extensions X and Z
+py merge_raw.py "$W/diagraw" "$W/rawS" "$W/raw" "$W/rawX" "$W/rawZ"
+py check_rerun.py "$W/raw" "$W/rawS" "$O/check_rerun.csv" &
+py make_cells.py "$O" "$W/all" &
+py make_calibration.py "$W/raw" "$O" &
+py cluster_quality.py "$W/raw" "$W/rawX" "$O/cluster_quality.csv" &
+py make_draws.py "$O/draws.parquet" "$W/all" &
+py merge_raw.py "$W/predraw" "$W/raw" "$W/rawG" "$W/rawP"
+py predict_bias.py "$W/predraw" "$O/bias_prediction.csv"   # exact bias predictions: frozen grid, convex mirror and the p grid
+py make_diag.py "$O" "$O/bias_prediction.csv" "$W/diagraw"
+wait
+py make_tierA.py "$O" "$W/rawA" "$O/diag_cells.parquet"
+py why_curvature.py "$W/diagraw" "$O"   # diagnostic of the bias score: estimated against exact curvature
+py explain_cells.py "$W/diagraw" "$O"   # exposure spread for (d) and degree dispersion for (b)
+py make_gnn.py "$W/rawGNN" "$W/rawA" "$O/gnn_cells.csv"   # GNN baseline (scripts/run_gnn.py) on the Tier A cells
+py check_rerun.py "$W/rawD" "$W/rawK" "$O/check_rerun_K_D.csv"   # HT columns (scripts/run_ht.py): every array of the D rerun is reproduced
+py make_ht.py "$W/rawK" "$O/cluster_ht_cells.csv"
+py claims.py "$O" "$O/claims"   # claim-level summaries of the tables above
+py parity_d.py "$O/tierA_cells.csv" "$O/parity_d.csv"   # learner parity with the regression on (d) and elsewhere, bootstrap intervals
+py populations.py "$O" "$O/populations.csv"   # counts of the cell populations behind the paper numbers
+# rerun with the cubic-curvature arrays (rawD, same assignments and graph draws as the originals) and the confirmatory block (rawC): P6 interval, P7 confirmatory test.
+# The frozen quantities were computed from the original cells and committed (results/p6/p6_frozen.json, results/p7/p7_frozen_coefficients_recorded.csv) BEFORE the block
+# was run; here they are recomputed from the original cells into $O/frozen_check and compared with the committed copies, and `run` uses the committed p6_frozen.json.
+for orig in raw rawX rawZ; do py check_rerun.py "$W/$orig" "$W/rawD" "$O/check_rerun_D_$orig.csv"; done
+mkdir -p "$O/frozen_check" "$O/p6" "$O/p7"
+py p6_interval.py freeze "$O/frozen_check" "$W/rawD"
+py p7_confirm.py "$O/frozen_check" "$W/rawD"
+if [ -f "$HERE/results/p6/p6_frozen.json" ]; then
+  cp "$HERE/results/p6/p6_frozen.json" "$O/p6/p6_frozen.json"
+  python3 - "$HERE" "$O" <<'PY'
+import json, sys
+h, o = sys.argv[1:3]
+a, b = json.load(open(f"{h}/results/p6/p6_frozen.json")), json.load(open(f"{o}/frozen_check/p6_frozen.json"))
+drop = lambda d: {k: v for k, v in d.items() if k not in ("code_commit", "date")}
+print("P6 frozen kappa-hat recomputed == committed:", drop(a) == drop(b))
+PY
+else
+  cp "$O/frozen_check/p6_frozen.json" "$O/p6/p6_frozen.json"
+fi
+py p6_interval.py run "$O/p6" "$W/rawD" "$W/rawC"
+py p7_confirm.py "$O/p7" "$W/rawD" "$W/rawC"
+# exploratory arm after the results: B2 with the true curvature, a noise-free cubic and a noise-lean M-hat (outputs p6_true_m_*.csv next to the P6 tables)
+py p6_true_m.py "$O/p6" "$W/rawC" confirmatory
+py p6_true_m.py "$O/p6" "$W/rawD" original
+# exploratory: the block's HK and LN graphs against the original families on (d), and the (b) degree-dispersion form on the block
+py make_cells.py "$O/block_cells" "$W/rawC"
+py explain_cells.py "$W/rawC" "$O" _block
+py hk_compare.py "$O" "$O/block_cells" "$O/hk_compare.csv" "$O/exposure_spread_d.csv" "$O/exposure_spread_d_block.csv"
+echo AGG DONE

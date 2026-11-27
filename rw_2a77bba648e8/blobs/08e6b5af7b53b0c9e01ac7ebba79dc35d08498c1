@@ -1,0 +1,103 @@
+"""Copy the aggregated tables into the delivered results directory and complete their provenance files:
+python scripts/export_results.py WORKDIR/tables TARGET/results
+Every table gets a sibling <name>.meta.json (script, code commit of the aggregation, seed, n_draws, date, what the table is)."""
+import json
+import shutil
+import sys
+from datetime import date
+from pathlib import Path
+
+import pandas as pd
+
+TABLES = {
+    "cells.parquet": ("analysis/make_cells.py", "one row per (run, mechanism, spillover share, noise multiple, estimator): bias, SD, RMSE with Monte Carlo intervals, coverage, leverage L, spec-disagreement S, variance shares"),
+    "ratios.parquet": ("analysis/make_cells.py", "natural-log RMSE ratio to difference in means per cell with a paired two-level bootstrap interval; oracle and estimated spillover share"),
+    "draws.parquet": ("analysis/make_draws.py", "per-draw normalised errors of the core SBM runs at noise multiple 0.5 (paired across estimators)"),
+    "diag_cells.parquet": ("analysis/make_diag.py", "per-cell diagnostic quantities, part (ii) (bias)"),
+    "diag_rows.parquet": ("analysis/make_diag.py", "per-(cell, graph draw) diagnostic quantities, part (i) (variance)"),
+    "diagnostic.csv": ("analysis/make_diag.py", "held-out predictions of log RMSE, combined diagnostic vs best degree benchmark"),
+    "diagnostic_groups.csv": ("analysis/make_diag.py", "held-out R2 gain per left-out mechanism or family with bootstrap interval"),
+    "acceptance.csv": ("analysis/make_diag.py", "pre-registered acceptance criteria with value, threshold, interval, met, counted"),
+    "within_cell.csv": ("analysis/make_diag.py", "within-cell rank association of the diagnostics with the absolute error"),
+    "variance_components.csv": ("analysis/make_diag.py", "exact variance decomposition: base, misfit, noise, cross"),
+    "bias_reference.csv": ("analysis/make_diag.py", "reference values for the bias analysis"),
+    "cv_benchmark.csv": ("analysis/make_diag.py", "cross-validation benchmark of the diagnostic"),
+    "bias_prediction.csv": ("analysis/predict_bias.py", "exact (or exact-in-expectation) predicted bias of each specification per cell"),
+    "tierA_cells.csv": ("analysis/make_tierA.py", "Tier A: machine-learning and adaptive-threshold estimators at noise multiple 0.5"),
+    "calibration.csv": ("analysis/make_calibration.py", "calibration and sanity table: true effect, direct effect, signal-to-noise, null-check error"),
+    "cluster_quality.csv": ("analysis/cluster_quality.py", "cluster designs: number and sizes of clusters, modularity, conductance, status (degenerate designs are listed)"),
+    "diagnostic_absolute.csv": ("analysis/make_diag.py", "absolute held-out R2 of log RMSE (combined score, degree benchmark, leverage only, controls only, constant) by left-out mechanism or family, with group-bootstrap interval"),
+    "or_fit_check.csv": ("analysis/or_fit_check.py", "why the fitted-shape oracle or_fit is worse than difference in means at the core cell: grid-end selection, RMSE at each fixed shape value, flatness of the SSE profile"),
+    "b_dispersion.csv": ("analysis/explain_cells.py", "count response (b): exact bias prediction, degree dispersion and the harmonic-to-arithmetic mean ratio of degrees"),
+    "exposure_spread_d.csv": ("analysis/explain_cells.py", "threshold mechanism (d): distribution of the treated-neighbour fraction implied by Bernoulli assignment on the realised degrees"),
+    "why_curvature_cells.csv": ("analysis/why_curvature.py", "bias score S: estimated against exact curvature per run, mechanism and share; noise of the estimate next to |bias|"),
+    "why_curvature_summary.csv": ("analysis/why_curvature.py", "per-mechanism summary of why_curvature_cells.csv"),
+    "gnn_cells.csv": ("analysis/make_gnn.py", "Tier A: graph neural network against dm, chin and the other Tier A learners on the same draws (the first 10 of 40 assignments per graph draw; 50 of 200 for a real graph), noise multiple 0.5"),
+    "cluster_ht_cells.csv": ("analysis/make_ht.py", "cluster designs: self-normalised (Hajek) and unnormalised (Horvitz-Thompson) exposure estimators against dm and chin, null and s = 0.5, noise multiple 0.5"),
+    "parity_d.csv": ("analysis/parity_d.py", "Tier A learners: median RMSE ratio to the regression on the threshold mechanism (d) and on the other five, 95% bootstrap intervals resampling cells and resampling runs, 10000 resamples"),
+    "populations.csv": ("analysis/populations.py", "counts and filters of the cell populations behind the paper numbers (2193, 1797, 2178, 1800, 1974, 1440, 1224, 9795)"),
+    "b_dispersion_block.csv": ("analysis/explain_cells.py", "count response (b) on the confirmatory block (SBM, Holme-Kim, log-normal-degree graphs): bias against the tree-like degree-dispersion form"),
+    "exposure_spread_d_block.csv": ("analysis/explain_cells.py", "threshold mechanism (d) on the confirmatory block: spread of the treated-neighbour fraction, realised bias and RMSE ratio at s = 0.5"),
+    "hk_compare.csv": ("analysis/hk_compare.py", "exploratory: threshold mechanism (d), p = 0.5: bias and log RMSE ratio to difference in means of the regression, Holme-Kim and log-normal-degree graphs against SBM, ER, WS, BA and the real graphs, d = 20 and 80"),
+    "hk_compare_mean_over_s.csv": ("analysis/hk_compare.py", "hk_compare.csv averaged over the spillover shares"),
+    "hk_compare_exposure.csv": ("analysis/hk_compare.py", "exposure spread of (d) on the graphs of hk_compare.csv"),
+    "hk_compare_exposure_rank.csv": ("analysis/hk_compare.py", "exploratory rank correlation of the exposure SD with the regression's bias and log RMSE ratio over graph families, d = 20 and 80"),
+    "check_rerun.csv": ("analysis/check_rerun.py", "unchanged-defaults check: the rerun with the extra functional reproduces the original arrays bit for bit"),
+}
+
+BLOCK_NOTES = {
+    "b_dispersion_block.csv": "confirmatory block (new seeds and graph draws), mechanism (b) only, spillover share s = 0.5, noise level 0.5, Bernoulli assignment, iid baseline, unperturbed graphs; "
+                              "one row per run = (family in SBM, HK, LN) x (target degree 5, 20, 80) x (p = 0.25, 0.5, 0.75): 27 rows, one run each; the predictions use the first three graph draws of each run",
+    "exposure_spread_d_block.csv": "confirmatory block, mechanism (d) only, s = 0.5, noise level 0.5, Bernoulli assignment, iid baseline, unperturbed graphs; one row per run = (family in SBM, HK, LN) x (target degree 5, 20, 80) x (p = 0.25, 0.5, 0.75): "
+                                   "27 rows, one run each; the exposure distribution is exact on the first three graph draws of each run, the bias and RMSE ratio are the run's own",
+    "hk_compare.csv": "mechanism (d), Bernoulli p = 0.5, iid baseline SD 1, no edge noise, noise level 0.5, s in {0.25, 0.5, 0.75}, target degree 20 and 80; one run per family: original SBM, ER, WS, BA, DCSBM, Stanford3, ego-Facebook and the block's SBM, HK, LN",
+}
+for _n in ("hk_compare_mean_over_s.csv", "hk_compare_exposure.csv", "hk_compare_exposure_rank.csv"):
+    BLOCK_NOTES[_n] = BLOCK_NOTES["hk_compare.csv"] + ("; exposure tables and rank correlations at s = 0.5 only" if "exposure" in _n else "; mean over the three spillover shares")
+
+
+def main(src, dst):
+    src, dst = Path(src), Path(dst)
+    dst.mkdir(parents=True, exist_ok=True)
+    commit = json.loads((src / "cells.meta.json").read_text())["code_commit"]
+    cells = pd.read_parquet(src / "cells.parquet", columns=["n_draws"])
+    nd = f"{int(cells.n_draws.max())} per run (synthetic graphs: 10 graph draws x 300 assignments; real graphs: 1 graph x 3000 assignments); bootstrap and coverage on a subset"
+    for name, (script, what) in TABLES.items():
+        if not (src / name).exists():
+            print("missing, not exported:", name)
+            continue
+        shutil.copy(src / name, dst / name)
+        mp = dst / (Path(name).stem + ".meta.json")
+        old = json.loads((src / (Path(name).stem + ".meta.json")).read_text()) if (src / (Path(name).stem + ".meta.json")).exists() else {}
+        meta = dict(script=script, code_commit=commit, seed=20261125, n_draws=nd, date=str(date.today()), description=what)
+        meta.update({k: v for k, v in old.items() if k not in meta or k in ("n_runs", "n_cells", "n_rows", "n_part1_rows", "bootstrap_B", "note", "source_runs")})
+        if name in BLOCK_NOTES:        # explanation tables: their own code commit, and the population they describe
+            meta["code_commit"] = old.get("code_commit", commit)
+            meta["population"] = BLOCK_NOTES[name]
+        if name == "gnn_cells.csv":
+            meta["n_draws"] = "50 per cell (5 graph draws x 10 assignments; real graphs 1 graph x 50 assignments), the first assignments of the Tier A runs"
+        if name == "cluster_ht_cells.csv":
+            meta["n_draws"] = "300 per graph draw as in the frozen grid (cluster-design runs of the frozen grid and extension X)"
+        mp.write_text(json.dumps(meta, indent=1))
+    if (src / "claims").exists():       # claim-level summaries; each has its own .meta.json from analysis/claims.py
+        shutil.copytree(src / "claims", dst / "claims", dirs_exist_ok=True)
+    for sub in ("p6", "p7"):            # P6 interval and P7 confirmatory tables; each file has its own .meta.json from its script
+        if (src / sub).exists():
+            shutil.copytree(src / sub, dst / sub, dirs_exist_ok=True)
+    pm = src / "p6" / "p6_cells.meta.json"          # P6 tables written without their own provenance file: the run's
+    if pm.exists():
+        base = json.loads(pm.read_text())
+        fz = json.loads((dst / "p6" / "p6_frozen.json").read_text())
+        for f in sorted((dst / "p6").glob("p6_*.csv")):
+            mp = f.with_suffix(".meta.json")
+            if mp.exists():
+                continue
+            pop = "confirmatory block (conf_* runs: SBM, Holme-Kim, log-normal degrees; new seeds), primary population" if "_confirmatory_" in f.name else "original grid cells (exploratory after the results), primary population unless the file name says otherwise"
+            mp.write_text(json.dumps(dict(script=base["script"], code_commit=base["code_commit"], date=base["date"], frozen_kappa_hat={b: fz[b]["kappa_hat"] for b in ("B1", "B2")},
+                                          noise_levels=base["noise_levels"], kappas=base["kappas"], alpha=base["alpha"], population=pop,
+                                          description="P6 extrapolation-sensitivity interval, table '" + f.stem + "': " + base["note"]), indent=1))
+    print(len(TABLES), "tables ->", dst)
+
+
+if __name__ == "__main__":
+    main(*sys.argv[1:3])

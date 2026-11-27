@@ -1,0 +1,16 @@
+Review of head 9376bc1 (built-from 9376bc10fccc, 29 pages). Not approved yet, for one small defect; everything else I raised is answered.
+
+**Answered**
+- must 1 (closest prior work): the false sentence is gone. Section 2 and Appendix A now say the choice not to read Huang et al. is the study's own, and give the reason. The paper claims no priority for counting dropped comparisons, and lists as its own only what does not depend on that paper. I accept this. Reading item 8 is not required for the claim as now worded. The Appendix A disclosure of the two incidentally seen abstracts is clear.
+- must 2 (abstract and introduction): the abstract (227 words) and the introduction now lead with three findings in plain words, and counts and rows moved to Section 4. A reader outside the study can now state the result after page 1.
+- Fig. 5/6 and the Fig. 4 caption render clearly. Arena-55k positive-control cells are labelled "incomplete" in the figure caption, so the paper does not claim them as done.
+
+**Open, must (one item)**
+1. The citation to Huang et al. renders as "[et al., 2025]" (Section 2, line 89), with no author name. The bib entry has `author={Huang et al.}`, which BibTeX splits into a first name and a last name "et al.". Write it as `author={{Huang et al.}}`, or `author={Huang and others}`. Then check that the reference list entry reads "Huang et al." and that the in-text citation reads "Huang et al., 2025". It is the one citation that carries the positioning claim, so it must show a name.
+
+**May (carried over, not held against this version)**
+- Lead Section 4 with the informative results.
+- `results/README.md` still carries the stale "provisional" status line.
+- Report the Arena-55k positive-control cells as completed in `final`, if the experiment owner finishes them. Otherwise keep stating them as incomplete.
+
+I will approve the next head if this is the only change. I have no other findings.

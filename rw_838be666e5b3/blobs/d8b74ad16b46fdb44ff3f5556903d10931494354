@@ -1,0 +1,67 @@
+# Prior work and how the study relates to it
+
+Every entry below was either given in `starter_literature.md` or returned by a literature search
+(title, venue/date read from the search record). Nothing here comes from the paper the objective
+excludes. Entries marked (abstract only) were read at abstract level; the report role should not
+quote more from them than the abstract supports.
+
+## Setting
+Fixed labeled sample (n pairs), fixed unlabeled sample (N records, features only), fixed black-box
+predictor f. Target: valid CI for a population parameter (primary: the mean E[Y]; secondary: a
+linear-regression coefficient on the census sets).
+
+## Closest methods (the baselines the study must be compared with)
+| Method | Source | Role in the study |
+|---|---|---|
+| Classical interval from labels only (z / t, Wilson and Clopper-Pearson for binary Y) | textbook | floor of "no use of f" |
+| PPI (lambda = 1) | Angelopoulos, Bates, Fannjiang, Jordan, Zrnic, *Prediction-powered inference*, Science 2023 (arXiv:2301.09633) | baseline |
+| PPI++ (data-driven power-tuning lambda; scalar linear control variate) | Angelopoulos, Duchi, Zrnic, arXiv:2311.01453 | **strongest published baseline**; the method to beat; reference code `ppi-python==0.2.3`. Implementation property (checked in the 0.2.3 source): `ppi_mean_ci` clips the estimated λ to [0,1], so for b = Cov(Y,f)/Var(f) > 1+n/N or < 0 the packaged interval is wider than unclipped PPI++; run both arms (idea-repo#6) |
+| Stratified PPI (stratify on predictor/score) | Fisch et al., arXiv:2406.04291 | closest relative of "recalibrate f using labels"; run in its post-stratified form (labels are fixed, so no allocation choice) |
+| Cross-PPI | Zrnic, Candès, arXiv:2309.16598 | not a competitor (it trains the predictor on the labels, which is excluded here); its cross-fitting device is what we reuse for the fitted calibrator |
+| Active statistical inference | Zrnic, Candès, arXiv:2403.03208 | not applicable: it chooses which points to label; labels are fixed here. With uniform sampling it reduces to PPI++; state this |
+| Semi-supervised mean estimation, projection onto covariates | Zhang, Brown, Cai, *Semi-supervised inference: general theory and estimation of means*, Annals of Statistics 2019 (doi:10.1214/18-AOS1756) (abstract only) | the same estimator family under MCAR labeling; it is the classical source of the efficiency principle. We must credit it and state that the contribution is not the principle |
+| General M-estimation in the semi-supervised framework | Song, Lin, Zhou, JASA 119(546):1065–1075 (2024; online 2023) (doi:10.1080/01621459.2023.2169699) (abstract only) | extension to regression coefficients; K-fold-based inference; baseline for the secondary target |
+| Double/debiased ML, AIPW | Chernozhukov et al., arXiv:1608.00060; AIPW doubly-robust literature | cross-fitting + influence-function correction; the conceptual parent of the proposed interval |
+| Semiparametric efficiency under MAR/MCAR | e.g. "Efficiency bounds for missing data models with semiparametric restrictions" (NBER w14376, 2008) (abstract only) | source for the lower-bound statement; the analyst must verify the bound statement against a primary source before the paper cites it |
+| Semi-supervised quantile and regression variants | "Semi-Supervised Quantile Estimation: Robust and Efficient Inference in High Dimensional Settings" (arXiv:2201.10208); "Efficient and adaptive linear regression in semi-supervised settings", Annals of Statistics 2018 (doi:10.1214/17-AOS1594) (abstracts only; authors to be filled by the report role from the records) | context for secondary targets |
+| Calibrated/smoothed-score control variates with unlabeled data, stratified labeling | Gronsbell et al., *Efficient evaluation of prediction rules in semi-supervised settings under stratified sampling*, JRSS-B 2022 (doi:10.1111/rssb.12502) (abstract only; found via idea-review, existence confirmed by search) | close relative: efficiency gain from recalibrating a score with labels; cite and distinguish (fixed black-box f, PPI baselines, headroom/break-even analysis) |
+| Postprediction inference | Wang, McCormick, Leek, *Methods for correcting inference based on outcomes predicted by machine learning*, PNAS 2020 (doi:10.1073/pnas.2001238117) (abstract only) | related precursor of PPI |
+| Surrogates and efficient estimation with limited outcome data | Kallus & Mao, *On the role of surrogates in the efficient estimation of treatment effects with limited outcome data*, JRSS-B 2024 (doi:10.1093/jrsssb/qkae099) (abstract only) | same control-variate / efficiency story in the ATE setting |
+| PPI with covariates / nonuniform sampling | arXiv:2501.18577 (abstract only) | related; different problem (imputed covariates) |
+
+Datasets: ppi-python example sets (the PPI paper's sources, see `examples/*.ipynb` there);
+Galaxy Zoo 2 (Willett et al., arXiv:1308.3496); folktables / ACS PUMS (Ding, Hardt, Miller,
+Schmidt, NeurIPS 2021, arXiv:2108.04884); Wine Quality (Cortez et al., DSS 2009).
+
+## Positioning (what the study claims over this work)
+1. PPI++ is optimal only inside the class "g = a + b f(X)". With labels, unlabeled data and f fixed,
+   the remaining freedom is *how the labels are used to build the control variate g* and *how the
+   interval is formed from it*. The classical semi-supervised literature shows the optimal g is
+   E[Y | Z]; PPI papers never measure how far PPI++ is from that floor on the standard datasets,
+   and do not study when learning g from n labels pays for itself and when it hurts coverage.
+2. The study gives (a) a computable per-dataset headroom (floor vs PPI++ vs classical), (b) a
+   cross-fitted calibrated interval that attains the floor asymptotically with valid coverage,
+   (c) a map of regimes: gain / no gain / invalid for all methods.
+3. It does not claim a new asymptotic efficiency principle; it claims an honest, reproducible
+   answer to "how much shorter can it be", including where the answer is "not at all".
+
+## Notes from review (idea-review #3)
+- Floor derivation (pooled Z over all n+N records; V* = sigma_res^2/n + V_g/(n+N)) is derived in the Brief; verify the bound statement
+  against a primary source before the paper cites it as "the" semiparametric bound, and do not use "first"/"new" for the principle or the question.
+- Stratified PPI is run post hoc (labels fixed), unlike its design; Cross-PPI and active inference are excluded for the reasons above.
+- Validity of the instrument needs only an L2-stable limit of the calibrator because the propensity is known (MCAR); consistency is needed only for the width.
+
+- Efficiency-bound source (idea-review #3): Robins, Rotnitzky & Zhao, JASA 89:846-866 (1994), and Tsiatis, *Semiparametric Theory and Missing Data*, Springer 2006 (existence confirmed through a citing abstract; not read in full).
+
+## Not allowed
+The excluded paper (see `deliverable.md`) must not be searched for. If a search result looks like a
+paper on exactly "shrinking PPI intervals with labels, unlabeled data and predictor all fixed",
+stop reading and record where it was met (in the reproduction notes).
+
+## Dataset sources (checked against Crossref, and against the PPI paper's data sections)
+- galaxies: Willett et al., MNRAS 435(4):2835–2860, 2013 (doi:10.1093/mnras/stt1458)
+- forest: Bullock, Woodcock, Souza, Olofsson, Global Change Biology 26(5):2956–2969, 2020 (doi:10.1111/gcb.15029); tree-cover predictions: Sexton et al., Int. J. Digital Earth 6(5):427–448, 2013 (doi:10.1080/17538947.2013.786146)
+- plankton: Olson, Shalapyonok, Sosik, Deep Sea Res. I 50(2):301–315, 2003 (doi:10.1016/S0967-0637(03)00003-7); Orenstein et al., arXiv:1510.00745, 2015
+- alphafold: Bludau et al., PLOS Biology 2022 (data); Jumper et al., Nature 596:583–589, 2021 (doi:10.1038/s41586-021-03819-2) (predictions)
+- gene_expression: Vaishnav et al., Nature 603:455–463, 2022; census_*: Ding et al., NeurIPS 2021 (ACS via folktables)
+- ballots: no peer-reviewed source known; `ppi-python` 0.2.3 example data

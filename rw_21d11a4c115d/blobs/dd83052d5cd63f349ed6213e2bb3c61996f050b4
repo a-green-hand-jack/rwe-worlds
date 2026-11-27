@@ -1,0 +1,152 @@
+[
+ {
+  "group": "A",
+  "title": "Efficient multi-prompt evaluation of LLMs",
+  "page": "/paper_files/paper/2024/hash/28236482f64a72eec43706b6f3a6c511-Abstract-Conference.html",
+  "pdf": "/paper_files/paper/2024/file/28236482f64a72eec43706b6f3a6c511-Paper-Conference.pdf"
+ },
+ {
+  "group": "A",
+  "title": "Observational Scaling Laws and the Predictability of Langauge Model Performance",
+  "page": "/paper_files/paper/2024/hash/1cded4f97cf5f01a284c574110b7e3b9-Abstract-Conference.html",
+  "pdf": "/paper_files/paper/2024/file/1cded4f97cf5f01a284c574110b7e3b9-Paper-Conference.pdf"
+ },
+ {
+  "group": "A",
+  "title": "Efficient Lifelong Model Evaluation in an Era of Rapid Progress",
+  "page": "/paper_files/paper/2024/hash/874067cee9c98dc9b9980fa6ef70176a-Abstract-Conference.html",
+  "pdf": "/paper_files/paper/2024/file/874067cee9c98dc9b9980fa6ef70176a-Paper-Conference.pdf"
+ },
+ {
+  "group": "A",
+  "title": "Predicting the Performance of Foundation Models via Agreement-on-the-Line",
+  "page": "/paper_files/paper/2024/hash/3853f7b92d82318f03567a4f7f128227-Abstract-Conference.html",
+  "pdf": "/paper_files/paper/2024/file/3853f7b92d82318f03567a4f7f128227-Paper-Conference.pdf"
+ },
+ {
+  "group": "A",
+  "title": "Elo Uncovered: Robustness and Best Practices in Language Model Evaluation",
+  "page": "/paper_files/paper/2024/hash/bfba8efb806a970455b83b852c9cf846-Abstract-Conference.html",
+  "pdf": "/paper_files/paper/2024/file/bfba8efb806a970455b83b852c9cf846-Paper-Conference.pdf"
+ },
+ {
+  "group": "A",
+  "title": "Stratified Prediction-Powered Inference for Effective Hybrid Evaluation of Language Models",
+  "page": "/paper_files/paper/2024/hash/c9fcd02e6445c7dfbad6986abee53d0d-Abstract-Conference.html",
+  "pdf": "/paper_files/paper/2024/file/c9fcd02e6445c7dfbad6986abee53d0d-Paper-Conference.pdf"
+ },
+ {
+  "group": "A",
+  "title": "Statistical Multicriteria Benchmarking via the GSD-Front",
+  "page": "/paper_files/paper/2024/hash/b1f140eeee243db24e9e006481b91cf1-Abstract-Conference.html",
+  "pdf": "/paper_files/paper/2024/file/b1f140eeee243db24e9e006481b91cf1-Paper-Conference.pdf"
+ },
+ {
+  "group": "A",
+  "title": "MixEval: Deriving Wisdom of the Crowd from LLM Benchmark Mixtures",
+  "page": "/paper_files/paper/2024/hash/b1f34d7b4a03a3d80be8e72eb430dd81-Abstract-Conference.html",
+  "pdf": "/paper_files/paper/2024/file/b1f34d7b4a03a3d80be8e72eb430dd81-Paper-Conference.pdf"
+ },
+ {
+  "group": "A",
+  "title": "Adaptive Labeling for Efficient Out-of-distribution Model Evaluation",
+  "page": "/paper_files/paper/2024/hash/830c927e4e9c9a457d476c145514fb56-Abstract-Conference.html",
+  "pdf": "/paper_files/paper/2024/file/830c927e4e9c9a457d476c145514fb56-Paper-Conference.pdf"
+ },
+ {
+  "group": "A",
+  "title": "SureMap: Simultaneous mean estimation for single-task and multi-task disaggregated evaluation",
+  "page": "/paper_files/paper/2024/hash/265d0413fa2efa41084f58b52a4a2a7f-Abstract-Conference.html",
+  "pdf": "/paper_files/paper/2024/file/265d0413fa2efa41084f58b52a4a2a7f-Paper-Conference.pdf"
+ },
+ {
+  "group": "A",
+  "title": "Overcoming Common Flaws in the Evaluation of Selective Classification Systems",
+  "page": "/paper_files/paper/2024/hash/047c84ec50bd8ea29349b996fc64af4b-Abstract-Conference.html",
+  "pdf": "/paper_files/paper/2024/file/047c84ec50bd8ea29349b996fc64af4b-Paper-Conference.pdf"
+ },
+ {
+  "group": "A",
+  "title": "Diff-eRank: A Novel Rank-Based Metric for Evaluating Large Language Models",
+  "page": "/paper_files/paper/2024/hash/45cc967d7899616f51993b7b363d35b5-Abstract-Conference.html",
+  "pdf": "/paper_files/paper/2024/file/45cc967d7899616f51993b7b363d35b5-Paper-Conference.pdf"
+ },
+ {
+  "group": "A",
+  "title": "IDGen: Item Discrimination Induced Prompt Generation for LLM Evaluation",
+  "page": "/paper_files/paper/2024/hash/a14ac7911df7d369919a687909a14a8b-Abstract-Conference.html",
+  "pdf": "/paper_files/paper/2024/file/a14ac7911df7d369919a687909a14a8b-Paper-Conference.pdf"
+ },
+ {
+  "group": "A",
+  "title": "Towards a Scalable Reference-Free Evaluation of Generative Models",
+  "page": "/paper_files/paper/2024/hash/db015b65da0343e504c250a76b8b6791-Abstract-Conference.html",
+  "pdf": "/paper_files/paper/2024/file/db015b65da0343e504c250a76b8b6791-Paper-Conference.pdf"
+ },
+ {
+  "group": "A",
+  "title": "Multivariate Stochastic Dominance via Optimal Transport and Applications to Models Benchmarking",
+  "page": "/paper_files/paper/2024/hash/4537592f9594a0522da99566b90380cc-Abstract-Conference.html",
+  "pdf": "/paper_files/paper/2024/file/4537592f9594a0522da99566b90380cc-Paper-Conference.pdf"
+ },
+ {
+  "group": "B",
+  "title": "A Pairwise Pseudo-likelihood Approach for Matrix Completion with Informative Missingness",
+  "page": "/paper_files/paper/2024/hash/149ad6e32c08b73a3ecc3d11977fcc47-Abstract-Conference.html",
+  "pdf": "/paper_files/paper/2024/file/149ad6e32c08b73a3ecc3d11977fcc47-Paper-Conference.pdf"
+ },
+ {
+  "group": "B",
+  "title": "Semi-Random Matrix Completion via Flow-Based Adaptive Reweighting",
+  "page": "/paper_files/paper/2024/hash/ea57fac4f3bdfbe98591f6f3acd3aae6-Abstract-Conference.html",
+  "pdf": "/paper_files/paper/2024/file/ea57fac4f3bdfbe98591f6f3acd3aae6-Paper-Conference.pdf"
+ },
+ {
+  "group": "B",
+  "title": "Connectivity Shapes Implicit Regularization in Matrix Factorization Models for Matrix Completion",
+  "page": "/paper_files/paper/2024/hash/5195825ee60d7efc1e42b7f3f3137040-Abstract-Conference.html",
+  "pdf": "/paper_files/paper/2024/file/5195825ee60d7efc1e42b7f3f3137040-Paper-Conference.pdf"
+ },
+ {
+  "group": "B",
+  "title": "Transductive Active Learning: Theory and Applications",
+  "page": "/paper_files/paper/2024/hash/e17fe6fe9990fffb637b42c98c005515-Abstract-Conference.html",
+  "pdf": "/paper_files/paper/2024/file/e17fe6fe9990fffb637b42c98c005515-Paper-Conference.pdf"
+ },
+ {
+  "group": "B",
+  "title": "Amortized Bayesian Experimental Design for Decision-Making",
+  "page": "/paper_files/paper/2024/hash/c59f05d7ab3638b138cc61f32e1a7cd1-Abstract-Conference.html",
+  "pdf": "/paper_files/paper/2024/file/c59f05d7ab3638b138cc61f32e1a7cd1-Paper-Conference.pdf"
+ },
+ {
+  "group": "B",
+  "title": "Data Acquisition via Experimental Design for Data Markets",
+  "page": "/paper_files/paper/2024/hash/d5e8326bbec25e1c608787d24488521b-Abstract-Conference.html",
+  "pdf": "/paper_files/paper/2024/file/d5e8326bbec25e1c608787d24488521b-Paper-Conference.pdf"
+ },
+ {
+  "group": "B",
+  "title": "Linear Time Approximation Algorithm for Column Subset Selection with Local Search",
+  "page": "/paper_files/paper/2024/hash/f9a50cf037f5ca2f687e3cd70b572c6f-Abstract-Conference.html",
+  "pdf": "/paper_files/paper/2024/file/f9a50cf037f5ca2f687e3cd70b572c6f-Paper-Conference.pdf"
+ },
+ {
+  "group": "B",
+  "title": "On Socially Fair Low-Rank Approximation and Column Subset Selection",
+  "page": "/paper_files/paper/2024/hash/a1d2eca2159af6978ff2633454d8db81-Abstract-Conference.html",
+  "pdf": "/paper_files/paper/2024/file/a1d2eca2159af6978ff2633454d8db81-Paper-Conference.pdf"
+ },
+ {
+  "group": "B",
+  "title": "General bounds on the quality of Bayesian coresets",
+  "page": "/paper_files/paper/2024/hash/e589022774244df75b97eae18bb3628d-Abstract-Conference.html",
+  "pdf": "/paper_files/paper/2024/file/e589022774244df75b97eae18bb3628d-Paper-Conference.pdf"
+ },
+ {
+  "group": "B",
+  "title": "Deep Submodular Peripteral Networks",
+  "page": "/paper_files/paper/2024/hash/677e39f949e8b92065957a8976345aba-Abstract-Conference.html",
+  "pdf": "/paper_files/paper/2024/file/677e39f949e8b92065957a8976345aba-Paper-Conference.pdf"
+ }
+]

@@ -1,0 +1,17 @@
+{
+  "claim": "setting + C1 headline",
+  "design": "fixed",
+  "draft": false,
+  "figure": "fig1_overview",
+  "generated": "2026-11-25",
+  "height_in": 2.2,
+  "inputs": {
+    "/hutian/w/paper-repo/results/closure.csv": "dcb2ec94824a",
+    "/hutian/w/paper-repo/results/kstar.csv": "3657dab512a5"
+  },
+  "predictor": "fa",
+  "schematic": "no data; which columns are highlighted is illustrative",
+  "selector": "greedyA",
+  "split": "grouped",
+  "width_in": 5.5
+}

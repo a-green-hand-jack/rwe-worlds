@@ -1,0 +1,97 @@
+"""Value-function tables and exact Shapley values.
+
+A coalition S (subset of the d raw attributes) is the integer sum of 1<<i for i in S.
+v(S; x, bg) = mean over background rows b of f(x_S, b_{N\\S}), in the model's output space.
+"""
+import numpy as np
+from math import comb, factorial
+
+_POP = {}
+
+
+def popcount(d):
+    if d not in _POP:
+        a = np.zeros(1 << d, dtype=np.int8)
+        for i in range(d):
+            a[(1 << i):(1 << (i + 1))] = a[:(1 << i)] + 1
+        _POP[d] = a
+    return _POP[d]
+
+
+def mask_matrix(d, lo=0, hi=None):
+    hi = (1 << d) if hi is None else hi
+    idx = np.arange(lo, hi, dtype=np.int64)
+    return ((idx[:, None] >> np.arange(d)) & 1).astype(bool)
+
+
+def value_table(f, x, bg, chunk_rows=300_000, w=None):
+    """All 2^d coalition values for one instance x (d,) and background bg (B,d). Returns float64 (2^d,)."""
+    d, B = x.shape[0], bg.shape[0]
+    n = 1 << d
+    out = np.empty(n)
+    cm = max(1, chunk_rows // B)
+    for lo in range(0, n, cm):
+        hi = min(n, lo + cm)
+        M = mask_matrix(d, lo, hi)  # (c,d)
+        Z = np.where(M[:, None, :], x[None, None, :], bg[None, :, :]).reshape(-1, d)
+        fz = f(Z).reshape(hi - lo, B)
+        out[lo:hi] = fz.mean(1) if w is None else fz @ w
+    return out
+
+
+def exact_shapley(v):
+    """Exact Shapley values from the full table v (2^d,)."""
+    n = v.shape[0]
+    d = int(np.log2(n))
+    pc = popcount(d)
+    w = np.array([factorial(s) * factorial(d - s - 1) / factorial(d) for s in range(d)])
+    idx = np.arange(n)
+    phi = np.empty(d)
+    for i in range(d):
+        S = idx[(idx >> i) & 1 == 0]
+        phi[i] = np.sum(w[pc[S]] * (v[S | (1 << i)] - v[S]))
+    return phi
+
+
+def lr_value_table(f, x, bg, w=None):
+    """Value table of a model whose output is additive in the raw attributes (logistic regression log-odds):
+    v(S) = v(empty) + sum_{j in S} delta_j, delta_j = mean_b [f(b with j <- x_j) - f(b)]. Exact, d*B evaluations."""
+    d, B = len(x), bg.shape[0]
+    f0 = f(bg)
+    delta = np.empty(d)
+    for j in range(d):
+        Z = bg.copy()
+        Z[:, j] = x[j]
+        delta[j] = (f(Z) - f0).mean() if w is None else w @ (f(Z) - f0)
+    masks = mask_matrix(d)
+    return (f0.mean() if w is None else w @ f0) + masks.astype(float) @ delta
+
+
+def mlp_value_table(model, x, bg, chunk=4096, w=None):
+    """Value table of an MLP (sklearn pipeline: attribute-wise preprocessing -> relu layers), exact and fast.
+
+    The first-layer pre-activation is additive over raw attributes, so for coalition S and background row b
+    pre1 = pre1(b) + sum_{j in S} D[b, j], D[b, j] = pre1(b with attribute j <- x_j) - pre1(b).
+    """
+    d, B = len(x), bg.shape[0]
+    pre, clf = model.m[:-1], model.m[-1]
+    W1, b1 = clf.coefs_[0], clf.intercepts_[0]
+    base = pre.transform(bg) @ W1 + b1  # (B,H)
+    H = base.shape[1]
+    D = np.empty((d, B, H))
+    for j in range(d):
+        Z = bg.copy()
+        Z[:, j] = x[j]
+        D[j] = pre.transform(Z) @ W1 + b1 - base
+    D2 = D.reshape(d, B * H)
+    n = 1 << d
+    out = np.empty(n)
+    for lo in range(0, n, chunk):
+        hi = min(n, lo + chunk)
+        M = mask_matrix(d, lo, hi).astype(float)
+        a = np.maximum((M @ D2).reshape(hi - lo, B, H) + base[None], 0.0)
+        for W, b in zip(clf.coefs_[1:-1], clf.intercepts_[1:-1]):
+            a = np.maximum(a @ W + b, 0.0)
+        o = a @ clf.coefs_[-1] + clf.intercepts_[-1]
+        out[lo:hi] = o.reshape(hi - lo, B).mean(1) if w is None else o.reshape(hi - lo, B) @ w
+    return out

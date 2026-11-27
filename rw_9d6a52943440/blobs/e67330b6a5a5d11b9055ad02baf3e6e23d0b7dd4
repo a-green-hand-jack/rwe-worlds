@@ -1,0 +1,20 @@
+\section{Discussion and limitations}
+\label{sec:discussion}
+
+\paragraph{What the source models buy.}
+The answer is conditional.
+When targets resemble the sources, they buy about a fifth of the error of stratified sampling, which already uses the sources' item difficulties.
+When every target is stronger than every source, our predictors fitted on the sources are biased toward the source mean, what remains over stratified sampling is at most a tenth, and a difference correction or a recalibrated regression repairs the bias only in part or not at all.
+The answer depends on the distance above the sources and the number of source models, and the ordering gain is confined to interpolation and lineage.
+
+\paragraph{Limitations.}
+\emph{Baselines.}
+The anchor-point, tinyBenchmarks-style and metabench-style methods are our re-implementations.
+The published anchor code, run once on our splits (Appendix~\ref{app:public}), is no better than uniform with anchors chosen by correctness, but its IRT-embedding anchors and IRT estimator beat our IRT predictor in extrapolation for a reason we did not find, so our statements about IRT predictors are about ours.
+We did not run the assessor~\citep{pacchiardi2024100}, active evaluation acquisition~\citep{li2025active}, SubLIME~\citep{saranathan-etal-2025-sublime} or gp-IRT, so nothing here is a statement about those; we did not run a two-phase design that adapts the sample to the target after a first batch of answers.
+\emph{Data.}
+Our intervals reflect the sampling of target families only, not of benchmarks (which are not independent) or source models; families are derived from model names by keyword.
+\emph{Selection and tuning.}
+Rows named best were chosen on the targets and draws their intervals use; the leave-one-benchmark-out rows are the outcome-independent alternative; the larger-gap inner split was chosen after the main result and is a diagnosis, not a recipe.
+\emph{Scope.}
+Items are counted, not priced; correctness is binary; no live model was evaluated; $n=100$ is a different share of the items in each benchmark.

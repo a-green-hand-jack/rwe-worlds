@@ -1,0 +1,48 @@
+"""Table 2: per dataset and z-stratum: k*, k*/N, Q, null Q (fragility_by_z.csv), plus the top-1 vs top-2 row (top1_conclusions.csv).
+Declared range z in [1,8]; the outside strata are descriptive and marked with a dagger. --datasets/--family choose the main-text subset;
+tab2_full.tex has every dataset and both families (appendix)."""
+import argparse, os
+from common import load, write_table, tex_escape as E, fmt
+from style import short_name
+ap = argparse.ArgumentParser(); ap.add_argument("--data", required=True); ap.add_argument("--out", required=True)
+ap.add_argument("--datasets", default="auto", help="comma list for the main-text table; auto = the largest-N data set of each design"); ap.add_argument("--family", default="delete")
+a = ap.parse_args(); os.makedirs(a.out, exist_ok=True); prov = {"inputs": {}}
+bz = load(a.data, "fragility_by_z.csv", ["dataset", "family", "zbin", "n_pairs", "z_med", "k_med", "kN_med", "Q_med", "Q_null_med"], prov)
+t1 = load(a.data, "top1_conclusions.csv", ["dataset", "perturbation", "top1_vs_top2_z", "top1_vs_top2_k", "top1_vs_top2_kN"], prov)
+se = load(a.data, "se_ratio.csv", ["dataset", "real_ratio_cluster_med", "real_ratio_cluster_q25", "real_ratio_cluster_q75", "null_ratio_cmp_med"], prov).set_index("dataset")
+INSIDE = {"[1,2)", "[2,4)", "[4,8)"}
+def ci(r):
+    return f"{r.k_ratio_med:.2f}" + (f" [{r.k_ratio_lo:.2f}, {r.k_ratio_hi:.2f}]" if r.k_ratio_lo == r.k_ratio_lo else "")
+def seline(ds):
+    """Resampling SE / model-based SE of the gap (median over pairs with z in [1,8]): real (cluster bootstrap, IQR over pairs) and null."""
+    if ds not in se.index: return ""
+    r = se.loc[ds]
+    return rf" \quad SE ratio: real {r.real_ratio_cluster_med:.2f} [{r.real_ratio_cluster_q25:.2f}, {r.real_ratio_cluster_q75:.2f}], null {r.null_ratio_cmp_med:.2f}"
+def build(datasets, fams, full):
+    rows = []; ncol = 8 if full else 7
+    for ds in datasets:
+        rows.append([rf"\multicolumn{{{ncol}}}{{l}}{{\textit{{{E(short_name(ds, True))}}}{seline(ds)}}}"])
+        for fam in fams:
+            for r in bz[(bz.dataset == ds) & (bz.family == fam)].itertuples():
+                if not full and r.zbin not in INSIDE: continue
+                dag = "" if r.zbin in INSIDE else r"$^\dagger$"
+                st = "{" + (E(r.zbin).replace("[8,inf)", r"[8,$\infty$)")) + dag + "}"      # braces: a row must not start with [ after \\
+                row = [st, str(int(r.n_pairs))] + ([fmt(r.z_med)] if full else [])
+                rows.append(row + [fmt(r.k_med, 4), fmt(r.kN_med), fmt(r.Q_med), fmt(r.Q_null_med), ci(r)])
+            for r in t1[(t1.dataset == ds) & (t1.perturbation == fam)].itertuples():
+                row = ["top-1 vs top-2", "1"] + ([fmt(r.top1_vs_top2_z)] if full else [])
+                rows.append(row + [fmt(r.top1_vs_top2_k, 4), fmt(r.top1_vs_top2_kN), "--", "--", "--"])
+    return rows
+tail = ["$k^*$ (med)", "$k^*/N$", "$Q$", "$Q$ null", r"$k^*/\hat k^*_0$ [95\% CI]"]
+hdr = ["stratum $z$", "pairs"] + tail
+hdr_full = ["stratum $z$", "pairs", "$z$ (med)"] + tail
+info = bz.drop_duplicates("dataset").set_index("dataset")
+alld = list(dict.fromkeys(bz.dataset))
+if a.datasets == "auto":                            # largest N per design; ties go to the first listed
+    sub = [g.sort_values("N", ascending=False, kind="stable").dataset.iloc[0] for _, g in bz.drop_duplicates("dataset").groupby("design", sort=False)]
+else:
+    sub = a.datasets.split(",")
+write_table(a.out, "tab2", hdr, build(sub, [a.family], False), "lrrrrrl", {**prov, "datasets": sub, "family": a.family, "strata": "declared range only; outside rows are in the full tables"}, tabcolsep=4)
+appx = [d for d in alld if not d.startswith("nba_")]       # the 30 season rows each would add 6 rows per family; they stay in fragility_by_z.csv
+for fam in ("delete", "flip"):
+    write_table(a.out, f"tab2_full_{fam}", hdr_full, build(appx, [fam], True), "lrrrrrrl", {**prov, "datasets": appx, "family": fam, "omitted": "NBA seasons: per-season rows are in fragility_by_z.csv", "form": "longtable (input outside a float)"}, tabcolsep=3, longtable=True)

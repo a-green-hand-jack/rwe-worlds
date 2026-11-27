@@ -1,0 +1,10 @@
+{
+ "figure": "figA_floor_b_sampled",
+ "width_in": 5.5,
+ "height_in": 3.7,
+ "inputs": {
+  "results/tables/floor_b_by_background.csv": "9b2cf37891bf0bcc946a469ddae58084261a4e940b202f6ebe25284db1767b7d"
+ },
+ "note": "k=3; floor b = pairwise top-k agreement of K independent backgrounds (random rows of B=20/50/200, or 50 k-means medoids), each explained exactly, instance-bootstrap CI; floor a = run-to-run agreement of the same instances at the largest sampled budget (m per estimator: {'shap_kernel': [np.int64(127), np.int64(511)], 'kernel_paired': [np.int64(127), np.int64(511)]}) for the shap Kernel explainer (l1_reg=False) and paired Kernel SHAP (pairs of R=100 runs); bottom = per-instance difference floor b - floor a with CI (negative: the background moves the top-k more than rerunning the estimator); one trained model per cell; the CI is over instances only; models or backgrounds absent from the plot were not delivered: [], backgrounds per model with fewer than four: {}",
+ "scope": "Intervals resample instances of one trained model per dataset x model (one seed, B=50 random background rows); variance from retraining and from the background is not in them (floors b and c measure those separately)."
+}

@@ -1,0 +1,47 @@
+"""Fig 1 left panel: the search -> report -> verify protocol. Needs no data.
+Coordinates are inches on the panel (2.7 x 2.3 in), so 7 pt text is checked by eye at print size.
+usage: python figures/src/fig1_schematic.py OUT.pdf"""
+import sys
+import matplotlib.pyplot as plt
+from matplotlib.patches import FancyBboxPatch, Rectangle
+sys.path.insert(0, __file__.rsplit("/", 1)[0])
+import figstyle as fs
+
+W, H = fs.VENUE["panel_width_in"], fs.VENUE["max_height_in"]
+
+
+def draw(ax):
+    ax.set_xlim(0, W); ax.set_ylim(0, H); ax.axis("off")
+    c = fs.C
+    ax.text(0.02, H - 0.08, "Item pool, 5 folds", fontsize=8, va="center", weight="bold")
+    fw = (W - 0.04) / 5
+    for i in range(5):
+        v = i == 4
+        ax.add_patch(Rectangle((0.02 + i * fw, H - 0.40), fw - 0.03, 0.2, fc=c["fresh"] if v else c["light"], ec=c["ink"], lw=0.5))
+    ax.text(0.02 + 4.5 * fw - 0.015, H - 0.30, "fresh", color="white", ha="center", va="center", fontsize=7)
+    ax.plot([0.02, 0.02 + 4 * fw - 0.03], [H - 0.45] * 2, color=c["reported"], lw=2)
+    ax.plot([0.02 + 4 * fw, W - 0.01], [H - 0.45] * 2, color=c["fresh"], lw=2)
+    ax.text(0.02, H - 0.55, r"$S$: $n$ items from folds 1–4", fontsize=7, color=c["reported"], va="center")
+    ax.text(W - 0.01, H - 0.55, "held out", fontsize=7, color=c["fresh"], va="center", ha="right")
+
+    bh = 0.46
+    def box(top, title, lines, col):
+        ax.add_patch(FancyBboxPatch((0.04, top - bh), W - 0.08, bh, boxstyle="round,pad=0,rounding_size=0.05", fc="white", ec=col, lw=1.1))
+        ax.text(0.10, top - 0.10, title, fontsize=8, weight="bold", color=col, va="center")
+        for j, t in enumerate(lines):
+            ax.text(0.10, top - 0.22 - 0.115 * j, t, fontsize=7, va="center")
+
+    tops = [1.62, 1.08, 0.54]
+    box(tops[0], "1  Search", [r"score $K$ configurations on $S$;", r"pick $\hat c$ = best on $S$"], c["ink"])
+    box(tops[1], "2  Report", [r"best score on $S$ (the items that", r"chose it): $\hat\theta_{\hat c}(S)$"], c["reported"])
+    box(tops[2], "3  Verify", [r"same $\hat c$ on fresh items;", r"gap = report $-$ fresh"], c["fresh"])
+    for t in tops[:2]:
+        ax.annotate("", xy=(W / 2, t - bh - 0.075), xytext=(W / 2, t - bh), arrowprops=dict(arrowstyle="-|>", color=c["ink"], lw=0.8, mutation_scale=7))
+
+
+if __name__ == "__main__":
+    fs.apply()
+    fig = plt.figure(figsize=(W, H))
+    ax = fig.add_axes([0, 0, 1, 1])
+    draw(ax)
+    fig.savefig(sys.argv[1], bbox_inches=None, pad_inches=0)

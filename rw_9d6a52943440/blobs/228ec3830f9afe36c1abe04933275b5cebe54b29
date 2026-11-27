@@ -1,0 +1,14 @@
+bench,split,k_targets,n_families,thin
+arc_challenge,extrap,52,17,False
+bbh,extrap,107,21,False
+commonsense,extrap,21,9,False
+gpqa,extrap,106,21,False
+gsm,extrap,21,11,False
+ifeval,extrap,107,24,False
+legalbench,extrap,19,19,False
+math,extrap,20,6,False
+med_qa,extrap,21,8,False
+mmlu,extrap,21,8,False
+mmlu_pro,extrap,107,17,False
+musr,extrap,104,29,False
+openllm_math,extrap,93,14,False

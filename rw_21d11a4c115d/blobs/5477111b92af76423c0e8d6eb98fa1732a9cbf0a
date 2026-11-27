@@ -1,0 +1,98 @@
+% Entries written by idea-repo from search metadata and memory; entries with "and others" or no pages need the full author list / pages checked against the source (arXiv/DOI) by the report role before submission.
+@article{candes2009exact,
+  author={Cand{\`e}s, Emmanuel J. and Recht, Benjamin},
+  title={Exact Matrix Completion via Convex Optimization},
+  journal={Foundations of Computational Mathematics}, volume={9}, pages={717--772}, year={2009}}
+@article{mazumder2010spectral,
+  author={Mazumder, Rahul and Hastie, Trevor and Tibshirani, Robert},
+  title={Spectral Regularization Algorithms for Learning Large Incomplete Matrices},
+  journal={Journal of Machine Learning Research}, volume={11}, pages={2287--2322}, year={2010}}
+@article{tipping1999probabilistic,
+  author={Tipping, Michael E. and Bishop, Christopher M.},
+  title={Probabilistic Principal Component Analysis},
+  journal={Journal of the Royal Statistical Society: Series B}, volume={61}, number={3}, pages={611--622}, year={1999}}
+@inproceedings{salakhutdinov2007pmf,
+  author={Salakhutdinov, Ruslan and Mnih, Andriy},
+  title={Probabilistic Matrix Factorization},
+  booktitle={Advances in Neural Information Processing Systems 20}, year={2007}}
+@inproceedings{hernandezlobato2014pmf,
+  author={Hern{\'a}ndez-Lobato, Jos{\'e} Miguel and Houlsby, Neil and Ghahramani, Zoubin},
+  title={Probabilistic Matrix Factorization with Non-random Missing Data},
+  booktitle={Proceedings of the 31st International Conference on Machine Learning}, series={PMLR 32}, year={2014}}
+@article{udell2016glrm,
+  author={Udell, Madeleine and Horn, Corinne and Zadeh, Reza and Boyd, Stephen},
+  title={Generalized Low Rank Models},
+  journal={Foundations and Trends in Machine Learning}, volume={9}, number={1}, pages={1--118}, year={2016}}
+@article{mahoney2009cur,
+  author={Mahoney, Michael W. and Drineas, Petros},
+  title={{CUR} matrix decompositions for improved data analysis},
+  journal={Proceedings of the National Academy of Sciences}, volume={106}, number={3}, pages={697--702}, year={2009}}
+@inproceedings{krause2005sensors,
+  author={Guestrin, Carlos and Krause, Andreas and Singh, Ajit P.},
+  title={Near-optimal sensor placements in {G}aussian processes},
+  booktitle={Proceedings of the 22nd International Conference on Machine Learning}, year={2005}}
+@inproceedings{das2011submodular,
+  author={Das, Abhimanyu and Kempe, David},
+  title={Submodular meets Spectral: Greedy Algorithms for Subset Selection, Sparse Approximation and Dictionary Selection},
+  booktitle={Proceedings of the 28th International Conference on Machine Learning}, year={2011}, note={arXiv:1102.3975}}
+@article{ranieri2014framesense,
+  author={Ranieri, Juri and Chebira, Amina and Vetterli, Martin},
+  title={Near-Optimal Sensor Placement for Linear Inverse Problems},
+  journal={IEEE Transactions on Signal Processing}, volume={62}, number={5}, pages={1135--1146}, year={2014}}
+@article{elahi2016active,
+  author={Elahi, Mehdi and Ricci, Francesco and Rubens, Neil},
+  title={A survey of active learning in collaborative filtering recommender systems},
+  journal={Computer Science Review}, volume={20}, pages={29--50}, year={2016}}
+@misc{polo2024tiny,
+  author={Polo, Felipe Maia and others}, title={tinyBenchmarks: evaluating {LLMs} with fewer examples}, year={2024}, note={arXiv:2402.14992}}
+@misc{kipnis2024metabench,
+  author={Kipnis, Alex and others}, title={metabench -- A Sparse Benchmark of Reasoning and Knowledge in Large Language Models}, year={2024}, note={arXiv:2407.12844}}
+@misc{perlitz2024benchbench,
+  author={Perlitz, Yotam and others}, title={Do These {LLM} Benchmarks Agree? Fixing Benchmark Evaluation with {BenchBench}}, year={2024}, note={arXiv:2407.13696}}
+@inproceedings{perlitz2024efficient,
+  author={Perlitz, Yotam and others}, title={Efficient Benchmarking (of Language Models)},
+  booktitle={Proceedings of NAACL}, year={2024}}
+@inproceedings{vivek2024anchor,
+  author={Vivek, Rajan and others}, title={Anchor Points: Benchmarking Models with Much Fewer Examples},
+  booktitle={Proceedings of EACL}, year={2024}}
+@inproceedings{ruan2024observational,
+  author={Ruan, Yangjun and Maddison, Chris J. and Hashimoto, Tatsunori}, title={Observational Scaling Laws and the Predictability of Language Model Performance},
+  booktitle={Advances in Neural Information Processing Systems 37}, year={2024}}
+@misc{polo2024sloth,
+  author={Polo, Felipe Maia and others}, title={Sloth: scaling laws for {LLM} skills to predict multi-benchmark performance across families}, year={2024}, note={arXiv:2412.06540}}
+@misc{fluid2025,
+  title={Fluid Language Model Benchmarking}, year={2025}, note={arXiv:2509.11106}}
+@misc{muennighoff2022mteb,
+  author={Muennighoff, Niklas and Tazi, Nouamane and Magne, Lo{\"i}c and Reimers, Nils}, title={{MTEB}: Massive Text Embedding Benchmark}, year={2022}, note={arXiv:2210.07316}}
+@misc{liang2022helm,
+  author={Liang, Percy and others}, title={Holistic Evaluation of Language Models}, year={2022}, note={arXiv:2211.09110}}
+@misc{hendrycks2020mmlu,
+  author={Hendrycks, Dan and others}, title={Measuring Massive Multitask Language Understanding}, year={2020}, note={arXiv:2009.03300}}
+@misc{zheng2023judge,
+  author={Zheng, Lianmin and others}, title={Judging {LLM}-as-a-judge with {MT-Bench} and Chatbot Arena}, year={2023}, note={arXiv:2306.05685}}
+@misc{zhuo2024bigcodebench,
+  author={Zhuo, Terry Yue and others}, title={{BigCodeBench}: Benchmarking Code Generation with Diverse Function Calls and Complex Instructions}, year={2024}, note={arXiv:2406.15877}}
+@inproceedings{bian2017greedy,
+  author={Bian, Andrew An and Buhmann, Joachim M. and Krause, Andreas and Tschiatschek, Sebastian},
+  title={Guarantees for Greedy Maximization of Non-submodular Functions with Applications},
+  booktitle={Proceedings of the 34th International Conference on Machine Learning}, year={2017}, note={arXiv:1703.02100}}
+
+@article{tropp2012user,
+  author  = {Tropp, Joel A.},
+  title   = {User-Friendly Tail Bounds for Sums of Random Matrices},
+  journal = {Foundations of Computational Mathematics},
+  volume  = {12},
+  number  = {4},
+  pages   = {389--434},
+  year    = {2012},
+  doi     = {10.1007/s10208-011-9099-z},
+  note    = {arXiv:1004.4389. Theorem 1.1 and Remark 5.3 read in the arXiv v7 text.}
+}
+
+@article{gross2010note,
+  author  = {Gross, David and Nesme, Vincent},
+  title   = {Note on sampling without replacing from a finite collection of matrices},
+  journal = {arXiv preprint arXiv:1001.2738},
+  year    = {2010},
+  note    = {Only the abstract was read; read the statement before use.}
+}

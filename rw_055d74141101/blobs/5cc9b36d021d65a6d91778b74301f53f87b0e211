@@ -1,0 +1,92 @@
+dataset,design,N,n_models,density,tie_rate,n_clusters,n_boot,seed,cluster_unit,version,sha256,synthetic
+arena55k,crowd,57477,64,0.63244,0.309011,51734,500,0,battle (prompt),HF lmarena-ai/arena-human-preference-55k @ 18c2983,0692154aaf20fc6649090c3f49b6b5dd1e693a765ecb5f0856ae0da5946f5be2,0
+arena_single,crowd,49938,64,0.631448,0.313208,51734,500,0,battle (prompt),HF lmarena-ai/arena-human-preference-55k @ 18c2983,0692154aaf20fc6649090c3f49b6b5dd1e693a765ecb5f0856ae0da5946f5be2,0
+arena_judge_Athene-70B,llm_judge,49938,64,0.631448,0.0395891,51734,500,0,battle (prompt),HF potsawee/chatbot-arena-llm-judges @ 638a7e3 (+ arena-55k @ 18c2983),6ed8793f61931637b65c1f348e8cb3a050996eef2a8c5c37c0b42fcfe465c8f3,0
+arena_judge_Hermes-3-Llama-3.1-70B,llm_judge,49938,64,0.631448,0.0599944,51734,500,0,battle (prompt),HF potsawee/chatbot-arena-llm-judges @ 638a7e3 (+ arena-55k @ 18c2983),6ed8793f61931637b65c1f348e8cb3a050996eef2a8c5c37c0b42fcfe465c8f3,0
+arena_judge_Meta-Llama-3-70B-Instruct,llm_judge,49938,64,0.631448,0.0521246,51734,500,0,battle (prompt),HF potsawee/chatbot-arena-llm-judges @ 638a7e3 (+ arena-55k @ 18c2983),6ed8793f61931637b65c1f348e8cb3a050996eef2a8c5c37c0b42fcfe465c8f3,0
+arena_judge_Meta-Llama-3-8B-Instruct,llm_judge,49938,64,0.631448,0.0173015,51734,500,0,battle (prompt),HF potsawee/chatbot-arena-llm-judges @ 638a7e3 (+ arena-55k @ 18c2983),6ed8793f61931637b65c1f348e8cb3a050996eef2a8c5c37c0b42fcfe465c8f3,0
+arena_judge_Meta-Llama-3-8B,llm_judge,49938,64,0.631448,0.0315792,51734,500,0,battle (prompt),HF potsawee/chatbot-arena-llm-judges @ 638a7e3 (+ arena-55k @ 18c2983),6ed8793f61931637b65c1f348e8cb3a050996eef2a8c5c37c0b42fcfe465c8f3,0
+arena_judge_Mistral-7B-Instruct-v0.1,llm_judge,49938,64,0.631448,0.00813008,51734,500,0,battle (prompt),HF potsawee/chatbot-arena-llm-judges @ 638a7e3 (+ arena-55k @ 18c2983),6ed8793f61931637b65c1f348e8cb3a050996eef2a8c5c37c0b42fcfe465c8f3,0
+arena_judge_Mistral-7B-Instruct-v0.2,llm_judge,49938,64,0.631448,0.00702872,51734,500,0,battle (prompt),HF potsawee/chatbot-arena-llm-judges @ 638a7e3 (+ arena-55k @ 18c2983),6ed8793f61931637b65c1f348e8cb3a050996eef2a8c5c37c0b42fcfe465c8f3,0
+arena_judge_Mistral-7B-OpenOrca,llm_judge,49938,64,0.631448,0.011274,51734,500,0,battle (prompt),HF potsawee/chatbot-arena-llm-judges @ 638a7e3 (+ arena-55k @ 18c2983),6ed8793f61931637b65c1f348e8cb3a050996eef2a8c5c37c0b42fcfe465c8f3,0
+arena_judge_Mixtral-8x7B-Instruct-v0.1,llm_judge,49938,64,0.631448,0.0542873,51734,500,0,battle (prompt),HF potsawee/chatbot-arena-llm-judges @ 638a7e3 (+ arena-55k @ 18c2983),6ed8793f61931637b65c1f348e8cb3a050996eef2a8c5c37c0b42fcfe465c8f3,0
+arena_judge_OpenHermes-2-Mistral-7B,llm_judge,49938,64,0.631448,0.0153991,44256,500,0,battle (prompt),HF potsawee/chatbot-arena-llm-judges @ 638a7e3 (+ arena-55k @ 18c2983),6ed8793f61931637b65c1f348e8cb3a050996eef2a8c5c37c0b42fcfe465c8f3,0
+arena_judge_OpenHermes-2.5-Mistral-7B,llm_judge,49938,64,0.631448,0.0237294,44256,500,0,battle (prompt),HF potsawee/chatbot-arena-llm-judges @ 638a7e3 (+ arena-55k @ 18c2983),6ed8793f61931637b65c1f348e8cb3a050996eef2a8c5c37c0b42fcfe465c8f3,0
+arena_judge_Qwen2-72B-Instruct,llm_judge,49938,64,0.631448,0.259842,44256,500,0,battle (prompt),HF potsawee/chatbot-arena-llm-judges @ 638a7e3 (+ arena-55k @ 18c2983),6ed8793f61931637b65c1f348e8cb3a050996eef2a8c5c37c0b42fcfe465c8f3,0
+arena_judge_StableBeluga-7B,llm_judge,49938,64,0.631448,0.0148184,44256,500,0,battle (prompt),HF potsawee/chatbot-arena-llm-judges @ 638a7e3 (+ arena-55k @ 18c2983),6ed8793f61931637b65c1f348e8cb3a050996eef2a8c5c37c0b42fcfe465c8f3,0
+arena_judge_Starling-LM-7B-alpha,llm_judge,49938,64,0.631448,0.036265,44256,500,0,battle (prompt),HF potsawee/chatbot-arena-llm-judges @ 638a7e3 (+ arena-55k @ 18c2983),6ed8793f61931637b65c1f348e8cb3a050996eef2a8c5c37c0b42fcfe465c8f3,0
+arena_judge_dolphin-2.1-mistral-7b,llm_judge,49938,64,0.631448,0.0462373,44256,500,0,battle (prompt),HF potsawee/chatbot-arena-llm-judges @ 638a7e3 (+ arena-55k @ 18c2983),6ed8793f61931637b65c1f348e8cb3a050996eef2a8c5c37c0b42fcfe465c8f3,0
+arena_judge_dolphin-2.5-mixtral-8x7b,llm_judge,49938,64,0.631448,0.013677,44256,500,0,battle (prompt),HF potsawee/chatbot-arena-llm-judges @ 638a7e3 (+ arena-55k @ 18c2983),6ed8793f61931637b65c1f348e8cb3a050996eef2a8c5c37c0b42fcfe465c8f3,0
+arena_judge_zephyr-7b-beta,llm_judge,49938,64,0.631448,0.0412912,44256,500,0,battle (prompt),HF potsawee/chatbot-arena-llm-judges @ 638a7e3 (+ arena-55k @ 18c2983),6ed8793f61931637b65c1f348e8cb3a050996eef2a8c5c37c0b42fcfe465c8f3,0
+mtbench_gpt4,llm_judge,2400,6,1,0.25,80,500,0,question,HF lmsys/mt_bench_human_judgments @ f7d2896,4877bc46a40929f4082c3c79593700fb897b1d6c7f4c473032694a01322f5769,0
+mtbench_gpt4_matched,llm_judge,1814,6,1,0.248071,80,500,0,question,HF lmsys/mt_bench_human_judgments @ f7d2896,4877bc46a40929f4082c3c79593700fb897b1d6c7f4c473032694a01322f5769,0
+mtbench_human,expert,3355,6,1,0.232489,80,500,0,question,HF lmsys/mt_bench_human_judgments @ f7d2896,4877bc46a40929f4082c3c79593700fb897b1d6c7f4c473032694a01322f5769,0
+nba_1947,sports,331,11,1,0,331,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1948,sports,192,8,1,0,192,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1949,sports,360,12,1,0,360,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1950,sports,561,17,1,0,561,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1951,sports,354,11,1,0,354,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1952,sports,330,10,1,0,330,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1953,sports,351,10,1,0,351,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1954,sports,324,9,1,0,324,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1955,sports,288,8,1,0,288,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1956,sports,288,8,1,0,288,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1957,sports,288,8,1,0,288,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1958,sports,288,8,1,0,288,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1959,sports,288,8,1,0,288,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1960,sports,300,8,1,0,300,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1961,sports,316,8,1,0,316,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1962,sports,360,9,1,0,360,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1963,sports,360,9,1,0,360,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1964,sports,360,9,1,0,360,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1965,sports,360,9,1,0,360,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1966,sports,360,9,1,0,360,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1967,sports,405,10,1,0,405,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1968,sports,492,12,1,0,492,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1969,sports,574,14,1,0,574,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1970,sports,574,14,1,0,574,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1971,sports,697,17,1,0,697,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1972,sports,697,17,1,0,697,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1973,sports,697,17,1,0,697,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1974,sports,697,17,1,0,697,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1975,sports,738,18,1,0,738,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1976,sports,738,18,1,0,738,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1977,sports,902,22,1,0,902,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1978,sports,902,22,1,0,902,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1979,sports,902,22,1,0,902,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1980,sports,902,22,1,0,902,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1981,sports,943,23,1,0,943,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1982,sports,943,23,1,0,943,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1983,sports,943,23,1,0,943,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1984,sports,943,23,1,0,943,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1985,sports,943,23,1,0,943,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1986,sports,943,23,1,0,943,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1987,sports,943,23,1,0,943,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1988,sports,943,23,1,0,943,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1989,sports,1025,25,1,0,1025,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1990,sports,1107,27,1,0,1107,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1991,sports,1107,27,1,0,1107,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1992,sports,1107,27,1,0,1107,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1993,sports,1107,27,1,0,1107,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1994,sports,1107,27,1,0,1107,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1995,sports,1107,27,1,0,1107,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1996,sports,1189,29,1,0,1189,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1997,sports,1189,29,1,0,1189,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1998,sports,1189,29,1,0,1189,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_1999,sports,725,29,0.689655,0,725,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_2000,sports,1189,29,1,0,1189,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_2001,sports,1189,29,1,0,1189,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_2002,sports,1189,29,1,0,1189,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_2003,sports,1189,29,1,0,1189,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_2004,sports,1189,29,1,0,1189,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_2005,sports,1230,30,1,0,1230,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_2006,sports,1230,30,1,0,1230,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_2007,sports,1230,30,1,0,1230,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_2008,sports,1230,30,1,0,1230,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_2009,sports,1230,30,1,0,1230,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_2010,sports,1230,30,1,0,1230,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_2011,sports,1230,30,1,0,1230,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_2012,sports,990,30,1,0,990,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_2013,sports,1229,30,1,0,1229,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_2014,sports,1230,30,1,0,1230,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0
+nba_2015,sports,1230,30,1,0,1230,500,0,game,GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv,d46ed3540ee8d9eca31b3e94cc8c777e0be5156173d814ebf65b8195e8d616bc,0

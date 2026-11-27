@@ -1,0 +1,371 @@
+split,cls,held_out,suite,baseline,chosen,ratio,ci_lo,ci_hi,n_bench
+extrap,anchor,arc_challenge,,uniform|mean,anchor|diff-ridge,0.5078589621650507,,,1
+extrap,anchor,bbh,,uniform|mean,anchor|diff-ridge,0.9170889324029271,,,1
+extrap,anchor,commonsense,,uniform|mean,anchor|diff-ridge,0.566144124521221,,,1
+extrap,anchor,gpqa,,uniform|mean,anchor|diff-ridge,0.6587057046862028,,,1
+extrap,anchor,gsm,,uniform|mean,anchor|diff-ridge,0.8315078258166372,,,1
+extrap,anchor,ifeval,,uniform|mean,anchor|diff-ridge,0.7627842352763469,,,1
+extrap,anchor,legalbench,,uniform|mean,anchor|diff-ridge,0.7458129551408914,,,1
+extrap,anchor,math,,uniform|mean,anchor|diff-ridge,0.9273502773041065,,,1
+extrap,anchor,med_qa,,uniform|mean,anchor|diff-ridge,1.1675944478472626,,,1
+extrap,anchor,mmlu,,uniform|mean,anchor|diff-ridge,0.4987192211829393,,,1
+extrap,anchor,mmlu_pro,,uniform|mean,anchor|diff-ridge,1.5234962757527983,,,1
+extrap,anchor,musr,,uniform|mean,anchor|diff-ridge,0.41945516050778814,,,1
+extrap,anchor,openllm_math,,uniform|mean,anchor|diff-ridge,2.3627057044401423,,,1
+extrap,anchor,ALL,all,uniform|mean,"1 distinct, mode anchor|diff-ridge",0.8122547645395957,0.7624166792273915,0.8453477729215368,13
+extrap,anchor,ALL,OLL,uniform|mean,"1 distinct, mode anchor|diff-ridge",0.8618960620478919,0.7999273730160867,0.8971403450750187,7
+extrap,anchor,ALL,HELM,uniform|mean,"1 distinct, mode anchor|diff-ridge",0.7579418145020488,0.6824968556143015,0.8197700434363558,6
+extrap,anchor,POSTHOC,all,uniform|mean,anchor|diff-ridge,0.8122547645395957,0.7624166792273915,0.8453477729215368,13
+extrap,anchor,POSTHOC,OLL,uniform|mean,anchor|diff-ridge,0.8618960620478919,0.7999273730160867,0.8971403450750187,7
+extrap,anchor,POSTHOC,HELM,uniform|mean,anchor|diff-ridge,0.7579418145020488,0.6824968556143015,0.8197700434363558,6
+extrap,anchor,ALL,all,strat|mean,"1 distinct, mode anchor|diff-ridge",0.9645237557102813,0.9031499354475392,1.0000506478481264,13
+extrap,anchor,ALL,OLL,strat|mean,"1 distinct, mode anchor|diff-ridge",1.016256060565046,0.9393514653777811,1.059101940930735,7
+extrap,anchor,ALL,HELM,strat|mean,"1 distinct, mode anchor|diff-ridge",0.9074882387602919,0.821231081394801,0.972896477911137,6
+extrap,anchor,POSTHOC,all,strat|mean,anchor|diff-ridge,0.9645237557102813,0.9031499354475392,1.0000506478481264,13
+extrap,anchor,POSTHOC,OLL,strat|mean,anchor|diff-ridge,1.016256060565046,0.9393514653777811,1.059101940930735,7
+extrap,anchor,POSTHOC,HELM,strat|mean,anchor|diff-ridge,0.9074882387602919,0.821231081394801,0.972896477911137,6
+extrap,"design-based (mean, calreg)",arc_challenge,,uniform|mean,balanced|mean,0.689451595173556,,,1
+extrap,"design-based (mean, calreg)",bbh,,uniform|mean,balanced|mean,0.7633069320022442,,,1
+extrap,"design-based (mean, calreg)",commonsense,,uniform|mean,balanced|mean,0.782893052814758,,,1
+extrap,"design-based (mean, calreg)",gpqa,,uniform|mean,balanced|mean,0.8149923221302164,,,1
+extrap,"design-based (mean, calreg)",gsm,,uniform|mean,balanced|mean,0.8087657422714335,,,1
+extrap,"design-based (mean, calreg)",ifeval,,uniform|mean,balanced|calreg,1.1187274245297045,,,1
+extrap,"design-based (mean, calreg)",legalbench,,uniform|mean,balanced|mean,0.6447961947710916,,,1
+extrap,"design-based (mean, calreg)",math,,uniform|mean,balanced|mean,0.8537830016633033,,,1
+extrap,"design-based (mean, calreg)",med_qa,,uniform|mean,balanced|mean,0.7830538362685326,,,1
+extrap,"design-based (mean, calreg)",mmlu,,uniform|mean,balanced|mean,0.6347255715487848,,,1
+extrap,"design-based (mean, calreg)",mmlu_pro,,uniform|mean,balanced|mean,0.8691317917130039,,,1
+extrap,"design-based (mean, calreg)",musr,,uniform|mean,balanced|mean,0.6007950786583427,,,1
+extrap,"design-based (mean, calreg)",openllm_math,,uniform|mean,balanced|mean,0.8949317540612607,,,1
+extrap,"design-based (mean, calreg)",ALL,all,uniform|mean,"2 distinct, mode balanced|mean",0.7789128763551652,0.7632206972331615,0.7937287542879669,13
+extrap,"design-based (mean, calreg)",ALL,OLL,uniform|mean,"2 distinct, mode balanced|mean",0.8076819680394992,0.7884126287951632,0.8261146245892923,7
+extrap,"design-based (mean, calreg)",ALL,HELM,uniform|mean,"2 distinct, mode balanced|mean",0.7466415060765652,0.7216476582461553,0.7721399792138656,6
+extrap,"design-based (mean, calreg)",POSTHOC,all,uniform|mean,balanced|mean,0.7548026869232825,0.7414339736131188,0.7689340397180646,13
+extrap,"design-based (mean, calreg)",POSTHOC,OLL,uniform|mean,balanced|mean,0.7618689486134168,0.7507394432336032,0.7751918608433761,7
+extrap,"design-based (mean, calreg)",POSTHOC,HELM,uniform|mean,balanced|mean,0.7466415060765652,0.7216476582461553,0.7721399792138656,6
+extrap,"design-based (mean, calreg)",ALL,all,strat|mean,"2 distinct, mode balanced|mean",0.924931444753081,0.9064389383907716,0.942226585482842,13
+extrap,"design-based (mean, calreg)",ALL,OLL,strat|mean,"2 distinct, mode balanced|mean",0.9523325736968452,0.930537004439586,0.9712245626929807,7
+extrap,"design-based (mean, calreg)",ALL,HELM,strat|mean,"2 distinct, mode balanced|mean",0.8939583123275784,0.8646280391308406,0.9239407689997446,6
+extrap,"design-based (mean, calreg)",POSTHOC,all,strat|mean,balanced|mean,0.896301448996876,0.8804377310176623,0.9114396858572043,13
+extrap,"design-based (mean, calreg)",POSTHOC,OLL,strat|mean,balanced|mean,0.8983147394188724,0.8855008747417356,0.910425441793008,7
+extrap,"design-based (mean, calreg)",POSTHOC,HELM,strat|mean,balanced|mean,0.8939583123275784,0.8646280391308406,0.9239407689997446,6
+extrap,difference-corrected,arc_challenge,,uniform|mean,pps|diff-ridge,0.7155974992254812,,,1
+extrap,difference-corrected,bbh,,uniform|mean,pps|diff-irt,0.9598985566720837,,,1
+extrap,difference-corrected,commonsense,,uniform|mean,balanced|diff-irt,0.861470100310853,,,1
+extrap,difference-corrected,gpqa,,uniform|mean,balanced|diff-knn,0.684972550658883,,,1
+extrap,difference-corrected,gsm,,uniform|mean,balanced|diff-knn,0.8148920175875646,,,1
+extrap,difference-corrected,ifeval,,uniform|mean,balanced|diff-knn,0.8593336084543978,,,1
+extrap,difference-corrected,legalbench,,uniform|mean,pps|diff-irt,0.7440447084529332,,,1
+extrap,difference-corrected,math,,uniform|mean,pps|diff-ridge,0.8085862804785312,,,1
+extrap,difference-corrected,med_qa,,uniform|mean,pps|diff-ridge,0.8064739738796308,,,1
+extrap,difference-corrected,mmlu,,uniform|mean,pps|diff-ridge,0.6314281761770608,,,1
+extrap,difference-corrected,mmlu_pro,,uniform|mean,pps|diff-ridge,1.1408489447080454,,,1
+extrap,difference-corrected,musr,,uniform|mean,balanced|diff-knn,0.41474611582177245,,,1
+extrap,difference-corrected,openllm_math,,uniform|mean,balanced|diff-knn,0.9850543350781629,,,1
+extrap,difference-corrected,ALL,all,uniform|mean,"4 distinct, mode balanced|diff-knn",0.7814588892439012,0.7508278289941354,0.8017250013983925,13
+extrap,difference-corrected,ALL,OLL,uniform|mean,"4 distinct, mode balanced|diff-knn",0.7878746206916966,0.7507366006454418,0.8124462716877558,7
+extrap,difference-corrected,ALL,HELM,uniform|mean,"4 distinct, mode balanced|diff-knn",0.77403986973086,0.7297388973948467,0.8159937462541238,6
+extrap,difference-corrected,POSTHOC,all,uniform|mean,pps|diff-ridge,0.7292715881538021,0.7048017796879009,0.7482977642635477,13
+extrap,difference-corrected,POSTHOC,OLL,uniform|mean,pps|diff-ridge,0.7397941161786847,0.7049593869667896,0.7617309677209703,7
+extrap,difference-corrected,POSTHOC,HELM,uniform|mean,pps|diff-ridge,0.7171843194120698,0.6826523814780177,0.7541227946364705,6
+extrap,difference-corrected,ALL,all,strat|mean,"4 distinct, mode balanced|diff-knn",0.9279547448563711,0.8897194127598113,0.9532840707399544,13
+extrap,difference-corrected,ALL,OLL,strat|mean,"4 distinct, mode balanced|diff-knn",0.9289778588161514,0.882368281861784,0.9566042832035736,7
+extrap,difference-corrected,ALL,HELM,strat|mean,"4 distinct, mode balanced|diff-knn",0.9267625359524287,0.8743217744490281,0.9739751163746028,6
+extrap,difference-corrected,POSTHOC,all,strat|mean,pps|diff-ridge,0.8659841737433323,0.8346118639633587,0.8882994735056912,13
+extrap,difference-corrected,POSTHOC,OLL,strat|mean,pps|diff-ridge,0.8722864475684013,0.8266736059606301,0.896751523384633,7
+extrap,difference-corrected,POSTHOC,HELM,strat|mean,pps|diff-ridge,0.8586890476775493,0.817352076995582,0.9007031180373674,6
+extrap,info/adaptive selection,arc_challenge,,uniform|mean,cat|diff-irt,0.2926396819133592,,,1
+extrap,info/adaptive selection,bbh,,uniform|mean,cat|diff-irt,1.5809453743812403,,,1
+extrap,info/adaptive selection,commonsense,,uniform|mean,cat|diff-irt,0.40570886451225596,,,1
+extrap,info/adaptive selection,gpqa,,uniform|mean,cat|diff-irt,0.8300834084215195,,,1
+extrap,info/adaptive selection,gsm,,uniform|mean,cat|diff-irt,0.6355831659164041,,,1
+extrap,info/adaptive selection,ifeval,,uniform|mean,cat|diff-irt,0.7839455077610585,,,1
+extrap,info/adaptive selection,legalbench,,uniform|mean,cat|diff-knn,2.0212090275908707,,,1
+extrap,info/adaptive selection,math,,uniform|mean,cat|diff-irt,0.5043612207934199,,,1
+extrap,info/adaptive selection,med_qa,,uniform|mean,cat|diff-irt,0.5521364853134887,,,1
+extrap,info/adaptive selection,mmlu,,uniform|mean,cat|diff-irt,0.4503735031347587,,,1
+extrap,info/adaptive selection,mmlu_pro,,uniform|mean,cat|diff-irt,3.064335735348828,,,1
+extrap,info/adaptive selection,musr,,uniform|mean,cat|diff-irt,0.37607490534062016,,,1
+extrap,info/adaptive selection,openllm_math,,uniform|mean,cat|diff-irt,0.9042394971191822,,,1
+extrap,info/adaptive selection,ALL,all,uniform|mean,"2 distinct, mode cat|diff-irt",0.741561194680766,0.6682971413441837,0.7855766649944851,13
+extrap,info/adaptive selection,ALL,OLL,uniform|mean,"2 distinct, mode cat|diff-irt",0.8473812255369316,0.760813693690713,0.8984414218441558,7
+extrap,info/adaptive selection,ALL,HELM,uniform|mean,"2 distinct, mode cat|diff-irt",0.6346873555597049,0.539232696807865,0.7102803623039081,6
+extrap,info/adaptive selection,POSTHOC,all,uniform|mean,cat|diff-irt,0.7131872058930088,0.6402169433723861,0.7548842933010969,13
+extrap,info/adaptive selection,POSTHOC,OLL,uniform|mean,cat|diff-irt,0.8473812255369316,0.760813693690713,0.8984414218441558,7
+extrap,info/adaptive selection,POSTHOC,HELM,uniform|mean,cat|diff-irt,0.5832423269218896,0.4938947342979604,0.6539399243218751,6
+extrap,info/adaptive selection,ALL,all,strat|mean,"2 distinct, mode cat|diff-irt",0.880577646088561,0.7936395772923013,0.9318751582774879,13
+extrap,info/adaptive selection,ALL,OLL,strat|mean,"2 distinct, mode cat|diff-irt",0.9991417109097918,0.8915135760094939,1.0605578237150284,7
+extrap,info/adaptive selection,ALL,HELM,strat|mean,"2 distinct, mode cat|diff-irt",0.759914942598469,0.6464429215896424,0.8506352642379083,6
+extrap,info/adaptive selection,POSTHOC,all,strat|mean,cat|diff-irt,0.8468845396583863,0.7598121286761853,0.8958961959724308,13
+extrap,info/adaptive selection,POSTHOC,OLL,strat|mean,cat|diff-irt,0.9991417109097918,0.8915135760094939,1.0605578237150284,7
+extrap,info/adaptive selection,POSTHOC,HELM,strat|mean,cat|diff-irt,0.6983195040855862,0.5941213458920893,0.7836305128743191,6
+extrap,model-based,arc_challenge,,uniform|mean,balanced|ridge-plugin,0.7140374740674262,,,1
+extrap,model-based,bbh,,uniform|mean,balanced|ridge-plugin,1.0338842766573744,,,1
+extrap,model-based,commonsense,,uniform|mean,balanced|ridge-plugin,0.8611924140656162,,,1
+extrap,model-based,gpqa,,uniform|mean,balanced|ridge-plugin,0.6365629389907803,,,1
+extrap,model-based,gsm,,uniform|mean,balanced|ridge-plugin,0.8576649629947156,,,1
+extrap,model-based,ifeval,,uniform|mean,balanced|ridge-plugin,1.1509440725159374,,,1
+extrap,model-based,legalbench,,uniform|mean,balanced|ridge-plugin,0.6068323861825066,,,1
+extrap,model-based,math,,uniform|mean,balanced|ridge-plugin,0.9496421720849062,,,1
+extrap,model-based,med_qa,,uniform|mean,balanced|ridge-plugin,0.9066570865871553,,,1
+extrap,model-based,mmlu,,uniform|mean,balanced|ridge-plugin,0.6872990573152064,,,1
+extrap,model-based,mmlu_pro,,uniform|mean,balanced|ridge-plugin,1.1808340735215084,,,1
+extrap,model-based,musr,,uniform|mean,balanced|ridge-plugin,0.4527604185203417,,,1
+extrap,model-based,openllm_math,,uniform|mean,balanced|ridge-plugin,1.1604395672852985,,,1
+extrap,model-based,ALL,all,uniform|mean,"1 distinct, mode balanced|ridge-plugin",0.8302041618541762,0.7907103997180723,0.8540594047722194,13
+extrap,model-based,ALL,OLL,uniform|mean,"1 distinct, mode balanced|ridge-plugin",0.8555642386996367,0.8015253526743034,0.8870845093874782,7
+extrap,model-based,ALL,HELM,uniform|mean,"1 distinct, mode balanced|ridge-plugin",0.8015659051739761,0.7515392179367711,0.8443199904873026,6
+extrap,model-based,POSTHOC,all,uniform|mean,balanced|ridge-plugin,0.8302041618541762,0.7907103997180723,0.8540594047722194,13
+extrap,model-based,POSTHOC,OLL,uniform|mean,balanced|ridge-plugin,0.8555642386996367,0.8015253526743034,0.8870845093874782,7
+extrap,model-based,POSTHOC,HELM,uniform|mean,balanced|ridge-plugin,0.8015659051739761,0.7515392179367711,0.8443199904873026,6
+extrap,model-based,ALL,all,strat|mean,"1 distinct, mode balanced|ridge-plugin",0.9858380290964257,0.9364359582659275,1.0146626050168202,13
+extrap,model-based,ALL,OLL,strat|mean,"1 distinct, mode balanced|ridge-plugin",1.0087902486934814,0.9413077430090802,1.0457008391421037,7
+extrap,model-based,ALL,HELM,strat|mean,"1 distinct, mode balanced|ridge-plugin",0.9597196217687559,0.8996147850116821,1.0097359728005386,6
+extrap,model-based,POSTHOC,all,strat|mean,balanced|ridge-plugin,0.9858380290964257,0.9364359582659275,1.0146626050168202,13
+extrap,model-based,POSTHOC,OLL,strat|mean,balanced|ridge-plugin,1.0087902486934814,0.9413077430090802,1.0457008391421037,7
+extrap,model-based,POSTHOC,HELM,strat|mean,balanced|ridge-plugin,0.9597196217687559,0.8996147850116821,1.0097359728005386,6
+interp,anchor,arc_challenge,,uniform|mean,anchor|diff-ridge,0.4204221402305256,,,1
+interp,anchor,bbh,,uniform|mean,anchor|diff-ridge,0.520307291421559,,,1
+interp,anchor,commonsense,,uniform|mean,anchor|diff-ridge,0.6266916978392583,,,1
+interp,anchor,gpqa,,uniform|mean,anchor|diff-ridge,0.24786893112764175,,,1
+interp,anchor,gsm,,uniform|mean,anchor|diff-ridge,0.8217249308160485,,,1
+interp,anchor,ifeval,,uniform|mean,anchor|diff-ridge,0.5387176632387649,,,1
+interp,anchor,legalbench,,uniform|mean,anchor|diff-ridge,0.5912913460298642,,,1
+interp,anchor,math,,uniform|mean,anchor|diff-ridge,0.7783732741956981,,,1
+interp,anchor,med_qa,,uniform|mean,anchor|diff-ridge,0.6712995477830176,,,1
+interp,anchor,mmlu,,uniform|mean,anchor|diff-ridge,0.5497629251156388,,,1
+interp,anchor,mmlu_pro,,uniform|mean,anchor|diff-ridge,0.5254489860054405,,,1
+interp,anchor,musr,,uniform|mean,anchor|diff-ridge,0.21337210932710385,,,1
+interp,anchor,openllm_math,,uniform|mean,anchor|diff-ridge,0.5156888753397579,,,1
+interp,anchor,ALL,all,uniform|mean,"1 distinct, mode anchor|diff-ridge",0.5073901502245889,0.4837235144909706,0.5262106022507803,13
+interp,anchor,ALL,OLL,uniform|mean,"1 distinct, mode anchor|diff-ridge",0.40173593577201494,0.38644826904070284,0.41353721457562936,7
+interp,anchor,ALL,HELM,uniform|mean,"1 distinct, mode anchor|diff-ridge",0.6662597964374071,0.6087904158636467,0.718376912418528,6
+interp,anchor,POSTHOC,all,uniform|mean,anchor|diff-ridge,0.5073901502245889,0.4837235144909706,0.5262106022507803,13
+interp,anchor,POSTHOC,OLL,uniform|mean,anchor|diff-ridge,0.40173593577201494,0.38644826904070284,0.41353721457562936,7
+interp,anchor,POSTHOC,HELM,uniform|mean,anchor|diff-ridge,0.6662597964374071,0.6087904158636467,0.718376912418528,6
+interp,anchor,ALL,all,strat|mean,"1 distinct, mode anchor|diff-ridge",0.6314039434810702,0.603687878859605,0.6496311795732722,13
+interp,anchor,ALL,OLL,strat|mean,"1 distinct, mode anchor|diff-ridge",0.4957287627623438,0.4746788788200956,0.5107488389073993,7
+interp,anchor,ALL,HELM,strat|mean,"1 distinct, mode anchor|diff-ridge",0.8372998062952325,0.7746928252079726,0.8875714299072953,6
+interp,anchor,POSTHOC,all,strat|mean,anchor|diff-ridge,0.6314039434810702,0.603687878859605,0.6496311795732722,13
+interp,anchor,POSTHOC,OLL,strat|mean,anchor|diff-ridge,0.4957287627623438,0.4746788788200956,0.5107488389073993,7
+interp,anchor,POSTHOC,HELM,strat|mean,anchor|diff-ridge,0.8372998062952325,0.7746928252079726,0.8875714299072953,6
+interp,"design-based (mean, calreg)",arc_challenge,,uniform|mean,balanced|calreg,0.5442477218404567,,,1
+interp,"design-based (mean, calreg)",bbh,,uniform|mean,balanced|calreg,0.6354996483205533,,,1
+interp,"design-based (mean, calreg)",commonsense,,uniform|mean,balanced|calreg,0.6357932432356349,,,1
+interp,"design-based (mean, calreg)",gpqa,,uniform|mean,balanced|calreg,0.3701238539889369,,,1
+interp,"design-based (mean, calreg)",gsm,,uniform|mean,balanced|calreg,0.7454553175646269,,,1
+interp,"design-based (mean, calreg)",ifeval,,uniform|mean,balanced|calreg,0.6469707372602235,,,1
+interp,"design-based (mean, calreg)",legalbench,,uniform|mean,balanced|calreg,0.6546243800753434,,,1
+interp,"design-based (mean, calreg)",math,,uniform|mean,balanced|calreg,0.762446881347427,,,1
+interp,"design-based (mean, calreg)",med_qa,,uniform|mean,balanced|calreg,0.6945302495634784,,,1
+interp,"design-based (mean, calreg)",mmlu,,uniform|mean,balanced|calreg,0.5446234563322007,,,1
+interp,"design-based (mean, calreg)",mmlu_pro,,uniform|mean,balanced|calreg,0.6652859774013726,,,1
+interp,"design-based (mean, calreg)",musr,,uniform|mean,balanced|calreg,0.2752115808192922,,,1
+interp,"design-based (mean, calreg)",openllm_math,,uniform|mean,balanced|calreg,0.6860560545777884,,,1
+interp,"design-based (mean, calreg)",ALL,all,uniform|mean,"1 distinct, mode balanced|calreg",0.5845731390160542,0.5739810474318581,0.5950849943708724,13
+interp,"design-based (mean, calreg)",ALL,OLL,uniform|mean,"1 distinct, mode balanced|calreg",0.520882492558318,0.5109126803365538,0.53043269773687,7
+interp,"design-based (mean, calreg)",ALL,HELM,uniform|mean,"1 distinct, mode balanced|calreg",0.6687869654241917,0.6489867955740869,0.6911490114296229,6
+interp,"design-based (mean, calreg)",POSTHOC,all,uniform|mean,balanced|calreg,0.5845731390160542,0.5739810474318581,0.5950849943708724,13
+interp,"design-based (mean, calreg)",POSTHOC,OLL,uniform|mean,balanced|calreg,0.520882492558318,0.5109126803365538,0.53043269773687,7
+interp,"design-based (mean, calreg)",POSTHOC,HELM,uniform|mean,balanced|calreg,0.6687869654241917,0.6489867955740869,0.6911490114296229,6
+interp,"design-based (mean, calreg)",ALL,all,strat|mean,"1 distinct, mode balanced|calreg",0.7274516169942735,0.7125063615558747,0.7409423916119038,13
+interp,"design-based (mean, calreg)",ALL,OLL,strat|mean,"1 distinct, mode balanced|calreg",0.6427516450184791,0.627468432516732,0.6548667668763308,7
+interp,"design-based (mean, calreg)",ALL,HELM,strat|mean,"1 distinct, mode balanced|calreg",0.8404757417402715,0.8123716463681476,0.8693581256707019,6
+interp,"design-based (mean, calreg)",POSTHOC,all,strat|mean,balanced|calreg,0.7274516169942735,0.7125063615558747,0.7409423916119038,13
+interp,"design-based (mean, calreg)",POSTHOC,OLL,strat|mean,balanced|calreg,0.6427516450184791,0.627468432516732,0.6548667668763308,7
+interp,"design-based (mean, calreg)",POSTHOC,HELM,strat|mean,balanced|calreg,0.8404757417402715,0.8123716463681476,0.8693581256707019,6
+interp,difference-corrected,arc_challenge,,uniform|mean,balanced|diff-ridge,0.48364110500873625,,,1
+interp,difference-corrected,bbh,,uniform|mean,balanced|diff-ridge,0.537145608159692,,,1
+interp,difference-corrected,commonsense,,uniform|mean,balanced|diff-ridge,0.6668966031882462,,,1
+interp,difference-corrected,gpqa,,uniform|mean,balanced|diff-ridge,0.2896980300382401,,,1
+interp,difference-corrected,gsm,,uniform|mean,balanced|diff-ridge,0.7583271577188591,,,1
+interp,difference-corrected,ifeval,,uniform|mean,balanced|diff-ridge,0.5930712901291489,,,1
+interp,difference-corrected,legalbench,,uniform|mean,balanced|diff-ridge,0.5754092241413336,,,1
+interp,difference-corrected,math,,uniform|mean,balanced|diff-ridge,0.7338437179416489,,,1
+interp,difference-corrected,med_qa,,uniform|mean,balanced|diff-ridge,0.6852405119787627,,,1
+interp,difference-corrected,mmlu,,uniform|mean,balanced|diff-ridge,0.5377756432901588,,,1
+interp,difference-corrected,mmlu_pro,,uniform|mean,balanced|diff-ridge,0.5905129891658855,,,1
+interp,difference-corrected,musr,,uniform|mean,balanced|diff-ridge,0.2370020476105246,,,1
+interp,difference-corrected,openllm_math,,uniform|mean,balanced|diff-ridge,0.6729415345873869,,,1
+interp,difference-corrected,ALL,all,uniform|mean,"1 distinct, mode balanced|diff-ridge",0.5398515169592542,0.5222297564746271,0.5556670718387736,13
+interp,difference-corrected,ALL,OLL,uniform|mean,"1 distinct, mode balanced|diff-ridge",0.4576337867447835,0.4455217394423531,0.46847739268936456,7
+interp,difference-corrected,ALL,HELM,uniform|mean,"1 distinct, mode balanced|diff-ridge",0.6546210189463729,0.6143475079701929,0.6954691479144908,6
+interp,difference-corrected,POSTHOC,all,uniform|mean,balanced|diff-ridge,0.5398515169592542,0.5222297564746271,0.5556670718387736,13
+interp,difference-corrected,POSTHOC,OLL,uniform|mean,balanced|diff-ridge,0.4576337867447835,0.4455217394423531,0.46847739268936456,7
+interp,difference-corrected,POSTHOC,HELM,uniform|mean,balanced|diff-ridge,0.6546210189463729,0.6143475079701929,0.6954691479144908,6
+interp,difference-corrected,ALL,all,strat|mean,"1 distinct, mode balanced|diff-ridge",0.6717993570656274,0.6509502926834282,0.6881547218429871,13
+interp,difference-corrected,ALL,OLL,strat|mean,"1 distinct, mode balanced|diff-ridge",0.5647048488835762,0.5476445034795894,0.5784166264954405,7
+interp,difference-corrected,ALL,HELM,strat|mean,"1 distinct, mode balanced|diff-ridge",0.822673160366925,0.7780231091668318,0.867523102363631,6
+interp,difference-corrected,POSTHOC,all,strat|mean,balanced|diff-ridge,0.6717993570656274,0.6509502926834282,0.6881547218429871,13
+interp,difference-corrected,POSTHOC,OLL,strat|mean,balanced|diff-ridge,0.5647048488835762,0.5476445034795894,0.5784166264954405,7
+interp,difference-corrected,POSTHOC,HELM,strat|mean,balanced|diff-ridge,0.822673160366925,0.7780231091668318,0.867523102363631,6
+interp,info/adaptive selection,arc_challenge,,uniform|mean,cat|diff-knn,0.27263865043087787,,,1
+interp,info/adaptive selection,bbh,,uniform|mean,cat|diff-knn,0.5033649868595044,,,1
+interp,info/adaptive selection,commonsense,,uniform|mean,cat|diff-knn,0.7494444224932328,,,1
+interp,info/adaptive selection,gpqa,,uniform|mean,cat|diff-knn,0.303780239943193,,,1
+interp,info/adaptive selection,gsm,,uniform|mean,cat|diff-knn,0.729712799253519,,,1
+interp,info/adaptive selection,ifeval,,uniform|mean,cat|diff-knn,0.4616241590021192,,,1
+interp,info/adaptive selection,legalbench,,uniform|mean,cat|diff-knn,1.54510882690207,,,1
+interp,info/adaptive selection,math,,uniform|mean,cat|diff-knn,0.6530460990494146,,,1
+interp,info/adaptive selection,med_qa,,uniform|mean,cat|diff-knn,0.5787943580825862,,,1
+interp,info/adaptive selection,mmlu,,uniform|mean,cat|diff-knn,0.35685534593907425,,,1
+interp,info/adaptive selection,mmlu_pro,,uniform|mean,cat|diff-knn,0.6155163025414694,,,1
+interp,info/adaptive selection,musr,,uniform|mean,cat|diff-knn,0.23069415997729154,,,1
+interp,info/adaptive selection,openllm_math,,uniform|mean,cat|diff-knn,0.5134839102262024,,,1
+interp,info/adaptive selection,ALL,all,uniform|mean,"1 distinct, mode cat|diff-knn",0.5104988768953287,0.4676591956179619,0.5357316170954085,13
+interp,info/adaptive selection,ALL,OLL,uniform|mean,"1 distinct, mode cat|diff-knn",0.3912424099242024,0.365149320166937,0.40958812708547776,7
+interp,info/adaptive selection,ALL,HELM,uniform|mean,"1 distinct, mode cat|diff-knn",0.6963086669278784,0.5942039212851898,0.7694215877782017,6
+interp,info/adaptive selection,POSTHOC,all,uniform|mean,cat|diff-knn,0.5104988768953287,0.4676591956179619,0.5357316170954085,13
+interp,info/adaptive selection,POSTHOC,OLL,uniform|mean,cat|diff-knn,0.3912424099242024,0.365149320166937,0.40958812708547776,7
+interp,info/adaptive selection,POSTHOC,HELM,uniform|mean,cat|diff-knn,0.6963086669278784,0.5942039212851898,0.7694215877782017,6
+interp,info/adaptive selection,ALL,all,strat|mean,"1 distinct, mode cat|diff-knn",0.6352724897629424,0.5839297743120081,0.66400893850772,13
+interp,info/adaptive selection,ALL,OLL,strat|mean,"1 distinct, mode cat|diff-knn",0.4827801014095718,0.44849018999034534,0.5064621914972582,7
+interp,info/adaptive selection,ALL,HELM,strat|mean,"1 distinct, mode cat|diff-knn",0.8750627233669154,0.7559141390949473,0.9590743187929358,6
+interp,info/adaptive selection,POSTHOC,all,strat|mean,cat|diff-knn,0.6352724897629424,0.5839297743120081,0.66400893850772,13
+interp,info/adaptive selection,POSTHOC,OLL,strat|mean,cat|diff-knn,0.4827801014095718,0.44849018999034534,0.5064621914972582,7
+interp,info/adaptive selection,POSTHOC,HELM,strat|mean,cat|diff-knn,0.8750627233669154,0.7559141390949473,0.9590743187929358,6
+interp,model-based,arc_challenge,,uniform|mean,balanced|ridge-plugin,0.4825143588472302,,,1
+interp,model-based,bbh,,uniform|mean,balanced|ridge-plugin,0.5434198411141503,,,1
+interp,model-based,commonsense,,uniform|mean,balanced|ridge-plugin,0.7099091805622197,,,1
+interp,model-based,gpqa,,uniform|mean,balanced|ridge-plugin,0.2897365240476526,,,1
+interp,model-based,gsm,,uniform|mean,balanced|ridge-plugin,0.7456484772407548,,,1
+interp,model-based,ifeval,,uniform|mean,balanced|ridge-plugin,0.5929682465412125,,,1
+interp,model-based,legalbench,,uniform|mean,balanced|ridge-plugin,0.5938148922677821,,,1
+interp,model-based,math,,uniform|mean,balanced|ridge-plugin,0.734573977869794,,,1
+interp,model-based,med_qa,,uniform|mean,balanced|ridge-plugin,0.6717573208977808,,,1
+interp,model-based,mmlu,,uniform|mean,balanced|ridge-plugin,0.5176607987208194,,,1
+interp,model-based,mmlu_pro,,uniform|mean,balanced|ridge-plugin,0.5809212967474255,,,1
+interp,model-based,musr,,uniform|mean,balanced|ridge-plugin,0.23685465629428487,,,1
+interp,model-based,openllm_math,,uniform|mean,balanced|ridge-plugin,0.6762233259605619,,,1
+interp,model-based,ALL,all,uniform|mean,"1 distinct, mode balanced|ridge-plugin",0.5405676836072688,0.5199470128601906,0.5582110531737705,13
+interp,model-based,ALL,OLL,uniform|mean,"1 distinct, mode balanced|ridge-plugin",0.4574446378906884,0.4456118204921517,0.4681369880637582,7
+interp,model-based,ALL,HELM,uniform|mean,"1 distinct, mode balanced|ridge-plugin",0.6568207631886407,0.6086609787285441,0.7033211586488562,6
+interp,model-based,POSTHOC,all,uniform|mean,balanced|ridge-plugin,0.5405676836072688,0.5199470128601906,0.5582110531737705,13
+interp,model-based,POSTHOC,OLL,uniform|mean,balanced|ridge-plugin,0.4574446378906884,0.4456118204921517,0.4681369880637582,7
+interp,model-based,POSTHOC,HELM,uniform|mean,balanced|ridge-plugin,0.6568207631886407,0.6086609787285441,0.7033211586488562,6
+interp,model-based,ALL,all,strat|mean,"1 distinct, mode balanced|ridge-plugin",0.6726905656268224,0.6472425652291759,0.6909062277100152,13
+interp,model-based,ALL,OLL,strat|mean,"1 distinct, mode balanced|ridge-plugin",0.5644714454982448,0.5477076052498853,0.5778608360130784,7
+interp,model-based,ALL,HELM,strat|mean,"1 distinct, mode balanced|ridge-plugin",0.8254376156706945,0.7716129924688628,0.8724833769214075,6
+interp,model-based,POSTHOC,all,strat|mean,balanced|ridge-plugin,0.6726905656268224,0.6472425652291759,0.6909062277100152,13
+interp,model-based,POSTHOC,OLL,strat|mean,balanced|ridge-plugin,0.5644714454982448,0.5477076052498853,0.5778608360130784,7
+interp,model-based,POSTHOC,HELM,strat|mean,balanced|ridge-plugin,0.8254376156706945,0.7716129924688628,0.8724833769214075,6
+lineage,anchor,arc_challenge,,uniform|mean,anchor|ridge-model,0.3653931937627082,,,1
+lineage,anchor,bbh,,uniform|mean,anchor|ridge-model,0.5586751127337873,,,1
+lineage,anchor,commonsense,,uniform|mean,anchor|ridge-model,0.8564069765337559,,,1
+lineage,anchor,gpqa,,uniform|mean,anchor|ridge-model,0.26269360305341993,,,1
+lineage,anchor,gsm,,uniform|mean,anchor|ridge-model,0.8233946225046433,,,1
+lineage,anchor,ifeval,,uniform|mean,anchor|ridge-model,0.5536156940653663,,,1
+lineage,anchor,math,,uniform|mean,anchor|ridge-model,0.764263555838021,,,1
+lineage,anchor,med_qa,,uniform|mean,anchor|ridge-model,0.6378825546170281,,,1
+lineage,anchor,mmlu,,uniform|mean,anchor|ridge-model,0.6381611420366008,,,1
+lineage,anchor,mmlu_pro,,uniform|mean,anchor|ridge-model,0.7151126630138013,,,1
+lineage,anchor,musr,,uniform|mean,anchor|ridge-model,0.24834347060953743,,,1
+lineage,anchor,openllm_math,,uniform|mean,anchor|ridge-model,0.5632256907631601,,,1
+lineage,anchor,ALL,all,uniform|mean,"1 distinct, mode anchor|ridge-model",0.5426137768538406,0.5008958865558768,0.5709678213043053,12
+lineage,anchor,ALL,OLL,uniform|mean,"1 distinct, mode anchor|ridge-model",0.43546708507285203,0.40393243601750684,0.45469574864638707,7
+lineage,anchor,ALL,HELM,uniform|mean,"1 distinct, mode anchor|ridge-model",0.7383129583325874,0.631013536414094,0.8274887333800984,5
+lineage,anchor,POSTHOC,all,uniform|mean,anchor|ridge-model,0.5426137768538406,0.5008958865558768,0.5709678213043053,12
+lineage,anchor,POSTHOC,OLL,uniform|mean,anchor|ridge-model,0.43546708507285203,0.40393243601750684,0.45469574864638707,7
+lineage,anchor,POSTHOC,HELM,uniform|mean,anchor|ridge-model,0.7383129583325874,0.631013536414094,0.8274887333800984,5
+lineage,anchor,ALL,all,strat|mean,"1 distinct, mode anchor|ridge-model",0.6537689263592169,0.6062752954539933,0.6834215222489846,12
+lineage,anchor,ALL,OLL,strat|mean,"1 distinct, mode anchor|ridge-model",0.5241638253680994,0.48643327873922754,0.5477699284782499,7
+lineage,anchor,ALL,HELM,strat|mean,"1 distinct, mode anchor|ridge-model",0.890767567100215,0.774140792120592,0.9842662173400628,5
+lineage,anchor,POSTHOC,all,strat|mean,anchor|ridge-model,0.6537689263592169,0.6062752954539933,0.6834215222489846,12
+lineage,anchor,POSTHOC,OLL,strat|mean,anchor|ridge-model,0.5241638253680994,0.48643327873922754,0.5477699284782499,7
+lineage,anchor,POSTHOC,HELM,strat|mean,anchor|ridge-model,0.890767567100215,0.774140792120592,0.9842662173400628,5
+lineage,"design-based (mean, calreg)",arc_challenge,,uniform|mean,balanced|calreg,0.5274167018368561,,,1
+lineage,"design-based (mean, calreg)",bbh,,uniform|mean,balanced|calreg,0.6841975212580439,,,1
+lineage,"design-based (mean, calreg)",commonsense,,uniform|mean,balanced|calreg,0.6818332039810083,,,1
+lineage,"design-based (mean, calreg)",gpqa,,uniform|mean,balanced|calreg,0.39073602634478066,,,1
+lineage,"design-based (mean, calreg)",gsm,,uniform|mean,balanced|calreg,0.7470234275326466,,,1
+lineage,"design-based (mean, calreg)",ifeval,,uniform|mean,balanced|calreg,0.6190592645164649,,,1
+lineage,"design-based (mean, calreg)",math,,uniform|mean,balanced|calreg,0.696728349090986,,,1
+lineage,"design-based (mean, calreg)",med_qa,,uniform|mean,balanced|calreg,0.710901797826425,,,1
+lineage,"design-based (mean, calreg)",mmlu,,uniform|mean,balanced|calreg,0.6227056931208426,,,1
+lineage,"design-based (mean, calreg)",mmlu_pro,,uniform|mean,balanced|calreg,0.7544490274354376,,,1
+lineage,"design-based (mean, calreg)",musr,,uniform|mean,balanced|calreg,0.31735887538172447,,,1
+lineage,"design-based (mean, calreg)",openllm_math,,uniform|mean,balanced|calreg,0.722426140776796,,,1
+lineage,"design-based (mean, calreg)",ALL,all,uniform|mean,"1 distinct, mode balanced|calreg",0.604307215923636,0.5896525658030225,0.6183959823018511,12
+lineage,"design-based (mean, calreg)",ALL,OLL,uniform|mean,"1 distinct, mode balanced|calreg",0.5493465955473357,0.536850998760788,0.5615170816234587,7
+lineage,"design-based (mean, calreg)",ALL,HELM,uniform|mean,"1 distinct, mode balanced|calreg",0.6906112677967886,0.6583055542254966,0.7241845115735732,5
+lineage,"design-based (mean, calreg)",POSTHOC,all,uniform|mean,balanced|calreg,0.604307215923636,0.5896525658030225,0.6183959823018511,12
+lineage,"design-based (mean, calreg)",POSTHOC,OLL,uniform|mean,balanced|calreg,0.5493465955473357,0.536850998760788,0.5615170816234587,7
+lineage,"design-based (mean, calreg)",POSTHOC,HELM,uniform|mean,balanced|calreg,0.6906112677967886,0.6583055542254966,0.7241845115735732,5
+lineage,"design-based (mean, calreg)",ALL,all,strat|mean,"1 distinct, mode balanced|calreg",0.7281003479790779,0.7132411059730608,0.7415274376286284,12
+lineage,"design-based (mean, calreg)",ALL,OLL,strat|mean,"1 distinct, mode balanced|calreg",0.6612385248976074,0.6442037235521172,0.6757275149569201,7
+lineage,"design-based (mean, calreg)",ALL,HELM,strat|mean,"1 distinct, mode balanced|calreg",0.8332159308386721,0.8070291242296288,0.8643064210755765,5
+lineage,"design-based (mean, calreg)",POSTHOC,all,strat|mean,balanced|calreg,0.7281003479790779,0.7132411059730608,0.7415274376286284,12
+lineage,"design-based (mean, calreg)",POSTHOC,OLL,strat|mean,balanced|calreg,0.6612385248976074,0.6442037235521172,0.6757275149569201,7
+lineage,"design-based (mean, calreg)",POSTHOC,HELM,strat|mean,balanced|calreg,0.8332159308386721,0.8070291242296288,0.8643064210755765,5
+lineage,difference-corrected,arc_challenge,,uniform|mean,balanced|diff-ridge,0.45728526368006756,,,1
+lineage,difference-corrected,bbh,,uniform|mean,balanced|diff-ridge,0.5899944819362546,,,1
+lineage,difference-corrected,commonsense,,uniform|mean,balanced|diff-ridge,0.6591427090891544,,,1
+lineage,difference-corrected,gpqa,,uniform|mean,balanced|diff-ridge,0.3021375843019463,,,1
+lineage,difference-corrected,gsm,,uniform|mean,balanced|diff-ridge,0.7686604202141692,,,1
+lineage,difference-corrected,ifeval,,uniform|mean,balanced|diff-ridge,0.5865353763396625,,,1
+lineage,difference-corrected,math,,uniform|mean,balanced|diff-ridge,0.7042958587125782,,,1
+lineage,difference-corrected,med_qa,,uniform|mean,balanced|diff-ridge,0.6750637132183765,,,1
+lineage,difference-corrected,mmlu,,uniform|mean,balanced|diff-ridge,0.6498644322855275,,,1
+lineage,difference-corrected,mmlu_pro,,uniform|mean,balanced|diff-ridge,0.7300791768565033,,,1
+lineage,difference-corrected,musr,,uniform|mean,balanced|diff-ridge,0.2698996550263332,,,1
+lineage,difference-corrected,openllm_math,,uniform|mean,balanced|diff-ridge,0.7404120219111232,,,1
+lineage,difference-corrected,ALL,all,uniform|mean,"1 distinct, mode balanced|diff-ridge",0.5664801668257751,0.5460328579597628,0.5850336567755072,12
+lineage,difference-corrected,ALL,OLL,uniform|mean,"1 distinct, mode balanced|diff-ridge",0.4919715420146882,0.4768731584878482,0.505118796813717,7
+lineage,difference-corrected,ALL,HELM,uniform|mean,"1 distinct, mode balanced|diff-ridge",0.690124312821462,0.6415032876769485,0.7411454322333297,5
+lineage,difference-corrected,POSTHOC,all,uniform|mean,balanced|diff-ridge,0.5664801668257751,0.5460328579597628,0.5850336567755072,12
+lineage,difference-corrected,POSTHOC,OLL,uniform|mean,balanced|diff-ridge,0.4919715420146882,0.4768731584878482,0.505118796813717,7
+lineage,difference-corrected,POSTHOC,HELM,uniform|mean,balanced|diff-ridge,0.690124312821462,0.6415032876769485,0.7411454322333297,5
+lineage,difference-corrected,ALL,all,strat|mean,"1 distinct, mode balanced|diff-ridge",0.682524377867454,0.6612940855885329,0.7004682918532541,12
+lineage,difference-corrected,ALL,OLL,strat|mean,"1 distinct, mode balanced|diff-ridge",0.5921772144765437,0.5722201514359834,0.6067294380246244,7
+lineage,difference-corrected,ALL,HELM,strat|mean,"1 distinct, mode balanced|diff-ridge",0.8326284242890936,0.7866441571903806,0.8802446103995081,5
+lineage,difference-corrected,POSTHOC,all,strat|mean,balanced|diff-ridge,0.682524377867454,0.6612940855885329,0.7004682918532541,12
+lineage,difference-corrected,POSTHOC,OLL,strat|mean,balanced|diff-ridge,0.5921772144765437,0.5722201514359834,0.6067294380246244,7
+lineage,difference-corrected,POSTHOC,HELM,strat|mean,balanced|diff-ridge,0.8326284242890936,0.7866441571903806,0.8802446103995081,5
+lineage,info/adaptive selection,arc_challenge,,uniform|mean,cat|diff-knn,0.2815285736526711,,,1
+lineage,info/adaptive selection,bbh,,uniform|mean,cat|diff-knn,0.5302778083435544,,,1
+lineage,info/adaptive selection,commonsense,,uniform|mean,cat|diff-knn,0.73120164078995,,,1
+lineage,info/adaptive selection,gpqa,,uniform|mean,cat|diff-knn,0.3297043020791138,,,1
+lineage,info/adaptive selection,gsm,,uniform|mean,cat|diff-knn,0.723202718223924,,,1
+lineage,info/adaptive selection,ifeval,,uniform|mean,cat|diff-knn,0.4708530424642061,,,1
+lineage,info/adaptive selection,math,,uniform|mean,cat|diff-knn,0.6708179611412938,,,1
+lineage,info/adaptive selection,med_qa,,uniform|mean,cat|diff-knn,0.625040274349427,,,1
+lineage,info/adaptive selection,mmlu,,uniform|mean,cat|diff-knn,0.46184910769038,,,1
+lineage,info/adaptive selection,mmlu_pro,,uniform|mean,cat|diff-knn,0.9294958497920409,,,1
+lineage,info/adaptive selection,musr,,uniform|mean,cat|diff-knn,0.27005462449299183,,,1
+lineage,info/adaptive selection,openllm_math,,uniform|mean,cat|diff-knn,0.5511975531895288,,,1
+lineage,info/adaptive selection,ALL,all,uniform|mean,"1 distinct, mode cat|diff-knn",0.512502541671601,0.474335108814963,0.5372807120547477,12
+lineage,info/adaptive selection,ALL,OLL,uniform|mean,"1 distinct, mode cat|diff-knn",0.44027124936650597,0.4163327276251385,0.4559397440619418,7
+lineage,info/adaptive selection,ALL,HELM,uniform|mean,"1 distinct, mode cat|diff-knn",0.6339602091913616,0.5370637783298849,0.7108994814416286,5
+lineage,info/adaptive selection,POSTHOC,all,uniform|mean,cat|diff-knn,0.512502541671601,0.474335108814963,0.5372807120547477,12
+lineage,info/adaptive selection,POSTHOC,OLL,uniform|mean,cat|diff-knn,0.44027124936650597,0.4163327276251385,0.4559397440619418,7
+lineage,info/adaptive selection,POSTHOC,HELM,uniform|mean,cat|diff-knn,0.6339602091913616,0.5370637783298849,0.7108994814416286,5
+lineage,info/adaptive selection,ALL,all,strat|mean,"1 distinct, mode cat|diff-knn",0.617489364843872,0.5743099978258878,0.6440011643449924,12
+lineage,info/adaptive selection,ALL,OLL,strat|mean,"1 distinct, mode cat|diff-knn",0.5299465107194784,0.4983161329502856,0.5504151073640857,7
+lineage,info/adaptive selection,ALL,HELM,strat|mean,"1 distinct, mode cat|diff-knn",0.7648669670583615,0.6556057593438276,0.8468357347797655,5
+lineage,info/adaptive selection,POSTHOC,all,strat|mean,cat|diff-knn,0.617489364843872,0.5743099978258878,0.6440011643449924,12
+lineage,info/adaptive selection,POSTHOC,OLL,strat|mean,cat|diff-knn,0.5299465107194784,0.4983161329502856,0.5504151073640857,7
+lineage,info/adaptive selection,POSTHOC,HELM,strat|mean,cat|diff-knn,0.7648669670583615,0.6556057593438276,0.8468357347797655,5
+lineage,model-based,arc_challenge,,uniform|mean,balanced|ridge-plugin,0.4585634904832263,,,1
+lineage,model-based,bbh,,uniform|mean,balanced|ridge-plugin,0.5806533077624189,,,1
+lineage,model-based,commonsense,,uniform|mean,balanced|ridge-plugin,0.6521657536583373,,,1
+lineage,model-based,gpqa,,uniform|mean,balanced|ridge-plugin,0.3043616169604699,,,1
+lineage,model-based,gsm,,uniform|mean,balanced|ridge-plugin,0.7328208869547437,,,1
+lineage,model-based,ifeval,,uniform|mean,balanced|ridge-plugin,0.5818814896530867,,,1
+lineage,model-based,math,,uniform|mean,balanced|ridge-plugin,0.7037315951730027,,,1
+lineage,model-based,med_qa,,uniform|mean,balanced|ridge-plugin,0.6661682604482557,,,1
+lineage,model-based,mmlu,,uniform|mean,balanced|ridge-model,0.6120494732898466,,,1
+lineage,model-based,mmlu_pro,,uniform|mean,balanced|ridge-plugin,0.7266218445492364,,,1
+lineage,model-based,musr,,uniform|mean,balanced|ridge-plugin,0.26994984113336934,,,1
+lineage,model-based,openllm_math,,uniform|mean,balanced|ridge-plugin,0.7328398084518999,,,1
+lineage,model-based,ALL,all,uniform|mean,"2 distinct, mode balanced|ridge-plugin",0.5589284641518739,0.5372854582286478,0.5787913327670285,12
+lineage,model-based,ALL,OLL,uniform|mean,"2 distinct, mode balanced|ridge-plugin",0.4899627399387308,0.4745496748305925,0.5029879767487864,7
+lineage,model-based,ALL,HELM,uniform|mean,"2 distinct, mode balanced|ridge-plugin",0.672088816421633,0.6201249245455056,0.7256388774533508,5
+lineage,model-based,POSTHOC,all,uniform|mean,balanced|ridge-plugin,0.5585821052354087,0.5371952905002219,0.578272350996702,12
+lineage,model-based,POSTHOC,OLL,uniform|mean,balanced|ridge-plugin,0.4899627399387308,0.4745496748305925,0.5029879767487864,7
+lineage,model-based,POSTHOC,HELM,uniform|mean,balanced|ridge-plugin,0.6710896918433181,0.6196089646330885,0.7241154980638346,5
+lineage,model-based,ALL,all,strat|mean,"2 distinct, mode balanced|ridge-plugin",0.6734256989177114,0.6501009921726245,0.6928396522001958,12
+lineage,model-based,ALL,OLL,strat|mean,"2 distinct, mode balanced|ridge-plugin",0.5897592558830371,0.5691016399007202,0.6051673189760383,7
+lineage,model-based,ALL,HELM,strat|mean,"2 distinct, mode balanced|ridge-plugin",0.8108687692969847,0.7607764687099778,0.8625801525351376,5
+lineage,model-based,POSTHOC,all,strat|mean,balanced|ridge-plugin,0.6730083879193337,0.6498983696191775,0.692233459620881,12
+lineage,model-based,POSTHOC,OLL,strat|mean,balanced|ridge-plugin,0.5897592558830371,0.5691016399007202,0.6051673189760383,7
+lineage,model-based,POSTHOC,HELM,strat|mean,balanced|ridge-plugin,0.8096633349892007,0.7602492140344476,0.8609664880907523,5

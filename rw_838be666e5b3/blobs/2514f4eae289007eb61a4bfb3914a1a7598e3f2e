@@ -1,0 +1,8 @@
+import json
+from common import *
+fl = json.load(open(os.path.join(RESULTS, "floors.json")))
+for nm, tr in (("galaxies", "logit"), ("alphafold", "logit"), ("census_healthcare", "logit"), ("forest", "logit"), ("census_income", "log")):
+    p = load_pool(nm, transform=tr)
+    fl[p.name] = floor_stats(p)
+    print(p.name, {k: round(v, 5) for k, v in fl[p.name]["T1"].items() if isinstance(v, float)}, flush=True)
+json.dump(fl, open(os.path.join(RESULTS, "floors.json"), "w"), indent=1)

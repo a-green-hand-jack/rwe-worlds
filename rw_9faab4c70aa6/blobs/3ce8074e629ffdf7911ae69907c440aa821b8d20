@@ -1,0 +1,83 @@
+"""Fig 2 (C2, C3): what the gap depends on.
+(a) real matrix: measured gap vs the search-log predictor (equal-theta E max Z, `pred_kappa`), identity dashed; cells of gap_drivers_real
+    (K nominal {8,32,128} x spread stratum x n {60,120,240}) coloured by theta_noise_ratio = true spread / noise of one configuration on n items,
+    and the cells of gap_vs_n_real (random 20/100 and exhaustive, n 30..400) as open grey squares.
+(b) factorial synthetic arm, exact truth: every cell (n, K, phi, sigma_theta), same axes.
+(c) real matrix, n = 60: gap against the number of configurations evaluated, by searcher.
+usage: python figures/src/fig2.py RESULTS_DIR OUT.pdf"""
+import sys
+import numpy as np
+import matplotlib.pyplot as plt
+sys.path.insert(0, __file__.rsplit("/", 1)[0])
+import figstyle as fs
+
+SIG = [0.0, 0.01, 0.02, 0.04]
+SHADE = {0.0: "#9ECAE1", 0.01: "#4292C6", 0.02: "#2171B5", 0.04: "#08306B"}
+MK = {0.0: "o", 0.01: "s", 0.02: "^", 0.04: "D"}
+BINS = [(0, 1.5, "#9ECAE1", "o", "<1.5"), (1.5, 4, "#4292C6", "s", "1.5–4"), (4, 99, "#08306B", "D", ">4")]
+LIM = [0.008, 0.26]
+
+
+def axes_ab(a):
+    a.plot(LIM, LIM, color=fs.C["ink"], lw=0.7, ls="--"); a.set_xscale("log"); a.set_yscale("log"); a.set_xlim(LIM); a.set_ylim(LIM)
+    t = [0.01, 0.03, 0.1, 0.2]
+    a.set_xticks(t); a.set_xticklabels([".01", ".03", ".1", ".2"]); a.set_yticks(t); a.set_yticklabels([".01", ".03", ".1", ".2"])
+    a.minorticks_off(); a.set_xlabel("predicted gap (search log)")
+
+
+def main(rd, out):
+    r = fs.load(rd, "gap_drivers_real"); v = fs.load(rd, "gap_vs_n_real"); s = fs.load(rd, "gap_drivers_synthetic")
+    assert (r.ci_kind == "pool-bootstrap").all() and (s.ci_kind == "world-spread-t").all()
+    vp = v[(v.searcher.isin(["exhaustive", "random"])) & (v.B.isin([20, 100, 128]))]
+    print("Fig 2 data: (a) real", r.pool.iloc[0], "| gap_drivers_real", len(r), "cells (exhaustive search, K nominal", sorted(int(x) for x in r.K_nominal.unique()),
+          "x strata", sorted(r.stratum.unique()), "x n", sorted(int(x) for x in r.n.unique()), ") + gap_vs_n_real", len(vp), "cells (random B=20,100, exhaustive; n",
+          sorted(int(x) for x in vp.n.unique()), ") | pool-bootstrap n_boot =", int(r.n_boot.iloc[0]), "| draws0 =", int(r.draws0.iloc[0]),
+          "| (b) synthetic:", len(s), "cells,", int(s.worlds.min()), "worlds x", int(s.reps_per_world.min()), "draws, world-spread-t",
+          "| (c) real n = 60, searchers", sorted(v.searcher.unique()))
+    print("  predicted/measured over the real cells: median %.2f, range %.2f-%.2f" % (np.median(r.pred_over_gap), r.pred_over_gap.min(), r.pred_over_gap.max()))
+    fs.apply(); c = fs.C
+    W, H = fs.VENUE["text_width_in"], 1.9
+    fig = plt.figure(figsize=(W, H))
+    a = fig.add_axes([0.075, 0.24, 0.222, 0.64]); b = fig.add_axes([0.375, 0.24, 0.222, 0.64]); cc = fig.add_axes([0.745, 0.24, 0.235, 0.64])
+    # (a)
+    a.plot(vp.pred_kappa, vp.gap, "s", ms=3.2, mfc="none", mec="#777777", mew=0.7, ls="none", label="vary $n$, $B$")
+    for lo, hi, col, mk, lab in BINS:
+        q = r[(r.theta_noise_ratio >= lo) & (r.theta_noise_ratio < hi)]
+        a.errorbar(q.pred_kappa, q.gap, xerr=[q.pred_kappa - q.pred_kappa_lo, q.pred_kappa_hi - q.pred_kappa], yerr=[q.gap - q.gap_lo, q.gap_hi - q.gap],
+                   fmt=mk, ms=3, color=col, mec="white", mew=0.2, elinewidth=0.5, ls="none", label=lab)
+    axes_ab(a); a.set_ylabel("measured gap")
+    fs.panel_label(a, "(a) real matrix")
+    h, l = a.get_legend_handles_labels()
+    a.legend(h[1:] + h[:1], [f"ratio {x}" for x in l[1:]] + ["varied $n$, $B$"], frameon=False, loc="upper left", fontsize=7, handletextpad=0.1, borderaxespad=0.0, labelspacing=0.15, markerscale=1.2)
+    a.text(0.22, 0.0095, "identity", fontsize=7, ha="right", va="bottom")
+    # (b)
+    pos = s[s.gap > 0]
+    print("  synthetic cells with measured gap <= 0 (not on the log axis):", int((s.gap <= 0).sum()))
+    for sg in SIG:
+        q = pos[pos.sigma_theta == sg]
+        b.plot(q.predicted, q.gap, MK[sg], ms=2.6, color=SHADE[sg], mec="white", mew=0.2, alpha=0.9, ls="none", label=f"$\\sigma_\\theta$={sg:g}")
+    axes_ab(b); plt.setp(b.get_yticklabels(), visible=False)
+    b.legend(frameon=False, loc="upper left", fontsize=7, handletextpad=0.1, borderaxespad=0.0, labelspacing=0.15, markerscale=1.3)
+    fs.panel_label(b, "(b) synthetic, exact truth")
+    # (c)
+    q = v[v.n == 60]
+    spec = {"random": ("random", "-", "o", c["reported"]), "sh": ("successive halving", "-", "s", c["fresh"])}
+    for key, (lab, ls, mk, col) in spec.items():
+        g = q[q.searcher == key].sort_values("evals")
+        fs.errbar(cc, g.evals, g.gap, g.gap_lo, g.gap_hi, color=col, ls=ls, marker=mk, ms=3.8, lw=1.1)
+    for key, mk, col in (("hillclimb", "^", c["bound"]), ("exhaustive", "D", c["ink"])):
+        g = q[q.searcher == key]
+        fs.errbar(cc, g.evals, g.gap, g.gap_lo, g.gap_hi, color=col, ls="none", marker=mk, ms=4)
+    cc.set_xscale("log"); cc.set_xticks([5, 20, 100]); cc.set_xticklabels(["5", "20", "100"]); cc.minorticks_off(); cc.set_xlim(3.8, 190)
+    cc.set_ylim(0.025, 0.09); cc.set_yticks([0.03, 0.05, 0.07]); cc.set_yticklabels([".03", ".05", ".07"])
+    cc.set_xlabel("evaluations $B$"); cc.set_ylabel("gap, $n$=60")
+    cc.set_ylim(0.025, 0.105)
+    cc.legend(handles=[plt.Line2D([], [], color=c["reported"], marker="o", ms=3.8, label="random"), plt.Line2D([], [], color=c["fresh"], marker="s", ms=3.8, label="successive halving"),
+                       plt.Line2D([], [], color=c["bound"], marker="^", ls="none", ms=4, label="hill-climb"), plt.Line2D([], [], color=c["ink"], marker="D", ls="none", ms=4, label="all 128")],
+              frameon=False, loc="upper left", fontsize=7, handletextpad=0.3, borderaxespad=0.0, labelspacing=0.15)
+    fs.panel_label(cc, "(c) real, by searcher")
+    fig.savefig(out, bbox_inches=None, pad_inches=0)
+
+
+if __name__ == "__main__":
+    main(*sys.argv[1:3])

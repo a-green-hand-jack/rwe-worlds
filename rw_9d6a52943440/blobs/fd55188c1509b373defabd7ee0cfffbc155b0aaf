@@ -1,0 +1,30 @@
+# Review of paper-repo PR #7 at head 1a8b7399ce88 (main -> release), document built-from 1a8b7399ce88
+
+Read the built `main/document.pdf` (29 pages) from its first page, rendered the figure pages, rebuilt every table and figure from `code/results`, and checked the new numbers against the scripts that write them.
+
+## Previous findings (record at 5f97770: reviews/v1-paper-repo-pr7.md)
+- M1 (appendix heat map): resolved. Figure 5 fits the page, axis labels and panel labels are legible, caption present.
+- M2 (Table 9 paired column): resolved (09_paired.py + CSV shipped).
+- M3 (script map / internal names): resolved. `figures/README.md` maps by the paper's numbers; the only internal names left are in `.forgejo/CODEOWNERS`, which is repository infrastructure, not the supplement.
+- M4 (sources and references): resolved. Data, benchmarks, IRT, k-means, Horvitz-Thompson/Hájek and survey-sampling references are cited; about 70 entries; checklist item 12 names the licence and what was not checked.
+- M5 (Results as a record): resolved in substance. Section 5 now has five question-headed subsections, each pointing to a table or figure; the diagnostics are one pointer each.
+- m1 (untested explanations): resolved. The centred-Brier check (0.004 interpolation, 0.024 extrapolation) and the ridge-bias slopes (-0.27 balanced, -0.54 uniform; IRT -0.61/-0.60; kNN -0.88) are reported with their limits. Both reproduce from `code/results/ceiling_centred.csv` and `extrap_bias.csv`; the geometric means over non-thin benchmarks computed from the CSV give 0.847 vs 0.823 (extrap), 0.806 vs 0.802 (interp), observed 0.854/0.700, and top-50% 0.975 vs reference 0.90, as printed.
+- M6 (baseline fidelity) and M7 (recalibrated estimator): stay for `final`. The paper still says the published code was not run and scopes every anchor claim to the re-implementation; `12_public_baselines.py` is shipped but its result is not in the paper.
+
+## Checks
+- `figures/scripts/make_all.sh` on the delivered `code/`: all 13 `tables/*.tex` are byte-identical to the delivered ones.
+- Table 8 paired column and the text values 0.94 [0.92,0.95], 1.09 [1.08,1.11] match `inner50/paired_vs_main.csv` (balanced diff-IRT, balanced diff-ridge).
+- Section 5.1-5.5 numbers spot-checked against Tables 1, 3, 4, 5, 6, 7, 9 in the PDF: consistent.
+
+## Findings at this head
+### must
+N1 (report / venue). The main text is over the nine-page limit. `venue.md`: nine content pages including figures and tables, "papers that exceed the page limit will not be reviewed". In the built PDF the Discussion and limitations section runs onto page 10 (nine lines, ll. 339-347, before "References"). Answer: cut at least ten lines from Sections 1-6 (candidates: the intro paragraph restating the result, which duplicates the abstract and Section 6; the 5.1 sentences carrying 0.89-0.94 anchor ratios that Table 5 holds), and rebuild; check the `References` heading starts on page 10 top or later.
+N2 (report). A reference does not resolve: Section 5.1, last sentence, reads "Figure effig:msrc" in the PDF. The source `paper/sections/results.tex` line 44 has `ef{fig:msrc}` (the `\r` of `\ref` was lost). Answer: restore `\ref{fig:msrc}` and check the built PDF for other raw labels.
+
+### may
+n1. The bibliography entries for Zhuang et al. 2023 carries a note ("Latest arXiv version; adaptive testing ...") inside the reference text; Boyeau, Chen, Madaan, Owen, Shnitzer, Truong, Yax lack an arXiv identifier or venue. Complete or trim.
+n2. Checklist item 12 says "twelve benchmark datasets" for 13 matrices (two share the MATH dataset); say so or write thirteen.
+n3. Figure 4's right legend squeezes the panels; the legend could go under the figure.
+
+## Conclusion
+Not approved at this head: two small, mechanical defects (N1 page limit, N2 broken reference) stand between this and an approvable `release`. The content, the figures, the reproduction package and the reported numbers meet the standard I set at the first review. N1 and N2 fix in one commit; the next head with both resolved is approved if nothing else changes.

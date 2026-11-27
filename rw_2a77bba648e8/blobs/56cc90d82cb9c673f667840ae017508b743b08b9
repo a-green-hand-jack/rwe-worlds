@@ -1,0 +1,55 @@
+"""Appendix Fig A4 (C3): dependence of the Chin regression on the treated share p at every degree.
+Top row: bias; bottom row: SD (dashed) and RMSE (solid) -- one column per target degree d in {5, 20, 80}, one colour per mechanism:
+(a) linear fraction, (c) saturating, and the exploratory (g) convex mirror (open markers, labelled * = exploratory; only the p values the run grid carries).
+Bars are the Monte Carlo 95% intervals of `claims/c3_p_dependence.csv`. core cells, s = 1/2, sigma = 0.5, Bernoulli design.
+The DM bias (about -0.5 at every p) is outside the plotted range of the top row and is not drawn.
+Usage: figA4_p.py RESULTS_DIR OUT_DIR
+"""
+import argparse
+import pathlib
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+import common
+import style
+
+ap = argparse.ArgumentParser()
+ap.add_argument("data"); ap.add_argument("out")
+a = ap.parse_args()
+style.apply()
+_, meta = common.load(a.data, "cells")
+d = pd.read_csv(pathlib.Path(a.data) / "claims" / "c3_p_dependence.csv")
+d = d[d.estimator == "chin"]
+MEC = [("a", "(a) linear", "#0072B2", "o", True), ("c", "(c) saturating", "#009E73", "D", True), ("g", "(g) convex*", "#CC79A7", "^", False)]
+fig, axs = plt.subplots(2, 3, figsize=(style.TEXTWIDTH, 3.2), sharex=True, sharey="row", gridspec_kw=dict(wspace=0.08, hspace=0.12))
+for j, dd in enumerate([5, 20, 80]):
+    for m, lab, col, mk, filled in MEC:
+        t = d[(d.mechanism == m) & (d.d_target == dd)].sort_values("p")
+        if not len(t):
+            continue
+        mfc = col if filled else "white"
+        axs[0, j].errorbar(t.p, t.bias, yerr=[t.bias - t.bias_mc_lo, t.bias_mc_hi - t.bias], color=col, marker=mk, mfc=mfc, ms=3.6, lw=1.0, capsize=1.5, elinewidth=0.7, label=lab)
+        axs[1, j].errorbar(t.p, t.rmse, yerr=[t.rmse - t.rmse_mc_lo, t.rmse_mc_hi - t.rmse], color=col, marker=mk, mfc=mfc, ms=3.6, lw=1.0, capsize=1.5, elinewidth=0.7)
+        axs[1, j].plot(t.p, t.sd, color=col, marker=mk, mfc=mfc, ms=2.6, lw=0.9, ls="--")
+    axs[0, j].axhline(0, color="k", lw=0.6)
+    axs[0, j].set_title(f"$d={dd}$", fontsize=style.MIN_PT, pad=3)
+    axs[1, j].set_xlabel("treated share $p$"); axs[1, j].set_xticks([0.1, 0.5, 0.9]); axs[1, j].set_yscale("log")
+axs[0, 0].set_ylabel("bias"); axs[1, 0].set_ylabel("RMSE, SD")
+axs[1, 0].set_yticks([0.03, 0.1, 0.3, 1]); axs[1, 0].set_yticklabels(["0.03", "0.1", "0.3", "1"]); axs[1, 0].minorticks_off()
+for ax in axs[0, 1:]:
+    ax.tick_params(labelleft=False)
+h, l = axs[0, 0].get_legend_handles_labels()
+for ax in axs[0]:
+    hh, ll = ax.get_legend_handles_labels()
+    for x, y in zip(hh, ll):
+        if y not in l:
+            h.append(x); l.append(y)
+from matplotlib.lines import Line2D
+h += [Line2D([], [], color="0.3", lw=1.0), Line2D([], [], color="0.3", lw=0.9, ls="--")]; l += ["RMSE", "SD"]
+fig.legend(h, l, frameon=False, loc="lower center", ncol=5, bbox_to_anchor=(0.5, -0.12), columnspacing=0.9, handletextpad=0.4)
+style.check_min_type(fig)
+o = common.out_dir(meta, a.out)
+style.save(fig, o / "figA4_p.pdf", dpi=300)
+d.to_csv(o / "figA4_p.csv", index=False)

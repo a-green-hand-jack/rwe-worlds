@@ -1,0 +1,566 @@
+"""Claim-level summaries computed from the aggregated tables:  python analysis/claims.py TABLES_DIR OUT_DIR
+Every table is a reduction of cells.parquet / ratios.parquet / diag_* / acceptance.csv; no new simulation.
+c0_calibration (copy), c1_exponents, c1_L_exponents, c1_departure, c2_bias_vs_d, c2_prediction_check, c2_second_order, c3_p_dependence, c4_breakeven, c4_sstar_predicted, c4_regime_share,
+c4_rule, c4_rule_ci, c5_cluster, c5_d20_reduction, c6_verdict, c6_why_mechanism, c7_edge_noise, c7_real_vs_synthetic, c8_coverage, c8_coverage_by_family, c8_coverage_figure_by_family, tierA_summary."""
+import json
+import os
+import subprocess
+import sys
+from datetime import date
+
+import numpy as np
+import pandas as pd
+from scipy.stats import spearmanr
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+from gate import mech  # noqa: E402
+from gate.sim import NOISE_M  # noqa: E402
+
+SIG = 0.5            # in-run noise multiple used for the tables unless a column says otherwise
+RNG = np.random.default_rng(20261125)
+
+
+def chin(c, **flt):
+    k = c[(c.estimator == "chin")]
+    for a, b in flt.items():
+        k = k[k[a] == b]
+    return k
+
+
+def ols(X, y):
+    return np.linalg.lstsq(X, y, rcond=None)[0]
+
+
+def c1_exponents(c, B=2000):
+    """log SD of the Chin regression estimate on log n, log(1+d), log p(1-p) in cells where the specification is correct and the baseline is iid
+    (null column and linear mechanism (a) at s=0.5), plain SBM, Bernoulli. Prediction (leverage): -1/2, +1/2, -1/2. Bootstrap resamples cells."""
+    rows = []
+    for m in (0.25, 0.5, 1.0):
+        k = c[(c.estimator == "chin") & (c.sigma == m) & (c.mechanism.isin(["0", "a"])) & c.run_id.str.match(r"(core|n)_SBM") & (c.design == "bern")]
+        k = k[(k.mechanism == "0") | (k.s == 0.5)]
+        y = np.log(k.sd.values)
+        X = np.c_[np.ones(len(k)), np.log(k.n), np.log(1 + k.d), np.log(k.p * (1 - k.p))]
+        b = ols(X, y)
+        bs = []
+        for _ in range(B):
+            i = RNG.integers(0, len(k), len(k))
+            bs.append(ols(X[i], y[i]))
+        lo, hi = np.percentile(bs, [2.5, 97.5], axis=0)
+        for j, nm in enumerate(["intercept", "log n", "log(1+d)", "log p(1-p)"]):
+            rows.append(dict(sigma=m, term=nm, estimate=b[j], ci_lo=lo[j], ci_hi=hi[j], predicted=[np.nan, -0.5, 0.5, -0.5][j], n_cells=len(k),
+                             resid_sd=float((y - X @ b).std())))
+    return pd.DataFrame(rows)
+
+
+def c1_L_exponents(dr, B=2000):
+    """exponents of the realised leverage L = n ||w||^2 of the Chin regression (stored weights, graph-draw level) on log n, log(1+d), log p(1-p), same cells as
+    c1_exponents (plain SBM, Bernoulli, iid baseline); L does not depend on the outcome or the noise level. Prediction: 0, +1, -1 (SD = sigma sqrt(L/n) / tau).
+    Intervals: bootstrap of graph draws within each run (graph-level), runs fixed; `cell_level_ci` resamples runs instead."""
+    k = dr[(dr.spec == "chin") & (dr.j == 1) & (dr.sigma == NOISE_M) & dr.run_id.str.match(r"(core|n)_SBM") & (dr.design == "bern") & (dr.base == "iid")].copy()
+    y = k.logL.values
+    X = np.c_[np.ones(len(k)), np.log(k.n), np.log(1 + k.d), np.log(k.p * (1 - k.p))]
+    b = ols(X, y)
+    runs = k.run_id.values
+    idx = {r_: np.where(runs == r_)[0] for r_ in np.unique(runs)}
+    rng = np.random.default_rng(20261126)
+    bs_g, bs_r = [], []
+    for _ in range(B):
+        i = np.concatenate([rng.choice(v, len(v)) for v in idx.values()])
+        bs_g.append(ols(X[i], y[i]))
+        rr = rng.choice(list(idx), len(idx))
+        i = np.concatenate([idx[r_] for r_ in rr])
+        bs_r.append(ols(X[i], y[i]))
+    lo, hi = np.percentile(bs_g, [2.5, 97.5], axis=0)
+    lo2, hi2 = np.percentile(bs_r, [2.5, 97.5], axis=0)
+    return pd.DataFrame([dict(term=nm, estimate=b[j], ci_lo_graph_draws=lo[j], ci_hi_graph_draws=hi[j], ci_lo_runs=lo2[j], ci_hi_runs=hi2[j],
+                              predicted=[np.nan, 0.0, 1.0, -1.0][j], n_graph_draws=len(k), n_runs=len(idx), resid_sd=float((y - X @ b).std()))
+                         for j, nm in enumerate(["intercept", "log n", "log(1+d)", "log p(1-p)"])])
+
+
+def c4_sstar_predicted(c, observed):
+    """break-even share s* predicted from the C1 formula, no fitting to the fine grid. Chin and DM log SD are regressed on log n, log(1+d), log p(1-p) on the C1 cells
+    (plain SBM, Bernoulli, null column and (a) at s = 0.5) at each noise level; at the fine-grid cell (n, realised d, p = 0.5) the DM RMSE is sqrt(s^2 + SD_DM^2)
+    (DM bias = -s tau under (a)) and Chin is unbiased under (a), so s*_C1 = sqrt(SD_chin^2 - SD_DM^2); `s_star_simple` = SD_chin (DM variance dropped).
+    Compared with the observed s* of mechanism (a), the only mechanism for which Chin's form is correct; `at_grid_floor` marks observed s* at the lowest grid share (0.1)."""
+    rows = []
+    fine = c[c.run_id.str.startswith("fine_SBM") & (c.estimator == "chin")].drop_duplicates("run_id").set_index("run_id")
+    for m in sorted(c[c.run_id.str.match(r"(core|n)_SBM")].sigma.unique()):
+        coef = {}
+        for est in ("chin", "dm"):
+            k = c[(c.estimator == est) & (c.sigma == m) & (c.mechanism.isin(["0", "a"])) & c.run_id.str.match(r"(core|n)_SBM") & (c.design == "bern")]
+            k = k[(k.mechanism == "0") | (k.s == 0.5)]
+            if len(k) < 10:
+                break
+            X = np.c_[np.ones(len(k)), np.log(k.n), np.log(1 + k.d), np.log(k.p * (1 - k.p))]
+            coef[est] = ols(X, np.log(k.sd.values))
+        if len(coef) < 2:
+            continue
+        for rid, f in fine.iterrows():
+            x = np.array([1, np.log(f.n), np.log(1 + f.d), np.log(f.p * (1 - f.p))])
+            sd_c, sd_d = np.exp(x @ coef["chin"]), np.exp(x @ coef["dm"])
+            o = observed[(observed.sigma == m) & (observed.d == int(f.d_target)) & (observed.mechanism == "a")]
+            if len(o) != 1:
+                continue
+            o = o.iloc[0]
+            rows.append(dict(sigma=m, d=int(f.d_target), d_realised=f.d, sd_chin_C1=sd_c, sd_dm_C1=sd_d, s_star_C1=float(np.sqrt(max(sd_c ** 2 - sd_d ** 2, 0))), s_star_simple=sd_c,
+                             s_star_observed=o.s_star, s_star_observed_lo=o.s_star_lo, s_star_observed_hi=o.s_star_hi,
+                             at_grid_floor=bool(o.s_star <= 0.1 + 1e-9), predicted_inside_observed_interval=bool(o.s_star_lo <= np.sqrt(max(sd_c ** 2 - sd_d ** 2, 0)) <= o.s_star_hi)))
+    return pd.DataFrame(rows).sort_values(["sigma", "d"]).reset_index(drop=True)
+
+
+def c4_rule_ci(r, c, B=2000):
+    """accuracy of rule B (estimated share above HC0 SE), of the constant rule (always predict 'regression wins'; accuracy = base rate), their difference and
+    the balanced accuracy of rule B; cells of one run are correlated, so intervals resample runs (graph/design/degree/p configurations) with all their cells."""
+    k = r[(r.estimator == "chin") & (r.mechanism != "0") & (r.s > 0) & (r.sigma == SIG) & ~r.run_id.str.startswith("pfine_")]
+    k = k.merge(c[(c.estimator == "chin")][["cell_id", "rmse", "width_hc", "design"]].drop_duplicates("cell_id"), on="cell_id")
+    k = k[k.design == "bern"].dropna(subset=["s_estimated"]).copy()
+    k["win"] = (k.log_ratio < 0).values
+    k["pred"] = (k.s_estimated > k.width_hc / (2 * 1.959964)).values
+    runs = k.run_id.values
+    idx = {r_: np.where(runs == r_)[0] for r_ in np.unique(runs)}
+    win, pred = k.win.values, k.pred.values
+
+    def stats(i):
+        w, q = win[i], pred[i]
+        acc_b, acc_c = (q == w).mean(), w.mean()
+        tpr = (q & w).sum() / max(w.sum(), 1)
+        tnr = (~q & ~w).sum() / max((~w).sum(), 1)
+        return np.array([acc_b, acc_c, acc_b - acc_c, (tpr + tnr) / 2])
+    est = stats(np.arange(len(k)))
+    rng = np.random.default_rng(20261127)
+    keys = list(idx)
+    bs = np.array([stats(np.concatenate([idx[keys[j]] for j in rng.integers(0, len(keys), len(keys))])) for _ in range(B)])
+    lo, hi = np.nanpercentile(bs, [2.5, 97.5], axis=0)
+    names = ["accuracy rule B", "accuracy constant rule (always: regression wins)", "accuracy B minus constant", "balanced accuracy rule B (constant rule: 0.5)"]
+    return pd.DataFrame([dict(quantity=n_, estimate=est[j], ci_lo=lo[j], ci_hi=hi[j], n_cells=len(k), n_runs=len(idx), ci_type="bootstrap of runs, all their cells") for j, n_ in enumerate(names)])
+
+
+def c5_d20(c5):
+    """C5 restricted to d_target = 20: per graph, mechanism and cluster resolution (SBM: also the planted partition) the cluster-design Chin regression against (i) the Bernoulli-design
+    regression on the same graph and (ii) the cluster-design DM. 'beats' = smaller RMSE; 'beats, MC-separated' = the MC intervals of the RMSE do not overlap.
+    The weak-mixing SBM has no Bernoulli run in the cell list: it enters (ii) only."""
+    k = c5[c5.d_target == 20]
+    cl = k[(k.design == "cluster") & (k.estimator == "chin")].merge(
+        k[(k.design == "cluster") & (k.estimator == "dm")][["run_id", "mechanism", "rmse", "rmse_mc_lo", "rmse_mc_hi"]].rename(
+            columns={"rmse": "rmse_dm_cluster", "rmse_mc_lo": "dm_lo", "rmse_mc_hi": "dm_hi"}), on=["run_id", "mechanism"])
+    be = k[(k.design == "bernoulli") & (k.estimator == "chin")][["graph", "mechanism", "rmse", "rmse_mc_lo", "rmse_mc_hi"]].rename(
+        columns={"rmse": "rmse_chin_bernoulli", "rmse_mc_lo": "b_lo", "rmse_mc_hi": "b_hi"})
+    cl = cl.merge(be, on=["graph", "mechanism"], how="left")
+    cl["clustering_label"] = np.where(cl.cluster_resolution.isna(), "planted", "louvain res " + cl.cluster_resolution.astype(str))
+    cl["beats_bernoulli_regression"] = np.where(cl.rmse_chin_bernoulli.isna(), np.nan, (cl.rmse < cl.rmse_chin_bernoulli).astype(float))
+    cl["beats_bernoulli_mc_separated"] = np.where(cl.rmse_chin_bernoulli.isna(), np.nan, (cl.rmse_mc_hi < cl.b_lo).astype(float))
+    cl["beats_cluster_dm"] = (cl.rmse < cl.rmse_dm_cluster).astype(float)
+    cl["beats_cluster_dm_mc_separated"] = (cl.rmse_mc_hi < cl.dm_lo).astype(float)
+    cl["beats_both"] = np.where(cl.rmse_chin_bernoulli.isna(), np.nan, cl.beats_bernoulli_regression * cl.beats_cluster_dm)
+    cl = cl.rename(columns={"rmse": "rmse_chin_cluster"})
+    out = cl[["graph", "mechanism", "clustering_label", "n_clusters", "cluster_modularity", "rmse_chin_cluster", "rmse_chin_bernoulli", "rmse_dm_cluster",
+              "beats_bernoulli_regression", "beats_bernoulli_mc_separated", "beats_cluster_dm", "beats_cluster_dm_mc_separated", "beats_both"]].copy()
+    summ = []
+    for by in (["graph"], ["mechanism"], []):
+        g = out.groupby(by) if by else [("all", out)]
+        for key, h in g:
+            rows = dict(by="+".join(by) if by else "all", group=key, comparisons=len(h), vs_bernoulli_n=int(h.beats_bernoulli_regression.notna().sum()),
+                        beats_bernoulli_regression=int(h.beats_bernoulli_regression.sum()), beats_bernoulli_mc_separated=int(h.beats_bernoulli_mc_separated.sum()),
+                        beats_cluster_dm=int(h.beats_cluster_dm.sum()), beats_cluster_dm_mc_separated=int(h.beats_cluster_dm_mc_separated.sum()),
+                        beats_both=int(h.beats_both.sum()))
+            summ.append(rows)
+    summ = pd.DataFrame(summ)
+    summ.insert(0, "level", "summary")
+    out.insert(0, "level", "comparison")
+    return pd.concat([out, summ], ignore_index=True)
+
+
+def c2_bias(c, pb):
+    k = chin(c, sigma=SIG)
+    k = k[(k.design == "bern") & (k.baseline == "iid") & k.run_id.str.match(r"core_SBM_n3000") & (k.mechanism != "0")]
+    k = k[["mechanism", "s", "d_target", "p", "bias", "bias_mc_lo", "bias_mc_hi", "sd", "rmse", "run_id"]]
+    pbm = pb[pb.run_id.isin(k.run_id)][["run_id", "mechanism", "s", "pred_bias"]]
+    k = k.merge(pbm, on=["run_id", "mechanism", "s"], how="left").drop(columns="run_id")
+    return k.rename(columns={"d_target": "d"})
+
+
+def c2_prediction_check(pb):
+    """is the realised bias inside the Monte Carlo interval of the exact prediction? population-OLS form and finite-n form (centred sample covariances; (a), (b), (e) only,
+    equal to the population form for the other mechanisms), by mechanism and graph kind; (e) is the K = 30 truncated operator on the realised graph"""
+    k = pb[pb.exact & ~pb.run_id.str.startswith(("convex_", "pfine_"))].copy()      # the frozen grid and its extensions; (g) and the p grid are in c2_second_order
+    k["kind"] = np.where(k.graph.isin(["Stanford3", "ego-Facebook"]), "real", "synthetic")
+    k["halfwidth"] = (k.hi - k.lo) / 2
+    for nm, col in (("pop", "pred_bias"), ("n", "pred_bias_finite_n")):
+        k["gap_" + nm] = k.realised_bias - k[col]
+        k["inside_" + nm] = (k[col] >= k.lo) & (k[col] <= k.hi)
+        k["ratio_" + nm] = k["gap_" + nm] / k.halfwidth
+
+    def agg_(g):
+        return pd.Series(dict(n=len(g), share_inside=g.inside_pop.mean(), max_abs_gap=g.gap_pop.abs().max(), median_abs_gap_over_halfwidth=g.ratio_pop.abs().median(),
+                              share_inside_finite_n=g.inside_n.mean(), max_abs_gap_finite_n=g.gap_n.abs().max(),
+                              median_abs_gap_over_halfwidth_finite_n=g.ratio_n.abs().median(), mean_gap=g.gap_pop.mean(), mean_gap_finite_n=g.gap_n.mean()))
+    g = k.groupby(["mechanism", "kind"]).apply(agg_).reset_index()
+    g0 = k.groupby("mechanism").apply(agg_).reset_index().assign(kind="all")
+    tot = agg_(k).to_frame().T.assign(mechanism="all", kind="all")
+    return pd.concat([g0, g, tot], ignore_index=True)[["mechanism", "kind"] + list(agg_(k).index)]
+
+
+def c3_p(c, pb):
+    """bias, SD, RMSE against the treatment probability p for the linear (a), saturating (c) and convex-mirror (g, exploratory) responses, s = 0.5.
+    (c) and (g) have the fine grid p in 0.35 ... 0.65 (runs pfine_*, d = 20) in addition to the five-point grid; pred_bias is the exact population prediction"""
+    rows = []
+    core = c.run_id.str.match(r"core_SBM_n3000")
+    for est in ("chin", "dm"):
+        k = c[(c.estimator == est) & (c.sigma == SIG) & (c.s == 0.5) & (((c.mechanism == "a") & core)
+                                                                     | ((c.mechanism == "c") & (core | c.run_id.str.match(r"pfine_SBM_n3000")))
+                                                                     | ((c.mechanism == "g") & c.run_id.str.match(r"(convex|pfine)_SBM_n3000")))]
+        rows.append(k[["run_id", "estimator", "mechanism", "s", "d_target", "p", "bias", "bias_mc_lo", "bias_mc_hi", "sd", "rmse", "rmse_mc_lo", "rmse_mc_hi"]])
+    t = pd.concat(rows, ignore_index=True)
+    t = t.merge(pb[["run_id", "mechanism", "s", "pred_bias"]], on=["run_id", "mechanism", "s"], how="left")
+    return t.drop(columns=["run_id", "s"]).sort_values(["estimator", "mechanism", "d_target", "p"])
+
+
+def zero_cross(p, b):
+    """p at which b crosses zero (linear interpolation; NaN if it does not, the last crossing if there are several)"""
+    z = np.nan
+    for i in range(len(p) - 1):
+        if b[i] * b[i + 1] < 0:
+            z = float(p[i] + (0 - b[i]) / (b[i + 1] - b[i]) * (p[i + 1] - p[i]))
+    return z
+
+
+def c3_minimisers(t):
+    """p at which the bias of the Chin regression crosses zero (linear interpolation on the p grid; the interval from the Monte Carlo interval of the bias at each p;
+    the same crossing of the exact prediction) and the grid p of smallest |bias|, SD and RMSE"""
+    rows = []
+    for (m, d), g in t[t.estimator == "chin"].groupby(["mechanism", "d_target"]):
+        g = g.sort_values("p")
+        p, b = g.p.values, g.bias.values
+        zs = [zero_cross(p, g.bias_mc_lo.values), zero_cross(p, g.bias_mc_hi.values)]
+        ok = not np.all(np.isnan(zs))
+        rows.append(dict(mechanism=m, d=d, n_p_values=len(p), p_bias_zero=zero_cross(p, b), p_bias_zero_lo=np.nanmin(zs) if ok else np.nan,
+                         p_bias_zero_hi=np.nanmax(zs) if ok else np.nan, p_pred_bias_zero=zero_cross(p, g.pred_bias.values),
+                         p_min_abs_bias=float(p[np.argmin(np.abs(b))]), p_min_sd=float(p[np.argmin(g.sd.values)]), p_min_rmse=float(p[np.argmin(g.rmse.values)])))
+    return pd.DataFrame(rows)
+
+
+def c2_second_order(pb):
+    """is the closed second-order form checked against the realised bias? For a smooth response h(f) the bias of the linear fit to s*h(f) is, for large degree,
+    bias/s = -( h2(p)(1-2p)/2 + h3(p)((1-p)^3 + p^3)/6 + ... ),  h2, h3 the second and third derivatives of h at p
+    (Taylor expansion of h(1) - h(0) around p against the OLS slope, which tends to h'(p) as d grows).
+    second_order = the first term, third_order = both terms; exact = the exact binomial-mixture OLS prediction (pred_bias); realised = simulated bias.
+    Responses (c) saturating and (g) convex mirror, Bernoulli, SBM; the form does not apply to the threshold (d) nor to (a), (b), (e), (f)"""
+    N = 1 - np.exp(-mech.KAPPA)
+    k = pb[pb.mechanism.isin(["c", "g"]) & pb.exact & (pb.graph == "SBM") & pb.run_id.str.match(r"(core|convex|pfine)_SBM_n3000")].copy()
+    x = k.p.values
+    ek = np.exp(-mech.KAPPA * x) / N
+    ec = np.exp(-mech.KAPPA * (1 - x)) / N
+    h2 = np.where(k.mechanism == "c", -mech.KAPPA ** 2 * ek, mech.KAPPA ** 2 * ec)
+    h3 = np.where(k.mechanism == "c", mech.KAPPA ** 3 * ek, mech.KAPPA ** 3 * ec)
+    k["second_order"] = -k.s * h2 * (1 - 2 * x) / 2
+    k["third_order"] = k.second_order - k.s * h3 * ((1 - x) ** 3 + x ** 3) / 6
+    k = k.rename(columns={"d_target": "d", "realised_bias": "realised", "pred_bias": "exact"})
+    return k[["mechanism", "d", "p", "s", "second_order", "third_order", "exact", "realised", "lo", "hi"]].sort_values(["mechanism", "d", "s", "p"]).reset_index(drop=True)
+
+
+def c6_why_mechanism(dc, B=1000):
+    """why the data-computable bias score fails: Spearman correlation across cells (noise level SIG, one row per run x share) of |bias| (second half of the draws)
+    with S (first half), the noise-adjusted S_adj, the signal-only S_sig, the corner x curvature term C and the estimated curvature |curv|, per mechanism;
+    the interval resamples runs. The pooled held-out R^2 of the acceptance rule hides which mechanism carries it"""
+    d = dc[(dc.mechanism != "0") & (dc.sigma == SIG)].copy()
+    d["ab"] = d.bias_h2.abs()
+    d["abs_curv"] = d.curv_h1.abs()
+    cols = {"S": "S_h1", "S_adj": "Sadj_h1", "S_sig": "Ssig_h1", "C (corner x curvature)": "C_h1", "|curvature|": "abs_curv"}
+    rows = []
+    for m, g in d.groupby("mechanism"):
+        by = {r: g[g.run_id == r] for r in g.run_id.unique()}
+        names = list(by)
+        for nm, col in cols.items():
+            rho = spearmanr(g[col], g.ab)[0]
+            bs = []
+            for _ in range(B):
+                gg = pd.concat([by[names[i]] for i in RNG.integers(0, len(names), len(names))])
+                bs.append(spearmanr(gg[col], gg.ab)[0])
+            lo, hi = np.nanpercentile(bs, [2.5, 97.5])
+            rows.append(dict(mechanism=m, score=nm, spearman=rho, ci_lo=lo, ci_hi=hi, n_cells=len(g), n_runs=len(names), mean_abs_bias=g.ab.mean(), sd_abs_bias=g.ab.std()))
+    return pd.DataFrame(rows)
+
+
+def interp_cross(x, y, ylo, yhi):
+    """first s at which the curve falls below 0 and stays there (linear interpolation); NaN if it never does; also for the interval curves"""
+    def one(yy):
+        yy = np.asarray(yy)
+        below = yy < 0
+        if below.all():
+            return float(x[0])      # at or below the first grid point: s* <= x[0]
+        if not below[-1]:
+            return np.nan
+        i = np.where(~below)[0].max()          # last non-negative point
+        x0, x1, y0, y1 = x[i], x[i + 1], yy[i], yy[i + 1]
+        return float(x0 + (0 - y0) / (y1 - y0) * (x1 - x0))
+    return one(y), one(ylo), one(yhi)       # the lower interval curve crosses first
+
+
+def c4_breakeven(r, c):
+    """break-even spillover share s*: the share above which the Chin regression beats DM (log ratio < 0), fine grid, with the interval implied by the
+    paired bootstrap interval of the log ratio at each s"""
+    k = r[(r.estimator == "chin") & r.run_id.str.startswith("fine_SBM") & (r.mechanism != "0")].copy()
+    cc = c[c.run_id.str.startswith("fine_SBM")][["cell_id"]].drop_duplicates()
+    k = k.merge(cc, on="cell_id")
+    k["d"] = k.run_id.str.extract(r"_d(\d+)_").astype(int)
+    rows = []
+    for (m, d, mech), g in k.groupby(["sigma", "d", "mechanism"]):
+        g = g.sort_values("s")
+        g = g[g.s > 0]
+        s_, lo_, hi_ = interp_cross(g.s.values, g.log_ratio.values, g.log_ratio_lo.values, g.log_ratio_hi.values)
+        rows.append(dict(sigma=m, d=d, mechanism=mech, s_star=s_, s_star_lo=lo_, s_star_hi=hi_, n_grid=len(g),
+                         wins_at_all_s=bool((g.log_ratio < 0).all()), loses_at_all_s=bool((g.log_ratio >= 0).all())))
+    return pd.DataFrame(rows)
+
+
+def c4_regime_share(r, c):
+    """share of cells where regression (Chin) beats DM, with paired interval excluding 0 on either side, by graph family / mechanism / noise; the frozen share values
+    {0.25, 0.5, 0.75} only (the fine grid and the exploratory mechanism (g) are left out so that the grid composition does not set the share)"""
+    k = r[(r.estimator == "chin") & (r.mechanism != "0") & r.s.isin([0.25, 0.5, 0.75]) & (r.mechanism != "g") & ~r.run_id.str.startswith(("fine_", "pfine_"))].copy()
+    meta = c[(c.estimator == "chin")][["cell_id", "graph", "d_target", "p", "design", "baseline", "n"]].drop_duplicates("cell_id")
+    k = k.merge(meta, on="cell_id")
+    k["win"] = k.log_ratio_hi < 0
+    k["lose"] = k.log_ratio_lo > 0
+    k["tie"] = ~(k.win | k.lose)
+    out = []
+    for keys in (["sigma"], ["sigma", "mechanism"], ["sigma", "d_target"], ["sigma", "graph"], ["sigma", "design"]):
+        g = k.groupby(keys).agg(n_cells=("win", "size"), share_regression_wins=("win", "mean"), share_regression_loses=("lose", "mean"),
+                                share_tie=("tie", "mean"), median_log_ratio=("log_ratio", "median")).reset_index()
+        g.insert(0, "by", "+".join(keys))
+        out.append(g)
+    return pd.concat(out, ignore_index=True)
+
+
+def c4_rule(r, c):
+    """does a data-computable rule predict where regression beats DM? rule A: oracle share s > Chin RMSE (tau = 1; DM bias = s tau); rule B: estimated
+    share s_hat > HC0 standard error of Chin; base rate = share of cells where regression wins. Balanced accuracy is reported because wins dominate."""
+    k = r[(r.estimator == "chin") & (r.mechanism != "0") & (r.s > 0) & (r.sigma == SIG) & ~r.run_id.str.startswith("pfine_")]
+    k = k.merge(c[(c.estimator == "chin")][["cell_id", "rmse", "width_hc", "design", "graph"]].drop_duplicates("cell_id"), on="cell_id")
+    k = k[k.design == "bern"].copy()
+    k["win"] = k.log_ratio < 0
+    k["se_hc"] = k.width_hc / (2 * 1.959964)
+    rows = []
+
+    def row(name, pred, g):
+        t = pd.crosstab(pred, g.win).reindex(index=[False, True], columns=[False, True], fill_value=0)
+        tpr = t.loc[True, True] / max(t[True].sum(), 1)
+        tnr = t.loc[False, False] / max(t[False].sum(), 1)
+        rows.append(dict(rule=name, n_cells=len(g), base_rate_regression_wins=g.win.mean(), accuracy=(pred == g.win).mean(), sensitivity=tpr, specificity=tnr,
+                         balanced_accuracy=(tpr + tnr) / 2, n_regression_loses=int((~g.win).sum())))
+    row("A: oracle s > RMSE of Chin", k.s > k.rmse, k)
+    kk = k.dropna(subset=["s_estimated"])
+    row("B: estimated s > HC0 SE of Chin", kk.s_estimated > kk.se_hc, kk)
+    row("C: oracle s > HC0 SE of Chin", kk.s > kk.se_hc, kk)
+    return pd.DataFrame(rows)
+
+
+def c5_cluster(c):
+    """cluster designs, d = 20, p = 0.5, iid baseline: Chin regression and DM under the cluster design next to the Bernoulli design on the same graph"""
+    cl = c[(c.design == "cluster") & (c.sigma == SIG) & c.estimator.isin(["chin", "dm"]) & (c.baseline == "iid") & (c.mechanism != "0") & (c.s == 0.5)].copy()
+    ber = c[(c.design == "bern") & (c.sigma == SIG) & c.estimator.isin(["chin", "dm"]) & (c.baseline == "iid") & (c.mechanism != "0") & (c.s == 0.5) & (c.p == 0.5) & (c.d_target == 20)
+            & c.run_id.str.match(r"(core_SBM_n3000_d20_p0.5|fam_(ER|BA)_n3000_d20_p0.5|real_(Stanford3|ego-Facebook)_d20_p0.5)$")].copy()
+    cols = ["run_id", "graph", "mechanism", "d_target", "cluster_resolution", "clustering", "n_clusters", "cluster_modularity", "estimator", "bias", "sd", "rmse", "rmse_mc_lo", "rmse_mc_hi", "defined", "n_draws"]
+    cl = cl[cols].copy()
+    cl["graph"] = np.where(cl.run_id.str.contains("SBMweak"), "SBMweak", cl.graph)
+    cl["design"] = "cluster"
+    ber = ber[cols].copy()
+    ber["design"] = "bernoulli"
+    return pd.concat([cl, ber], ignore_index=True).sort_values(["graph", "d_target", "mechanism", "design", "cluster_resolution", "estimator"])
+
+
+def c6_verdict(acc):
+    """acceptance rule of the brief (rev. 5), criteria (1)-(4); only rows marked counted enter part (i)"""
+    pre = acc[acc.variant == "pre-registered"]
+
+    def get(sub):
+        r = pre[pre.criterion.str.contains(sub, regex=False)]
+        assert len(r) == 1, (sub, len(r))
+        return r.iloc[0]
+    a1 = get("combined score: pooled held-out R2 gain over best benchmark, leave-one-mechanism-out")
+    a1f = get("combined score: pooled held-out R2 gain over best benchmark, leave-one-family-out")
+    g_m = get("combined score: held-out groups with positive gain (leave-one-mechanism-out)")
+    lo_m = get("combined score: lowest pooled gain after deleting any single group (leave-one-mechanism-out)")
+    p1 = acc[(acc.counted == True) & acc.criterion.str.contains("part (i)", regex=False)].iloc[0]
+    p2 = get("corner x curvature minus best degree benchmark")
+    p2s = get("S_bar minus best degree benchmark")
+    w1 = get("median Spearman excess over null simulation, S ")
+    w2 = get("median Spearman excess over null simulation, se ")
+    c1 = bool(a1.value >= 0.05 and a1.ci_lo > 0)
+    c1f = bool(a1f.value >= 0.05 and a1f.ci_lo > 0)
+    c2 = bool(g_m.value >= 4 and lo_m.value >= 0.05)
+    c3i = bool(p1.value >= 0.05 and p1.ci_lo > 0)
+    c3ii = bool(max(p2.value, p2s.value) >= 0.05 and ((p2.value >= 0.05 and p2.ci_lo > 0) or (p2s.value >= 0.05 and p2s.ci_lo > 0)))
+    c4 = bool(w1.ci_lo > 0 and w1.value > w2.value)
+    rows = [
+        dict(criterion="(1) pooled held-out gain >= 0.05, CI excludes 0, leave-one-mechanism-out", value=a1.value, ci_lo=a1.ci_lo, ci_hi=a1.ci_hi, met=c1),
+        dict(criterion="(1') same, leave-one-family-out", value=a1f.value, ci_lo=a1f.ci_lo, ci_hi=a1f.ci_hi, met=c1f),
+        dict(criterion="(2) gain positive in >= 4 of 6 held-out mechanisms and survives deleting any one", value=g_m.value, ci_lo=np.nan, ci_hi=np.nan, met=c2),
+        dict(criterion="(3i) part (i) on D*: gain >= 0.05, CI excludes 0", value=p1.value, ci_lo=p1.ci_lo, ci_hi=p1.ci_hi, met=c3i),
+        dict(criterion="(3ii) part (ii) bias: gain >= 0.05, CI excludes 0 (corner x curvature)", value=p2.value, ci_lo=p2.ci_lo, ci_hi=p2.ci_hi, met=bool(p2.value >= 0.05 and p2.ci_lo > 0)),
+        dict(criterion="(3ii') part (ii) bias: S_bar", value=p2s.value, ci_lo=p2s.ci_lo, ci_hi=p2s.ci_hi, met=bool(p2s.value >= 0.05 and p2s.ci_lo > 0)),
+        dict(criterion="(4) within-cell excess of S over null: median CI above 0 and above bootstrap SE", value=w1.value, ci_lo=w1.ci_lo, ci_hi=w1.ci_hi, met=c4),
+    ]
+    overall_supported = c1 and c2 and c3i and c3ii and c4
+    if overall_supported:
+        verdict = "supported"
+    elif a1.value >= 0.05 and a1.ci_lo <= 0:
+        verdict = "inconclusive"
+    else:
+        verdict = "not supported"
+    out = pd.DataFrame(rows)
+    out["overall_verdict"] = verdict
+    return out
+
+
+def c7_edge(c):
+    k = c[(c.sigma == SIG) & c.estimator.isin(["chin", "dm", "or_known"]) & c.mechanism.isin(["a", "e"]) & (c.s == 0.5)
+          & (c.run_id.str.match(r"(edge_SBM_d(5|20|80)_q0.[13]|core_SBM_n3000_d(5|20|80))_p0.5$"))]
+    return k[["run_id", "mechanism", "d_target", "edge_noise_q", "estimator", "bias", "bias_mc_lo", "bias_mc_hi", "sd", "rmse", "rmse_mc_lo", "rmse_mc_hi", "S"]].sort_values(["mechanism", "d_target", "edge_noise_q", "estimator"])
+
+
+def c7_real(r, c):
+    """per graph (synthetic families at p=0.5, d in {5,20,80}, vs the two real graphs thinned to the same degree): median log ratio and share of wins by mechanism"""
+    k = r[(r.estimator == "chin") & (r.sigma == SIG) & (r.mechanism != "0") & (r.s > 0)]
+    k = k.merge(c[c.estimator == "chin"][["cell_id", "graph", "d_target", "p", "design", "baseline"]].drop_duplicates("cell_id"), on="cell_id")
+    k = k[(k.design == "bern") & (k.baseline == "iid") & (k.p == 0.5) & k.run_id.str.match(r"(core_SBM|fam_|real_)")]
+    return k.groupby(["graph", "d_target", "mechanism"]).agg(n_s=("s", "size"), median_log_ratio=("log_ratio", "median"), share_wins=("log_ratio_hi", lambda x: (x < 0).mean()),
+                                                           min_log_ratio=("log_ratio", "min"), max_log_ratio=("log_ratio", "max")).reset_index()
+
+
+def _cov_groups(k, cov, mc, width, label):
+    """coverage of `cov` by quartiles of L, by |bias|/SD bins and by L among low-bias cells, then overall (k: one design, chin, sigma = SIG)"""
+    k = k[k[cov].notna()].copy()
+    k["bias_over_sd"] = k.bias.abs() / k.sd
+    out = []
+    for name, col, bins in (("L (quartiles)", "L", 4), ("|bias|/SD", "bias_over_sd", [0, 0.25, 0.5, 1, 2, np.inf])):
+        k["bin"] = pd.qcut(k[col], bins, duplicates="drop") if isinstance(bins, int) else pd.cut(k[col], bins, include_lowest=True)
+        g = k.groupby("bin", observed=True).agg(n_cells=(cov, "size"), coverage_mean=(cov, "mean"), coverage_min=(cov, "min"),
+                                                coverage_max=(cov, "max"), mc_se_median=(mc, "median"), median_width=(width, "median")).reset_index()
+        g.insert(0, "by", name)
+        g["bin"] = g["bin"].astype(str)
+        out.append(g)
+    lb = k[k.bias_over_sd < 0.25].copy()
+    lb["bin"] = pd.qcut(lb.L, 4, duplicates="drop")
+    g = lb.groupby("bin", observed=True).agg(n_cells=(cov, "size"), coverage_mean=(cov, "mean"), coverage_min=(cov, "min"), coverage_max=(cov, "max"),
+                                             mc_se_median=(mc, "median"), median_width=(width, "median")).reset_index()
+    g.insert(0, "by", "L quartiles among cells with |bias|/SD < 0.25")
+    g["bin"] = g["bin"].astype(str)
+    out.append(g)
+    out.append(pd.DataFrame([dict(by="overall", bin="all", n_cells=len(k), coverage_mean=k[cov].mean(), coverage_min=k[cov].min(), coverage_max=k[cov].max(),
+                                  mc_se_median=k[mc].median(), median_width=k[width].median())]))
+    g = pd.concat(out, ignore_index=True)
+    g.insert(0, "interval", label)
+    return g
+
+
+def c8_cov(c):
+    """coverage of the 95% normal interval of the Chin regression estimate versus leverage L and |bias|/SD (synthetic + real cells at the in-run noise level).
+    `interval` says which standard error: HC0 sandwich over units (Bernoulli designs only: it ignores the cluster structure and is not valid under cluster
+    designs), pairs bootstrap over units (Bernoulli; B = 100, first Rb assignments per graph), cluster bootstrap (cluster designs: resamples whole clusters, B = 100).
+    `population` says which cells: 'figure' = Bernoulli designs, true graph (edge_noise_q = 0), mechanisms (a)-(f), no sanity_ / convex_ runs (the cells of the delivered
+    coverage figure); 'all Bernoulli' = every Bernoulli cell at this noise level, including the edge-noise runs, the no-baseline sanity runs and the convex mirror (g);
+    'cluster designs' = the cluster-design cells."""
+    k = c[(c.estimator == "chin") & (c.sigma == SIG) & (c.mechanism != "0") & ~c.run_id.str.startswith("pfine_")]     # the p-grid runs (pfine_) are for C3 only
+    kb, kc = k[k.design == "bern"], k[k.design == "cluster"]
+    kf = kb[(kb.edge_noise_q == 0) & ~kb.run_id.str.startswith(("sanity_", "convex_")) & kb.mechanism.isin(list("abcdef"))]
+    out = []
+    for pop, kk in (("figure: Bernoulli, true graph, mechanisms a-f, no sanity/convex", kf), ("all Bernoulli cells", kb)):
+        for cov, mc, w, lab in (("coverage_hc", "coverage_hc_mc_se", "width_hc", "HC0 over units, Bernoulli designs"),
+                                ("coverage_boot", "coverage_boot_mc_se", "width_boot", "unit bootstrap, Bernoulli designs")):
+            g = _cov_groups(kk, cov, mc, w, lab)
+            g.insert(0, "population", pop)
+            out.append(g)
+    g = _cov_groups(kc, "coverage_boot", "coverage_boot_mc_se", "width_boot", "cluster bootstrap, cluster designs")
+    g.insert(0, "population", "cluster designs")
+    out.append(g)
+    return pd.concat(out, ignore_index=True)
+
+
+def c8_cov_family(c):
+    """coverage at s = 0.5 by estimator, design and graph: HC0 (unit, valid for Bernoulli only) and the bootstrap (unit under Bernoulli, whole clusters under cluster designs).
+    The DM interval is the bootstrap one (no HC0 is stored for DM)"""
+    k = c[(c.estimator.isin(["chin", "dm"])) & (c.sigma == SIG) & (c.mechanism != "0") & (c.s == 0.5) & ~c.run_id.str.startswith("pfine_")].copy()
+    g = k.groupby(["estimator", "design", "graph"]).agg(n_cells=("coverage_boot", "count"), coverage_hc_mean=("coverage_hc", "mean"), coverage_boot_mean=("coverage_boot", "mean"),
+                                                        coverage_hc_min=("coverage_hc", "min"), coverage_boot_min=("coverage_boot", "min")).reset_index()
+    g["interval_valid"] = np.where(g.design == "cluster", "bootstrap (clusters resampled); HC0 not valid", "HC0 and unit bootstrap")
+    return g
+
+
+def c8_cov_family_figure(c):
+    """HC0 and unit-bootstrap coverage by graph family on the cells of the delivered coverage figure (the `figure` population of c8_coverage: Bernoulli, true graph,
+    mechanisms (a)-(f), no sanity_/convex_/pfine_ runs, all s including s = 0): the family numbers the paper quotes next to the overall 0.736"""
+    k = c[(c.estimator == "chin") & (c.sigma == SIG) & (c.mechanism != "0") & ~c.run_id.str.startswith(("pfine_", "sanity_", "convex_")) & (c.design == "bern")
+          & (c.edge_noise_q == 0) & c.mechanism.isin(list("abcdef"))]
+    g = k.groupby("graph").agg(n_cells=("coverage_hc", "size"), coverage_hc_mean=("coverage_hc", "mean"), coverage_boot_mean=("coverage_boot", "mean")).reset_index()
+    return pd.concat([g, pd.DataFrame([dict(graph="all", n_cells=len(k), coverage_hc_mean=k.coverage_hc.mean(), coverage_boot_mean=k.coverage_boot.mean())])], ignore_index=True)
+
+
+def tierA(a, c):
+    """Tier A (m = 0.5, Bernoulli, 200 assignments per graph) against Tier G reference estimators, by mechanism: median RMSE ratio to Chin"""
+    k = a[a.s > 0].copy()
+    k = k.merge(k[k.estimator == "chin"][["run_id", "mechanism", "s", "rmse"]].rename(columns={"rmse": "rmse_chin"}), on=["run_id", "mechanism", "s"])
+    k = k.merge(k[k.estimator == "dm"][["run_id", "mechanism", "s", "rmse"]].rename(columns={"rmse": "rmse_dm"}), on=["run_id", "mechanism", "s"])
+    k["ratio_to_chin"] = k.rmse / k.rmse_chin
+    k["ratio_to_dm"] = k.rmse / k.rmse_dm
+    g = k.groupby(["estimator", "tier", "mechanism"]).agg(n_cells=("rmse", "size"), median_ratio_to_chin=("ratio_to_chin", "median"), min_ratio_to_chin=("ratio_to_chin", "min"),
+                                                        max_ratio_to_chin=("ratio_to_chin", "max"), median_ratio_to_dm=("ratio_to_dm", "median"),
+                                                        share_beats_dm=("ratio_to_dm", lambda x: (x < 1).mean())).reset_index()
+    return g
+
+
+def c2_explain_d_b(tables):
+    """(d): exposure spread and share near the threshold against |bias|, synthetic and real; (b): realised bias against the degree-dispersion form s(HM/AM-1)."""
+    e = pd.read_csv(os.path.join(tables, "exposure_spread_d.csv"))
+    e["abs_bias"] = e.bias.abs()
+    e["kind"] = np.where(e.graph.isin(["Stanford3", "ego-Facebook"]), "real", "synthetic")
+    rows = []
+    for p, g in e.groupby("p"):
+        for kind, h in list(g.groupby("kind")) + [("all", g)]:
+            if len(h) < 3:
+                continue
+            rows.append(dict(mechanism="d", p=p, group=kind, cells=len(h), median_sd_f=h.sd_f.median(), median_share_near_theta=h.share_f_within_015_of_theta.median(),
+                             median_abs_bias=h.abs_bias.median(), spearman_abs_bias_sd_f=spearmanr(h.abs_bias, h.sd_f)[0] if kind == "all" else np.nan,
+                             spearman_abs_bias_share_near=spearmanr(h.abs_bias, h.share_f_within_015_of_theta)[0] if kind == "all" else np.nan))
+    b = pd.read_csv(os.path.join(tables, "b_dispersion.csv"))
+    b["kind"] = np.where(b.graph.isin(["Stanford3", "ego-Facebook"]), "real", "synthetic")
+    for kind, h in list(b.groupby("kind")) + [("all", b)]:
+        rows.append(dict(mechanism="b", p=np.nan, group=kind, cells=len(h), median_abs_bias=h.bias.abs().median(),
+                         spearman_abs_bias_sd_f=np.nan, spearman_abs_bias_share_near=np.nan,
+                         corr_bias_vs_dispersion_form=float(np.corrcoef(h.bias, h.pred_tree)[0, 1]), max_abs_gap_bias_minus_form=float((h.bias - h.pred_tree).abs().max()),
+                         median_abs_gap_bias_minus_form=float((h.bias - h.pred_tree).abs().median())))
+    return pd.DataFrame(rows)
+
+
+def c2_b_decline(tables):
+    """(b) on SBM at p = 0.5: realised bias against d with the dispersion form."""
+    b = pd.read_csv(os.path.join(tables, "b_dispersion.csv"))
+    b = b[(b.graph == "SBM") & (b.p == 0.5)].copy()
+    b["d"] = b.d.round(1)
+    b["gap"] = b.bias - b.pred_tree
+    return b[["graph", "d", "cv2_degree", "hm_over_am_minus_1", "pred_tree", "bias", "gap"]]
+
+
+def main(tables, out):
+    os.makedirs(out, exist_ok=True)
+    c = pd.read_parquet(os.path.join(tables, "cells.parquet"))
+    r = pd.read_parquet(os.path.join(tables, "ratios.parquet"))
+    pb = pd.read_csv(os.path.join(tables, "bias_prediction.csv"))
+    acc = pd.read_csv(os.path.join(tables, "acceptance.csv"))
+    a = pd.read_csv(os.path.join(tables, "tierA_cells.csv"))
+    dc = pd.read_parquet(os.path.join(tables, "diag_cells.parquet"))
+    dr = pd.read_parquet(os.path.join(tables, "diag_rows.parquet"), columns=["run_id", "d", "p", "n", "design", "base", "j", "spec", "sigma", "logL"])
+    be = c4_breakeven(r, c)
+    T = {"c1_exponents": c1_exponents(c), "c1_L_exponents": c1_L_exponents(dr), "c2_bias_vs_d": c2_bias(c, pb), "c2_prediction_check": c2_prediction_check(pb), "c3_p_dependence": c3_p(c, pb), "c3_minimisers": c3_minimisers(c3_p(c, pb)), "c2_second_order": c2_second_order(pb), "c6_why_mechanism": c6_why_mechanism(dc), "c2_explain_d_b": c2_explain_d_b(tables), "c2_b_decline": c2_b_decline(tables),
+         "c4_breakeven": be, "c4_sstar_predicted": c4_sstar_predicted(c, be), "c4_rule_ci": c4_rule_ci(r, c), "c5_d20_reduction": c5_d20(c5_cluster(c)), "c4_regime_share": c4_regime_share(r, c), "c4_rule": c4_rule(r, c), "c5_cluster": c5_cluster(c),
+         "c6_verdict": c6_verdict(acc), "c7_edge_noise": c7_edge(c), "c7_real_vs_synthetic": c7_real(r, c), "c8_coverage": c8_cov(c),
+         "c8_coverage_by_family": c8_cov_family(c), "c8_coverage_figure_by_family": c8_cov_family_figure(c), "tierA_summary": tierA(a, c)}
+    commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, cwd=os.path.dirname(os.path.abspath(__file__))).stdout.strip()
+    for k, v in T.items():
+        v.to_csv(os.path.join(out, k + ".csv"), index=False)
+        json.dump(dict(script="analysis/claims.py", code_commit=commit, seed=20261125, n_draws="see cells.meta.json", date=str(date.today()), rows=len(v)),
+                  open(os.path.join(out, k + ".meta.json"), "w"), indent=1)
+        print(k, v.shape)
+
+
+if __name__ == "__main__":
+    main(*sys.argv[1:3])

@@ -1,0 +1,6 @@
+predictor,held_out_r2,n_cells,note
+mean_degree,0.31320143774466946,84,"leave-one-mechanism-out, Tier A cells only"
+p(1-p),-0.04299824427125176,84,"leave-one-mechanism-out, Tier A cells only"
+n p(1-p)/d,0.32963592758511606,84,"leave-one-mechanism-out, Tier A cells only"
+CV loss (Han-Ugander style),-0.17358528695445252,84,"leave-one-mechanism-out, Tier A cells only"
+CV loss + corner loss,-0.25234710685700157,84,"leave-one-mechanism-out, Tier A cells only"

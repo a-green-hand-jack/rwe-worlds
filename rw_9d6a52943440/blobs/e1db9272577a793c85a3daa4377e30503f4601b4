@@ -1,0 +1,22 @@
+"""Anchor-design robustness: RMSE ratio to uniform|mean at n = 100 with the light k-means of the main runs (n_init 1, 25 iterations) against a
+strong k-means (n_init 10, 300 iterations; BPRED_KMEANS=strong), per (benchmark, split) for the benchmarks run.
+usage: python3 -I scripts/07_kmstrong.py results/raw results/raw_kmstrong results/kmstrong.csv
+The two columns use different draws (the strong runs hold the anchor design only), so differences of a few percent are within draw noise."""
+import pickle, glob, os, sys, numpy as np, pandas as pd
+
+raw, rawk, out = sys.argv[1:4]
+rows = []
+for f in sorted(glob.glob(f"{rawk}/*__*.pkl")):
+    b, s = os.path.basename(f)[:-len("_kmstrong.pkl")].split("__")
+    A = pickle.load(open(f, "rb"))["records"]; B = pickle.load(open(f"{raw}/{b}__{s}.pkl", "rb"))["records"]
+
+    def rmse(recs, m):
+        e = [((r["preds"][m].astype(float) - r["true"][None]) ** 2).mean(0) for r in recs if r["n"] == 100]
+        return float(np.sqrt(np.concatenate(e).mean()))
+    u = rmse(B, "uniform|mean")
+    for m in ["anchor|mean", "anchor|calreg", "anchor|irt-plugin", "anchor|diff-irt"]:
+        rows.append(dict(bench=b, split=s, method=m, ratio_light=rmse(B, m) / u, ratio_strong=rmse(A, m) / u))
+d = pd.DataFrame(rows)
+d.to_csv(out, index=False)
+g = d.assign(l=np.log(d.ratio_light), s=np.log(d.ratio_strong)).groupby(["split", "method"])[["l", "s"]].mean().apply(np.exp)
+print(g.round(3))

@@ -1,0 +1,32 @@
+# Review of version 1 (paper-repo#10, main -> release), head b344f71
+
+Read: `document/main/document.pdf` (built-from b344f7162d36 = the PR head), 9 body pages, references from p.10, appendix and checklist after. Checked against `results/tables/*.csv` and `results/README.md` at the same commit (spot checks: floor a/b ranges of the abstract, m=64 shares, Table 3/4/5 rows, H1 contrasts).
+
+## What the paper contributes
+A decision-level reliability measure of one SHAP run (exact top-3 set, tolerance-aware variant, run-to-run agreement) against the exact Shapley value of a fixed marginal value function, on 5 tabular datasets x 4 model classes, compared with background and retraining noise and with a one-run certificate. Conclusion: conditional (reliable at the shap default budget when d>=16 except for near ties; not at 3-4d coalitions; at B=50 the background moves the top-3 set more than the shap default run does).
+
+## Verdict: changes requested (one `must`)
+
+### must
+1. **Claim contradicted by Table 4 / h1_contrast.csv.** Section 5.3 (heading "aggregate agreement is high except at small budgets"), the text "It is not supported at a default or reference budget", and Discussion ("Aggregate agreement hides decision-level failures only at small budgets") hold only for the tolerance-aware contrast, which is 0 at every reference budget by construction (flat tolerance groups satisfy P_c^eps vacuously; the paper says so itself in 5.3). On the strict criterion, which the paper calls "the informative one" near ties, the mean-Pearson contrast at the reference budget is 13.0 [7.0,19.0] points for Pima RF and 21.0 [13.0,29.0] for GMSC RF (Table 4 daggers; `h1_contrast.csv` rows pima/rf m=127, gmsc/rf m=511), and 5-10 points with intervals excluding zero in 8 further cells. So aggregate agreement (r >= 0.99) does hide strict decision-level failures at a sampled reference budget in at least two cells. Answer: state both readings in 5.3 (H1 as pre-specified on P_c^eps: not supported at default/reference; on strict P_c: supported in Pima RF and GMSC RF at the reference budget and in all non-linear cells at ~2d-3d), and change the heading and the Discussion sentence (and intro (ii) if needed) to what the strict contrast shows. Needs no new computation.
+
+### may
+2. Figure 3 panels (b) and (d): group labels ("paired Kernel", "antithetic perm.", "default/paired/antithetic") sit on the markers and the panels are cramped at placed size; the reader must guess which row is which. Put the labels as tick labels at the left of each row, or enlarge.
+3. Section 5.4 is one ~35-line paragraph (Tobit, thinning, probit coefficients). A reader outside the study cannot follow it on first reading; give the conclusion in main text (slope supported for antithetic permutation, unresolved otherwise) and keep the thinning/probit numbers in Appendix C, which already holds them.
+4. Introduction results paragraph (i)-(v) repeats the abstract's numbers; the venue record (accepted introductions ~700 words, motivating example, contribution list) suggests one framing paragraph on why top-3 correctness matters (a concrete instance) and a contribution list, with ranges left to Section 5.
+5. Abstract: "certificate" is used without definition; "default explainer" in the last comparison is at a sampled reference budget for d<=10, not at the default (which enumerates there): say "reference budget".
+6. Bibliography entries carry process notes ("Title and abstract only were read"): these belong in the reproduction notes, not in a reference.
+7. Scope objection a referee will raise: all default-budget evidence is d=16 and d=20, one trained model each, 40-60 instances; the regime where 2d+2048 is far below 2^d (d in the tens to hundreds) is untested although Arrhythmia (d=279) is supplied. With tree models, interventional TreeSHAP on the same background is an exact reference at large d (the paper already uses it as a cross-check), so a large-d extension is feasible. Not a `must` for a release version; for `final` the paper should either include it or state in Section 6 why the d<=20 conclusion cannot be extended.
+
+## Strongest objections and where the paper stands
+- Novelty: related work separates the paper from error-to-exact-Shapley estimator papers, top-k identification and Covert-Lee within-run variance; the absence claim is hedged. Answered.
+- Test the main claim rests on: exact reference, margin strata, tolerance sensitivity, pre-specified H1 reported as it fell, both certificate contrasts reported. Answered, except item 1 above and the scope item 7.
+- Baselines: shap default, paired Kernel, antithetic permutation, at equal evaluations; l1_reg variants. Adequate.
+- Certainty: intervals resample instances only; one seed / one trained model is stated in the abstract-adjacent scope paragraph and Section 6. Adequate for a release.
+- Readability: dense but complete; items 3-5.
+
+## Pending work recorded, not a finding against v1
+ACS-Employment MLP floors (delivered in `dev`), German MLP floor b by B (running), so Fig 4 shows ACS-Employment MLP as absent.
+
+## Checks passed (not to repeat on unchanged content)
+Fonts all embedded (no Type 3); 9 body pages; NeurIPS 2026 style, anonymous; 16 checklist items answered; Table 3, Table 5 and floor ranges in abstract/5.5 agree with the delivered CSVs.

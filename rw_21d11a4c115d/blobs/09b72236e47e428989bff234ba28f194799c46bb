@@ -1,0 +1,66 @@
+"""LLM union-matrix overlap check (Brief: 'try; report the overlap; drop if too small').  Sources: HELM Lite v1.13.0 (10 scenarios), HELM Capabilities (5),
+Open LLM Leaderboard contents @9c09a7c (6 benchmarks, 4576 rows), LiveBench judgments @9704e5d (3 categories, mean judgment score over questions).
+Name-matching rule (documented, conservative): lower-case, org prefix removed (text before '/'), split on non-alphanumerics, map chat/it/instruct -> 'instruct',
+drop the tokens {hf, turbo, fp8, preview, vision, throughput, model, llm, v}, keep size and version tokens, key = sorted token tuple; HELM parentheses (14B) -> token '14b'.
+A key that is shared by two different models inside one source is ambiguous and excluded from that source.  A model enters the union if its key is in >= 2 sources.
+Run: python3 union_overlap.py <parsed_dir> <union_raw_dir> <results_dir>"""
+import sys, re, json, numpy as np, pandas as pd
+parsed, raw, res = sys.argv[1:4]
+DROP = {'hf', 'turbo', 'fp8', 'preview', 'vision', 'throughput', 'model', 'llm', 'v'}
+def key(name):
+    n = name.split('/')[-1].lower(); toks = [t for t in re.split(r'[^a-z0-9]+', n) if t]
+    toks = ['instruct' if t in ('chat', 'it', 'instruct') else t for t in toks if t not in DROP]
+    return tuple(sorted(set(toks)))
+lite = pd.read_csv(f'{parsed}/helm_lite_accuracy.csv', index_col=0); cap = pd.read_csv(f'{parsed}/helm_capabilities_accuracy.csv', index_col=0).drop(columns=['Mean score'])
+o = pd.read_parquet(f'{raw}/openllm.parquet'); l = pd.read_parquet(f'{raw}/livebench.parquet')
+o = o[~o['Flagged']] if 'Flagged' in o else o
+oc = ['IFEval Raw', 'BBH Raw', 'MATH Lvl 5 Raw', 'GPQA Raw', 'MUSR Raw', 'MMLU-PRO Raw']
+op = o.set_index('fullname')[oc]; op = op.groupby(level=0).first()
+lb = l.groupby(['model', 'category']).score.mean().unstack()
+src = {'helm_lite': lite, 'helm_capabilities': cap, 'open_llm': op, 'livebench': lb}
+keyed = {}; rows = []
+for s, t in src.items():
+    k = pd.Series([key(m) for m in t.index], index=t.index); dup = k[k.duplicated(keep=False)]
+    keyed[s] = (t, k[~k.duplicated(keep=False)]); rows.append((s, 'models', len(t))); rows.append((s, 'benchmarks', t.shape[1])); rows.append((s, 'ambiguous_models_excluded', len(dup)))
+# union
+keys = {s: set(v[1].values) for s, v in keyed.items()}
+allk = pd.Series([k for s in keys for k in keys[s]]).value_counts()
+inter = [k for k, c in allk.items() if c >= 2]
+cols = {}
+U = {}
+for kk in inter:
+    row = {}
+    for s, (t, k) in keyed.items():
+        m = k[k == kk].index
+        if len(m) == 1:
+            for c, v in t.loc[m[0]].items(): row[f'{s}:{c}'] = v
+    U['|'.join(kk)] = row
+Uf = pd.DataFrame.from_dict(U, orient='index')
+ncov = Uf.notna().sum(axis=1)
+for s1 in src:
+    for s2 in src:
+        if s1 < s2: rows.append((f'{s1} & {s2}', 'models_in_both', len(keys[s1] & keys[s2])))
+rows += [('union', 'models_in_>=2_sources', len(Uf)), ('union', 'benchmarks_total', Uf.shape[1]), ('union', 'models_covering_>=12_benchmarks', int((ncov >= 12).sum())),
+         ('union', 'models_covering_>=20_benchmarks', int((ncov >= 20).sum())), ('union', 'density', float(Uf.notna().values.mean())),
+         ('union', 'max_benchmarks_covered_by_one_model', int(ncov.max()))]
+import itertools
+for r_ in range(2, 5):      # complete blocks: models present in every source of the subset (all columns of those sources)
+    for sub in itertools.combinations(src, r_):
+        cc = [c for c in Uf.columns if c.split(':')[0] in sub]; nb = int(Uf[cc].notna().all(axis=1).sum()); rows.append(('complete_block ' + '+'.join(sub), f'models_complete_on_{len(cc)}_benchmarks', nb))
+pd.DataFrame(rows, columns=['item', 'what', 'value']).to_csv(f'{res}/union_overlap.csv', index=False)
+rng = np.random.default_rng(0); samp = rng.choice(len(Uf), size=min(30, len(Uf)), replace=False)
+aud = []
+for i in samp:
+    kk = tuple(Uf.index[i].split('|')); r = {'key': Uf.index[i]}
+    for s, (t, k) in keyed.items(): m = k[k == kk].index; r[s] = m[0] if len(m) else ''
+    aud.append(r)
+pd.DataFrame(aud).to_csv(f'{res}/union_match_audit_sample.csv', index=False)
+print(pd.DataFrame(rows, columns=['item', 'what', 'value']).to_string())
+
+# the one complete block that meets the Brief's threshold (>= 25 models x >= 12 benchmarks): HELM Lite + Open LLM Leaderboard -> small-N case study
+cc = [c for c in Uf.columns if c.split(':')[0] in ('helm_lite', 'open_llm')]; B = Uf[cc].dropna()
+fam = lambda n: {"mixtral": "mistral"}.get(n.split()[0].split("-")[0].lower(), n.split()[0].split("-")[0].lower())
+names = [keyed['helm_lite'][1][keyed['helm_lite'][1].apply(lambda t: '|'.join(t)) == i].index[0] for i in B.index]
+fm = np.array([fam(n) for n in names])
+np.savez(f"{res}/data_out/llm_union16.npz", X=B.values.astype(float), models=np.array(names), tasks=np.array(cc), family=fm, family_org=fm)
+print('llm_union16', B.shape, 'families', len(set(fm)))

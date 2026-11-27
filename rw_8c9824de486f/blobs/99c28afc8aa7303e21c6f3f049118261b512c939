@@ -1,0 +1,32 @@
+# Baselines and methods the study must be compared with (for `experiment-repo`)
+
+Protocol (fixed by the idea; analysis decides how to run): for each held-out model m (leave-one-model-out; also leave-family-out and extrapolation splits), everything — standardisation, factor model, selection — is fit on the other models only. m's observed row is revealed at the k selected benchmarks (restricted to those m actually has); predict the rest of m's *observed* cells; score on those. Report mean over held-out models with a bootstrap-over-models CI, and paired differences between methods.
+
+**Selection rules (S)**
+- S0 random-k (many draws; report mean and spread — this is the main comparator, not a straw man)
+- S1 most-observed / popularity (maximum coverage)
+- S2 highest-variance benchmarks
+- S3 greedy forward selection by cross-validated error on training models (wrapper; Das–Kempe)
+- S4 pivoted-QR / leverage-score column subset selection (Boutsidis 2009)
+- S5 clustering of benchmarks (k-medoids on correlation distance), one per cluster
+- S6 **proposed**: greedy Bayesian V-optimal design on a probabilistic factor model; cost-aware variant (gain per unit cost)
+- S7 adaptive: decision-tree/kNN interview (Golbandi 2011 style) — tests *misspecification gains* of adaptivity (a different model from PPCA). Adaptive-vs-batch under the *same* PPCA posterior is a unit test (must agree to numerical precision), not an experiment.
+- S8 exhaustive oracle best subset where C(N,k) is feasible (Open LLM LB N=6, HELM Lite N=10) to bound greedy's gap
+
+**Inference rules (P)**
+- P0 benchmark mean (no information); P1 benchmark mean + model offset (mean of observed standardised scores; the "general factor" baseline)
+- P2 ridge/linear regression on the selected benchmarks (per target) with missing training cells handled by pairwise/EM
+- P3 kNN over training models (collaborative filtering), P4 iterative-SVD / Soft-Impute (Mazumder 2010), P5 probabilistic PCA/FA posterior mean (proposed inference, Tipping–Bishop), P6 PCA capability-space regression with sigmoid/link as in observational scaling laws (Ruan 2024) and Sloth (Polo 2024) where a link function is needed (bounded scores)
+- Must be run as published or documented adaptation; report any that cannot be run as published back to `idea-repo` via an issue.
+
+**Data conditions to sweep (conclusion scope):** matrix source (MTEB main; Open LLM Leaderboard, HELM Lite, LiveBench as generative-LLM matrices; synthetic with known rank/noise), training-set size M, missing rate, benchmark category (MTEB task types), interpolation vs extrapolation split, score transform (raw / standardised / logit), metric (RMSE standardised; per-model Spearman across benchmarks; rank agreement of models on a held-out benchmark).
+
+## Added after idea review #3
+- Primary protocol: **group-wise hold-out** (by org/family stem after a deduplication rule fixed beforehand: one revision per model); plain LOMO only as sensitivity; temporal/strength split second primary.
+- Equal terms: every method's hyperparameters (rank, ridge λ, kNN K, Soft-Impute λ) chosen by the same inner CV on training models only.
+- **One primary contrast fixed before running:** S6+P5 vs S0+P5 (random-k, same inference), paired over held-out models, at k ∈ {1,2,3,5,8,12,20}; all else secondary, multiplicity stated. Report design gain relative to the draw-to-draw spread of random-k. Cost-aware variant compared at equal *cost* with cost-matched random subsets.
+- Metrics: standardised RMSE, MAE in raw score points, error vs typical gap between neighbouring leaderboard models, rank agreement among strong models, per-benchmark error. Name the floors "residual floor" and "all-others floor" (not noise).
+- Effective rank defined before results: parallel analysis, eigenvalues above the noise edge, CV-selected rank; report sensitivity to the imputation of missing cells.
+
+## Status after the experiment-repo pre-registration (commit 7731e49)
+Run as published: S0, S1, S2, S5, P0, P1, P3, P4. Adaptations, to be labelled as such in the paper: S3 (closed-form P5 on training rows, k ≤ 32), S4 (pivoted QR on the EM-completed matrix), S7 (continuous-score kNN/tree interview, after Golbandi et al.), P2 (EM-completed training matrix), P6 (PC regression on P5 latent scores with a sigmoid link, adapted from Ruan et al./Sloth; not the published method). S8 exhaustive oracle only on N ≤ 10 matrices and on small random MTEB subsets. Decision: all stay in the comparison.

@@ -1,0 +1,13 @@
+#!/bin/sh
+# Copies code/ and the aggregated results into a checkout of paper-repo's `dev` (delivered paths code/ and results/).
+# usage: sh analysis/sync_delivery.sh /path/to/paper-repo-checkout
+set -e
+SRC="$(cd "$(dirname "$0")/.." && pwd)"
+DST="$1"
+mkdir -p "$DST/code" "$DST/results"
+rm -rf "$DST/code/src" "$DST/code/experiments" "$DST/code/analysis"
+cp -r "$SRC/src" "$SRC/experiments" "$SRC/analysis" "$DST/code/"
+cp "$SRC/code_README.md" "$DST/code/README.md" 2>/dev/null || true
+cp "$SRC/requirements.txt" "$DST/code/" 2>/dev/null || true
+find "$DST/code" -name __pycache__ -prune -exec rm -rf {} +
+cp "$SRC"/results/*.csv "$SRC"/results/*.json "$SRC"/results/*.md "$SRC"/results/*.txt "$DST/results/" 2>/dev/null || true

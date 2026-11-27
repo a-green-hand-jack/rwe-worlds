@@ -1,0 +1,25 @@
+estimator,design,graph,n_cells,coverage_hc_mean,coverage_boot_mean,coverage_hc_min,coverage_boot_min,interval_valid
+chin,bern,BA,78,0.7138452380952381,0.7438461538461538,0.0,0.0,HC0 and unit bootstrap
+chin,bern,DCSBM,54,0.7580925925925925,0.7498765432098765,0.14833333333333334,0.14666666666666667,HC0 and unit bootstrap
+chin,bern,ER,72,0.810861111111111,0.8085648148148148,0.032,0.04,HC0 and unit bootstrap
+chin,bern,SBM,244,0.7440506666666666,0.7498224043715848,0.0,0.0,HC0 and unit bootstrap
+chin,bern,Stanford3,54,0.4647716049382716,0.4651851851851852,0.0,0.0,HC0 and unit bootstrap
+chin,bern,WS,54,0.8289814814814815,0.822283950617284,0.028666666666666667,0.05,HC0 and unit bootstrap
+chin,bern,ego-Facebook,54,0.6586913580246914,0.6578395061728395,0.09733333333333333,0.09,HC0 and unit bootstrap
+chin,cluster,BA,12,0.7768333333333333,0.7991666666666667,0.135,0.12333333333333334,bootstrap (clusters resampled); HC0 not valid
+chin,cluster,ER,12,0.7828333333333334,0.7875,0.14966666666666667,0.15666666666666668,bootstrap (clusters resampled); HC0 not valid
+chin,cluster,SBM,72,0.8681157407407407,0.8564351851851852,0.388,0.47333333333333333,bootstrap (clusters resampled); HC0 not valid
+chin,cluster,Stanford3,18,0.639888888888889,0.7872222222222223,0.07066666666666667,0.16666666666666666,bootstrap (clusters resampled); HC0 not valid
+chin,cluster,ego-Facebook,18,0.9014074074074073,0.9496296296296296,0.49166666666666664,0.8433333333333334,bootstrap (clusters resampled); HC0 not valid
+dm,bern,BA,78,,0.0,,0.0,HC0 and unit bootstrap
+dm,bern,DCSBM,54,,0.0,,0.0,HC0 and unit bootstrap
+dm,bern,ER,72,,0.0,,0.0,HC0 and unit bootstrap
+dm,bern,SBM,244,,0.0002459016393442623,,0.0,HC0 and unit bootstrap
+dm,bern,Stanford3,54,,0.0,,0.0,HC0 and unit bootstrap
+dm,bern,WS,54,,0.0,,0.0,HC0 and unit bootstrap
+dm,bern,ego-Facebook,54,,0.0,,0.0,HC0 and unit bootstrap
+dm,cluster,BA,12,,0.04055555555555556,,0.0,bootstrap (clusters resampled); HC0 not valid
+dm,cluster,ER,12,,0.02472222222222222,,0.0,bootstrap (clusters resampled); HC0 not valid
+dm,cluster,SBM,72,,0.16314814814814815,,0.0,bootstrap (clusters resampled); HC0 not valid
+dm,cluster,Stanford3,18,,0.41,,0.0,bootstrap (clusters resampled); HC0 not valid
+dm,cluster,ego-Facebook,18,,0.8692592592592593,,0.5833333333333334,bootstrap (clusters resampled); HC0 not valid

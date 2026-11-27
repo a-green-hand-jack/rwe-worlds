@@ -1,0 +1,144 @@
+{
+ "_note": "Choices that are presentation's, not results. headline_n must be filled per dataset from the n-grid analysis reports (analysis marks the real labeled size); scripts stop if a dataset is missing. headline_n from experiment-repo#2 (reference n fixed before the runs; ballots native split reported separately).",
+ "headline_n": {
+  "galaxies": 500,
+  "forest": 200,
+  "alphafold": 500,
+  "gene_expression": 500,
+  "census_income": 500,
+  "census_healthcare": 500,
+  "census_education": 500,
+  "plankton": 500,
+  "ballots": 500
+ },
+ "ladder": [
+  [
+   "Labels",
+   "labels_z",
+   "T1"
+  ],
+  [
+   "PPI",
+   "ppi",
+   "T1"
+  ],
+  [
+   "PPI++",
+   "ppipp",
+   "T1"
+  ],
+  [
+   "PPI++ unclipped",
+   "ppipp_unclip",
+   "T1"
+  ],
+  [
+   "Calibrated $f$",
+   "calib_spline",
+   "T1"
+  ],
+  [
+   "Selected",
+   "select",
+   "T1"
+  ],
+  [
+   "Selected + $X$",
+   "select_x",
+   "T2"
+  ],
+  [
+   "Floor",
+   "floor",
+   "T1"
+  ]
+ ],
+ "regime_method": "select",
+ "nominal": 0.95,
+ "table_main": [
+  [
+   "Labels only",
+   "labels_z",
+   "T1"
+  ],
+  [
+   "PPI",
+   "ppi",
+   "T1"
+  ],
+  [
+   "PPI++",
+   "ppipp",
+   "T1"
+  ],
+  [
+   "Calib. $f$",
+   "calib_spline",
+   "T1"
+  ],
+  [
+   "Selected",
+   "select",
+   "T1"
+  ],
+  [
+   "Selected, $f$ and $X$",
+   "select_x",
+   "T2"
+  ]
+ ],
+ "headline_arm": {
+  "T1": "select",
+  "T2": "select_x"
+ },
+ "margin": {
+  "no_gain": [
+   0.98,
+   1.02
+  ],
+  "gain_ub": 0.95,
+  "source": "Outline rev 5 section 1 (fixed before the runs)"
+ },
+ "primary_construction": "wald",
+ "prop_estimators": [
+  "ppipp",
+  "calib_spline",
+  "oracle_m"
+ ],
+ "breakeven_panels": [
+  "gene_expression",
+  "census_income",
+  "alphafold",
+  "galaxies",
+  "syn_quad_c0.05",
+  "syn_quad_c0.2",
+  "syn_binary"
+ ],
+ "construction_methods": [
+  "labels_z",
+  "labels_cp",
+  "ppi",
+  "ppipp",
+  "pooled_linear",
+  "calib_spline",
+  "calib_iso",
+  "select"
+ ],
+ "real_sets": [
+  "alphafold",
+  "ballots",
+  "census_education",
+  "census_healthcare",
+  "census_income",
+  "forest",
+  "galaxies",
+  "gene_expression",
+  "plankton"
+ ],
+ "decomp_n": [
+  100,
+  500
+ ],
+ "clip_sigma": 0.6,
+ "clip_N": 10000
+}

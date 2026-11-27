@@ -1,0 +1,166 @@
+4034 165
+Fair Wasserstein Coresets
+SocialGPT: Prompting LLMs for Social Relation Reasoning via Greedy Segment Optimization
+Overcoming Common Flaws in the Evaluation of Selective Classification Systems
+Feint Behaviors and Strategies: Formalization, Implementation and Evaluation
+Flexible Context-Driven Sensory Processing in Dynamical Vision Models
+Weight decay induces low-rank attention layers
+HORSE: Hierarchical Representation for Large-Scale Neural Subset Selection
+TARP-VP: Towards Evaluation of Transferred  Adversarial Robustness and Privacy on Label  Mapping Visual Prompting Models
+DeepDRK: Deep Dependency Regularized Knockoff for Feature Selection
+Image-aware Evaluation of Generated Medical Reports
+Clustering then Propagation: Select Better Anchors for Knowledge Graph Embedding
+A Pairwise Pseudo-likelihood Approach for Matrix Completion with Informative Missingness
+GarmentLab: A Unified Simulation and Benchmark for Garment Manipulation
+Learning-Augmented Dynamic Submodular Maximization
+Improving self-training under distribution shifts via anchored confidence with theoretical guarantees
+Observational Scaling Laws and the Predictability of Langauge Model Performance
+4+3 Phases of Compute-Optimal Neural Scaling Laws
+Loki: Low-rank Keys for Efficient Sparse Attention
+Abstract Reward Processes: Leveraging State Abstraction for Consistent Off-Policy Evaluation
+Visual Anchors Are Strong Information Aggregators For Multimodal Large Language Model
+Inferring stochastic low-rank recurrent neural networks from neural data
+Evaluating the design space of diffusion-based generative models
+Optimizing the coalition gain in Online Auctions with Greedy Structured Bandits
+Gradient Methods for Online DR-Submodular Maximization with Stochastic Long-Term Constraints
+Active Learning with LLMs for Partially Observed and Cost-Aware Scenarios
+Spatio-Temporal Interactive Learning for Efficient Image Reconstruction of Spiking Cameras
+SureMap: Simultaneous mean estimation for single-task and multi-task disaggregated evaluation
+Efficient multi-prompt evaluation of LLMs
+FLoRA: Federated Fine-Tuning Large Language Models with Heterogeneous Low-Rank Adaptations
+Evaluating the World Model Implicit in a Generative Model
+Are We on the Right Way for Evaluating Large Vision-Language Models?
+GTBench: Uncovering the Strategic Reasoning Capabilities of LLMs via Game-Theoretic Evaluations
+MediQ: Question-Asking LLMs and a Benchmark for Reliable Interactive Clinical Reasoning
+A Critical Evaluation of AI Feedback for Aligning Large Language Models
+MoLE: Enhancing Human-centric Text-to-image Diffusion via Mixture of  Low-rank Experts
+Should We Really Edit Language Models? On the Evaluation of Edited Language Models
+Model-free Low-Rank Reinforcement Learning via Leveraged Entry-wise Matrix Estimation
+Active learning of neural population dynamics using two-photon holographic optogenetics
+Predicting the Performance of Foundation Models via Agreement-on-the-Line
+Predicting Ground State Properties: Constant Sample Complexity and Deep Learning Algorithms
+CoSy: Evaluating Textual Explanations of Neurons
+From Linear to Linearizable Optimization:  A Novel Framework with Applications to Stationary and Non-stationary DR-submodular Optimization
+Time Makes Space: Emergence of Place Fields in Networks Encoding Temporally Continuous Sensory Experiences
+Learnability Matters: Active Learning for Video Captioning
+GREAT Score: Global Robustness Evaluation of Adversarial Perturbation using Generative Models
+Multivariate Stochastic Dominance via Optimal Transport and Applications to Models Benchmarking
+Diff-eRank: A Novel Rank-Based Metric for Evaluating Large Language Models
+An exactly solvable model for emergence and scaling laws in the multitask sparse parity problem
+SEL-BALD: Deep Bayesian Active Learning with Selective Labels
+I2EBench: A Comprehensive Benchmark for Instruction-based Image Editing
+Understanding Scaling Laws with Statistical and Approximation Theory for Transformer Neural Networks on Intrinsically Low-dimensional Data
+Connectivity Shapes Implicit Regularization in Matrix Factorization Models for Matrix Completion
+Prompt Tuning Strikes Back: Customizing Foundation Models with Low-Rank Prompt Adaptation
+STONE: A Submodular Optimization Framework for Active 3D Object Detection
+Active Learning of General Halfspaces: Label Queries vs Membership Queries
+Predicting Future Actions of Reinforcement Learning Agents
+Practical $0.385$-Approximation for Submodular Maximization Subject to a Cardinality Constraint
+ContextGS : Compact 3D Gaussian Splatting with Anchor Level Context Model
+Accelerating Greedy Coordinate Gradient and General Prompt Optimization via Probe Sampling
+Active Learning for Derivative-Based Global Sensitivity Analysis with Gaussian Processes
+Efficient Minimum Bayes Risk Decoding using Low-Rank Matrix Completion Algorithms
+LoRA-GA: Low-Rank Adaptation with Gradient Approximation
+Abrupt Learning in Transformers: A Case Study on Matrix Completion
+Not All Diffusion Model Activations Have Been Evaluated as Discriminative Features
+Empowering Active Learning for 3D Molecular Graphs with Geometric Graph Isomorphism
+Deep Submodular Peripteral Networks
+Robust Offline Active Learning on Graphs
+Scaling Laws in Linear Regression: Compute, Parameters, and Data
+Fairness without Harm: An Influence-Guided Active Sampling Approach
+Rethinking The Training And Evaluation of Rich-Context Layout-to-Image Generation
+Training Binary Neural Networks via Gaussian Variational Inference and Low-Rank Semidefinite Programming
+Unleashing Multispectral Video's Potential in Semantic Segmentation: A Semi-supervised Viewpoint and New UAV-View Benchmark
+Adaptive Exploration for Data-Efficient General Value Function Evaluations
+CriticEval: Evaluating Large-scale Language Model as Critic
+BLoB: Bayesian Low-Rank Adaptation by Backpropagation for Large Language Models
+LLM Evaluators Recognize and Favor Their Own Generations
+Tensor-Based Synchronization and the Low-Rankness of the Block Trifocal Tensor
+Externally Valid Policy Evaluation from Randomized Trials Using Additional Observational Data
+Predicting Label Distribution from Ternary Labels
+Adaptive Labeling for Efficient Out-of-distribution Model Evaluation
+FouRA: Fourier Low-Rank Adaptation
+Integrating Deep Metric Learning with Coreset for Active Learning in 3D Segmentation
+SeTAR: Out-of-Distribution Detection with Selective Low-Rank Approximation
+Efficient Leverage Score Sampling for Tensor Train Decomposition
+Efficient Lifelong Model Evaluation in an Era of Rapid Progress
+Universal Rates for Active Learning
+Scaling Laws and Compute-Optimal Training Beyond Fixed Training Durations
+Local Anti-Concentration Class: Logarithmic Regret for Greedy Linear Contextual Bandit
+Two-way Deconfounder for Off-policy Evaluation in Causal Reinforcement Learning
+Animal-Bench: Benchmarking Multimodal Video Models for Animal-centric Video Understanding
+Weak-eval-Strong: Evaluating and Eliciting Lateral Thinking of LLMs with Situation Puzzles
+Logarithmic Smoothing for Pessimistic Off-Policy Evaluation, Selection and Learning
+Rethinking Human Evaluation Protocol for Text-to-Video Models: Enhancing Reliability, Reproducibility, and Practicality
+RL in Latent MDPs is Tractable: Online Guarantees via Off-Policy Evaluation
+Scaling Law for Time Series Forecasting
+Vision Transformer Neural Architecture Search for Out-of-Distribution Generalization: Benchmark and Insights
+Small coresets via negative dependence: DPPs, linear statistics, and concentration
+Who Evaluates the Evaluations? Objectively Scoring Text-to-Image Prompt Coherence Metrics with T2IScoreScore (TS2)
+Aligning Vision Models with Human Aesthetics in Retrieval: Benchmarks and Algorithms
+Alleviate Anchor-Shift: Explore Blind Spots with Cross-View Reconstruction for Incomplete Multi-View Clustering
+Renovating Names in Open-Vocabulary Segmentation Benchmarks
+IDGen: Item Discrimination Induced Prompt Generation for LLM Evaluation
+On Socially Fair Low-Rank Approximation and Column Subset Selection
+D-CPT Law: Domain-specific Continual Pre-Training Scaling Law for Large Language Models
+On the Use of Anchoring for Training Vision Models
+Nearly Minimax Optimal Submodular Maximization with Bandit Feedback
+StrategyLLM: Large Language Models as Strategy Generators, Executors, Optimizers, and Evaluators for Problem Solving
+RectifID: Personalizing Rectified Flow with Anchored Classifier Guidance
+Apathetic or Empathetic? Evaluating LLMs' Emotional Alignments with Humans
+Statistical Multicriteria Benchmarking via the GSD-Front
+MixEval: Deriving Wisdom of the Crowd from LLM Benchmark Mixtures
+ALI-Agent: Assessing LLMs'  Alignment with Human Values via Agent-based Evaluation
+A theoretical design of concept sets: improving the predictability of concept bottleneck models
+LoRANN: Low-Rank Matrix Factorization for Approximate Nearest Neighbor Search
+OPERA: Automatic Offline Policy Evaluation with Re-weighted Aggregates of Multiple Estimators
+Dimension-free deterministic equivalents and scaling laws for random feature regression
+Elo Uncovered: Robustness and Best Practices in Language Model Evaluation
+UniAR: A Unified model for predicting human Attention and Responses on visual content
+The Limits of Transfer Reinforcement Learning with Latent Low-rank Structure
+Discretely beyond $1/e$: Guided Combinatorial Algortihms for Submodular Maximization
+Amortized Bayesian Experimental Design for Decision-Making
+Evaluation of Text-to-Video Generation Models: A Dynamics Perspective
+IQA-EVAL: Automatic Evaluation of Human-Model Interactive Question Answering
+Scaling laws for learning with real and surrogate data
+Toward a Stable, Fair, and Comprehensive Evaluation of Object Hallucination in Large Vision-Language Models
+Stratified Prediction-Powered Inference for Effective Hybrid Evaluation of Language Models
+Evidential Mixture Machines: Deciphering Multi-Label Correlations for Active Learning Sensitivity
+Efficient and Sharp Off-Policy Evaluation in Robust Markov Decision Processes
+Decision-Making Behavior Evaluation Framework for LLMs under Uncertain Context
+Bridging The Gap between Low-rank and Orthogonal Adaptation via Householder Reflection Adaptation
+Scaling Laws with Vocabulary: Larger Models Deserve Larger Vocabularies
+Low-Rank Optimal Transport through Factor Relaxation with Latent Coupling
+LoQT: Low-Rank Adapters for Quantized Pretraining
+Learning Low-Rank Feature for Thorax Disease Classification
+Deep Bayesian Active Learning for Preference Modeling in Large Language Models
+Data Acquisition via Experimental Design for Data Markets
+MR-Ben: A Meta-Reasoning Benchmark for Evaluating System-2 Thinking in LLMs
+Most Influential Subset Selection: Challenges, Promises, and Beyond
+Towards a Scalable Reference-Free Evaluation of Generative Models
+Evaluating alignment between humans and neural network representations in image-based learning tasks
+On the Convergence of Loss and Uncertainty-based Active Learning Algorithms
+Stochastic Extragradient with Flip-Flop Shuffling & Anchoring: Provable Improvements
+Metric Space Magnitude for Evaluating the Diversity of Latent Representations
+Transductive Active Learning: Theory and Applications
+On the Curses of Future and History in Future-dependent Value Functions for Off-policy Evaluation
+A Method for Evaluating Hyperparameter Sensitivity in Reinforcement Learning
+Scaling Laws for Reward Model Overoptimization in Direct Alignment Algorithms
+Coherence-free Entrywise Estimation of Eigenvectors in Low-rank Signal-plus-noise Matrix Models
+Entrywise error bounds for low-rank approximations of kernel matrices
+General bounds on the quality of Bayesian coresets
+SARDet-100K: Towards Open-Source Benchmark and ToolKit for Large-Scale SAR Object Detection
+Semi-Random Matrix Completion via Flow-Based Adaptive Reweighting
+Rethinking No-reference Image Exposure Assessment from Holism to Pixel:  Models, Datasets and Benchmarks
+Nonparametric Evaluation of Noisy ICA Solutions
+Large Language Models Play StarCraft II:Benchmarks and A Chain of Summarization Approach
+Beating Adversarial Low-Rank MDPs with Unknown Transition and Bandit Feedback
+To Err Like Human: Affective Bias-Inspired Measures for Visual Emotion Recognition Evaluation
+Evaluate then Cooperate: Shapley-based View Cooperation Enhancement for Multi-view Clustering
+Weak Supervision Performance Evaluation via Partial Identification
+DARG: Dynamic Evaluation of Large Language Models via Adaptive Reasoning Graph
+Efficient Policy Evaluation Across Multiple Different Experimental Datasets
+Task-oriented Time Series Imputation Evaluation via Generalized Representers
+Linear Time Approximation Algorithm for Column Subset Selection with Local Search
+Neural collapse vs. low-rank bias: Is deep neural collapse really optimal?
+Off-Policy Selection for Initiating Human-Centric Experimental Design

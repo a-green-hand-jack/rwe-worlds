@@ -1,0 +1,195 @@
+"""P6 exploratory-after-results arm: what the curvature estimate costs, as against non-identification.
+    python analysis/p6_true_m.py OUT RAWDIR [SOURCE_LABEL]      (SOURCE_LABEL: confirmatory | original; default confirmatory)
+
+Same interval as P6, B2 form: tau_hat +- cv(kappa B2 / SE_HC0) SE_HC0 with B2 = 0.5 M ((1-p)^2 + p^2), cv(t) the 0.90 quantile of |N(t, 1)|,
+but with M taken from other sources than the in-run cubic M-hat (`mhat3`, the P6 version, noise level 0.5):
+  cubic       the P6 M-hat (reference)
+  true01      sup over f in [0, 1] of |d^2/df^2| of the generating treatment part (uses the truth, like the exact-theory predictor; infeasible)
+              (a), (f): 0;  (c), (g), (h): analytic;  (b), (e): 0, because the outcome is linear in the assignment vector (so linear in f and in the count);
+              (d): not twice differentiable, so no finite M and no arm
+  true_obs    the same over the draw's observed [min f, max f] (the range over which the cubic M-hat is evaluated)
+  cubic_free  the cubic M-hat fitted to the treatment part alone of the same assignment (no baseline, no noise: the sigma = 0 run); infeasible; defined for every mechanism
+  lean        max(cubic M-hat - cubic M-hat of the mechanism-free column of the same draw, 0): the cubic M-hat minus its own noise level, the noise level being
+              the cubic curvature of the null column (same baseline noise, outcome linear in z); infeasible as stated (a feasible analogue needs a placebo outcome)
+Controls on the same cells (primary population: Bernoulli, iid baseline SD 1, no edge noise, s > 0, noise level 0.5): HC0 at 0.90; oracle (z SE + |bias|);
+C2 (HC0 half-width times one global factor chosen per arm and kappa so that its mean width over the pool equals the arm's)."""
+import glob
+import json
+import os
+import subprocess
+import sys
+from datetime import date
+
+import numpy as np
+import pandas as pd
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import agg  # noqa: E402
+from gate import mech  # noqa: E402
+from gate.sim import NOISE_M  # noqa: E402
+from p6_interval import KAPPAS, Z90, cv, est  # noqa: E402
+
+ARMS = ("cubic", "true01", "true_obs", "cubic_free", "lean")
+GROUP = {"a": "smooth, true M finite", "c": "smooth, true M finite", "f": "smooth, true M finite", "g": "smooth, true M finite", "h": "smooth, true M finite",
+         "b": "linear in z, not a function of f", "e": "linear in z, not a function of f", "d": "threshold"}
+KEEP = (0.25, 1.0)      # kappa-hat of B2 (frozen on the original cells) and the B1 kappa-hat; the kappa matching the oracle's mean width is added per arm
+
+
+def resp_curv(mname, s, lo, hi):
+    """sup |d^2/df^2| of the treatment part over [lo, hi] (NaN where undefined)"""
+    if mname in ("a", "f", "b", "e"):
+        return 0.0
+    if mname == "d":
+        return np.nan
+    f = np.linspace(lo, hi, 2001)
+    h = 1e-4
+    fn = {"c": mech.g_sat, "g": mech.g_conv, "h": mech.g_sig}[mname]
+    ff = np.clip(f, h, 1 - h)
+    return float(np.abs(s * (fn(ff + h) - 2 * fn(ff) + fn(ff - h)) / h ** 2).max())
+
+
+def cells_of(run, source):
+    cfg, o = run.cfg, run.o
+    if cfg.get("design", "bern") != "bern" or "mhat3" not in o:
+        return []
+    if not (cfg.get("base", "iid") == "iid" and cfg.get("base_sd", 1.0) == 1.0 and cfg.get("q_edge", 0.0) == 0):
+        return []
+    G, R, p = run.G, run.R, cfg["p"]
+    fmax, fmin = o["expo"][:, 1].astype(float), o["expo"][:, 2].astype(float)
+    pf = (1 - p) ** 2 + p ** 2
+    M_null = o["mhat3"][:, 0].astype(float)
+    rows = []
+    for j, (mname, s) in enumerate(run.cols):
+        if mname == "0" or s <= 0:
+            continue
+        tau = np.repeat(run.tau[:, j], R)
+        th = est(o, run, "chin", j, NOISE_M)
+        err, se = np.abs(th - tau), o["se_hc"][:, j].astype(float)
+        Mc = o["mhat3"][:, j].astype(float)
+        M = {"cubic": Mc, "cubic_free": o["mhat3_0"][:, j].astype(float), "lean": np.maximum(Mc - M_null, 0.0)}
+        t01 = resp_curv(mname, s, 0.0, 1.0)
+        M["true01"] = np.full(len(err), t01)
+        if mname == "d":
+            M["true_obs"] = np.full(len(err), np.nan)
+        elif resp_curv(mname, s, 0, 1) == 0.0:
+            M["true_obs"] = np.zeros(len(err))
+        else:     # per draw: the range of the exposure of that draw
+            ug = {}
+            for lo, hi in set(zip(np.round(fmin, 3), np.round(fmax, 3))):
+                ug[(lo, hi)] = resp_curv(mname, s, lo, hi)
+            M["true_obs"] = np.array([ug[(a, b)] for a, b in zip(np.round(fmin, 3), np.round(fmax, 3))])
+        bias = float(np.mean(th - tau))
+        r = dict(source=source, run_id=run.id, family=cfg["family"], d_nom=cfg.get("d", 0), p=p, mechanism=mname, s=s, n_draws=len(err), tau=float(tau.mean()),
+                 bias=bias, mean_se=float(se.mean()), true_M01=t01, mean_M_cubic=float(Mc.mean()), mean_M_cubic_free=float(M["cubic_free"].mean()),
+                 mean_M_lean=float(M["lean"].mean()), mean_M_null=float(M_null.mean()))
+        r["cov_hc0"] = float(np.mean(err <= Z90 * se))
+        r["width_hc0"] = float(np.mean(2 * Z90 * se / tau))
+        r["cov_oracle"] = float(np.mean(err <= Z90 * se + abs(bias)))
+        r["width_oracle"] = float(np.mean(2 * (Z90 * se + abs(bias)) / tau))
+        # per arm and kappa: per-cell coverage and width; C2 needs the pooled factor so the half-width draws are kept summarised: store coverage of HC0 scaled by lambda later
+        r["_err"], r["_se"], r["_tau"] = err.astype(np.float32), se.astype(np.float32), tau.astype(np.float32)
+        r["_B"] = {a: (0.5 * pf * M[a]).astype(np.float32) for a in ARMS}
+        rows.append(r)
+    return rows
+
+
+def arm_curve(r, a, kappa):
+    err, se, tau, B = r["_err"], r["_se"], r["_tau"], r["_B"][a]
+    if np.isnan(B).any():
+        return np.nan, np.nan
+    hw = cv(kappa * B.astype(float) / np.maximum(se, 1e-12)) * se
+    return float(np.mean(err <= hw)), float(np.mean(2 * hw / tau))
+
+
+def pool_width(cells, a, kappa):
+    return float(np.mean([arm_curve(r, a, kappa)[1] for r in cells]))
+
+
+def c2_cov(r, lam):
+    return float(np.mean(r["_err"] <= lam * Z90 * r["_se"]))
+
+
+def match_kappa(cells, a, target):
+    """kappa at which the mean width over the cells equals the target (bisection on log kappa; NaN if outside [2^-12, 2^8])"""
+    lo, hi = -12.0, 8.0
+    if pool_width(cells, a, 2 ** lo) > target or pool_width(cells, a, 2 ** hi) < target:
+        return np.nan
+    for _ in range(30):
+        mid = (lo + hi) / 2
+        if pool_width(cells, a, 2 ** mid) < target:
+            lo = mid
+        else:
+            hi = mid
+    return 2 ** ((lo + hi) / 2)
+
+
+def main(out, rawdir, source="confirmatory"):
+    os.makedirs(out, exist_ok=True)
+    commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, cwd=os.path.dirname(os.path.abspath(__file__))).stdout.strip()
+    cells = []
+    for f in sorted(glob.glob(os.path.join(rawdir, "*.pkl"))):
+        c = cells_of(agg.Run(f), source)
+        cells += c
+        print("p6_true_m", os.path.basename(f), len(c), flush=True)
+    cells = [c for c in cells if c["mechanism"] in GROUP]
+    sets = {"all but threshold": [c for c in cells if c["mechanism"] != "d"], "all": cells,
+            "smooth, true M finite": [c for c in cells if GROUP[c["mechanism"]] == "smooth, true M finite"],
+            "linear in z, not a function of f": [c for c in cells if GROUP[c["mechanism"]] == "linear in z, not a function of f"]}
+    # kappa matching the oracle's mean width, per arm, on the pool (all but threshold for every arm, all for the arms defined at (d))
+    kmatch = {}
+    for pool_name, pool in sets.items():
+        tw = float(np.mean([c["width_oracle"] for c in pool]))
+        for a in ARMS:
+            if pool_name == "all" and a in ("true01", "true_obs"):
+                continue
+            kmatch[(pool_name, a)] = match_kappa(pool, a, tw)
+    rows = []
+    for pool_name, pool in sets.items():
+        for a in ARMS:
+            if pool_name == "all" and a in ("true01", "true_obs"):
+                continue
+            # smallest grid kappa with pooled coverage >= 0.90 (the rule's width ratio is read there); the largest grid kappa if none reaches it
+            pc = [(k, float(np.mean([arm_curve(c, a, k)[0] for c in pool]))) for k in KAPPAS]
+            reach = [k for k, v in pc if v >= 0.90]
+            kstar = (reach[0], "smallest grid kappa with pooled coverage >= 0.90") if reach else (KAPPAS[-1], "pooled coverage 0.90 not reached: largest grid kappa")
+            ks = [("frozen B2 kappa-hat", 0.25), ("kappa = 1", 1.0), ("kappa matching oracle mean width", kmatch[(pool_name, a)]), kstar[::-1]]
+            ks = [(lab, k) for lab, k in ks]
+            for klab, k in ks:
+                if not np.isfinite(k):
+                    continue
+                lam = pool_width(pool, a, k) / float(np.mean([c["width_hc0"] for c in pool]))
+                tab = {}
+                for c in pool:
+                    cov, w = arm_curve(c, a, k)
+                    tab[id(c)] = (cov, w, c2_cov(c, lam))
+                for lab, sel in (("overall", lambda c: True),) + tuple((m, (lambda c, m=m: c["mechanism"] == m)) for m in "abcdefgh") + \
+                        tuple((g, (lambda c, g=g: GROUP[c["mechanism"]] == g)) for g in dict.fromkeys(GROUP.values())):
+                    sub = [c for c in pool if sel(c)]
+                    if not sub:
+                        continue
+                    cov = np.mean([tab[id(c)][0] for c in sub])
+                    w = np.mean([tab[id(c)][1] for c in sub])
+                    ow = np.mean([c["width_oracle"] for c in sub])
+                    rows.append(dict(source=source, pool=pool_name, arm=a, kappa_rule=klab, kappa=k, level=lab, cells=len(sub), coverage=cov, mean_width=w,
+                                     oracle_mean_width=ow, width_ratio_to_oracle=w / ow, oracle_coverage=np.mean([c["cov_oracle"] for c in sub]),
+                                     hc0_coverage=np.mean([c["cov_hc0"] for c in sub]), hc0_mean_width=np.mean([c["width_hc0"] for c in sub]),
+                                     c2_coverage_same_mean_width_pool=np.mean([tab[id(c)][2] for c in sub]), c2_factor=lam,
+                                     share_cells_cov_ge_085=np.mean([tab[id(c)][0] >= 0.85 for c in sub])))
+    pd.DataFrame(rows).to_csv(os.path.join(out, f"p6_true_m_{source}.csv"), index=False)
+    # the M values themselves, per mechanism and d (what each source of M says)
+    mt = pd.DataFrame([{k: v for k, v in c.items() if not k.startswith("_")} for c in cells])
+    mt.to_csv(os.path.join(out, f"p6_true_m_{source}_cells.csv"), index=False)
+    mm = mt.groupby(["mechanism", "d_nom"]).agg(cells=("s", "size"), true_M01=("true_M01", "median"), M_cubic_free=("mean_M_cubic_free", "median"), M_lean=("mean_M_lean", "median"),
+                                              M_cubic=("mean_M_cubic", "median"), M_null_noise_only=("mean_M_null", "median"), mean_se=("mean_se", "median"),
+                                              mean_abs_bias=("bias", lambda x: float(np.mean(np.abs(x))))).reset_index()
+    mm.to_csv(os.path.join(out, f"p6_true_m_{source}_M_values.csv"), index=False)
+    base = dict(script="analysis/p6_true_m.py", code_commit=commit, date=str(date.today()), source=source, noise_level=NOISE_M,
+                population=f"{source} cells, primary: Bernoulli, iid baseline SD 1, no edge noise, s > 0, mechanisms (a)-(h) present in the run set; exploratory-after-results",
+                kappa_matched={f"{k[0]}|{k[1]}": (None if not np.isfinite(v) else float(v)) for k, v in kmatch.items()}, arms=[x.strip() for x in __doc__.split("\n")[3:14]])
+    for name, desc in ((f"p6_true_m_{source}", "coverage and mean width of B2 with M from each source, against HC0, the oracle and C2 at the same mean width, by mechanism, group and overall, at the frozen kappa, kappa = 1, the kappa matching the oracle's mean width and the smallest grid kappa with pooled coverage >= 0.90 (kappa*; the largest grid kappa, labelled, if none reaches it)"),
+                       (f"p6_true_m_{source}_M_values", "the M each source gives (median over cells) by mechanism and d"),
+                       (f"p6_true_m_{source}_cells", "per-cell M, bias, SE, HC0 and oracle coverage and width")):
+        json.dump(dict(base, description=f"P6 true-M arm, table '{name}': " + desc), open(os.path.join(out, name + ".meta.json"), "w"), indent=1)
+
+if __name__ == "__main__":
+    main(sys.argv[1], sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else "confirmatory")

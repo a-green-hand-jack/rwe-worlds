@@ -1,0 +1,9 @@
+#!/bin/bash
+# training-side k* rule on the Open LLM LB matrix (groups G folds 0-9 and the strength split S; no T split): inner states then C/T evaluation (S0, S6, 10 splits).
+# usage: 26b_inner_olb.sh <data_dir> <work_dir> <out_dir>   (MC_KGRID and MC_RANKS as in 23_olb_all.sh)
+export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 MC_KGRID=${MC_KGRID:-1,2,3,5,8,13} MC_RANKS=${MC_RANKS:-1,2,3,4,6,8,12,16}
+cd "$(dirname "$0")"
+D=$1; W=$2; O=$3
+( for f in 0 1 2 3 4 5 6 7 8 9; do echo "G $f"; done; echo "S 0" ) | xargs -P ${NP:-4} -L 1 sh -c "python3 -u 25_inner_states.py $D $W \$0 \$1"
+( for f in 0 1 2 3 4 5 6 7 8 9; do for g in 0 1 2 3 4; do echo "GI $((10*f+g))"; done; done; for g in 0 1 2 3 4; do echo "SI $g"; done ) | xargs -P ${NP:-4} -L 1 sh -c "python3 -u 21_eval_ct.py $D $W \$0 \$1 $O S0,S6 inner 10"
+echo HUTIAN_WAKE: inner olb done

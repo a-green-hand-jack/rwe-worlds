@@ -1,0 +1,29 @@
+"""Check a figure PDF: page width and smallest font size (pt) as embedded.
+
+usage: python3 -I figtab/check_pdf.py FIG.pdf MIN_PT [WIDTH_IN]
+Exit 1 if smallest text < MIN_PT or width differs from WIDTH_IN by > 0.02 in.
+"""
+import sys
+import pymupdf as fitz
+
+
+def check(path):
+    doc = fitz.open(path)
+    page = doc[0]
+    sizes = []
+    for b in page.get_text("dict")["blocks"]:
+        for l in b.get("lines", []):
+            for s in l["spans"]:
+                if s["text"].strip():
+                    sizes.append(round(s["size"], 2))
+    return page.rect.width / 72.0, page.rect.height / 72.0, (min(sizes) if sizes else None)
+
+
+if __name__ == "__main__":
+    w, h, m = check(sys.argv[1])
+    need = float(sys.argv[2])
+    ok = m is not None and m >= need - 0.05
+    if len(sys.argv) > 3:
+        ok = ok and abs(w - float(sys.argv[3])) <= 0.02
+    print(f"{sys.argv[1]}: {w:.2f}x{h:.2f} in, min text {m} pt (need {need})", "OK" if ok else "FAIL")
+    sys.exit(0 if ok else 1)

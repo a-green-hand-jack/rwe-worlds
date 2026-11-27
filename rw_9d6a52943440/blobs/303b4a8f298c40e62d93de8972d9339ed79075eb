@@ -1,0 +1,41 @@
+"""Per-target bias with R = 100 subset draws against the R = 10 main run: does Table 3's bias^2 / variance split change?
+
+usage: python3 -I scripts/14_bias_r100.py results/highR/per_bench.csv.gz results/per_bench.csv.gz results/highR_vs_main.csv results/raw_highR/target_level.parquet results/highR_target_bias.csv
+
+Both inputs are 03_analyze.py outputs. For n = 100, the non-thin benchmarks and the methods present in both (the R = 100 run has the designs uniform, strat, pps, balanced
+only, splits interp and extrap), per (split, method): the mean over benchmarks of bias2_unbiased, var and MSE (= rmse^2), each divided by the MSE of uniform|mean of the same
+run and benchmark (as in Table 3), for R = 10 and R = 100, with the standard error over benchmarks of the R = 100 mean. bias2_unbiased = bias^2 of the draw-mean error minus
+var/R, so it does not contain the Monte-Carlo variance of the draw mean; at R = 10 that correction is up to 10 % of the MSE, at R = 100 up to 1 %.
+"""
+import sys, pathlib, numpy as np, pandas as pd
+hi, lo, out, tl, out2 = sys.argv[1:6]
+rows = []
+for tag, f in (("R10", lo), ("R100", hi)):
+    pb = pd.read_csv(f); pb = pb[(pb.n == 100) & (~pb.thin) & (~pb.method.str.contains("fixed:")) & pb.split.isin(["interp", "extrap"])]
+    mu = (pb.rmse / pb.ratio) ** 2
+    pb = pb.assign(b2=pb.bias2_unbiased / mu, v=pb["var"] / mu, mse=pb.ratio ** 2, run=tag)
+    rows.append(pb[["run", "bench", "split", "method", "b2", "v", "mse"]])
+d = pd.concat(rows)
+common = set(d[d.run == "R100"].method) & set(d[d.run == "R10"].method)
+d = d[d.method.isin(common)]
+g = d.groupby(["split", "method", "run"])[["b2", "v", "mse"]].agg(["mean", lambda x: x.std(ddof=1) / np.sqrt(len(x))])
+g.columns = [f"{a}_{'mean' if b == 'mean' else 'se'}" for a, b in g.columns]
+w = g.reset_index().pivot(index=["split", "method"], columns="run")
+w.columns = [f"{a}_{b}" for a, b in w.columns]
+for c in ("b2", "v", "mse"):
+    w[f"{c}_diff"] = w[f"{c}_mean_R100"] - w[f"{c}_mean_R10"]
+w = w.reset_index(); w.to_csv(out, index=False)
+pd.set_option("display.width", 250)
+print(w[["split", "method", "b2_mean_R10", "b2_mean_R100", "b2_se_R100", "v_mean_R10", "v_mean_R100", "mse_mean_R10", "mse_mean_R100"]].round(3).to_string(index=False))
+print("benchmarks:", d.groupby("run").bench.nunique().to_dict())
+
+# Per-target signed bias of the R = 100 draw mean against its Monte-Carlo standard error sqrt(draw_var / n_draws): pooled over the targets of the non-thin benchmarks.
+t = pd.read_parquet(tl); t = t[t.n == 100]
+thin = pd.read_csv(str(pathlib.Path(hi).parent / "targets.csv")); thin = set(map(tuple, thin[thin.thin][["bench", "split"]].values))
+t = t[[(b, s) not in thin for b, s in zip(t.bench, t.split)]]
+t = t.assign(method=t.design + "|" + t.estimator, se=np.sqrt(t.draw_var / t.n_draws))
+r = t.groupby(["split", "method"]).apply(lambda g: pd.Series(dict(
+    n_targets=len(g), median_abs_bias=g.bias.abs().median(), median_mc_se=g.se.median(), share_abs_bias_gt_2se=(g.bias.abs() > 2 * g.se).mean(),
+    share_bias2_of_mse=((g.bias ** 2 - g.se ** 2).sum() / g.sq_err.sum())))).reset_index()
+r.to_csv(out2, index=False)
+print(r[r.method.isin(["uniform|mean", "uniform|irt-model", "uniform|diff-irt", "balanced|diff-irt", "uniform|calreg", "uniform|ridge-model"])].round(3).to_string(index=False))

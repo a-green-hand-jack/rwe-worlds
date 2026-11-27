@@ -1,0 +1,115 @@
+"""Shared style, loaders and provenance for the paper's figures.
+
+Sizes come from the venue (WIDTH_IN, MIN_PT); change them here only.
+"""
+import hashlib, json, os
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from scipy.stats import beta
+
+WIDTH_IN = 5.5   # NeurIPS 2026 text block 5.5 in, one column (venue-repo#3); figures placed at \linewidth
+MIN_PT = 7.0     # ticks/legend/panel text; axis labels 8 pt (venue-repo#3 recommendation, not a venue rule)
+LABEL_PT = 8.0
+
+# Okabe-Ito: colour-blind safe; each model also has a marker + linestyle so greyscale print works
+MODELS = ["lr", "rf", "gbm", "mlp"]
+MODEL_STYLE = {
+    "lr":  dict(color="#009E73", marker="s", ls=(0, ()), label="LR (log-odds)"),
+    "rf":  dict(color="#D55E00", marker="o", ls=(0, (4, 1.5)), label="RF (probability)"),
+    "gbm": dict(color="#0072B2", marker="^", ls=(0, (1, 1)), label="GBM (log-odds)"),
+    "mlp": dict(color="#CC79A7", marker="D", ls=(0, (5, 1, 1, 1)), label="MLP (log-odds)"),
+}
+DATASET_TITLE = {"german": "German Credit", "acs_employment": "ACS Employment",
+                 "acs_income": "ACS Income", "pima": "Pima", "gmsc": "GMSC"}
+
+
+SCRIPT_PT = 6.0  # sub/superscripts: the NeurIPS style's own floor (\tiny = 6 pt); mathtext shrinks scripts to 0.7 of the text, i.e. 4.9 pt at 7 pt
+
+
+def setup():
+    import matplotlib._mathtext as _mt
+    _mt.SHRINK_FACTOR = SCRIPT_PT / MIN_PT
+    mpl.rcParams.update({
+        "pdf.fonttype": 42, "ps.fonttype": 42,
+        "font.family": "STIXGeneral", "mathtext.fontset": "stix",  # Times-like, matches body (ptm)
+        "font.size": MIN_PT, "axes.labelsize": LABEL_PT,
+        "axes.titlesize": LABEL_PT, "xtick.labelsize": MIN_PT,
+        "ytick.labelsize": MIN_PT, "legend.fontsize": MIN_PT,
+        "axes.linewidth": 0.6, "lines.linewidth": 1.1, "lines.markersize": 3.5,
+        "xtick.major.width": 0.6, "ytick.major.width": 0.6,
+        "axes.spines.top": False, "axes.spines.right": False,
+        "savefig.bbox": None, "figure.dpi": 150,
+    })
+
+
+def clopper_pearson(k, n, alpha=0.05):
+    k = np.asarray(k, float); n = np.asarray(n, float)
+    lo = np.where(k == 0, 0.0, beta.ppf(alpha / 2, k, n - k + 1))
+    hi = np.where(k == n, 1.0, beta.ppf(1 - alpha / 2, k + 1, n - k))
+    return lo, hi
+
+
+def load(data_dir, name):
+    """Read a contract table; fail loudly when absent (no fallbacks, no placeholders)."""
+    for ext in (".parquet", ".csv"):
+        p = os.path.join(data_dir, name + ext)
+        if os.path.exists(p):
+            df = pd.read_parquet(p) if ext == ".parquet" else pd.read_csv(p)
+            return norm_l1(df), p
+    raise FileNotFoundError(f"{name}(.parquet|.csv) not in {data_dir}: see docs/data_contract.md")
+
+
+def norm_l1(df):
+    """l1_reg as a string everywhere: 'False', 'auto', 'num_features(10)' or 'NA' (estimators without the option)."""
+    if "l1_reg" in df.columns:
+        df = df.copy(); df["l1_reg"] = df["l1_reg"].astype(object).where(df["l1_reg"].notna(), "NA").astype(str).replace({"nan": "NA", "<NA>": "NA", "None": "NA"})
+    return df
+
+
+def ref_budget(cells, estimator, l1):
+    """Budget at which a cell is read for 'the deployment budget'. The shap default (2d+2048) when it samples (R > 1);
+    where the default enumerates all coalitions (d <= 10: deterministic, R = 1, trivially exact) the largest sampling budget instead.
+    Returns dataset, model, budget_m, R, evals_per_run, source in {default, largest_sampling}."""
+    c = cells[(cells.estimator == estimator) & (cells.l1_reg == l1) & (cells.R > 1)]
+    out = []
+    for (ds, m), g in c.groupby(["dataset", "model"]):
+        dd = g[g.is_default_budget == True]
+        r, src = (dd.iloc[0], "default") if len(dd) else (g.sort_values("budget_m").iloc[-1], "largest_sampling")
+        out.append(dict(dataset=ds, model=m, budget_m=int(r.budget_m), R=int(r.R), evals_per_run=r.evals_per_run, source=src))
+    return pd.DataFrame(out, columns=["dataset", "model", "budget_m", "R", "evals_per_run", "source"])
+
+
+def require(df, cols, name):
+    miss = [c for c in cols if c not in df.columns]
+    if miss:
+        raise KeyError(f"{name} lacks columns {miss}: see docs/data_contract.md")
+
+
+def inputs(paths):
+    """Provenance of the inputs: name (results/tables/<file> when the file sits in such a directory) -> sha256."""
+    return {("results/tables/" + os.path.basename(p) if os.path.basename(os.path.dirname(os.path.abspath(p))) == "tables" else p): sha256(p) for p in paths}
+
+
+def sha256(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for b in iter(lambda: f.read(1 << 20), b""):
+            h.update(b)
+    return h.hexdigest()
+
+
+SCOPE = ("Intervals resample instances of one trained model per dataset x model (one seed, B=50 random background rows); "
+         "variance from retraining and from the background is not in them (floors b and c measure those separately).")
+
+
+def save(fig, out_prefix, plotted, inputs, note=""):
+    """Write PDF + the exact plotted numbers (.csv) + provenance (.json) next to it."""
+    os.makedirs(os.path.dirname(out_prefix) or ".", exist_ok=True)
+    fig.savefig(out_prefix + ".pdf", metadata={"CreationDate": None, "Creator": "figtab-repo"})
+    plotted.to_csv(out_prefix + ".csv", index=False)
+    w, h = fig.get_size_inches()
+    with open(out_prefix + ".json", "w") as f:
+        json.dump({"figure": os.path.basename(out_prefix), "width_in": float(w), "height_in": float(h),
+                   "inputs": globals()["inputs"](inputs), "note": note, "scope": SCOPE}, f, indent=1)

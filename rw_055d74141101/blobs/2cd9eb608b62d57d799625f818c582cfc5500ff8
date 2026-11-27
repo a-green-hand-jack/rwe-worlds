@@ -1,0 +1,66 @@
+import argparse, hashlib, json, os
+import pandas as pd
+
+def args(name):
+    ap = argparse.ArgumentParser(description=name)
+    ap.add_argument("--data", required=True, help="directory with result CSVs (experiment-repo)")
+    ap.add_argument("--out", required=True)
+    return ap.parse_args()
+
+def sha256(p):
+    h = hashlib.sha256()
+    with open(p, "rb") as f:
+        for b in iter(lambda: f.read(1 << 20), b""):
+            h.update(b)
+    return h.hexdigest()
+
+def load(data_dir, fname, required, prov):
+    """Read one contract CSV; stop (no substitute) if missing or missing required columns."""
+    p = os.path.join(data_dir, fname)
+    if not os.path.exists(p):
+        raise SystemExit(f"{fname} not found in {data_dir}: figure not built")
+    df = pd.read_csv(p)
+    miss = [c for c in required if c not in df.columns]
+    if miss:
+        raise SystemExit(f"{fname}: missing required columns {miss}")
+    info = {"sha256": sha256(p), "rows": len(df)}
+    for c in ("dataset", "design", "perturbation", "cost_unit", "seed_set", "n_boot", "synthetic"):
+        if c in df:
+            info[c] = sorted(map(str, df[c].dropna().unique()))      # what the figure was computed on
+    if "N" in df:
+        info["N_range"] = [int(df.N.min()), int(df.N.max())]
+    prov["inputs"][fname] = info
+    return df
+
+def write_prov(out_dir, name, prov):
+    with open(os.path.join(out_dir, f"{name}.provenance.json"), "w") as f:
+        json.dump(prov, f, indent=1)
+
+def fmt(x, nd=3):
+    """Number for a table cell: 3 significant digits, empty -> '--'."""
+    import math
+    if x is None or (isinstance(x, float) and math.isnan(x)):
+        return "--"
+    t = f"{x:.{nd}g}"
+    if "e" in t:                                     # 3.48e-05 -> $3.48\\times10^{-5}$
+        m, e = t.split("e"); t = rf"${m}\times10^{{{int(e)}}}$"
+    return t
+
+def tex_escape(s):
+    return str(s).replace("_", r"\_").replace("%", r"\%").replace("&", r"\&")
+
+def write_table(out_dir, name, header, rows, colspec, prov, tabcolsep=None, longtable=False, group=None):
+    """booktabs tabular only (paper-repo adds float and caption), 8 pt, never rescaled (8 pt); must fit in \\linewidth, check overfull boxes in the build.
+    longtable=True emits a self-contained {\\footnotesize longtable} (page-breaking, header repeated) for \\input outside a float."""
+    body = [r[0] if r == [r"\midrule"] else " & ".join(r) + r" \\" for r in rows]
+    cs = rf"\setlength{{\tabcolsep}}{{{tabcolsep}pt}}" if tabcolsep else ""
+    h = " & ".join(header) + r" \\"
+    if group: h = group + "\n" + h                 # optional spanning header row above the column header
+    if longtable:
+        lines = [r"{\footnotesize", cs, rf"\begin{{longtable}}{{{colspec}}}", r"\toprule", h, r"\midrule", r"\endfirsthead", r"\toprule", h, r"\midrule", r"\endhead",
+                 r"\bottomrule", r"\endlastfoot"] + body + [r"\end{longtable}", "}"]
+    else:
+        lines = [r"\footnotesize", cs, rf"\begin{{tabular}}{{{colspec}}}", r"\toprule", h, r"\midrule"] + body + [r"\bottomrule", r"\end{tabular}"]
+    with open(os.path.join(out_dir, f"{name}.tex"), "w") as f:
+        f.write("\n".join(l for l in lines if l) + "\n")
+    write_prov(out_dir, name, prov)

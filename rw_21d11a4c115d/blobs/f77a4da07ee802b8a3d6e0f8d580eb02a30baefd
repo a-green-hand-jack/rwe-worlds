@@ -1,0 +1,6 @@
+Survey of accepted NeurIPS 2024 main-track papers (see `VENUE.md`, section 8).
+Scripts were run from a working directory holding `raw/` (proceedings index and sample list) and `pdf/` (the 25 PDFs
+downloaded from proceedings.neurips.cc, not stored here). Order: `titles.py` (keyword filter of the proceedings
+index), `pick.py` (the 25 titles named in it), download, `measure2.py`, `refs.py`, `structure.py`, `abstracts.py`,
+`summarize.py` (writes `accepted_sample.csv`). `measure.py` is an earlier, superseded pass. Counts are heuristic
+(PyMuPDF text); see the caveats in `VENUE.md`.

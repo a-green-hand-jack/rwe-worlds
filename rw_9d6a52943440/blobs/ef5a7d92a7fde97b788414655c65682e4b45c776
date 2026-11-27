@@ -1,0 +1,38 @@
+"""Shared style for every figure: venue sizes, colour/marker per method class.
+
+Sizes of the NeurIPS 2026 format: text width 5.5 in; tick/axis/legend text >= 7 pt, titles >= 8 pt,
+nothing below 6 pt; two panels side by side ~2.65 in each; main-text figures <= ~4 in high; fonts embedded.
+"""
+import matplotlib as mpl
+
+TEXT_WIDTH_IN = 5.5   # NeurIPS text width
+HALF_WIDTH_IN = 2.65  # two panels side by side
+MIN_FONT_PT = 7.0     # smallest tick/axis/legend text at placed size; titles are MIN_FONT_PT + 1
+
+# Okabe-Ito, colour-vision safe; one fixed colour/marker/linestyle per method class
+CLASS_STYLE = {
+    "uniform":      dict(color="#000000", marker="o", ls="-"),
+    "stratified":   dict(color="#56B4E9", marker="s", ls="-"),
+    "regression":   dict(color="#E69F00", marker="^", ls="--"),
+    "anchor":       dict(color="#CC79A7", marker="v", ls="--"),
+    "balanced":     dict(color="#009E73", marker="D", ls="--"),
+    "post hoc: balanced + regression": dict(color="#F0E442", marker="h", ls="-"),
+    "post hoc: balanced + difference": dict(color="#009E73", marker="p", ls="-"),
+    "post hoc: PPS + difference":      dict(color="#999999", marker="*", ls="-"),
+    "model-based":  dict(color="#D55E00", marker="P", ls="-."),
+    "design-based": dict(color="#0072B2", marker="X", ls="-"),
+}
+SPLITS = ["interpolation", "extrapolation", "lineage-held-out"]
+
+
+def apply():
+    mpl.rcParams.update({
+        "pdf.fonttype": 42, "ps.fonttype": 42,
+        "font.family": "serif", "mathtext.fontset": "stix", "font.size": MIN_FONT_PT,
+        "axes.labelsize": MIN_FONT_PT + 0.5, "axes.titlesize": MIN_FONT_PT + 1,
+        "xtick.labelsize": MIN_FONT_PT, "ytick.labelsize": MIN_FONT_PT,
+        "legend.fontsize": MIN_FONT_PT, "figure.dpi": 150,
+        "axes.spines.top": False, "axes.spines.right": False,
+        "axes.linewidth": 0.6, "lines.linewidth": 1.2, "lines.markersize": 4,
+        "legend.frameon": False, "savefig.bbox": "tight", "savefig.pad_inches": 0.02,
+    })

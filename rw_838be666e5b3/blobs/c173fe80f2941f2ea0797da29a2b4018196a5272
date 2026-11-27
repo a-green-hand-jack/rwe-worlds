@@ -1,0 +1,36 @@
+import os, sys, json, time
+for _v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
+    os.environ[_v] = "1"   # one thread per worker: jobs share an oversubscribed host
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+import numpy as np
+from pci.runner import run_cell, save_cell
+from pci.pops import *
+
+from pci.paths import results_dir
+RESULTS = results_dir()
+
+
+def run_grid(exp, cells, procs, seed0=20261126, only=None):
+    """cells: list of dict(id, pop, n, N, R, cfg). Each finished cell is written to
+    results/<exp>/<id>.npz; existing cells are skipped (resumable)."""
+    d = os.path.join(RESULTS, exp)
+    os.makedirs(d, exist_ok=True)
+    for i, c in enumerate(cells):
+        path = os.path.join(d, c["id"] + ".npz")
+        if os.path.exists(path):
+            continue
+        if only and only not in c["id"]:
+            continue
+        seed = seed0 + (hash_id(c["id"]) % 10**6)
+        arms, meta = run_cell(c["pop"], c["n"], c["N"], c["R"], seed, c["cfg"], procs=procs)
+        meta["id"] = c["id"]
+        save_cell(path, arms, meta)
+        print(f"[{exp}] {i+1}/{len(cells)} {c['id']} R={c['R']} {meta['seconds']:.0f}s", flush=True)
+
+
+def hash_id(s):
+    import zlib
+    return zlib.crc32(s.encode())
+
+
+T1_CFG = dict(cals=["linear", "spline", "isotonic", "bins"], K=5, n_knots=5, n_bins=5)

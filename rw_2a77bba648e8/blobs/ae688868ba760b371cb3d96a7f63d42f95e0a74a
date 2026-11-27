@@ -1,0 +1,3 @@
+tau (exact GATE), all columns: 0.999866 to 1.000000
+max null_check_error (correct form, sigma=0, no baseline): 4.93e-09
+s = 0.5; SNR = Var(treatment part)/Var(noise) at sigma = 0.5 with baseline SD 1; noise share = share of Var(tau_hat_Chin) that is outcome noise

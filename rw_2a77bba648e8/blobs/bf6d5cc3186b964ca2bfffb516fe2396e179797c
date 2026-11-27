@@ -1,0 +1,19 @@
+# Figure and table plan: one claim each (claims are story-repo's Outline, rev 7)
+
+Venue NeurIPS 2026: text width 5.5 in, 8 pt minimum, Type 42, booktabs. Main text: F1, F3, F5, F6, F7, F9, T1, T2. Appendix: F2, F4, F8, T3.
+Status: main text delivered to paper-repo `dev` (commit f0af9a3); appendix items delivered with the next push.
+
+| id | claim | status | file |
+|---|---|---|---|
+| T1 | C0 mechanisms and calibration | delivered | `tables/t1_mechanisms.tex` (+ `t1_calibration_full.tex`) |
+| F1 | C4 regime map and break-even s* (sign-error panel dropped: rate about 0 at sigma <= 1) | delivered | `figures/fig1_regime_map.pdf` |
+| F3 | C2, C3 bias and SD against d and p | delivered | `figures/fig3_bias_sd.pdf` |
+| F5 | C4 tiers G, A, O against DM | delivered (Tier O fitted-form row pending analysis question, experiment-repo#9) | `figures/fig5_tiers.pdf` |
+| F6 | C5 cluster designs | delivered | `figures/fig6_cluster.pdf` |
+| F7 | C6 diagnostic (negative result) | delivered; absolute R^2 of log RMSE pending (experiment-repo#9) | `figures/fig7_diagnostic.pdf` |
+| T2 | C6 acceptance rule | delivered | `tables/t2_acceptance.tex` |
+| F9 | C8 coverage against bias/SD and L | delivered; population to align with `c8_coverage.csv` (experiment-repo#9) | `figures/fig9_coverage.pdf` |
+| F2 | C1 variance = sigma^2 L / n (noise part), exponents | delivered | `figures/figA2_variance.pdf` |
+| F4 | C3 p-dependence at every degree | delivered | `figures/figA4_p.pdf` |
+| F8 | C7 edge noise and real against synthetic | delivered | `figures/figA8_robust.pdf` |
+| T3 | regime shares and coverage by factor (no sign-error column: no per-row table of it) | delivered | `tables/t3_regime.tex` |

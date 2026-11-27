@@ -1,0 +1,58 @@
+import json
+from pathlib import Path
+
+CFG = json.loads((Path(__file__).resolve().parent / "config.json").read_text())
+
+NICE = {"galaxies": "galaxies", "forest": "forest", "alphafold": "alphafold",
+        "gene_expression": "gene expr.", "census_income": "census income",
+        "census_healthcare": "census health", "census_education": "census educ.",
+        "plankton": "plankton", "ballots": "ballots"}
+
+
+def nice(d):
+    return NICE.get(d, d.replace("_", " "))
+
+
+def headline(df):
+    """Rows of `df` at each dataset's headline n (config.json); stop if one is not set."""
+    import sys
+    out = []
+    for d, g in df.groupby("dataset"):
+        n = CFG["headline_n"].get(d)
+        if n is None:
+            sys.exit(f"config.json headline_n has no entry for '{d}' (n grid there: {sorted(g.n.unique())})")
+        h = g[g.n == n]
+        if h.empty:
+            sys.exit(f"no rows for '{d}' at headline n={n}; n available there: {sorted(g.n.unique())} (set config.json headline_n or wait for that cell)")
+        out.append(h)
+    import pandas as pd
+    return pd.concat(out)
+
+
+def primary(df):
+    """One interval construction per method for headline views (config primary_construction);
+    methods without a construction (the floor) are kept. Other constructions belong to the E5 table."""
+    pc = CFG["primary_construction"]
+    return df[(df.construction == pc) | df.construction.isna()]
+
+
+def reference(df):
+    """The reference grid (analysis group 'reference_grid'): the nine real sets at their reference n.
+    Stress, K=10, disjoint-draw and failure cells are other groups and are drawn elsewhere."""
+    return df[df.group == "reference_grid"]
+
+
+def complete_arms(df, arms):
+    """Keep the arms of config lists [(label, method, tier), ...] that have a row. A tier-T2 arm is kept only
+    if it has a row in every dataset that has any T2 row at the reference n (the floor with X is
+    planned for all of them), so that a '--' in a drawn T2 column always means 'no X by construction' and never 'not run yet'."""
+    t2sets = set(df[df.tier == "T2"].dataset)
+    out = []
+    for a in arms:
+        have = set(df[(df.method == a[1]) & (df.tier == a[2])].dataset)
+        if not have:
+            continue
+        if a[2] == "T2" and not t2sets <= have:
+            continue
+        out.append(a)
+    return out

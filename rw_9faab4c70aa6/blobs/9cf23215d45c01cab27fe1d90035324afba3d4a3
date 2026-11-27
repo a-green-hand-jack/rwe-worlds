@@ -1,0 +1,11 @@
+"""One-row tidy file (Tab 1) from matrix_facts.json: python matrix_facts_table.py matrix_facts.json out.parquet"""
+import sys, json, pandas as pd
+f = json.load(open(sys.argv[1]))
+row = dict(model="Qwen2.5-1.5B-Instruct", pool="mmlu-pro-N1500-all", config_space="128-config grid", pool_size=f["N_items"], K=f["K"],
+           acc_mean=f["acc_mean"], acc_min=f["acc_min"], acc_max=f["acc_max"], acc_sd_raw=f["acc_sd_raw"],
+           sigma_theta=f["sigma_theta"], sigma_theta_lo=f["sigma_theta_ci_pool_bootstrap"][0], sigma_theta_hi=f["sigma_theta_ci_pool_bootstrap"][1], sigma_theta_ci_kind="pool-bootstrap",
+           mean_pairwise_item_corr=f["mean_pairwise_item_corr"], pairwise_corr_q25=f["pairwise_corr_q"][0], pairwise_corr_q50=f["pairwise_corr_q"][1], pairwise_corr_q75=f["pairwise_corr_q"][2],
+           letter_bias_share=f["letter_bias_share"], bias_only_acc_mean=f["bias_only_acc_mean"], corr_acc_vs_bias_only_acc=f["corr_acc_vs_bias_only_acc"],
+           delta_leak=f["delta_leak"], delta_leak_lo=f["delta_leak_ci"][0], delta_leak_hi=f["delta_leak_ci"][1], delta_leak_n_items=len(f["delta_leak_items"]),
+           **{f"factor_variance_share_{k}": v for k, v in f["factor_variance_share"].items()})
+pd.DataFrame([row]).to_parquet(sys.argv[2], index=False); print(len(row), "columns")

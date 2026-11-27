@@ -1,0 +1,31 @@
+key,helm_lite,helm_capabilities,open_llm,livebench
+128k|3|instruct|phi|small,,,microsoft/Phi-3-small-128k-instruct,Phi-3-small-128k-instruct
+amazon|micro|nova,Amazon Nova Micro,Amazon Nova Micro,,
+dbrx|instruct,DBRX Instruct,,databricks/dbrx-instruct,
+13b|2|llama,Llama 2 (13B),,meta-llama/Llama-2-13b-hf,
+3|beta|grok,,Grok 3 Beta,,grok-3-beta
+06|08|2024|4o|gpt,GPT-4o (2024-08-06),,,gpt-4o-2024-08-06
+0|2|flash|gemini,,Gemini 2.0 Flash,,gemini-2.0-flash
+65b|llama,LLaMA (65B),,huggyllama/llama-65b,
+40b|falcon,Falcon (40B),,tiiuae/falcon-40b,
+004|palmyra|x,Palmyra-X-004,Palmyra-X-004,,
+2|9b|gemma|instruct,Gemma 2 Instruct (9B),,,gemma-2-9b-it
+7b|olmo,OLMo (7B),,allenai/OLMo-7B-hf,
+5|7b|v1|vicuna,,,lmsys/vicuna-7b-v1.5,vicuna-7b-v1.5
+3|7b|instruct|mistral|v0,Mistral Instruct v0.3 (7B),Mistral Instruct v0.3 (7B),mistralai/Mistral-7B-Instruct-v0.3,Mistral-7B-Instruct-v0.3
+2411|large|mistral,,Mistral Large (2411),,mistral-large-2411
+7b|gemma,Gemma (7B),,google/gemma-7b,
+20241022|3|5|claude|haiku,Claude 3.5 Haiku (20241022),Claude 3.5 Haiku (20241022),,claude-3-5-haiku-20241022
+3|5|instruct|moe|phi,,,microsoft/Phi-3.5-MoE-instruct,Phi-3.5-MoE-instruct
+1|5b|instruct|qwen2,,,Qwen/Qwen2-1.5B-Instruct,Qwen2-1.5B-Instruct
+2|phi,Phi-2,,microsoft/phi-2,
+07|18|2024|4o|gpt|mini,GPT-4o mini (2024-07-18),GPT-4o mini (2024-07-18),,gpt-4o-mini-2024-07-18
+1106|4|gpt,GPT-4 Turbo (1106 preview),,,gpt-4-1106-preview
+deepseek|v3,DeepSeek v3,DeepSeek v3,,deepseek-v3
+1|7b|mistral|v0,Mistral v0.1 (7B),,mistralai/Mistral-7B-v0.1,
+20240229|3|claude|opus,Claude 3 Opus (20240229),,,claude-3-opus-20240229
+2|70b|llama,Llama 2 (70B),,meta-llama/Llama-2-70b-hf,
+1|3|70b|hermes|llama,,,NousResearch/Hermes-3-Llama-3.1-70B,hermes-3-llama-3.1-70b
+5|7b|qwen1,Qwen1.5 (7B),,Qwen/Qwen1.5-7B,
+5|7b|instruct|qwen2,Qwen2.5 Instruct Turbo (7B),Qwen2.5 Instruct Turbo (7B),Qwen/Qwen2.5-7B-Instruct,
+7b|alpha|zephyr,,,HuggingFaceH4/zephyr-7b-alpha,zephyr-7b-alpha

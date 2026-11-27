@@ -1,0 +1,34 @@
+\begin{tabular}{@{}lrrrrrrr@{}}
+\toprule
+& & \multicolumn{5}{c}{regression better than DM (\% of cells), $\sigma=$} & \\
+\cmidrule(lr){3-7}
+& cells & 0.25 & 0.5 & 1 & 2$^\dagger$ & 4$^\dagger$ & HC0 coverage \\
+\midrule
+all cells & 2193 & 80 & 78 & 70 & 56 & 31 & 0.74 \\
+\multicolumn{8}{@{}l}{\emph{Degree}} \\
+~~$d=5$ & 633 & 99 & 99 & 98 & 93 & 66 & 0.67 \\
+~~$d=20$ & 927 & 81 & 79 & 70 & 55 & 23 & 0.71 \\
+~~$d=80$ & 633 & 58 & 55 & 42 & 19 & 9 & 0.82 \\
+\midrule
+\multicolumn{8}{@{}l}{\emph{Mechanism}} \\
+~~(a) linear fraction & 363 & 87 & 87 & 79 & 63 & 37 & 0.94 \\
+~~(b) linear count & 363 & 84 & 84 & 75 & 59 & 31 & 0.71 \\
+~~(c) saturating & 378 & 87 & 84 & 74 & 60 & 36 & 0.77 \\
+~~(d) threshold & 363 & 51 & 49 & 46 & 40 & 25 & 0.53 \\
+~~(e) multi-hop & 363 & 88 & 87 & 76 & 62 & 33 & 0.60 \\
+~~(f) interaction & 363 & 79 & 75 & 69 & 50 & 26 & 0.87 \\
+\midrule
+\multicolumn{8}{@{}l}{\emph{Graph}} \\
+~~BA & 288 & 82 & 81 & 73 & 58 & 28 & 0.74 \\
+~~DC-SBM & 162 & 83 & 82 & 78 & 58 & 33 & 0.75 \\
+~~ER & 252 & 81 & 77 & 64 & 48 & 22 & 0.80 \\
+~~SBM & 897 & 72 & 71 & 62 & 48 & 25 & 0.76 \\
+~~Stanford3 & 216 & 95 & 94 & 91 & 88 & 69 & 0.52 \\
+~~WS & 162 & 80 & 75 & 64 & 49 & 23 & 0.82 \\
+~~ego-Facebook & 216 & 87 & 85 & 81 & 68 & 39 & 0.66 \\
+\midrule
+\multicolumn{8}{@{}l}{\emph{Design}} \\
+~~Bernoulli (units) & 1797 & 82 & 80 & 73 & 59 & 35 & 0.74 \\
+~~graph-cluster & 396 & 68 & 67 & 54 & 41 & 15 & -- \\
+\bottomrule
+\end{tabular}

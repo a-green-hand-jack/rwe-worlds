@@ -1,0 +1,9 @@
+\.forgejo/CODEOWNERS @paper-repo
+\.forgejo/document\.json @paper-repo
+README\.md @paper-repo
+paper/.* @paper-repo
+venue/.* @venue-repo
+refs/.* @idea-repo
+code/.* @experiment-repo
+results/.* @experiment-repo
+figtab/.* @figtab-repo

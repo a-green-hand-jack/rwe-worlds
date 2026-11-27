@@ -1,0 +1,28 @@
+# How the study relates to prior work
+
+**Shapley attribution and its estimators.** SHAP (Lundberg & Lee 2017) casts feature attribution as Shapley values of a
+value function defined by removing features; the value function can be marginal or conditional
+(Chen et al. 2020; Sundararajan & Najmi 2020; Kumar et al. 2020; Covert et al. 2020 unify removal-based explanations).
+Model-agnostic estimation is randomised: Kernel SHAP and its unbiased variant with variance/convergence estimates
+(Covert & Lee 2021), permutation / antithetic sampling (Mitchell et al. 2022), Leverage SHAP with guarantees
+(Musco & Witter 2025), regression-adjusted MC (Witter et al. 2025), SHAP-IQ (Fumagalli et al. 2023); an overview in Chen et al. 2023.
+Trees admit deterministic TreeSHAP (Lundberg et al. 2020). These works measure error to the exact Shapley value
+(typically L2, averaged over instances, at chosen budgets). **Gap:** whether one run at a deployment budget supports the
+decision-relevant conclusions drawn from it, instance by instance, is not studied; nor whether the run can detect its own failure.
+
+**Rank / top-k identification.** The question "does the estimated order of players give the right top-k" is asked from the estimator side: Shapley bandits for top-k identification (Kolpaczki et al. 2021) and antithetic sampling for top-k Shapley identification (2025). Those design algorithms with sampling guarantees; we *measure* deployed default estimators on real tabular models, map the conditions (budget, model, d, instance margin) and test whether the run can flag its own failure. Covert & Lee 2021 already give within-run variance and convergence detection, so the novelty of the check is its validation against the top-k conclusion, not the variance estimate. Huang & Marques-Silva 2023 (inadequacy of Shapley values) is cited only to bound scope: we hold the Shapley value function fixed. ShapleyVIC (Rashomon-style Shapley importance across near-optimal models) is related to our retrain yardstick.
+
+**Explanation disagreement and robustness.** Krishna et al. 2022 and Neely et al. 2021 study disagreement *between* methods;
+Alvarez-Melis & Jaakkola 2018 and Ghorbani et al. 2019 study sensitivity to input perturbation; Visani et al. 2022 study LIME stability
+under resampling; Yuan et al. 2022 study background size for deep models. **Difference:** we fix model, value function and instance
+and isolate the explainer's own randomness against an exact reference, and compare it to background and retraining noise.
+
+**Multiplicity yardsticks.** Marx et al. 2020 (predictive multiplicity), Fisher et al. 2019 and Dong & Rudin 2020 (model class reliance), Rashomon importance
+distribution (Rashomon-set literature) give the variability between equally accurate models; we use it as a noise floor for
+explainer noise, not as the target.
+
+**Metrics.** Stability of selected sets (Nogueira et al. 2018) and indefinite-ranking similarity (RBO; Webber et al. 2010) for top-k conclusions.
+
+**Data and models.** Ding et al. 2021 (folktables/ACS), German Credit (UCI), Gorishniy et al. 2021 for tabular deep models.
+
+*Must cite / compare:* all above. *Not to cite as found by this role:* any item not in `*.bib`; Dong & Rudin 2020 now has a bib entry (details to verify against the DOI record).

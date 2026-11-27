@@ -1,0 +1,60 @@
+\documentclass{article}
+\usepackage{neurips_2026}
+\usepackage[scaled=0.8]{beramono}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{microtype}
+\usepackage{xcolor}
+\providecommand{\doi}[1]{doi:\,\detokenize{#1}}
+
+\title{Is one run enough? Decision-level reliability of single-run SHAP attributions on tabular models}
+\author{Anonymous Authors}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Feature attributions are usually computed once, by a randomised, budget-limited estimator, and read as if they were the attribution.
+We ask how far one SHAP run is a reliable basis for the conclusion a reader draws from it: the top feature, the top-$k$ set or a sign.
+Against the exact Shapley value of a fixed value function, we measure per instance how often a run returns the exact top-3 set, with and without tolerance for near ties, for four model classes on five tabular datasets.
+At the \texttt{shap} default budget with \texttt{l1\_reg=False}, on the two datasets with $d\ge16$ features, where the default samples ($40$ and $60$ instances, one trained model each), a run returns the exact top-3 set with probability at least $0.9$ for $0.90$--$1.00$ of the instances of every cell, and for all of them once near-tie swaps are forgiven; the exceptions are small-margin instances that mean correlation with the exact values would not flag. The library's default regularisation, \texttt{num\_features(10)}, is biased and does worse, markedly so at $d=279$.
+With three to four times as many coalitions as features the tolerance-aware share is $0.65$--$0.97$ for the non-linear models, and near zero at twice as many.
+With a $50$-row background, two exactly explained backgrounds agree on the top-3 set for $0.27$--$0.69$ of the instances, against $0.91$--$0.99$ for two runs of the Kernel explainer.
+A certificate, a check computed from the run itself that predicts whether the run is correct, is not a clear improvement over running twice.
+\end{abstract}
+
+\section{Introduction}
+\input{intro}
+
+\section{Related work}
+\input{related}
+
+\section{Setting and protocol}
+\input{setting}
+
+\section{Experimental design}
+\label{sec:design}
+\input{design}
+
+\section{Results}
+\label{sec:results}
+\input{results}
+
+\section{Discussion and limitations}
+\label{sec:discussion}
+\input{discussion}
+
+\bibliographystyle{plainnat}
+\bibliography{../refs/refs}
+
+\appendix
+\input{appendix}
+
+\input{checklist}
+
+\end{document}

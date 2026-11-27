@@ -1,0 +1,250 @@
+"""R1: a run-only certificate of top-k correctness against the run-twice competitor at (nearly) equal evaluations.
+
+Certificate: one unbiased paired Kernel SHAP run with 2m coalitions gives phi_hat and the plug-in
+covariance of Covert & Lee; p_cert = P[top-k(phi~) = top-k(phi_hat)], phi~ ~ N(phi_hat, Sigma_hat), by Monte Carlo (S draws).
+It uses only quantities available from the run. Competitor: two independent runs of m coalitions each; its score is the overlap of their top-k sets.
+Coalition counts: a run of c coalitions uses c/2 pairs.  Outcome: the top-k set of the delivered run equals the exact top-k set of the same value
+function (and its tolerance-aware version).  Evaluations per run (m non-trivial coalitions, B background rows): (m+1)B+1.
+"""
+import numpy as np
+from . import estimators as E, metrics as M
+
+
+def topk_sig(phi, k):
+    return (M.topk_mask(phi, k) * (1 << np.arange(np.atleast_2d(phi).shape[1]))).sum(1)
+
+
+def estimate_cov(uk, v, U, T):
+    """phi_hat, covariance of phi_hat and SE from the first T pairs of U (T,d)."""
+    phi = uk.L @ U[:T].mean(0) + uk.c * (v[-1] - v[0]) / uk.den
+    cov = uk.L @ (np.cov(U[:T].T) / T) @ uk.L.T
+    return phi, (cov + cov.T) / 2
+
+
+def cert_prob(phi, cov, k, rng, S=200):
+    w, V = np.linalg.eigh(cov)
+    z = rng.standard_normal((S, len(phi))) * np.sqrt(np.maximum(w, 0))
+    return float((topk_sig(phi[None, :] + z @ V.T, k) == topk_sig(phi[None, :], k)[0]).mean())
+
+
+def instance_records(v, phi_ref, d, ladder, R, seed, k=3, S=200):
+    """One instance. ladder: coalitions m of the competitor's runs (the certificate run has 2m).
+    Returns rows paired by j < R//2: certificate run j at 2m against run-twice pair j at m (+ coverage of the 95% intervals)."""
+    uk = E.UnbiasedKernel(d)
+    rng = np.random.default_rng(seed)
+    Rp = R // 2
+    mmax = max(ladder)
+    Uc = np.stack([uk.u(v, *E.paired_kernel_stream(d, mmax, rng)) for _ in range(Rp)])        # 2*mmax coalitions
+    Ut = np.stack([uk.u(v, *E.paired_kernel_stream(d, mmax // 2, rng)) for _ in range(R)])    # mmax coalitions
+    ref_sig = topk_sig(phi_ref[None, :], k)[0]
+    rows = []
+    for m in ladder:
+        Tc, Tt = m, max(m // 2, 2)  # pairs of the certificate run (2m coalitions) and of each competitor run (m coalitions)
+        ph1 = np.stack([uk.L @ Ut[r, :Tt].mean(0) + uk.c * (v[-1] - v[0]) / uk.den for r in range(R)])
+        sg1 = topk_sig(ph1, k)
+        mk = M.topk_mask(ph1, k)
+        for j in range(Rp):
+            phi, cov = estimate_cov(uk, v, Uc[j], Tc)
+            se = np.sqrt(np.diag(cov))
+            a, b = 2 * j, 2 * j + 1
+            avg = 0.5 * (ph1[a] + ph1[b])
+            rows.append(dict(
+                m=m, run=j, score_certificate=cert_prob(phi, cov, k, rng, S),
+                correct_cert=int(topk_sig(phi[None, :], k)[0] == ref_sig),
+                correct_cert_tol=int(M.correct_tol(phi[None, :], phi_ref, k)[0][0]),
+                score_run_twice=float((mk[a] & mk[b]).sum() / k), agree_twice=int(sg1[a] == sg1[b]),
+                correct_twice_first=int(sg1[a] == ref_sig), correct_twice_first_tol=int(M.correct_tol(ph1[a][None, :], phi_ref, k)[0][0]),
+                correct_twice_avg=int(topk_sig(avg[None, :], k)[0] == ref_sig),
+                cover95=float((np.abs(phi - phi_ref) <= 1.96 * se).mean()), z_rms=float(np.sqrt(np.mean(((phi - phi_ref) / np.maximum(se, 1e-300)) ** 2))) if (se > 0).all() else np.nan,
+                rel_l2_cert=float(np.linalg.norm(phi - phi_ref) / np.linalg.norm(phi_ref))))
+    return rows
+
+
+# ---------------------------------------------------------------- analysis of the raw runs
+import pandas as pd
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import roc_auc_score
+
+B_DEF = 50
+NBOOT = 2000
+MARGIN = 0.01
+METHODS = {"certificate": ("score_certificate", "correct_cert"),
+           "run_twice": ("score_run_twice", "correct_twice_first"),
+           "run_twice_avg": ("score_run_twice", "correct_twice_avg")}
+
+
+def _feat(df, score):
+    x = df[score].to_numpy(float)
+    if score == "score_certificate":
+        x = np.log(np.clip(x, 1e-3, 1 - 1e-3) / (1 - np.clip(x, 1e-3, 1 - 1e-3)))
+    return np.c_[x, np.log2(df["m"].to_numpy(float))]
+
+
+def _fit_predict(tr, te, score, y):
+    if tr[y].nunique() < 2:  # constant outcome in the training part: predict its rate
+        return np.full(len(te), float(tr[y].mean()))
+    lr = LogisticRegression(C=1e4, max_iter=1000).fit(_feat(tr, score), tr[y])
+    return lr.predict_proba(_feat(te, score))[:, 1]
+
+
+def evals_cert(m):
+    return (2 * m + 1) * B_DEF + 1
+
+
+def evals_twice(m):
+    return 2 * ((m + 1) * B_DEF + 1)
+
+
+def calibrated(raw, nfold=5):
+    """Cross-fitted calibrated probabilities. heldout_instance: within dataset x model, folds over instance ids (instance_id % nfold);
+    loo_dataset: fitted on the other datasets (all models), predicted on the held-out dataset. Long format, one row per row x method x split."""
+    out = []
+    for method, (score, y) in METHODS.items():
+        for (ds, mo), g in raw.groupby(["dataset", "model"]):
+            fold = (g["instance_id"] % nfold).to_numpy()
+            p = np.empty(len(g))
+            for f in range(nfold):
+                p[fold == f] = _fit_predict(g[fold != f], g[fold == f], score, y)
+            out.append(g.assign(method=method, split="heldout_instance", prob=p, y=g[y].to_numpy(), score=g[score].to_numpy()))
+        for ds, g in raw.groupby("dataset"):
+            tr = raw[raw["dataset"] != ds]
+            g = g.assign(method=method, split="loo_dataset", prob=_fit_predict(tr, g, score, y), y=g[y].to_numpy(), score=g[score].to_numpy())
+            out.append(g)
+    cols = ["dataset", "model", "instance_id", "m", "run", "method", "split", "score", "prob", "y", "margin_gk", "d"]
+    return pd.concat(out)[cols].reset_index(drop=True)
+
+
+def _boot(x, rng):
+    """x (n_instances,) or (n_instances, q): bootstrap CI of the mean over instances."""
+    n = x.shape[0]
+    idx = rng.integers(0, n, (NBOOT, n))
+    mb = x[idx].mean(1)
+    return np.percentile(mb, [2.5, 97.5], axis=0)
+
+
+def label(diff, lo, hi):
+    if hi < 0:
+        return "check_better" if diff <= -MARGIN else "check_better_below_margin"
+    if lo > 0:
+        return "run_twice_better" if diff >= MARGIN else "run_twice_better_below_margin"
+    return "not_resolved"
+
+
+def summarize(cal):
+    """Brier (per method), paired Brier difference check minus run-twice, AUROC, reliability bins."""
+    rng = np.random.default_rng(20260101)
+    cal = cal.assign(brier=(cal["prob"] - cal["y"]) ** 2)
+    summ, diffs, bins = [], [], []
+    for split, gs in cal.groupby("split"):
+        for model_sel in ["each", "all"]:
+            groups = gs.groupby(["dataset", "model"]) if model_sel == "each" else gs.groupby(["dataset"])
+            for key, g in groups:
+                ds, mo = (key if model_sel == "each" else (key[0], "all"))
+                for mm in ["all"] + sorted(g["m"].unique().tolist()):
+                    h = g if mm == "all" else g[g["m"] == mm]
+                    per, base = {}, {}
+                    for method, hm in h.groupby("method"):
+                        base[method] = float(hm["y"].mean())
+                        pi = hm.groupby(["model", "instance_id"])["brier"].mean()
+                        if model_sel == "all":  # the instance is the resampling unit: average over the models first
+                            pi = pi.groupby(level="instance_id").mean()
+                        per[method] = pi
+                        try:
+                            auc = roc_auc_score(hm["y"], hm["prob"]) if hm["y"].nunique() == 2 else np.nan
+                        except ValueError:
+                            auc = np.nan
+                        lo, hi = _boot(pi.to_numpy()[:, None], rng)[:, 0]
+                        summ.append(dict(dataset=ds, model=mo, split=split, m=mm, method=method, brier=pi.mean(), brier_ci_lo=lo, brier_ci_hi=hi, auroc=auc,
+                                         base_rate=hm["y"].mean(), brier_climatology=hm["y"].mean() * (1 - hm["y"].mean()),
+                                         brier_skill=1 - pi.mean() / max(hm["y"].mean() * (1 - hm["y"].mean()), 1e-12), n_instances=len(pi), n_rows=len(hm),
+                                         evals_total=(np.nan if mm == "all" else (evals_cert(mm) if method == "certificate" else evals_twice(mm)))))
+                        if mm == "all":
+                            b = pd.cut(hm["prob"], np.linspace(0, 1, 11), include_lowest=True)
+                            for iv, hb in hm.groupby(b, observed=True):
+                                bins.append(dict(dataset=ds, model=mo, split=split, method=method, bin_lo=iv.left, bin_hi=iv.right,
+                                                 pred_mean=hb["prob"].mean(), obs_rate=hb["y"].mean(), n=len(hb)))
+                    for other in ("run_twice", "run_twice_avg"):
+                        d = (per["certificate"] - per[other]).dropna()
+                        lo, hi = _boot(d.to_numpy()[:, None], rng)[:, 0]
+                        diff = float(d.mean())
+                        sr = 1.96 * float(d.std(ddof=1)) / np.sqrt(len(d))
+                        diffs.append(dict(dataset=ds, model=mo, split=split, contrast=f"check_vs_{other}", quantity="brier", m=mm,
+                                          budget_evals=(np.nan if mm == "all" else evals_cert(mm)), evals_b=(np.nan if mm == "all" else evals_twice(mm)),
+                                          n_instances=len(d), diff=diff, ci_lo=lo, ci_hi=hi, paired_sd=float(d.std(ddof=1)), smallest_resolvable=sr,
+                                          label=label(diff, lo, hi), brier_certificate=float(per["certificate"].mean()), brier_other=float(per[other].mean()),
+                                          base_rate_certificate=base["certificate"], base_rate_other=base[other]))
+    return pd.DataFrame(summ), pd.DataFrame(diffs), pd.DataFrame(bins)
+
+
+def evals_one(m):
+    return (m + 1) * B_DEF + 1
+
+
+def _flat_need(share, flat, ladder, flat_ev):
+    """evaluations of a flat single run whose share correct equals `share` (log2-m interpolation of the flat share curve; NA beyond the ladder)."""
+    if share <= flat[0]:
+        return float(flat_ev(ladder[0]))
+    if share > flat.max():
+        return np.nan
+    k = int(np.argmax(flat >= share))
+    f0, f1 = flat[k - 1], flat[k]
+    lm = np.log2(ladder[k - 1]) + (share - f0) / (f1 - f0) * (np.log2(ladder[k]) - np.log2(ladder[k - 1]))
+    return float(flat_ev(2 ** lm))
+
+
+def budget_rule(cal, thr=0.9, nboot=NBOOT):
+    """Minimum-budget rule on the held-out calibrated scores: per instance and run index, the smallest m on the ladder whose calibrated
+    probability reaches thr (certificate) / whose two runs agree exactly (run-twice); the delivered run is the one at that m (largest m if never).
+    Reports mean evaluations used (run-twice: both runs), the share correct overall and among the stopped, and the evaluations of a flat single
+    run (certificate: 2m coalitions; run-twice: m) that reaches the same share correct (log-m interpolation of the flat share; NA if beyond the ladder).
+    evals_saved_frac = 1 - mean_evals / flat_evals_same_share, with an instance-bootstrap interval (the whole computation, including the flat
+    curve and its interpolation, is redone on each resample of instances). model = 'all': per-instance quantities averaged over the models first."""
+    rows = []
+    c = cal[(cal["split"] == "heldout_instance")]
+    rng = np.random.default_rng(20260101)
+    per_inst = {}
+    for (ds, mo), g in c.groupby(["dataset", "model"]):
+        ladder = sorted(g["m"].unique())
+        for method, stop_fn, ev, flat_ev in [("certificate", lambda p, s: p >= thr, evals_cert, evals_cert), ("run_twice", lambda p, s: s >= 1.0, evals_twice, evals_one)]:
+            h = g[g["method"] == method]
+            h = h.assign(stop=stop_fn(h["prob"], h["score"]))
+            wide_stop = h.pivot_table(index=["instance_id", "run"], columns="m", values="stop", aggfunc="first")
+            wide_y = h.pivot_table(index=["instance_id", "run"], columns="m", values="y", aggfunc="first")
+            first = wide_stop.apply(lambda r: next((m for m in ladder if r[m]), np.nan), axis=1)
+            m_used = first.fillna(ladder[-1]).astype(int)
+            y = np.array([wide_y.loc[i, m] for i, m in m_used.items()])
+            frame = pd.DataFrame(dict(instance_id=wide_y.index.get_level_values(0), y=y, evals=[ev(m) for m in m_used], stopped=first.notna().to_numpy().astype(float)))
+            inst = frame.groupby("instance_id").mean()
+            flat = wide_y.groupby(level=0).mean()  # per instance, share correct of a single delivered run at each fixed m
+            per_inst[(ds, mo, method)] = (inst, flat, ladder, flat_ev, wide_y.groupby(level=0).size().iloc[0])
+    keys = sorted({(k[0], k[1]) for k in per_inst})
+    for ds in sorted({k[0] for k in per_inst}):
+        for mo in [m_ for d_, m_ in keys if d_ == ds] + ["all"]:
+            for method in ("certificate", "run_twice"):
+                if mo == "all":
+                    parts = [per_inst[(ds, m_, method)] for d_, m_ in keys if d_ == ds]
+                    inst = sum(p[0] for p in parts) / len(parts)
+                    flat = sum(p[1] for p in parts) / len(parts)
+                    ladder, flat_ev, nr = parts[0][2], parts[0][3], parts[0][4]
+                else:
+                    inst, flat, ladder, flat_ev, nr = per_inst[(ds, mo, method)]
+                F = flat.to_numpy()
+                I = inst.to_numpy()  # columns y, evals, stopped
+
+                def stat(ix):
+                    share, ev_, st = I[ix, 0].mean(), I[ix, 1].mean(), I[ix, 2].mean()
+                    need = _flat_need(share, F[ix].mean(0), ladder, flat_ev)
+                    return share, ev_, st, need, 1 - ev_ / need
+                share, ev_, st, need, saved = stat(np.arange(len(I)))
+                bs = np.array([stat(rng.integers(0, len(I), len(I)))[4] for _ in range(nboot)])
+                lo, hi = np.nanpercentile(bs, [2.5, 97.5]) if np.isfinite(bs).sum() > nboot // 2 else (np.nan, np.nan)
+                rows.append(dict(dataset=ds, model=mo, method=method, threshold=thr, share_stopped=st, share_correct=share,
+                                 mean_evals=ev_, flat_evals_same_share=need, evals_saved_frac=saved, evals_saved_ci_lo=lo, evals_saved_ci_hi=hi,
+                                 n_boot_defined=int(np.isfinite(bs).sum()), n_instances=len(I), n_runs=len(I) * nr))
+    return pd.DataFrame(rows)
+
+
+def coverage(raw):
+    """Variance-estimator check: share of exact phi_j within phi_hat_j +- 1.96 SE (the certificate run, 2m coalitions), and the rms z-score."""
+    return (raw.groupby(["dataset", "model", "m"]).agg(cover95=("cover95", "mean"), z_rms=("z_rms", "mean"), n_runs=("run", "size"),
+                                                       n_instances=("instance_id", "nunique")).reset_index())

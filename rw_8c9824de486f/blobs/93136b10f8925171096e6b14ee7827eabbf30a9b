@@ -1,0 +1,165 @@
+# Pre-registration of the matrix, split, margin and verdict rules (experiment-repo)
+
+Written by `experiment-repo` in answer to `experiment-repo`#2 (from `idea-repo` Brief rev. 3). The commit that adds this file
+(see `git log prereg/PREREG.md`) dates it. **No predictive-error result of any method has been computed when this file is
+committed.** What has been looked at: file counts, the number of models/tasks/cells that survive each rule, group sizes and
+release-date coverage (structure only). The coverage thresholds R7 were chosen after seeing that count table
+(grid of tt in {30..100} x tm in {15..40}); they are not tuned on any score model. Later changes are listed only under
+"Deviations" at the end, each with date and reason.
+
+## A. Data (pinned)
+`embeddings-benchmark/results` at commit `6dabbcc68c28ea5f180ce7df79347b3ca9cc6383` (2026-03-31), CC0-1.0; 548 model dirs, of which
+536 hold task files. Task metadata (type, declared eval splits, modality) from `mteb==2.27.24` via `mteb.get_task(name)` (metadata only).
+Scores are `main_score` x 100 ("raw points", 0-100 scale; a few are negative).
+
+## B. Matrix rules (code: `code/mteb_cells.py`, `code/03_build_matrix.py`)
+- **R1 one revision per model.** Within a model directory keep the revision directory with the most distinct text-task files; ties -> latest
+  `release_date` in its `model_meta.json`, then lexicographically smallest directory name. Revisions are never pooled.
+- **R2 benchmark = task.** Only tasks whose mteb modality set is exactly {text}. A benchmark is one task file (task name). Tasks unknown to mteb
+  metadata are dropped (12 names, none text).
+- **R3 split.** Per (model, task) the first of `test, test.full, validation, validation.full, dev, devtest, default` that is declared in the task's
+  `eval_splits` and present. `train` is never used.
+- **R4 task version.** A cell is kept only if its `dataset_revision` equals the task's modal `dataset_revision` over models.
+- **R5 subsets/languages.** The task's canonical subset set is its modal set of `hf_subset` names over models; a cell is kept iff the model reports a
+  superset of it; its score is the mean of `main_score` over the canonical subsets (languages averaged). `mteb_version` of the producing run is
+  NOT controlled (stated limitation; sensitivity is a secondary analysis).
+- **R6 dedup.** Drop config variants (`_(` in the directory name, e.g. `_(output_dtype=int8)`); of model directories with the same lower-cased
+  `model_meta` name keep the one with most cells.
+- **R7 coverage filter (iterated to a fixed point).** tasks observed for >= 50 models, models with >= 30 tasks.
+- **Group.** org = the part of the directory name before `__`, lower-cased, non-alphanumerics removed, spelling aliases
+  `bytedanceseed->bytedance`, `sbert->sentencetransformers` (defined in `mteb_cells.py::ORG_ALIAS`); no other merging (fine-tunes of a third party's
+  base model under a different org are NOT merged: limitation, leakage across groups cannot be excluded).
+- **Realised shape** (`data/coverage_filter.csv`, `data/matrix_summary.json`): **238 models x 328 tasks, 45,775 cells, density 0.586, 83 org groups**;
+  largest group 12 models; run-set size per model min 30, median 221.5; 166 models have >= 109 cells. Task types: Retrieval 117, Classification 73,
+  Clustering 56, STS 28, PairClassification 17, Reranking 13, BitextMining 10, MultilabelClassification 8, InstructionReranking 3, Summarization 3.
+  Gate G1 (>=100 x >=30, k>=8 possible) is met. 11 of the 238 models have no release date.
+
+## C. Splits (all fitting - standardisation, factor model, ranks, selection, margins - on training models only)
+- **G (primary): group hold-out.** The 83 org groups are assigned to 10 folds (seed 20261126, greedy by group size so folds have similar numbers of models);
+  every model is held out exactly once, the number of held-out groups with each CI is 83 (>= 20, so CIs are not "indicative" by G4). Inner CV for
+  hyperparameters: 5 group folds over training models.
+- **T (second primary): temporal.** Train = dated models released on or before the 0.70-quantile release date of the dated models, test = later dated models;
+  undated models are excluded from both. Org overlap between train and test is allowed and reported (number of test models whose org is in training).
+- **S (extrapolation to the strongest): strength.** Strength = model offset a_m of the additive fit y_mj = mu_j + a_m (alternating LS on all observed cells; used only
+  to assign the split). Train = lowest 75% by a_m, test = top 25%.
+- **LOMO** (leave one model out) only as sensitivity, reported with that label.
+- Standardisation per task from training cells (mean, sd); raw-point errors are reported after back-transform.
+
+## D. Revealed set, k grid, targets
+- For held-out model m with run set R_m (benchmarks it has), a selection rule picks S subset of R_m, |S|=k; targets T_m(k) = R_m \ S (its remaining observed cells); error on T_m(k).
+- **k grid** `K = {1,2,3,5,8,12,20,32,50,80,109}`, 109 = floor(N/3) with N=328; k/N shown. Models with |R_m| <= k are excluded at that k; the count excluded per k is reported.
+  Headline curve also on fixed subset A (models with >= 20 cells, k<=20: all 238) and fixed subset B (models with >= 109+1 cells, whole grid).
+  k > N/3 only as a labelled supplement.
+- **Primary contrast** S6+P5 vs S0+P5 (random-k, same inference), paired over held-out models, at k in {1,2,3,5,8,12,20} (+ the longer grid as secondary), both on split G (and T as the second primary, reported separately).
+  S0 = mean over 50 random draws per (model, k) (seeded); the draw-to-draw sd of the mean-over-models error is reported.
+- Everything else (S1-S5, S7, P0-P4, P6, split S, conditions) is secondary; multiplicity: no p-values are used for secondary items; CIs are descriptive.
+
+## E. Metrics
+Per held-out model: RMSE over targets in raw points ("model RMSE"); standardised RMSE; headline numbers are the **mean over held-out models of model RMSE** with 90% group-bootstrap CI (resample org groups with replacement, 5000 reps).
+Also MAE (raw), per-model Spearman across its targets, rank agreement among strong models (top-quartile by a_m), per-task error, error vs median adjacent-model gap of the task.
+
+## F. Margins (computed per outer fold from training models only; the numbers are committed in `prereg/delta_by_fold.csv` before any contrast is run)
+- gap_j = median over adjacent pairs of training models sorted by their score on task j (models with the cell).
+- **all-others floor** floor_j = RMSE (raw points) of leave-one-benchmark-out prediction for training models' cells of task j, from all of that model's other cells, by P5 with
+  parameters fit on the other training groups (5 group folds) and rank chosen by that CV.
+- **delta_j = min(0.5 gap_j, 0.25 floor_j)** (raw points). Aggregate margin used for the contrast and for epsilon:
+  **delta = mean of delta_j over the evaluated target cells** (pooled across folds). Delta (meaningful gain) = delta.
+- **Verdict per k** on the paired difference d = mean_m(RMSE_S0 - RMSE_S6) (positive = design better), 90% group-bootstrap CI [lo, hi]:
+  *equivalent* if -delta < lo and hi < +delta; *design helps* if lo > +delta; *random better* if hi < -delta; otherwise *undecided* (never reported as a tie).
+- **k\*(epsilon).** Because delta <= 0.25 floor, an absolute error <= delta is unreachable; the criterion is therefore on the excess over the all-others floor of the same model and targets:
+  excess(k) = mean_m [RMSE_m(k) - floor_m(k)], with floor_m(k) the RMSE on T_m(k) of leave-one-benchmark-out prediction from all other cells of m. k\*(epsilon) = smallest k in the grid with excess(k) <= epsilon,
+  epsilon in {delta, 2 delta}; empirical k\* with group-bootstrap CI (smallest k whose bootstrap excess <= epsilon, per replicate); predicted k\*(epsilon) from T1 using the training-fit
+  loadings/noise (predicted excess = sqrt(floor^2 + design(k)) - floor with floor^2 the model's expected noise variance). "Rule useful" only if the empirical k\* lies inside or within one grid step of the predicted band.
+  (This redefinition of "error <= epsilon" is a decision of experiment-repo, flagged to idea-repo in #2.)
+
+## G. Model, rank, selection (fixed before results)
+- P5 = factor analysis y_mj = mu_j + v_j' z_m + e_mj, e ~ N(0, psi_j), z ~ N(0, I), EM on observed cells of the standardised training matrix (psi_j floor 1e-2, 300 iterations or relative LL change < 1e-6);
+  new-model inference = posterior mean of z given the revealed cells. Rank r in {1,2,3,4,6,8,12,16,24} chosen by inner group CV, at the reveal size k of the evaluation (inner validation model reveals k random cells, predicts the rest of its cells).
+- Effective rank (H1), defined before results: (i) parallel analysis (Horn; per-column permutation of observed entries, pairwise-complete correlation, 95th percentile of 200 permutations), (ii) number of eigenvalues above the
+  Marchenko-Pastur noise edge with sigma^2 estimated from the lower half of the spectrum, (iii) CV-selected rank above; sensitivity to the imputation of missing cells (EM-FA imputation vs column-mean) reported.
+- S6 = greedy maximiser of F(S) = tr(V Sigma_post(S) V') over all N benchmarks, candidates restricted to R_m (Sherman-Morrison gains); variants (unrun-only target; weighted) secondary. Greedy checked vs exhaustive/swap search in small cases.
+
+## H. Baselines: status as to "run as published" (also sent to `idea-repo`)
+Run as published: S0, S1, S2, S5 (k-medoids on 1-|corr| with pairwise-complete correlation), P0, P1, P3 (kNN), P4 (Soft-Impute).
+Adaptations (each documented in the paper's appendix): **S3** greedy CV wrapper - cost forces a closed-form P5 evaluation on training rows, k<=32 only;
+**S4** pivoted-QR/leverage needs a complete matrix - applied to the EM-FA completed matrix; **S7** Golbandi decision-tree interview is defined for discrete ratings - run as a continuous-score kNN/tree interview;
+**P2** ridge with missing training cells - EM-completed training matrix; **P6** Ruan et al. observational scaling needs complete base-benchmark rows and (Sloth) compute/family covariates, which are not available for a new model with k scores - run as PC regression on the P5 latent scores with a sigmoid link
+for bounded targets, i.e. NOT as published. **S8** exhaustive oracle needs N<=10 matrices (Open LLM LB N=6, HELM Lite N=10) - run only in the transfer check; on MTEB the greedy-vs-exhaustive check is done on random size-12/16 task subsets.
+Cost-aware S6: MTEB cells carry `evaluation_time` (kept in `cells`); per-task cost = median over models; used only if coverage of `evaluation_time` is adequate, else dropped (will be stated).
+
+## I. Reproducibility
+Seeds: outer folds 20261126; random-k draws seed = hash(model, k, 20261126); EM init seed 0. Software versions in `requirements.lock` (to be added). Command order in `README.md`.
+
+## Addendum 1 (2026-11-26, written after stage A margins, before any contrast or error curve is computed)
+Stage A (code/04_states.sh, state.py: inner-CV ranks, floors, margins) was run on all folds; `prereg/delta_by_fold.csv` holds the per-fold, per-task numbers. Pooled over folds the
+margin is tiny relative to the floor: mean gap_j ~ 0.21 raw points (238 models on a 0-100 scale), mean all-others floor ~ 4.6 points, so delta = mean min(0.5 gap, 0.25 floor) ~ 0.10 points
+(the gap term always binds). The rules of section F are NOT changed and remain the pre-set primary margins. Because a +/-0.1-point equivalence band may be narrower than any attainable CI, two
+secondary margins are declared now so that the verdict does not depend on a post-hoc choice: **delta_floor = 0.25 x floor_j** (aggregated like delta; about 1.1 points) and **delta_floor/2**. Verdicts and
+k*(epsilon) are reported for the primary delta first and for delta_floor next to it; epsilon in {delta, 2 delta, delta_floor, 2 delta_floor}. Nothing else is added.
+
+## Deviations (append only, dated)
+1. (2026-11-26, after the main stage-B run and the first contrasts were seen) Additions not in the pre-registered rule list, all labelled as such in the results: (a) **S6s** = S6 followed by single-swap
+   local search on the same objective, added because on real fold-0 models greedy S6 is up to ~40% above the exhaustive optimum of the objective at k=2,3 (`code/19_greedy_check.py`), so the
+   weakest-design reading of 'design' would otherwise be tested with a sub-optimal optimiser; (b) columns `excess_raw` (RMSE minus the model's own all-others floor on the same targets) and `gain_excess` in curves/contrast files,
+   because raw RMSE across selection rules is confounded by which cells remain as targets at large k (e.g. S2 reveals the hardest benchmarks); the pre-registered verdicts remain those on raw RMSE; (c) the Addendum-1 margin
+   `delta_floor/2` was never computed: k* and the verdicts use {delta, 2 delta, delta_floor, 2 delta_floor} as in `results/kstar.csv`.
+2. (2026-11-26) The pre-registered per-draw seed 'hash(model,k,seed)' was implemented as a deterministic integer function of (seed, model index) (`SEED*31+model`, `SEED*37+model`), because Python's `hash` is salted per process.
+3. (2026-11-26, **post-result amendment**) **Common target set as the primary score** (idea-repo Brief rev. 4/5; requested in experiment-repo#2 before the first contrast; not carried into the first
+   run, which scored on the model's remaining cells R_m \ S as in section D). The R_m \ S curves, contrasts and k* values (`results/curves.csv`, `contrast_S6_vs_S0.csv`, `kstar.csv`) were computed and
+   inspected **first**, including the finding that S2 scores below the floor at large k because it moves hard benchmarks out of the target; the C/T protocol below is adopted because of that finding and
+   because the reviewers of the idea asked for it, not as a pre-result choice. Definition (code `code/21_eval_ct.py`, `common.make_ct_splits`): 50 fixed random C/T splits of the 328 benchmarks (seed
+   20261126+99; T has 109 benchmarks stratified by task type: round(n_type/3) per type, >=1 for types with >=3 tasks; same splits for all folds, models and rules); S is chosen among the model's observed C
+   benchmarks; every rule is scored on the model's observed cells in T (RMSE in raw points, per split, then averaged over the model's eligible splits, then over models with equal weight); floor = the same
+   prediction with all of the model's observed C cells revealed under the LOO-selected rank; eligible (model, split): >= k observed C cells and >= m_T = max(3, ceil(109/3)) = 37 observed T cells; a model
+   enters k if eligible in >= 20 of the 50 splits; the headline curve is on the fixed subset of models that enter k_max = 109, the all-eligible-per-k curve is the labelled supplement. Paired contrast: per split
+   RMSE(S0) - RMSE(rule), averaged within model, then the group bootstrap (B=5000). delta_T = mean of delta_j (section F, unchanged, from training data) over the model's observed T cells; excess over floor
+   and k* use the same definition on T. S6 targets all N benchmarks (it does not use T); S6T (target = T) is a labelled variant. The R_m \ S score stays as the labelled secondary
+   (and S6u as its unrun-target variant). Sections D, F and G otherwise unchanged. Grid unchanged ({1,...,109} = floor(|C|/2) reference for |C|=219).
+4. (2026-11-26, after the C/T main run was inspected) Post-hoc analyses added in answer to idea-repo#5 (Brief rev. 7) and story-repo#7; each is labelled post hoc / sensitivity in the results.
+   (a) **Training-side k*(epsilon) rule** (`code/25_inner_states.py`, `26_inner_all.sh`, aggregated by `code/32_inner_kstar.py`): for an outer (split, fold), the training models are partitioned by the same inner group folds
+   that choose the rank (5 folds); for each inner fold the factor fits (ranks the outer fold chose) are refitted on the remaining training models and the held-out inner models are evaluated by the
+   unchanged C/T protocol (21_eval_ct.py: S0/S6 x P5, 10 splits). The pooled training-side excess-over-floor curve of S6+P5 (raw points, models equally weighted, group bootstrap over training groups) gives
+   k*_hat(epsilon) = smallest grid k at which it is <= epsilon, with epsilon in the same list as the empirical k* (delta_T, 2delta_T, delta_floor, 2delta_floor, 0.25...3 points). It never sees the outer
+   test models. Test: k*_hat against the empirical k* of the outer test models (G: pooled over 10 folds; T, S: their single fold), reported whether or not it agrees.
+   (b) **Random-model hold-out sensitivity** (`common.make_splits` key "R", `27_random_folds.sh`): 10 folds of random models (the organisation of a held-out model usually stays in training) with the same C/T stage-B code for S0 and S6,
+   to separate across-group extrapolation from misspecification in the floor misfit; not a headline protocol.
+   (c) **Ladder diagnostics and placement rule** (`code/28_diagnostics.py`): diagnostics of held-out LOO residuals (calib, kurt, rescorr, het, link) computed identically on the real matrix and on the synthetic rungs; rule: the real matrix is placed on the
+   rungs whose seed-range [5%,95%] (widened by 10%) contains every real diagnostic, else 'outside the ladder'. The diagnostic set and the rule are written in the script header before it was run; the first 2-seed test run printed the real values,
+   and the robust ratio `calib_med` was added **after** seeing that `calib` (2.75) and `kurt` (29) of the real matrix lie far from the rungs (it separates a scale shift from outlier inflation); the rule itself was not changed.
+   (d) **Scope sweeps on the C/T score** (`code/30_scope_ct.py`, `31_scope_ct_all.sh`) replace the R_m \ S sweeps of `15_scope.py` as the reported ones (the latter stay secondary): conditions M50, M25, dens70/50/30, logit, suite (type x first domain, N=75), types (N=10);
+   G folds 0-3; S0/S6 x P5; 20 C/T splits (same stratified splitter); k grid {1,2,3,5,8,12,20,32}; reduced rank grid {1,2,4,8,16} for all conditions including `ref`.
+   (e) C/T extras for Table 3 and the baseline comparison: S3, S5, S6s, S7 and the pipelines P2, P3, P4, P6 on the S0 and S6 sets on 20 of the 50 splits (tag `ctx`; seeds as in the main run).
+   (f) **Floor by factor rank** (`code/33_floor_rank.py` -> `results/floor_by_rank.csv`): the floor (all observed C cells revealed, P5) recomputed at every rank of the grid and at the oracle rank (min over ranks of each
+   model's own floor RMSE, reported as `min_over_ranks`, an optimistic reference not a protocol), with the group bootstrap over held-out groups, to check whether the negative excess of S6 at large k on T and S is the
+   floor being inflated by the LOO-selected rank. Added after the negative T/S excess was seen; diagnostic only.
+   (g) Scope sweep aggregation (`code/34_scope_agg.py`): excess curves, paired gain over S0 and k*(epsilon) for epsilon in {0.10, 0.25, 0.50} of each condition's own mean floor (the floor changes with the condition),
+   group bootstrap B=5000 over held-out groups, G folds 0-3 only (67 models, 23 groups).
+   The `types` condition (N=10) crashed in the first scope run (rank 16 > N) and was rerun on its own with ranks <= 6 and k grid {1, 2, 3, 5} (post hoc grid; the other conditions are unchanged).
+   (h) **Combined misspecification rung** (written before it is run; requested by story-repo Outline rev. 10 after the single rungs failed the placement rule): `synth.COMBINED` = `L5_link_tails_ceiling` =
+   Student-t(3) noise at the variance of L2, multiplied by the L3 ceiling factor, then the L1 saturating tanh link, otherwise `separated`, r = 6, fitted at rank 6, N = 120, 238 models, 20 seeds, the diagnostics of
+   `28_diagnostics.py` computed identically (`code/36_combined_rung.py`). **Reproduces** = the rung is consistent under the unchanged placement rule (all six real diagnostics inside the widened [5%,95%]
+   seed range). **Does not reproduce** = otherwise; then the cause of the floor misfit stays "not identified" and no further rung is searched. The one question this answers is whether a combination of the three
+   misspecifications that each fail alone can reproduce calib = 2.75 with kurt = 29. No other combination is tried.
+   (i) **Adaptive vs batch on the synthetic ladder** (`code/38_synth_adaptive.py`, C5; written before it is run): S7 (the interview rule of the main runs) vs S6 and random-k S0 with P5 inference on L0-L5 (N = 120, M = 240, rank 6, 80 fully
+   observed test models per seed, 8 seeds, k in {1,2,3,5,8,12,20}); the quantity is the paired MSE difference S7 - S6 on the unrevealed benchmarks, mean and standard error over seeds. No success threshold is set: it is reported as measured.
+   *Added after the first run (4i-b, post hoc):* the first run scored each rule on its own unrevealed benchmarks, which differ between rules. A second run (`SA_COMMON=1`, same seeds and generator) scores every rule at a given k on the benchmarks outside the union of the sets revealed by S6 and S7 (and outside the random draw); both runs are reported (`synth_adaptive.csv`, `synth_adaptive_common.csv`), the common-target one is the one to quote for the comparison.
+      (l) **OLB grouping sensitivity** (`code/44_olb_uploader.sh`; written before it is run): the Open LLM Leaderboard G split repeated with uploaders (717 groups) instead of family stems (475 groups) as the held-out and bootstrap unit; S0 and S6 x P5, 50 splits. Reported as the S6-vs-S0 contrast, the floor and the excess curve next to the family-stem run. Expectation stated now: the uploader grouping is less strict (derivatives of one base by different uploaders can sit on both sides), so errors are expected to be lower or equal; a difference above the bootstrap interval would mean the family heuristic matters for the claims.
+(j) **Fixed-rank sensitivity** (`code/39_rank_sens.sh`; written before it is run): the main C/T evaluation on G (S0, S6 x P5, 20 of the 50 shared splits) with the factor rank fixed at r in {4, 8, 12} for every fold and k, instead of the inner-CV rank;
+   the floor is then also at rank r. Reported as the S6-vs-S0 contrast, the excess curve and k*(epsilon) next to the main run; a sensitivity, not a replacement.
+   *Added after the first rank-sensitivity result (4j-b, post hoc):* the main run restricted to the same 20 splits (`ctx` stage B re-aggregated: `ct_extras/`) as the like-for-like comparator, and the paired RMSE difference between the inner-CV rank and each fixed rank (`code/43_rank_paired.py`, `sens_rank/paired_vs_innercv.csv`).
+   (k) **Ladder diagnostics on the other real matrices** (`code/40_ladder_real.py`, `42_ladder_vs_ratio.py`; requested by story-repo#8, and the Addendum 2 claim (iv)): the six diagnostics of `28_diagnostics.py` and the unchanged placement rule, applied to OLB G and S and to MTEB S and T
+   (S and T: the single outer fold of each protocol), against the unchanged synthetic ladder (MTEB-shaped: N = 120, 238 models; OLB has 39 benchmarks and 4507 models, so the ladder is a reference scale, not a matched design). Added post hoc, descriptive only, not part of the placement rule:
+   spectral decay (top-1 and top-3 eigenvalue share and participation ratio of the pairwise-correlation matrix of the outer-fold-0 training side). The rank correlation of each diagnostic with the floor-misfit ratio over the five matrices is reported with n = 5 and no test. No rung is added or tuned.
+
+## Addendum 2 (2026-11-26, written before any stage-B result on the Open LLM Leaderboard matrix is computed; stage A of that matrix has run and printed only the chosen ranks)
+Transfer matrix: Open LLM Leaderboard v2 per-subtask results (`code/transfer/olb_extract.py`, `olb_matrix.py`): 4,507 models x 39 sub-benchmarks, dense (every retained model has all 39), score = the leaderboard's per-subtask normalised
+score x 100; one (latest full) result file per model. Types for stratification: bbh (24), math (7), gpqa (3), musr (3), ifeval (1), mmlu_pro (1); C/T splits: 50 splits, |T| = 12, m_T = max(3, ceil(12/3)) = 4 (always met: dense), eligibility
+>= k in C; k grid {1,2,3,5,8,13}; rank grid {1,2,3,4,6,8,12,16}. Same rules, scores, splits code, bootstrap (B = 5000, resampling unit = group) as MTEB.
+* **Groups (family heuristic) and its limits.** 'Family stem' = first keyword of a fixed list (Qwen, Llama, Mistral, Gemma, Phi, ... in `olb_matrix.py`) found in the model name, else the uploader. 475 groups; the largest ('qwen2.5') has 408 models (9%). Limits: merges and fine-tunes
+  keep the stem of the base but a model can match a wrong stem by substring; many uploaders' fine-tunes of one base share training data, so a held-out group can still leak through unlisted derivatives; the date is the evaluation timestamp, not the release date,
+  so there is no temporal split on this matrix; models are mostly small open models evaluated under one harness. As labelled sensitivity (if budget allows): grouping by uploader instead.
+* **Margins.** The gap-based delta of section F is attainable or not on this matrix; as the sub-benchmark scale is [0,100] and models are dense, the margin used for verdicts is fixed from the floor: **primary here: delta_floor = 0.25 x floor_j** (aggregated over T as for MTEB),
+  with the gap-based delta reported next to it. k*(epsilon): epsilon in {delta_floor, 2 delta_floor, 0.1, 0.25, 0.5 of the mean floor (fractions) and 0.5, 1, 2, 3 raw points}; excess over the model's own floor on T; verdict rule unchanged.
+* **Claims it is confirmatory for (stated now):** (i) excess over the floor is non-increasing in k up to noise and S6 <= S0 on it for small k; (ii) the same ordering of rules; (iii) the training-side rule of Deviation 4(a) predicts the empirical k*(epsilon) within one grid step at
+  epsilon in {delta_floor, 2 delta_floor} in G and S; (iv) the floor misfit (measured floor MSE over the factor model's own noise term) is reported with the same diagnostics as MTEB. Pass/fail of (iii) is reported as such.
+* Splits: G (10 folds over 475 groups) and S (strength split, 25% strongest as test), as defined for MTEB; no T.

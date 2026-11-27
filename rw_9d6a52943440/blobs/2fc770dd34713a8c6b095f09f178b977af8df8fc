@@ -1,0 +1,35 @@
+import json,re,subprocess
+S=json.load(open('/hutian/work/sample.json'))
+HEAD=re.compile(r'^\s*(?:\d+\s+)?(?:References|REFERENCES|Bibliography)\s*$',re.M)
+APP=re.compile(r'^\s*(?:Appendix\b|APPENDIX|Supplementary|[A-Z]\s{1,3}(?:[A-Z][a-z]+)(?:\s|$)|NeurIPS Paper Checklist|Technical Appendices)',re.M)
+res=[]
+for o in S:
+    t=subprocess.run(['pdftotext','-layout','/hutian/work/'+o['file'],'-'],capture_output=True,text=True).stdout
+    P=t.split('\f')
+    ref=[i for i,p in enumerate(P) if HEAD.search(p)][0]
+    pre=''.join(P[:ref])+HEAD.split(P[ref])[0]
+    caps=[]
+    for m in re.finditer(r'(?:^|\s{2,})((?:Figure|Fig\.|Table)\s+\d+)\s*[:.|]\s+([A-Z][^\n]{0,60})',pre,re.M):
+        caps.append(m.group(1).replace('Fig.','Figure')+': '+m.group(2)[:40])
+    # dedupe by label
+    seen={};
+    for c in caps:
+        k=c.split(':')[0]
+        seen.setdefault(k,c)
+    figs=[k for k in seen if k.startswith('Figure')]; tabs=[k for k in seen if k.startswith('Table')]
+    # refs
+    rest=HEAD.split(P[ref],1)[-1]+''.join(P[ref+1:])
+    # cut at appendix: first page after ref page whose first nonblank line looks like appendix heading
+    cut=None
+    for j in range(ref+1,len(P)):
+        first=[l for l in P[j].split('\n') if l.strip()][:2]
+        if any(re.match(r'\s*(Appendix|APPENDIX|[A-Z]\s{1,3}[A-Z][a-z]+|NeurIPS Paper Checklist|Supplementary|Technical)',l) for l in first): cut=j;break
+    refpages=P[ref:cut] if cut else P[ref:ref+3]
+    rt=HEAD.split(refpages[0],1)[-1]+''.join(refpages[1:])
+    nb=len(re.findall(r'^\s*\[\d+\]',rt,re.M))
+    lines=[l for l in rt.split('\n') if l.strip() and not re.fullmatch(r'\s*\d+\s*',l)]
+    flush=[l for l in lines if len(l)-len(l.lstrip())<=1]
+    n=nb if nb>20 else len(flush)
+    res.append(dict(title=o['title'][:60],pages_total=len(P)-1,ref_page=ref+1,app_page=cut+1 if cut else None,nfig=len(figs),ntab=len(tabs),figs=figs,tabs=tabs,nref=n,nb=nb,flush=len(flush)))
+    print(res[-1]['title'],'| ref p',ref+1,'app p',res[-1]['app_page'],'| fig',len(figs),figs,'tab',len(tabs),tabs,'| refs',n,nb,len(flush))
+json.dump(res,open('/hutian/work/stats1.json','w'),indent=1)

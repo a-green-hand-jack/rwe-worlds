@@ -1,0 +1,223 @@
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed arc_challenge extrap
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed arc_challenge extrap10
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed arc_challenge extrap50
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed arc_challenge interp
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed arc_challenge lineage
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed bbh extrap
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed bbh extrap10
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed bbh extrap50
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed bbh interp
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed bbh lineage
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+/usr/local/lib/python3.11/dist-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/usr/local/lib/python3.11/dist-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+/hutian/repo/scripts/03_analyze.py:111: RuntimeWarning: invalid value encountered in divide
+  tau = (sx * sy).sum(1) / np.sqrt((sx ** 2).sum(1) * (sy ** 2).sum())
+analysed commonsense extrap
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+/usr/local/lib/python3.11/dist-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/usr/local/lib/python3.11/dist-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+/hutian/repo/scripts/03_analyze.py:111: RuntimeWarning: invalid value encountered in divide
+  tau = (sx * sy).sum(1) / np.sqrt((sx ** 2).sum(1) * (sy ** 2).sum())
+analysed commonsense extrap10
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed commonsense extrap50
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed commonsense interp
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed commonsense lineage
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed gpqa extrap
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed gpqa extrap10
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed gpqa extrap50
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed gpqa interp
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed gpqa lineage
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed gsm extrap
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+/usr/local/lib/python3.11/dist-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/usr/local/lib/python3.11/dist-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+/hutian/repo/scripts/03_analyze.py:111: RuntimeWarning: invalid value encountered in divide
+  tau = (sx * sy).sum(1) / np.sqrt((sx ** 2).sum(1) * (sy ** 2).sum())
+analysed gsm extrap10
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed gsm extrap50
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed gsm interp
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed gsm lineage
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed ifeval extrap
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed ifeval extrap10
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed ifeval extrap50
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed ifeval interp
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed ifeval lineage
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed legalbench extrap
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed legalbench extrap10
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed legalbench extrap50
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed legalbench interp
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed math extrap
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+/usr/local/lib/python3.11/dist-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/usr/local/lib/python3.11/dist-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+/hutian/repo/scripts/03_analyze.py:111: RuntimeWarning: invalid value encountered in divide
+  tau = (sx * sy).sum(1) / np.sqrt((sx ** 2).sum(1) * (sy ** 2).sum())
+analysed math extrap10
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed math extrap50
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed math interp
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed math lineage
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed med_qa extrap
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed med_qa extrap10
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed med_qa extrap50
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed med_qa interp
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed med_qa lineage
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed mmlu extrap
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed mmlu extrap10
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed mmlu extrap50
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed mmlu interp
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed mmlu lineage
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed mmlu_pro extrap
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed mmlu_pro extrap10
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed mmlu_pro extrap50
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed mmlu_pro interp
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed mmlu_pro lineage
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed musr extrap
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed musr extrap10
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed musr extrap50
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed musr interp
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed musr lineage
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed openllm_math extrap
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed openllm_math extrap10
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+/usr/local/lib/python3.11/dist-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/usr/local/lib/python3.11/dist-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+/hutian/repo/scripts/03_analyze.py:111: RuntimeWarning: invalid value encountered in divide
+  tau = (sx * sy).sum(1) / np.sqrt((sx ** 2).sum(1) * (sy ** 2).sum())
+analysed openllm_math extrap50
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed openllm_math interp
+/hutian/repo/scripts/03_analyze.py:98: RuntimeWarning: divide by zero encountered in divide
+  sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+analysed openllm_math lineage
+done

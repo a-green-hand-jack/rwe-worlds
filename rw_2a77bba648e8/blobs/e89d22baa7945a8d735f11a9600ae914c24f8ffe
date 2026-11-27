@@ -1,0 +1,116 @@
+"""Appendix figure (P6): coverage and width of the extrapolation-sensitivity interval on the 666 cells of the confirmatory block.
+A: coverage of the 90% interval by stratum of |bias|/SD (cells per stratum under the axis): HC0 alone, the interval widened by the bound B1
+(multiplier kappa = 1, frozen on the original cells) and by B2 (kappa = 0.25, frozen), a control of the same mean width without the bound
+(HC0 multiplied by one global factor for B2, widened by an amount that depends only on family, degree and p for B1), and the oracle
+interval (z SE + |bias|, needs the true bias). B: mean width of HC0, B1, B2 by stratum, in units of the GATE. C: coverage against the
+multiplier kappa for the threshold cells whose threshold lies outside the observed exposures (27 cells) and for the cells inside (54), pooled over d.
+Bernoulli designs. No interval is drawn: the exported tables hold stratum means over cells.
+Usage: figP6_interval.py RESULTS_DIR OUT_DIR
+"""
+import argparse
+import pathlib
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from matplotlib.lines import Line2D
+
+import style
+
+ap = argparse.ArgumentParser()
+ap.add_argument("data"); ap.add_argument("out")
+a = ap.parse_args()
+style.apply()
+p6 = pathlib.Path(a.data) / "p6"
+st = pd.read_csv(p6 / "p6_confirmatory_strata_at_frozen_kappa.csv")
+th = pd.read_csv(p6 / "p6_confirmatory_threshold_and_prediction1.csv")
+B1, B2 = "#0072B2", "#D55E00"
+b1, b2 = st[st.bound == "B1"].reset_index(drop=True), st[st.bound == "B2"].reset_index(drop=True)
+assert (b1.bin == b2.bin).all() and b1.cells.sum() == 666
+x = np.arange(len(b1))
+labels = ["$\\leq$0.25", "0.25–\n0.5", "0.5–\n1", "1–\n2", "$>$2"]
+ticks = [f"{l}\n({n})" for l, n in zip(labels, b1.cells)]
+
+fig = plt.figure(figsize=(style.TEXTWIDTH, 4.6))
+gs = fig.add_gridspec(2, 2, hspace=0.75, wspace=0.34)
+ax, bx, cx = fig.add_subplot(gs[0, 0]), fig.add_subplot(gs[0, 1]), fig.add_subplot(gs[1, 0])
+dx = fig.add_subplot(gs[1, 1])
+
+ax.plot(x, b1.hc90, color="k", marker="s", ls=":", ms=4)
+ax.plot(x, b1.oracle, color="0.55", marker="*", ls="-.", ms=5)
+ax.plot(x, b1.p6, color=B1, marker="o", ls="-", ms=4)
+ax.plot(x, b2.p6, color=B2, marker="^", ls="-", ms=4)
+ax.axhline(0.9, color="k", lw=0.6, ls=(0, (1, 3)))
+ax.set_xticks(x); ax.set_xticklabels(ticks); ax.set_ylim(0, 1.04)
+ax.set_xlabel("$|$bias$|$/SD stratum (cells)"); ax.set_ylabel("coverage at 90%")
+ax.text(-0.2, 1.07, "A", transform=ax.transAxes, fontweight="bold")
+
+bx.plot(x, b1.p6_width, color=B1, marker="o", ls="-", ms=4)
+bx.plot(x, b2.p6_width, color=B2, marker="^", ls="-", ms=4)
+bx.plot(x, b1.hc90_width, color="k", marker="s", ls=":", ms=4)
+bx.set_xticks(x); bx.set_xticklabels(ticks); bx.set_ylim(0, 13)
+bx.set_xlabel("$|$bias$|$/SD stratum (cells)"); bx.set_ylabel("mean width (GATE units)")
+bx.text(-0.2, 1.07, "B", transform=bx.transAxes, fontweight="bold")
+
+ks = [c for c in th.columns if c.startswith("cov_k")]
+kv = np.array([float(c[5:]) for c in ks])
+def row(bound, prefix):
+    r = th[(th.bound == bound) & th.subset.str.startswith(prefix) & th.subset.str.endswith("pooled over d")]
+    assert len(r) == 1
+    return r.iloc[0][ks].astype(float).to_numpy()
+for bound, col, mk in (("B1", B1, "o"), ("B2", B2, "^")):
+    cx.plot(kv, row(bound, "outside support"), color=col, marker=mk, ls="-", ms=4)
+    cx.plot(kv, row(bound, "inside support"), color=col, marker=mk, ls="-", lw=0.7, ms=4, mfc="w")
+cx.axhline(0.9, color="k", lw=0.6, ls=(0, (1, 3)))
+cx.set_xscale("log", base=2); cx.minorticks_off()
+cx.set_xticks([0.25, 1, 4, 16, 64]); cx.set_xticklabels(["0.25", "1", "4", "16", "64"])
+for bound, col, k0 in (("B1", B1, 1.0), ("B2", B2, 0.25)):   # the frozen multipliers, marked on the lower axis
+    cx.plot([k0], [0.0], marker="^", color=col, ms=6, mec="k", mew=0.5, clip_on=False, transform=cx.get_xaxis_transform(), zorder=6)
+cx.set_ylim(0.6, 1.02)
+cx.set_xlabel("multiplier $\\kappa$"); cx.set_ylabel("coverage at 90%")
+cx.text(-0.2, 1.07, "C", transform=cx.transAxes, fontweight="bold")
+
+ax.legend([Line2D([], [], color="k", marker="s", ls=":", ms=4), Line2D([], [], color="0.55", marker="*", ls="-.", ms=5),
+           Line2D([], [], color=B1, marker="o", ls="-", ms=4), Line2D([], [], color=B2, marker="^", ls="-", ms=4)],
+          ["HC0 alone", "oracle", "$B_1$, $\\kappa=1$", "$B_2$, $\\kappa=0.25$"], frameon=False, loc="lower left",
+          bbox_to_anchor=(-0.02, -0.02), handlelength=2.2, labelspacing=0.25, handletextpad=0.4, borderaxespad=0.2)
+cx.legend([Line2D([], [], color="0.3", marker="o", ls="-", ms=4), Line2D([], [], color="0.3", marker="o", ls="-", lw=0.7, ms=4, mfc="w")],
+          ["outside the exposures (27)", "inside (54)"], title="threshold cells", frameon=False, loc="lower right",
+          bbox_to_anchor=(1.02, 0.0), handlelength=2.2, labelspacing=0.25, handletextpad=0.4, borderaxespad=0.2)
+
+# D: coverage against mean width over kappa, cell-weighted over the mechanisms; controls of the same width
+cv = pd.read_csv(p6 / "p6_confirmatory_curve_by_mechanism.csv")
+def pooled(g):
+    return pd.Series({c: np.average(g[c], weights=g.cells) for c in
+                      ["cov", "width", "cov_c2", "cov_c3", "cov_oracle", "width_oracle", "hc90_cov", "hc90_width"]})
+pc = cv.groupby(["bound", "kappa"]).apply(pooled, include_groups=False).reset_index()
+assert cv.groupby(["bound", "kappa"]).cells.sum().eq(666).all()
+for bound, col, mk, k0 in (("B1", B1, "o", 1.0), ("B2", B2, "^", 0.25)):
+    g = pc[(pc.bound == bound) & (pc.width <= 20)]
+    dx.plot(g.width, g["cov"], color=col, marker=mk, ls="-", ms=3.5)
+    dx.plot(g.width, g.cov_c2, color=col, ls="--", lw=1.0)
+    dx.plot(g.width, g.cov_c3, color=col, ls=":", lw=1.3)
+    f = pc[(pc.bound == bound) & np.isclose(pc.kappa, k0)].iloc[0]
+    dx.plot([f.width], [f["cov"]], marker=mk, ms=8, mfc=col, mec="k", mew=1.0, ls="", zorder=6)
+h0 = pc.iloc[0]
+dx.plot([h0.hc90_width], [h0.hc90_cov], marker="s", color="k", ms=5, ls="")
+dx.plot([h0.width_oracle], [h0.cov_oracle], marker="*", color="0.55", ms=8, ls="")
+dx.axhline(0.9, color="k", lw=0.6, ls=(0, (1, 3)))
+dx.set_xscale("log"); dx.minorticks_off(); dx.set_xticks([1, 3, 10]); dx.set_xticklabels(["1", "3", "10"])
+dx.set_xlim(0.6, 20); dx.set_ylim(0.52, 1.02)
+dx.set_xlabel("mean width (GATE units)"); dx.set_ylabel("coverage at 90%")
+dx.text(-0.2, 1.07, "D", transform=dx.transAxes, fontweight="bold")
+dx.legend([Line2D([], [], color="0.3", ls="-"), Line2D([], [], color="0.3", ls="--"), Line2D([], [], color="0.3", ls=":", lw=1.3),
+           Line2D([], [], color="0.3", marker="o", mec="k", ls="", ms=6)],
+          ["bound, $\\kappa$ varied", "C2, global factor", "C3, design only", "frozen $\\hat\\kappa$ ($B_2$: grid floor)"],
+          frameon=False, loc="lower right", bbox_to_anchor=(1.02, 0.0), handlelength=2.2, labelspacing=0.25, handletextpad=0.4, borderaxespad=0.2)
+style.check_min_type(fig)
+o = pathlib.Path(a.out); o.mkdir(parents=True, exist_ok=True)
+w = style.save(fig, o / "figP6_interval.pdf")
+cols = ["bound", "kappa", "bin", "cells", "hc90", "p6", "oracle", "p6_width", "hc90_width"]
+st[cols].to_csv(o / "figP6_interval_AB.csv", index=False)
+rows = [dict(bound=b, support=s, kappa=k, coverage=v) for b in ("B1", "B2") for s in ("outside support", "inside support")
+        for k, v in zip(kv, row(b, s))]
+pd.DataFrame(rows).to_csv(o / "figP6_interval_C.csv", index=False)
+pc.to_csv(o / "figP6_interval_D.csv", index=False)
+print("figure width (in)", w)

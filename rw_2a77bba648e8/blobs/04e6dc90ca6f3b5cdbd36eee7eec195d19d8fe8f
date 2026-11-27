@@ -1,0 +1,63 @@
+"""Cluster-design quality per run (issue #5, point 5): regenerates the graph and clusters with the run's own seeds.
+    python analysis/cluster_quality.py RAWDIR [RAWDIR ...] OUT.csv
+per run (mean over graph draws): number of clusters, size min/median/max, modularity, mean conductance, P(all clusters get the same arm)."""
+import glob
+import json
+import os
+import sys
+
+import numpy as np
+import pandas as pd
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+sys.path.insert(0, os.path.dirname(__file__))
+import agg  # noqa: E402
+from gate import graphs, sim  # noqa: E402
+
+
+def conductance(A, labels):
+    K = labels.max() + 1
+    deg = np.asarray(A.sum(1)).ravel()
+    vol = np.bincount(labels, weights=deg, minlength=K)
+    Aco = A.tocoo()
+    cut = np.bincount(labels[Aco.row][labels[Aco.row] != labels[Aco.col]], minlength=K).astype(float)
+    return np.mean(cut / np.maximum(np.minimum(vol, deg.sum() - vol), 1e-12))
+
+
+def main(dirs, out):
+    rows = []
+    for d in dirs:
+        for f in sorted(glob.glob(os.path.join(d, "*.pkl"))):
+            run = agg.Run(f)
+            cfg = run.cfg
+            if cfg.get("design", "bern") != "cluster":
+                continue
+            fam, n, dd = cfg["family"], cfg.get("n", 0), cfg["d"]
+            acc = []
+            for gi in range(run.G):
+                rng = np.random.default_rng(sim.seed_of(cfg.get("seed", 0), fam, n, dd, gi, cfg.get("tag", ""), "graph"))
+                g = sim.make_graph(cfg, gi, rng)
+                gobs = graphs.drop_edges(g, cfg.get("q_edge", 0.0), rng) if cfg.get("q_edge", 0.0) > 0 else g
+                if cfg.get("clustering", "louvain") == "truth":
+                    lab, mod = g.blocks, graphs.modularity_of(gobs, g.blocks)
+                else:
+                    lab, mod = graphs.louvain(gobs, cfg.get("res", 1.0), rng)
+                sz = np.bincount(lab)
+                K = len(sz)
+                acc.append((K, sz.min(), np.median(sz), sz.max(), mod, conductance(gobs.A, lab), cfg["p"] ** K + (1 - cfg["p"]) ** K,
+                            gobs.n, gobs.dbar))
+            a = np.mean(acc, 0)
+            rows.append(dict(run_id=run.id, graph=fam, clustering=cfg.get("clustering", "louvain"), resolution=cfg.get("res", np.nan),
+                             n=a[7], d=a[8], n_clusters=a[0], size_min=a[1], size_median=a[2], size_max=a[3], modularity=a[4],
+                             conductance=a[5], p_all_same_arm=a[6]))
+    for d in dirs:    # runs skipped because Louvain returned fewer than sim.MIN_CLUSTERS clusters (K of the first failing graph draw)
+        for f in sorted(glob.glob(os.path.join(d, "*.degenerate.json"))):
+            r = json.load(open(f))
+            rows.append(dict(run_id=r["id"], n_clusters=r["K"], status=f"degenerate: K < {sim.MIN_CLUSTERS} on graph draw {r['graph_draw']}, run skipped"))
+    df = pd.DataFrame(rows)
+    df["status"] = df["status"].fillna("run")
+    df.to_csv(out, index=False)
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:-1], sys.argv[-1])

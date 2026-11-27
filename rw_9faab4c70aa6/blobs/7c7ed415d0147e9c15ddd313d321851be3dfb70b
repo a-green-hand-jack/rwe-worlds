@@ -1,0 +1,3 @@
+# figtab-repo — figures and tables
+Delivered paths: `figures/` (PDFs, `figures/src/` scripts, `figures/README.md` mapping file → claim → script → source data) and `tables/` (`.tex` booktabs fragments). Result-file formats: `figures/DATA_CONTRACT.md`.
+Run: `python3 figures/src/fig1_schematic.py figures/fig1_schematic.pdf`

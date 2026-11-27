@@ -1,0 +1,13 @@
+{
+  "analysis_commit": "66252a8",
+  "figure": "figtab/tab3_pipelines.tex",
+  "inputs": [
+    {
+      "path": "results/table3_pipelines_ct.csv",
+      "sha256": "f36672469f14fd961affa8f9d17bdb96c1c44832aeb3de4b637dd0cc1cadb043"
+    }
+  ],
+  "note": "20 of the 50 shared C/T splits, fixed k_max subset (per experiment-repo's delivery note); margin delta_floor",
+  "script": "figtab/make_table3.py",
+  "selection": "S6"
+}

@@ -1,0 +1,79 @@
+# Code for "which k benchmarks to run on a new model"
+
+Everything here is CPU-only Python. The downloaded leaderboard files are not shipped and must be re-downloaded from the pinned sources below; what is shipped
+is derived: `results/data_out/*.npz` (dense score matrices, 0.6 MB in total), the tidy `results/*.csv` and the per-run pickles `results/raw/` (20 MB, Git LFS).
+Paths below are relative to the delivery root `$R`. The figures and tables are drawn from `results/*.csv` by the scripts delivered with them (`figures/src`, `tables/`). The repository carries no author or
+institution identifiers.
+
+## Environment
+Python 3.11.2, numpy 2.4.6, scipy 1.17.1, pandas 3.0.6, scikit-learn 1.9.1, pyarrow 26.0.0 (pinned in `code/requirements.txt`; `pip install -r code/requirements.txt`).
+Nothing needs a GPU. Single-thread BLAS is used inside jobs (`OMP_NUM_THREADS=1`).
+
+## Data (pinned) and licences
+
+| Dataset | Source and pin | Licence as found (see `results/licences.csv`) |
+| --- | --- | --- |
+| MTEB model x task scores | `github.com/embeddings-benchmark/results` at commit `6dabbcc68c28ea5f180ce7df79347b3ca9cc6383` (548 model dirs) | CC0-1.0 (stated in the task's `data.md`) |
+| HELM MMLU (57 subjects x 79 models) | `storage.googleapis.com/crfm-helm-public/mmlu/benchmark_output/releases/v1.13.0/groups/mmlu_subjects.json` | no licence text on the output files; HELM code Apache-2.0, MMLU data repo MIT (LICENSE files read 2026-11-25) |
+| HELM Lite core scenarios, HELM Capabilities | `.../lite/benchmark_output/releases/v1.13.0/groups/core_scenarios.json`; Capabilities as parsed by `parse_helm.py` | code Apache-2.0; per-scenario data licences not verified |
+| Open LLM Leaderboard contents | `huggingface.co/datasets/open-llm-leaderboard/contents` at `9c09a7cae43334062a82cb164f2ef255013dafa2` | none declared on the dataset card |
+| LiveBench judgments | `huggingface.co/datasets/livebench/model_judgment` at `9704e5da7bfbefe75ac1482a13de827127295993` | none declared on the dataset card |
+
+Open LLM Leaderboard and LiveBench are used only for the name-matching overlap check (`union_overlap.py`) and the 25-model x 16-benchmark `llm_union16`
+case study. Downloaded files are untrusted data: they are parsed by the scripts below, never executed.
+
+## Pipeline
+
+All paths are arguments. `$D` is a scratch directory outside the repository (about 3 GB with the MTEB clone), `$R` is this repository root.
+
+| Step | Command | Output |
+| --- | --- | --- |
+| 0a parse MTEB | `python3 code/parse_mteb.py $D/mteb_results/results $D/mteb_long.parquet` | long table |
+| 0b first commit | `python3 code/mteb_first_commit.py $D/mteb_results 6dabbcc68c28ea5f180ce7df79347b3ca9cc6383 $D/mteb_first_commit.json` | first-commit per model (not used for the split, see DEVIATIONS 4) |
+| 0c HELM | `python3 code/parse_helm.py $D/helm $D/parsed` | `helm_mmlu.npz`, Lite/Capabilities CSV |
+| 0d task languages | `python3 code/mteb_task_langs.py $D/mteb_results/results $D/mteb_long.parquet $D/parsed/mteb_task_langs.json` | language sets |
+| 1 matrices | `python3 code/build_mteb_matrix.py ...` then `python3 code/make_pools.py $D/parsed` | sparse matrix and the two dense pools |
+| 2 datasets | `python3 code/build_datasets.py $D/parsed $R/results/data_out` | `results/data_out/{mteb_eng,mteb_multi,helm_mmlu}.npz` (X, family keys, release time) |
+| C0 audit | `python3 code/audit.py $D/parsed $R/results/data_out $R/results` | `datasets.csv`, `spectra.csv`, `audit_notes.json` |
+| transform choice (C7) | `python3 code/transform_choice.py $R/results/data_out $R/results` | `transform.csv`, `transform_folds.csv` |
+| main runs (C1-C3) | `python3 code/run_experiment.py <dataset> <split> <design> <n_draws> <n_part> <out.pkl> [--bias] [--extra] [--transform=identity\|logit] [--dedup=0.3] [--softimpute] [--quick]` | `results/raw/*.pkl`, `results/raw/robust/*.pkl` |
+| best simple predictor | `python3 code/best_simple.py <ds__split__fixed.pkl> $R/results/data_out <out.json>` | `results/raw/best_simple_*.json` |
+| history sweep (C6) | `python3 code/history_sweep.py <dataset> $R/results/data_out <out.pkl>` | `results/raw/sweep_*.pkl` |
+| adaptive vs non-adaptive | `python3 code/adaptive.py <dataset> $R/results/data_out <identity grouped fixed pkl> <out.pkl>` | `results/raw/adaptive/*.pkl` |
+| per-benchmark skill | `python3 code/run_experiment.py <dataset> grouped fixed 200 5 <out.pkl> --extra [--transform=...]` (the `col_se`/`col_n` fields of the pickle) | `results/raw/colskill/*.pkl` |
+| small-N panels | `python3 code/build_small_panels.py $D/parsed $R/results/data_out`; `python3 code/union_overlap.py $D/parsed $D/union_raw $R/results` (also writes `results/data_out/llm_union16.npz`); then `python3 code/run_experiment.py <helm_lite\|helm_capabilities\|llm_union16> grouped fixed 200 5 <out.pkl>` (the k grid is cut at N/2) | `results/raw/small/*.pkl`, `union_overlap.csv`, `union_match_audit_sample.csv` |
+| theory (C4, C5) | `python3 code/theory.py $R/results/data_out $R/results/raw $R/results` and `python3 code/coherence.py $R/results/data_out $R/results` | `theory.csv`, `theory_gap.csv`, `theory_shape.csv`, `coherence.csv` |
+| matrix-Chernoff check | `python3 code/bound_check.py $R/results/raw $R/results/data_out $R/results` | `bound_check.csv` |
+| paired comparisons | `python3 code/paired_comparisons.py $R/results/raw $R/results` | `paired_comparisons.csv` |
+| bias by strength, with simulation | `python3 code/bias_check.py $R/results/raw $R/results/data_out $R/results` | `bias_check.csv` |
+| aggregation | `python3 code/aggregate.py $R/results/raw $R/results $R/results/data_out` | main `results/*.csv` |
+| aggregation, auxiliary | `python3 code/aggregate_extra.py $R/results/raw $R/results $R/results/data_out` | `adaptive.csv`, `per_benchmark_skill*.csv`, `small_panels*.csv` |
+
+Main runs used `n_draws=200` random draws, `n_part=5` target partitions per fold, 10 outer folds (grouped by family; random and time-forward as variants).
+Seeds: 11000 (mteb_eng), 12000 (mteb_multi), 13000 (helm_mmlu) plus fold and draw indices; the bootstrap uses seed 0. Each main run takes 5-20 CPU minutes
+(the `seconds` field of every pickle records it); the history sweeps take roughly an hour per dataset on one core.
+
+## What the code computes (the short version)
+
+* `bmk/fa.py`: factor analysis by EM (noise floor 0.05; rank by inner 5-fold held-out likelihood, one-SE rule), masked-EM variant for missing cells.
+* `bmk/select_predict.py`: selectors (random, greedy A, greedy D, max-variance, one-factor, pivoted QR, leverage, k-medoids, test-leaking oracle) and predictors
+  (column mean, one-factor, ridge, kNN, Ledoit-Wolf conditioning, factor model, fold-in Soft-Impute).
+* `bmk/protocol.py`: the leakage-free protocol. Everything fitted (standardisation, transform, factor model, selector, predictor tuning) uses training rows only;
+  held-out models never influence it. Errors are always on the original standardised scale after back-transform.
+* `aggregate.py`: closure curves, k* with family-bootstrap intervals, the H2 gap with a family-clustered bootstrap (B=2000; for the organisation-grouped split the clusters are organisations), H1 outcome table, extras.
+* `code/DEVIATIONS.md` lists every departure from the Brief; the paper must state them.
+
+## Script -> result file
+
+`curves.csv`, `refs.csv`, `closure.csv`, `kstar.csv`, `gap.csv`, `h1.csv`, `bias.csv`, `metrics_extra.csv`, `robustness.csv`, `predictors.csv`,
+`history_sweep.csv`, `history_smallest.csv`, `selection_cost.csv`: `aggregate.py`. `adaptive.csv`, `per_benchmark_skill*.csv`, `small_panels*.csv`: `aggregate_extra.py`. `union_overlap.csv`, `union_match_audit_sample.csv`: `union_overlap.py`. `datasets.csv`, `spectra.csv`: `audit.py`. `transform*.csv`: `transform_choice.py`.
+`theory*.csv`: `theory.py`. `sparse_*.csv`: `aggregate_sparse.py` over `results/raw/sparse` (run: `run_sparse.py`; subsets: `build_sparse_subsets.py`; model: `bmk/sparse.py`). `bound_check.csv`: `bound_check.py` (derivations: the paper's appendix). `paired_comparisons.csv`: `paired_comparisons.py`. `bias_check.csv`: `bias_check.py`. `coherence.csv`: `coherence.py`. `licences.csv`: hand-recorded from the sources named in it.
+
+## Forbidden material
+
+The task forbids the published paper that studied this question and anything citing or discussing it. None was read, searched for or used; none was encountered.
+
+## Package for the venue
+
+Anonymised, below 100 MB: `code/`, `code/DEVIATIONS.md`, `results/*.csv`, `results/data_out/*.npz` (derived matrices of public scores). Raw pickles (`results/raw`, 20 MB) are needed only to re-aggregate and
+are also below the limit (derived total about 25 MB). No downloaded raw data is included.

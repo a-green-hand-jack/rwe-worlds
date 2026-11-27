@@ -1,0 +1,31 @@
+{\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}llrllrrrrr@{}}
+\toprule
+Dataset & Model & $d$ & Output & Ref. & AUC & $n$ & $R$ & Default evals & Sampling grid (evals) \\
+\midrule
+German Credit & LR & 20 & log-odds & E1 & 0.804 & 40 & 30 & 104\,451 & 1\,651--819\,251 \\
+ & RF & 20 & P(class 1) & E1 & 0.806 & 40 & 100 & 104\,451 & 1\,651--819\,251 \\
+ & GBM & 20 & log-odds & E1 & 0.778 & 40 & 100 & 104\,451 & 1\,651--819\,251 \\
+ & MLP & 20 & log-odds & E1 & 0.796 & 40 & 60 & 104\,451 & 1\,651--819\,251 \\
+\addlinespace
+ACS Employment & LR & 16 & log-odds & E1 & 0.867 & 60 & 30 & 104\,051 & 1\,651--819\,251 \\
+ & RF & 16 & P(class 1) & E1 & 0.898 & 60 & 100 & 104\,051 & 1\,651--819\,251 \\
+ & GBM & 16 & log-odds & E1 & 0.902 & 60 & 100 & 104\,051 & 1\,651--819\,251 \\
+ & MLP & 16 & log-odds & E1 & 0.898 & 60 & 60 & 104\,051 & 1\,651--819\,251 \\
+\addlinespace
+ACS Income & LR & 10 & log-odds & E1 & 0.875 & 100 & 100 & 51\,151$^{\mathrm{x}}$ & 2\,601--25\,601 \\
+ & RF & 10 & P(class 1) & E1 & 0.896 & 100 & 100 & 51\,151$^{\mathrm{x}}$ & 2\,601--25\,601 \\
+ & GBM & 10 & log-odds & E1 & 0.901 & 100 & 100 & 51\,151$^{\mathrm{x}}$ & 2\,601--25\,601 \\
+ & MLP & 10 & log-odds & E1 & 0.888 & 100 & 100 & 51\,151$^{\mathrm{x}}$ & 2\,601--25\,601 \\
+\addlinespace
+Pima & LR & 8 & log-odds & E1 & 0.871 & 100 & 100 & 12\,751$^{\mathrm{x}}$ & 701--6\,401 \\
+ & RF & 8 & P(class 1) & E1 & 0.851 & 100 & 100 & 12\,751$^{\mathrm{x}}$ & 701--6\,401 \\
+ & GBM & 8 & log-odds & E1 & 0.825 & 100 & 100 & 12\,751$^{\mathrm{x}}$ & 701--6\,401 \\
+ & MLP & 8 & log-odds & E1 & 0.868 & 100 & 100 & 12\,751$^{\mathrm{x}}$ & 701--6\,401 \\
+\addlinespace
+GMSC & LR & 10 & log-odds & E1 & 0.699 & 100 & 100 & 51\,151$^{\mathrm{x}}$ & 2\,601--25\,601 \\
+ & RF & 10 & P(class 1) & E1 & 0.852 & 100 & 100 & 51\,151$^{\mathrm{x}}$ & 2\,601--25\,601 \\
+ & GBM & 10 & log-odds & E1 & 0.859 & 100 & 100 & 51\,151$^{\mathrm{x}}$ & 2\,601--25\,601 \\
+ & MLP & 10 & log-odds & E1 & 0.824 & 100 & 100 & 51\,151$^{\mathrm{x}}$ & 2\,601--25\,601 \\
+\bottomrule
+\end{tabular}}

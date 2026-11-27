@@ -1,0 +1,12 @@
+\section{Discussion and limits}
+\label{sec:discussion}
+
+\paragraph{What to do with a budget of $k$.}
+For an evaluator with MTEB-like coverage, the first two or three benchmarks are best chosen by the factor model's design criterion (about 1.9 points of RMSE better than random). From about eight on, random selection is practically as good and what is left is the floor: 8 benchmarks bring a new model within 2 points of what its other scores predict, 50 within 1 point (the interval reaches 32), and no number we tried resolves neighbouring models. On the Open LLM Leaderboard design helps for the first three to five of 39 subtasks; the numbers in points do not carry over. To size $k$ for a new matrix, the rule of Section~\ref{sec:method} reads it from the historical models alone; it held for held-out groups on both matrices and not under a shift in strength or time.
+
+\paragraph{Limits.}
+A model's observed cells are the tasks its authors chose to run, which may differ from a new evaluator's. The cause of the factor $2.5$ between measured and predicted floor is not identified, and we do not claim that a better inference rule lowers the error. The greedy rule does not find the best run set of its own criterion at $k\le3$, and our one adaptive baseline (S7) loses to the batch design on synthetic data, so we do not show that adaptive designs cannot do better. The second matrix holds small open models in one harness, its families can leak across fine-tunes, it has no temporal split, and its largest $k$ is a third of $N$. A short run set can be read as a certificate of quality, which a floor of about five points does not support.
+
+\paragraph{Code and data.}
+\label{sec:release}
+The derived matrices, the code behind every number, table and figure, and reproduction notes are released with the paper; the sources are in Appendix~\ref{app:data}.

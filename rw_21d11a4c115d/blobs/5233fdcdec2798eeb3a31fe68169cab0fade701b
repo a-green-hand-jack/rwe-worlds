@@ -1,0 +1,35 @@
+{
+  "bars": "family-bootstrap 95% CI",
+  "claim": "C1",
+  "draft": false,
+  "figure": "figA2_small",
+  "generated": "2026-11-25",
+  "height_in": 1.98,
+  "inputs": {
+    "small_panels.csv": "88b776ea6ed5",
+    "small_panels_refs.csv": "ea162b4dcb8b"
+  },
+  "panels": {
+    "helm_capabilities": {
+      "k_max": 2,
+      "n_benchmarks": 5,
+      "n_families": 19,
+      "n_models": 61
+    },
+    "helm_lite": {
+      "k_max": 5,
+      "n_benchmarks": 10,
+      "n_families": 24,
+      "n_models": 90
+    },
+    "llm_union16": {
+      "k_max": 8,
+      "n_benchmarks": 16,
+      "n_families": 12,
+      "n_models": 25
+    }
+  },
+  "predictor": "fa",
+  "split": "grouped",
+  "width_in": 5.5
+}

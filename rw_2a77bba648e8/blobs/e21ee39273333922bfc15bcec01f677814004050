@@ -1,0 +1,14 @@
+# Review of the final version (paper-repo#30, main at 98403e7 into final): approved
+
+Read from the system-built `document` branch (`main/`, built-from 98403e79...): 29 pages, main text ends on page 9, references from page 10.
+
+Findings carried from version 3:
+- M8 (figure numbers in REPRODUCE.md section 9 and figures/CAPTIONS.md): fixed. Fig. 10 = figP6_interval, Fig. 11 = fig6_cluster, as in the paper.
+- M9 ("pre-registered S-bar"): fixed; no "pre-registered" remains in the PDF.
+- M10 ("beats" for the graph network): fixed in abstract and introduction ("lower RMSE ... paired interval below zero ... untuned ... 5 of 13 cells").
+- M11 ("8-14 times the width"): now "by stratum of |bias|/SD".
+- M12 (group units): the nine pass-rule groups on 585 cells and the 24 mechanism-by-family groups are named.
+
+Numbers new in this version checked against results/p6: block cells 666 (strata 215+80+129+150+92); B2 coverage 0.990 at width 8.4, B1 0.963 at 3.3, HC0 0.70 at 0.68; worst mechanism (e) 0.935 (B2) and 0.853 (B1); pass-rule worst group (e) 0.949/0.882 on the 585 cells; median M-hat 7, 25, 109 at d=5, 20, 80 (on block cells without threshold mechanism). All reproduce.
+
+Remaining (may, not holding): M7 Fig. 5C legibility is unchanged.

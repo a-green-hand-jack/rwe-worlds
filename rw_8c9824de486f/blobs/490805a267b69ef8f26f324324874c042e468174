@@ -1,0 +1,81 @@
+"""Table 2b: the Open LLM Leaderboard matrix (second matrix, C7): designed vs random-k, excess over the floor, k*(eps), floor misfit.
+
+usage: python3 -m figtab.make_table_olb RESULTS_DIR OUT_DIR     (repo root as cwd)
+Every number is read from RESULTS_DIR/olb/{ct_curves,ct_contrast,ct_kstar,ct_decomposition}.csv; none is typed here.
+Same scoring as Table 2 (common target set, 50 C/T splits, subset `fixed`); |T| = 12, k grid {1,2,3,5,8,13} of N = 39.
+The margin read here is delta_floor (the gap-based delta prints ~0 on this matrix; PREREG Addendum 2).
+"""
+import sys, pathlib
+import pandas as pd
+from figtab import provenance
+
+res = pathlib.Path(sys.argv[1]); out = pathlib.Path(sys.argv[2]); out.mkdir(exist_ok=True)
+o = res / "olb"
+HEAD = "\\begingroup\\scriptsize\\setlength{\\tabcolsep}{4pt}\n"
+TAIL = "\\endgroup\n"
+SUB = "fixed"
+VERD = {"design helps": "helps", "undecided": "undecided", "random matches": "equiv.", "random better": "random better"}
+cur = pd.read_csv(o / "ct_curves.csv"); con = pd.read_csv(o / "ct_contrast.csv")
+ks = pd.read_csv(o / "ct_kstar.csv"); dec = pd.read_csv(o / "ct_decomposition.csv")
+NAMES = {"G": "G: held-out families", "S": "S: strongest quarter"}
+
+
+def f(x, d=2):
+    return "--" if pd.isna(x) else f"{x:.{d}f}".replace("-", "$-$")
+
+
+def kk(x): return "$>$13" if x >= 9999 else f"{int(round(x))}"
+
+
+def kci(r):
+    if r.k_emp >= 9999:
+        return "$>$13" + ("" if r.k_emp_lo >= 9999 else f" [{kk(r.k_emp_lo)}, $>$13]")
+    return f"{kk(r.k_emp)} [{kk(r.k_emp_lo)}, {kk(r.k_emp_hi)}]"
+
+
+def kpred(r): return kk(r.k_pred) if r.k_pred_lo == r.k_pred_hi else f"{kk(r.k_pred)} [{kk(r.k_pred_lo)}, {kk(r.k_pred_hi)}]"
+
+
+def sel(df, sp, **kw):
+    x = df[(df.split == sp) & (df["subset"] == SUB)]
+    for a, b in kw.items(): x = x[x[a] == b]
+    return x
+
+
+L = [HEAD, "\\begin{tabular*}{\\linewidth}{@{\\extracolsep{\\fill}}r rr rr l r@{}}\\toprule\n",
+     "$k$ & S0 & S6 & Gain S0$-$S6 [90\\% CI] & T1 gain & $\\pm\\delta_{\\text{floor}}$ & S6 excess over floor [90\\% CI] \\\\\n"]
+info = {}
+for sp in ("G", "S"):
+    c = sel(cur, sp); g = sel(con, sp, rule="S6", inf="P5").set_index("k")
+    c0 = c[c.method == "S0+P5"].set_index("k"); c6 = c[c.method == "S6+P5"].set_index("k")
+    n, ng = int(g.n_models.iloc[0]), int(g.n_groups.iloc[0]); dfl = float(g.delta_floor.mean())
+    info[sp] = (n, ng, dfl, float(c6.floor_raw.mean()))
+    L.append(f"\\midrule\\multicolumn{{7}}{{@{{}}l}}{{{NAMES[sp]} ({n:,} models, {ng} groups; $\\delta_{{\\text{{floor}}}}$ = {dfl:.2f}, floor = {c6.floor_raw.mean():.2f})}} \\\\\n")
+    for k in sorted(g.index):
+        r = g.loc[k]
+        L.append(f"{k} & {f(c0.rmse_raw[k])} & {f(c6.rmse_raw[k])} & {f(r.gain_mean)} [{f(r.lo90)}, {f(r.hi90)}] & {f(r.t1_predicted_gain)} & {VERD[r.verdict_floor]} "
+                 f"& {f(c6.excess_raw[k])} [{f(c6.excess_lo[k])}, {f(c6.excess_hi[k])}] \\\\\n")
+L.append("\\bottomrule\\end{tabular*}\n\\medskip\n\n")
+# k*(eps) and floor misfit
+L.append("\\begin{tabular*}{\\linewidth}{@{\\extracolsep{\\fill}}l ll@{}}\\toprule\n")
+L.append(" & G: empirical $k^*$ [90\\% CI] / T1 & S: empirical $k^*$ [90\\% CI] / T1 \\\\\\midrule\n")
+for nm, lab in (("delta_floor", "$k^*$ at $\\delta_{\\text{floor}}$"), ("2delta_floor", "$k^*$ at $2\\delta_{\\text{floor}}$"),
+                ("frac_0.1", "$k^*$ at 0.1 floor"), ("eps_0.5", "$k^*$ at 0.5 point")):
+    cells = []
+    for sp in ("G", "S"):
+        r = sel(ks, sp, epsilon_name=nm).iloc[0]
+        cells.append(f"{kci(r)} / {kpred(r)}" + (f" ($\\epsilon$ = {r.epsilon:.2f})" if nm != "eps_0.5" else ""))
+    L.append(f"{lab} & {cells[0]} & {cells[1]} \\\\\n")
+rat = {}
+for sp in ("G", "S"):
+    d = sel(dec, sp).iloc[0]
+    rat[sp] = ((d.noise_pred + d.noise_misfit) / d.noise_pred, (d.noise_pred + d.noise_misfit_lo90) / d.noise_pred, (d.noise_pred + d.noise_misfit_hi90) / d.noise_pred)
+L.append("\\midrule Floor MSE / T1 floor term [90\\% CI] & " + " & ".join(f"{rat[s][0]:.2f} [{rat[s][1]:.2f}, {rat[s][2]:.2f}]" for s in ("G", "S")) + " \\\\\n")
+L.append("\\bottomrule\\end{tabular*}\n"); L.append(TAIL)
+(out / "tab2b_olb.tex").write_text("".join(L))
+provenance.write(out / "tab2b_olb.tex", [o / x for x in ("ct_curves.csv", "ct_contrast.csv", "ct_kstar.csv", "ct_decomposition.csv")],
+                 {"script": "figtab/make_table_olb.py", "matrix": "Open LLM Leaderboard v2 per-subtask matrix, N = 39, |T| = 12, k grid 1,2,3,5,8,13",
+                  "subset": SUB, "splits": "50 shared C/T splits; G = 10 group (family-stem) folds, S = strongest quarter; no T split",
+                  "margin": "delta_floor = 0.25 x floor_j (the gap-based delta prints ~0 here)",
+                  "floor_misfit": "(noise_pred + noise_misfit)/noise_pred from ct_decomposition.csv, bounds from noise_misfit_lo90/hi90; k-independent"},
+                 root=res)

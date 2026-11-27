@@ -1,0 +1,38 @@
+"""Lower budgets (m = 32, 64, 128) for d >= 16 cells, run on the stored exact value tables (no model evaluations).
+usage: extend_budgets.py DATASET MODEL R"""
+import sys, os, glob, re, time
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+import numpy as np
+from shapreliab import pipeline as P, estimators as E
+
+ds, kind, R = sys.argv[1], sys.argv[2], int(sys.argv[3])
+seed = 0
+out = P.cell_dir(ds, seed)
+EXT = [32, 64, 128]
+for f in sorted(glob.glob(os.path.join(out, f"inst_{kind}_*.npz"))):
+    i = int(re.search(r"_(\d+)\.npz$", f).group(1))
+    fn = os.path.join(out, f"ext_{kind}_{i:04d}.npz")
+    if os.path.exists(fn):
+        continue
+    r = np.load(f)
+    v, x = r["v"], r["x"]
+    d = len(x)
+    uk = E.UnbiasedKernel(d)
+    rng = np.random.default_rng([seed, i, P.KINDS.index(kind), 11])
+    U = [uk.u(v, *E.paired_kernel_stream(d, max(EXT) // 2, rng)) for _ in range(R)]
+    prng = np.random.default_rng([seed, i, P.KINDS.index(kind), 12])
+    perms = [E.antithetic_permutation_stream(d, E.pairs_for_budget(max(EXT), d), prng) for _ in range(R)]
+    sl = E.ShapLookup(v, x)
+    res = {}
+    for bi, mm in enumerate(EXT):
+        ph, se = zip(*[uk.estimate(v, U[k], mm // 2) for k in range(R)])
+        res[f"unb_{mm}"], res[f"unb_se_{mm}"] = np.array(ph), np.array(se)
+        pp = E.pairs_for_budget(mm, d)
+        ph, se = zip(*[E.permutation_estimate(v, perms[k], pp) for k in range(R)])
+        res[f"perm_{mm}"], res[f"perm_se_{mm}"] = np.array(ph), np.array(se)
+        res[f"shap_noreg_{mm}"] = np.array([sl.kernel(mm, (i * 999983 + bi * 1013 + k * 11 + 5) % (2**31 - 1), False) for k in range(R)])
+    res["phi"] = r["phi"]
+    tmp = fn + ".tmp.npz"
+    np.savez_compressed(tmp, **res)
+    os.replace(tmp, fn)
+print("done", ds, kind)

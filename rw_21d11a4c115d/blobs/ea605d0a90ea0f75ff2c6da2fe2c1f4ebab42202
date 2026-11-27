@@ -1,0 +1,27 @@
+"""Fig. A1 (claim C0): spectrum of the standardised pool matrix, scree and cumulative share, with r_eff."""
+import argparse, os
+import pandas as pd
+import style, venue
+import matplotlib.pyplot as plt
+
+p = argparse.ArgumentParser()
+p.add_argument("--results", required=True); p.add_argument("--out", default="out")
+p.add_argument("--draft", action="store_true")
+a = p.parse_args()
+v = venue.get(a.draft)
+size = style.setup(v["TEXT_WIDTH_IN"], v["MIN_FONT_PT"], aspect=0.4)
+sp = pd.read_csv(os.path.join(a.results, "spectra.csv")); ds_ = pd.read_csv(os.path.join(a.results, "datasets.csv")).set_index("dataset")
+fig, (ax, bx) = plt.subplots(1, 2, figsize=size)
+for ds in ["mteb_eng", "mteb_multi", "helm_mmlu"]:
+    d = sp[sp.dataset == ds].sort_values("component"); d = d[d.component <= 20]
+    col = style.DATASET_COLORS[ds]; mk = {"mteb_eng": "o", "mteb_multi": "s", "helm_mmlu": "^"}[ds]
+    ax.plot(d.component, d.explained_variance_share, color=col, marker=mk, ms=3, label=style.DATASET_SHORT[ds])
+    bx.plot(d.component, d.explained_variance_share.cumsum(), color=col, marker=mk, ms=3)
+    r = int(ds_.loc[ds, "r_eff"]); y = d.set_index("component").explained_variance_share
+    bx.plot([r], [y[:r].sum()], marker="o", ms=8, mfc="none", mec=col, mew=1.2, ls="none")
+ax.set_yscale("log"); style.plain_log(ax); ax.set_xlabel("component"); ax.set_ylabel("share of variance")
+bx.set_xlabel("number of components"); bx.set_ylabel("cumulative share"); bx.set_ylim(0.4, 1.0)
+ax.legend(loc="upper right")
+bx.text(0.97, 0.05, "ring: $r$ chosen by held-out likelihood", transform=bx.transAxes, ha="right", va="bottom", color="0.3")
+print(style.save(fig, "figA1_spectra", a.out, dict(claim="C0", inputs={"spectra.csv": style.sha(os.path.join(a.results, "spectra.csv")),
+                 "datasets.csv": style.sha(os.path.join(a.results, "datasets.csv"))}, scope="first 20 components of the standardised dense-pool correlation matrix")))

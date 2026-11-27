@@ -1,0 +1,65 @@
+"""C5: when is random selection near greedy? Per fitted model (real: every grouped-K-fold training fit x column partition; synthetic: controlled
+coherence) compute, from the closed-form risk (reducible part, targets T fixed, S from candidates C):
+  gap(k) = (Risk_random(k) - Risk_greedyA(k)) / Risk_random(k)       (random: mean over 100 draws)
+  coherence mu = (|C|/r) max_{j in C} l_j,  l_j = a_j' (A_C'A_C)^-1 a_j,  A = D^-1/2 W         (row leverage of the whitened loadings)
+  eps_emp(k) = 1 - median over draws of lambda_min( (A_C'A_C)^-1/2 (|C|/k) A_S'A_S (A_C'A_C)^-1/2 )   (matrix-Chernoff quantity; no constants asserted)
+  gamma_hat  = min over sampled (L,S) of the submodularity ratio of the (T-weighted) variance-reduction objective; an UPPER bound on the
+               true gamma (a sampled minimum), so (1-exp(-gamma_hat)) is a heuristic, not a certificate.
+python3 coherence.py <data_out> <results>"""
+import sys, os, numpy as np, pandas as pd
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+sys.path.insert(0, os.path.dirname(__file__))
+from bmk.fa import cov_of, fit_fa
+from bmk.protocol import grouped_folds, fit_fold, make_transform
+from bmk.select_predict import sel_greedy_A
+dout, resd = sys.argv[1:3]
+K = [1, 2, 3, 5, 8, 10, 15, 20]
+
+def red(W, D, S, T):
+    A = np.linalg.inv(np.eye(W.shape[1]) + (W[S].T / D[S]) @ W[S]); return np.einsum('ij,jk,ik->', W[T], A, W[T])
+def f_gain(W, D, S, T):   # variance reduction on T from S: tr(W_T (I - Sigma_post(S)) W_T')
+    return np.einsum('ij,ij->', W[T], W[T]) - red(W, D, S, T) if len(S) else 0.0
+def coh(W, D, C):
+    A = (W / np.sqrt(D)[:, None])[C]; G = np.linalg.inv(A.T @ A + 1e-6 * np.eye(A.shape[1])); l = np.einsum('ij,jk,ik->i', A, G, A); return len(C) / A.shape[1] * l.max(), A, G
+def gamma_hat(W, D, C, T, kmax, rng, n=400):
+    best = np.inf
+    for _ in range(n):
+        s = int(rng.integers(1, kmax + 1)); l = int(rng.integers(0, kmax + 1)); idx = rng.permutation(C)
+        L = list(idx[:l]); S = list(idx[l:l + s]); fL = f_gain(W, D, L, T); num = sum(f_gain(W, D, L + [j], T) - fL for j in S)
+        den = f_gain(W, D, L + S, T) - fL
+        if den > 1e-12: best = min(best, num / den)
+    return best
+def one_fit(dsid, fid, W, D, rng, N, rows, nT=None):
+    nT = nT or int(round(0.3 * N)); perm = rng.permutation(N); T = np.sort(perm[:nT]); C = np.sort(perm[nT:])
+    mu, A, G = coh(W, D, C); r = W.shape[1]; Ctx = dict(W=W, D=D, C=list(C), T=list(T))
+    Sg = sel_greedy_A(Ctx, max(K), rng); gam = gamma_hat(W, D, C, T, 10, rng); Gh = np.linalg.cholesky(G)
+    for k in K:
+        if k > len(C) // 2: continue
+        rr, lm = [], []
+        for _ in range(100):
+            S = list(rng.choice(C, k, replace=False)); rr.append(red(W, D, S, T))
+            AS = (W / np.sqrt(D)[:, None])[S]; M_ = Gh.T @ (len(C) / k * AS.T @ AS) @ Gh; lm.append(np.linalg.eigvalsh(M_)[0])
+        rnd = np.mean(rr); gr = red(W, D, Sg[:k], T)
+        rows.append((dsid, fid, k, (rnd - gr) / rnd, (rnd - gr) / nT, rnd / nT, gr / nT, mu, r, 1 - np.median(lm), gam, 1 - np.exp(-gam) if gam > 0 else 0.0, D[T].mean(), (rnd - gr) / (rnd + D[T].sum())))
+rows = []
+rng = np.random.default_rng(99)
+for ds in ['mteb_eng', 'mteb_multi', 'helm_mmlu']:
+    D_ = np.load(f"{dout}/{ds}.npz", allow_pickle=True); X = D_['X']; M, N = X.shape
+    X = make_transform(X, pd.read_csv(f"{resd}/transform.csv").set_index('dataset').loc[ds, 'chosen'])[0](X)     # the space of the fitted model (chosen transform)
+    SEED = {'mteb_eng': 11, 'mteb_multi': 12, 'helm_mmlu': 13}[ds] * 1000
+    ranks = [x for x in (1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25) if x <= N // 3]
+    for fi, (te) in enumerate(grouped_folds(D_['family'], 10, SEED)):
+        tr = np.setdiff1d(np.arange(M), te); F = fit_fold(X, tr, ranks, SEED + fi)
+        for p in range(2): one_fit(ds, f"{ds}-f{fi}-p{p}", F['W'], F['D'], np.random.default_rng([SEED, fi, p, 5]), N, rows)
+# synthetic: N=60, r=4, coherence controlled by concentrating a factor's loadings on a few benchmarks
+for s in range(24):
+    N, r = 60, 4; spiky = s % 4; W = np.zeros((N, r)); W[:, 0] = 0.85 + 0.1 * rng.standard_normal(N)
+    for l in range(1, r):
+        w = rng.standard_normal(N) * 0.4 / l
+        if spiky:                                 # spiky = loadings of factor l concentrated on a small random subset
+            keep = rng.choice(N, max(2, N // (3 * spiky * 2)), replace=False); m = np.zeros(N); m[keep] = 1; w = w * m * np.sqrt(N / m.sum())
+        W[:, l] = w
+    D = rng.uniform(0.08, 0.25, N); one_fit(f"synthetic_spiky{spiky}", f"syn-{s}", W, D, rng, N, rows)
+cols = ['dataset', 'fit_id', 'k', 'gap_random_greedy', 'gap_abs', 'risk_random', 'risk_greedy', 'coherence', 'rank', 'eps_emp', 'gamma_hat', 'greedy_bound_heuristic', 'floor', 'gap_total_risk']
+df = pd.DataFrame(rows, columns=cols); df.to_csv(f"{resd}/coherence.csv", index=False)
+print(df.groupby(['dataset', 'k'])[['gap_random_greedy', 'coherence', 'eps_emp', 'gamma_hat']].mean().round(3).query('k in [1,5,10,20]').to_string())

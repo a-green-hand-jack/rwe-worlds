@@ -1,0 +1,35 @@
+"""Centred vs uncentred reference for the difference estimator (uniform design, IRT predictor).
+
+usage: python3 -I scripts/10_ceiling_centred.py results/raw results/ceiling_centred.csv [n=100]
+
+For a fixed predictor phat the difference estimator's variance is that of the residual y - phat about its own mean, whereas the Brier score
+E[(y - phat)^2] used for q in ceiling.csv also contains the squared mean residual. Per target and draw (uniform design, equal weights) the mean residual
+on the unsampled items is r = (plugin - true) / (1 - n/N), exactly, because plugin = fr * ybar + (1 - fr) * mean_unsampled(phat).
+Centred Brier = Brier - r^2 (averaged over draws); q_c = 1 - centred / brier_const. Prints and writes, per (bench, split), q (as in ceiling.csv), q_c,
+the references sqrt(1-q), sqrt(1-q_c), and the observed RMSE ratio of uniform|diff-irt to uniform|mean (from the same files, same draws).
+"""
+import sys, glob, pickle, numpy as np, pandas as pd
+raw, out = sys.argv[1], sys.argv[2]; nsel = int(sys.argv[3]) if len(sys.argv) > 3 else 100
+rows = []
+for f in sorted(glob.glob(f"{raw}/*.pkl")):
+    d = pickle.load(open(f, "rb"))
+    for r in d["records"]:
+        if r["n"] != nsel or "brier_irt" not in r["diag"]:
+            continue
+        mu = r["true"]; N = r["N"]; n = r["n"]; fr = n / N
+        P = r["preds"]
+        rr = (P["uniform|irt-plugin"] - mu[None]) / (1 - fr)       # (R,T) mean residual of phat on the unsampled items
+        B = r["diag"]["brier_irt"]; B0 = np.maximum(mu * (1 - mu), 1e-9)
+        se = lambda k: ((P[k] - mu[None]) ** 2).mean(0)               # per target, mean over draws
+        rows.append(dict(bench=r["bench"], split=r["split"], fold=r["fold"], k=len(mu), brier_const=B0.mean(), brier_irt=B.mean(),
+                         centred=(B - (rr ** 2).mean(0)).mean(), mse_diff=se("uniform|diff-irt").mean(), mse_mean=se("uniform|mean").mean()))
+d = pd.DataFrame(rows)
+g = d.groupby(["bench", "split"]).apply(lambda x: pd.Series({c: np.average(x[c], weights=x.k) for c in
+        ["brier_const", "brier_irt", "centred", "mse_diff", "mse_mean"]} | {"k": x.k.sum()}), include_groups=False).reset_index()
+g["q"] = 1 - g.brier_irt / g.brier_const; g["q_c"] = 1 - g.centred / g.brier_const
+g["ref"] = np.sqrt(1 - g.q); g["ref_c"] = np.sqrt(1 - g.q_c); g["obs"] = np.sqrt(g.mse_diff / g.mse_mean)
+tg = pd.read_csv("results/targets.csv"); g = g.merge(tg[["bench", "split", "thin"]], on=["bench", "split"])
+g.to_csv(out, index=False)
+gm = lambda x: float(np.exp(np.log(x).mean()))
+for sp, h in g[~g.thin].groupby("split"):
+    print(f"{sp:9s} nb={len(h):2d}  ref(unc)={gm(h.ref):.3f}  ref(centred)={gm(h.ref_c):.3f}  obs={gm(h.obs):.3f}")

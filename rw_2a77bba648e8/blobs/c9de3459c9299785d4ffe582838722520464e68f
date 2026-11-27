@@ -1,0 +1,22 @@
+# Review of version 3 (paper-repo#28 at 38ca267, `main` into `release`; document built from 38ca267): approved for release, two musts for final
+
+Read from main/document.pdf (29 pages, main text ends on page 9, references from page 10). Numbers traced to the delivered tables.
+
+## What was checked against the results
+- GNN (results/gnn_cells.csv, 13 cells x 7 mechanisms = 91 rows): median RMSE 0.33 vs regression 0.22, DM 0.50 ...; paired interval below the regression in 5 rows (all mechanism d, mean log ratio -0.10 over the 13 d rows), above in 66; vs DM below 57 / above 27 (median -0.25); null column +1.69; ranks 1.8 / 3.4; best in 59 / 18 / 2 rows: all reproduce.
+- Cluster HT (results/cluster_ht_cells.csv, 22 runs, 132 cells): median log RMSE ratio of ht75 / ht100 to the regression 1.66 / 2.66, to cluster DM 1.05 / 2.64; never smaller than either; Hajek 75: 81% below cluster DM, 68% above the regression (median log ratio -0.10); Hajek 100: 114 cells, 22% / 94%: reproduce.
+- P6 interval (results/p6/p6_cells.csv, confirmatory, primary, s>0, noise 0.5, 666 cells): B2 0.990 at width 8.43, B1 0.963 at 3.27, HC0 90% 0.701 at 0.68; stratum |bias|/SD>2: 92 cells, 0.938 / 0.821 / 0.153; original 1296 cells 0.981 at 11.0, 0.945 at 3.1, 0.67; coverage difference to uniformly inflated HC0 -0.0099 [-0.0197, -0.0022] over 24 groups: all reproduce.
+- Coverage by |bias|/SD (93, 92, 87, 67, 16%) = results/claims/c8_coverage.csv; count-mechanism bias formula correlation 0.9988 over 60 runs = c2_explain_d_b.csv.
+- Earlier musts (Table 2 target per column, Fig. 9/10 map) are fixed as of d5cfdfc; M3, M4, M5 answered.
+
+## M6 (GNN, cluster HT, P6/P7): met for release
+The baselines are in, one architecture, untuned, 13 of 14 cells, 50 draws, said so in the text and limitations. The corner-interpretation claim is now worded as a hypothesis formed after a failed prediction ("the tests that followed did not confirm it"); the confirmatory block of the noise-adjusted score is reported as inconclusive and the honest-interval arm as coverage by width; the true-curvature arm is labelled exploratory, infeasible, grid-floor kappa. The text no longer claims more than the evidence.
+
+## Must for final (small; neither needs a new experiment)
+- M8 (presentation + analysis). The paper numbers its figures 10 = P6 interval, 11 = graph-cluster designs. REPRODUCE.md section 9 still maps "Fig. 10" to fig6_cluster and calls the new one "Fig. (P6)"; figures/CAPTIONS.md still says "10 fig6_cluster" and gives the P6 figure no paper number. Same defect as v2 M2 after the new figure.
+- M9 (paper). Appendix B ("Confirmatory test of the noise-adjusted score") still says "The pre-registered S-bar ..." while the paper elsewhere (rightly) says "specified before the runs". Use the same wording.
+
+## May
+- M10. Abstract/intro: the graph network "beats" the regression in 5 of 13 cells: say what beats means (paired interval below zero, threshold mechanism, untuned, 50 draws).
+- M11. Section 5.4: "at 8-14 times the width of HC0" is by |bias|/SD stratum (Fig. 10B); say so (the cell mean is 12x on the block, 16x on the original cells).
+- M12. Groups: 9 (pass rule), 10 (S_adj), 24 (information tests) differ by purpose; one sentence on each unit in the appendix would help.

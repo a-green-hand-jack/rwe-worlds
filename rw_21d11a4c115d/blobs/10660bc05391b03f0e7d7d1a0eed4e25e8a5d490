@@ -1,0 +1,76 @@
+"""C6: how much history does the method need?  Same outer grouped folds, same target columns T and candidate columns as the main run
+(partitions p = 0..2 of each fold), same k grid; only the HISTORY used to fit changes:
+  size sweep   : M' = 25 / 50 / 100 % of the training models (whole families drawn at random; 3 repeats), complete cells;
+  density sweep: 100% of training models, a fraction d of cells observed (d = 0.7 / 0.5 / 0.3), pattern 'random' (MCAR) or 'weak'
+                 (the cells missing first are those of weak models on hard benchmarks: mask rank = weakness_i * difficulty_j + 0.1 U).
+FA is fitted with missing-data EM on the observed cells (rank = the fold's r_eff, capped at M'/5), greedy-A selection and FA conditioning
+use that fit; errors are on the ORIGINAL standardised scale of the full training fold (so all configurations are comparable).
+Each configuration also stores the full-history references (LOBO, column mean) for closure.   Output: pickle of per-model errors.
+python3 history_sweep.py <dataset> <data_out> <results_raw/sweep_ds.pkl> [--quick]"""
+import sys, os, time, pickle, numpy as np
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+sys.path.insert(0, os.path.dirname(__file__))
+from bmk.fa import fit_fa, cov_of, condition
+from bmk.protocol import grouped_folds, fit_fold, lobo_ref
+from bmk.select_predict import sel_greedy_A
+ds, dout, out = sys.argv[1:4]; quick = '--quick' in sys.argv
+D_ = np.load(f"{dout}/{ds}.npz", allow_pickle=True); X = D_['X']; M, N = X.shape; fam = D_['family']
+SEED = {'mteb_eng': 11, 'mteb_multi': 12, 'helm_mmlu': 13}[ds] * 1000
+KG = [k for k in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10) if k <= N // 2]; NPART = 3; NREP = 1 if quick else 3; NDRAW = 30
+ranks = [r for r in (1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25) if r <= N // 3]
+folds = grouped_folds(fam, 10, SEED)
+if quick: folds = folds[:2]
+CONFIGS = [('size', 0.25, 1.0), ('size', 0.5, 1.0), ('size', 1.0, 1.0)] + [(pat, 1.0, d) for pat in ('random', 'weak') for d in (0.7, 0.5, 0.3)]
+err = {}      # (config, selector, predictor, k) -> per-model squared error (mean over reps and partitions)
+refs = {}     # (name) -> per-model
+timing = []
+def acc(key, te, e, w): err.setdefault(key, np.zeros(M))[te] += w * e
+for fi, te in enumerate(folds):
+    tr = np.setdiff1d(np.arange(M), te); t0 = time.perf_counter(); F = fit_fold(X, tr, ranks, SEED + fi); t_fit = time.perf_counter() - t0
+    r_full = F['r']; mo = X[tr].mean(0); so = X[tr].std(0) + 1e-9; Yo_te = (X[te] - mo) / so
+    parts = []
+    for p in range(NPART):
+        rng = np.random.default_rng([SEED, fi, p]); perm = rng.permutation(N); nT = int(round(0.3 * N)); parts.append((list(np.sort(perm[:nT])), list(np.sort(perm[nT:]))))
+    Yte = (X[te] - F['mu']) / F['sd']
+    for T, Cd in parts:
+        lo = lobo_ref(F, Yte, T); refs.setdefault('lobo', np.zeros(M))[te] += np.minimum(*[((v - Yte[:, T]) ** 2).mean(1) for v in lo.values()]) / NPART
+        refs.setdefault('colmean', np.zeros(M))[te] += (Yo_te[:, T] ** 2).mean(1) / NPART
+    for ci, (kind, frac, dens) in enumerate(CONFIGS):
+        for rep in range(NREP if (frac < 1 or dens < 1) else 1):
+            rng = np.random.default_rng([SEED, fi, 77, ci, rep])
+            sub = tr
+            if frac < 1:
+                fams = np.unique(fam[tr]); rng.shuffle(fams); chosen = []; n = 0
+                for g in fams:
+                    if n >= frac * len(tr): break
+                    chosen.append(g); n += int((fam[tr] == g).sum())
+                sub = tr[np.isin(fam[tr], chosen)]
+            Xs = X[sub]; mask = np.ones(Xs.shape, bool)
+            if dens < 1:
+                strength = ((Xs - Xs.mean(0)) / Xs.std(0)).mean(1)       # model weakness from its mean z within the history
+                wk = 1 - (np.argsort(np.argsort(strength)) / max(len(strength) - 1, 1))      # 1 = weakest
+                hd = 1 - (np.argsort(np.argsort(Xs.mean(0))) / max(N - 1, 1))                  # 1 = hardest benchmark (lowest mean raw score)
+                if kind == 'weak': mrank = np.outer(wk, hd) + 0.1 * rng.random(Xs.shape)
+                else: mrank = rng.random(Xs.shape)
+                nmiss = int(round((1 - dens) * Xs.size)); mask[np.unravel_index(np.argsort(-mrank, axis=None)[:nmiss], Xs.shape)] = False
+                for j in range(N):                          # every column keeps >= 8 observed cells
+                    if mask[:, j].sum() < min(8, len(sub)): mask[rng.choice(len(sub), min(8, len(sub)), replace=False), j] = True
+            cnt = np.maximum(mask.sum(0), 1); mu = np.where(mask, Xs, 0).sum(0) / cnt
+            sd = np.sqrt(np.where(mask, (Xs - mu) ** 2, 0).sum(0) / cnt) + 1e-9; Ys = np.where(mask, (Xs - mu) / sd, 0.0)
+            r = max(1, min(r_full, len(sub) // 5)); t0 = time.perf_counter()
+            W, Dd = fit_fa(Ys, r, mask=None if mask.all() else mask); t_f = time.perf_counter() - t0
+            Sg = cov_of(W, Dd); Yb = (X[te] - mu) / sd; bk = lambda pv, T: ((pv * sd[T] + mu[T]) - mo[T]) / so[T]
+            for T, Cd in parts:
+                t0 = time.perf_counter(); Sall = sel_greedy_A(dict(W=W, D=Dd, C=Cd, T=T), max(KG)); t_s = time.perf_counter() - t0
+                w = 1.0 / (NPART * (NREP if (frac < 1 or dens < 1) else 1))
+                for k in KG:
+                    S = Sall[:k]; e = ((bk(condition(Sg, S, T, Yb[:, S]), T) - Yo_te[:, T]) ** 2).mean(1); acc(((kind, frac, dens), 'greedyA', 'fa', k), te, e, w)
+                    ers = np.zeros(len(te))
+                    for _ in range(NDRAW):
+                        S = list(rng.choice(Cd, k, replace=False)); ers += ((bk(condition(Sg, S, T, Yb[:, S]), T) - Yo_te[:, T]) ** 2).mean(1) / NDRAW
+                    acc(((kind, frac, dens), 'random', 'fa', k), te, ers, w)
+            timing.append((fi, kind, frac, dens, len(sub), float(mask.mean()), r, t_f, t_s))
+    print('fold', fi, 'done', flush=True)
+timing.insert(0, ('fold', 'kind', 'frac', 'dens', 'n_models', 'density', 'rank', 'fit_seconds', 'greedy_seconds'))
+pickle.dump(dict(dataset=ds, err=err, refs=refs, folds=[(np.setdiff1d(np.arange(M), t), t) for t in folds], family=fam, k_grid=KG, timing=timing,
+                 configs=CONFIGS, n_part=NPART, n_rep=NREP, n_draw=NDRAW, seed=SEED), open(out, 'wb'))

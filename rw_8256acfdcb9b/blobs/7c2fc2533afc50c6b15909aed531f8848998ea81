@@ -1,0 +1,73 @@
+"""Fig 6 (R1, the certificate against run-twice at equal evaluations).
+(a) Reliability of the stated probability that the run's top-3 set is exact: certificate (one paired run of 2m coalitions) and the two
+    run-twice deliverables, pooled over datasets, models and the budget ladder; held-out instances (cross-fitted calibration).
+(b) Paired Brier difference (certificate minus run-twice) per dataset, with CI, for both contrasts; filled = held-out instances,
+    open = leave-one-dataset-out calibration; vertical lines: 0 and the useful margin -/+0.01.
+Everything is read from the certificate_* tables; nothing is recomputed except the pooling of the reliability bins (count-weighted).
+Usage: python fig6_certificate.py DATA_DIR OUT_PREFIX
+"""
+import argparse, os, sys
+import numpy as np, pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import figstyle as fs
+
+ap = argparse.ArgumentParser(); ap.add_argument("data"); ap.add_argument("out"); ap.add_argument("--margin", type=float, default=0.01)
+a = ap.parse_args()
+bins, p1 = fs.load(a.data, "certificate_bins")
+diff, p2 = fs.load(a.data, "certificate_paired_diff")
+fs.require(bins, ["dataset", "model", "split", "method", "bin_lo", "bin_hi", "pred_mean", "obs_rate", "n"], "certificate_bins")
+fs.require(diff, ["dataset", "model", "split", "contrast", "quantity", "m", "diff", "ci_lo", "ci_hi", "label"], "certificate_paired_diff")
+fs.setup()
+
+METH = {"certificate": dict(color="#D55E00", marker="o", ls=(0, ()), label="certificate (2m coalitions)"),
+        "run_twice": dict(color="#0072B2", marker="s", ls=(0, (4, 1.5)), label="run-twice, first run"),
+        "run_twice_avg": dict(color="#009E73", marker="^", ls=(0, (1, 1)), label="run-twice, mean of the two")}
+b = bins[(bins.model != "all") & (bins.split == "heldout_instance")].copy()
+b["wp"] = b.pred_mean * b.n; b["wo"] = b.obs_rate * b.n
+pool = b.groupby(["method", "bin_lo", "bin_hi"]).agg(n=("n", "sum"), wp=("wp", "sum"), wo=("wo", "sum")).reset_index()
+pool["pred_mean"] = pool.wp / pool.n; pool["obs_rate"] = pool.wo / pool.n
+missing = set(METH) - set(pool.method)
+if missing: print("not in certificate_bins, not drawn:", sorted(missing))
+
+fig, (axa, axb) = plt.subplots(1, 2, figsize=(fs.WIDTH_IN, 2.5), gridspec_kw=dict(width_ratios=[1, 1.15], wspace=0.5))
+axa.plot([0, 1], [0, 1], color="0.6", lw=0.7, zorder=1)
+for m, st in METH.items():
+    q = pool[pool.method == m].sort_values("bin_lo")
+    if q.empty: continue
+    axa.plot(q.pred_mean, q.obs_rate, color=st["color"], marker=st["marker"], ls=st["ls"], ms=3, lw=1.0, zorder=2)
+axa.set_xlabel("stated probability that the top-3 set is exact"); axa.set_ylabel("observed share exact")
+axa.set_xlim(0, 1); axa.set_ylim(0, 1); axa.set_aspect("equal", adjustable="box")
+axa.set_title("(a) reliability", loc="left", fontsize=fs.LABEL_PT)
+axa.legend(handles=[Line2D([], [], color=st["color"], marker=st["marker"], ls=st["ls"], ms=3, label=st["label"]) for m, st in METH.items() if m in set(pool.method)],
+           loc="upper center", bbox_to_anchor=(0.5, -0.28), frameon=False, handlelength=2.2, borderaxespad=0, labelspacing=0.25)
+
+d = diff[(diff.model == "all") & (diff.m == "all") & (diff.quantity == "brier")]
+contrasts = [("check_vs_run_twice", "vs run-twice, first run (registered)", "#0072B2"), ("check_vs_run_twice_avg", "vs run-twice, mean of two (variant)", "#009E73")]
+dsets = [x for x in fs.DATASET_TITLE if x in set(d.dataset)]
+ypos, rows = {}, []
+for i, ds in enumerate(dsets):
+    for j, (c, _, col) in enumerate(contrasts):
+        for sp, fill in (("heldout_instance", True), ("loo_dataset", False)):
+            q = d[(d.dataset == ds) & (d.contrast == c) & (d.split == sp)]
+            if q.empty: continue
+            q = q.iloc[0]
+            y = -i + 0.27 - 0.18 * (2 * j + (0 if fill else 1))
+            axb.errorbar(q["diff"], y, xerr=[[q["diff"] - q.ci_lo], [q.ci_hi - q["diff"]]], fmt="o", ms=3, color=col, mfc=col if fill else "white", mew=0.8, elinewidth=0.9, capsize=0, zorder=3)
+            rows.append(dict(panel="b", dataset=ds, contrast=c, split=sp, diff=q["diff"], ci_lo=q.ci_lo, ci_hi=q.ci_hi, label=q.label, smallest_resolvable=q.get("smallest_resolvable", np.nan)))
+axb.axvline(0, color="k", lw=0.7, zorder=1)
+for s in (-a.margin, a.margin): axb.axvline(s, color="0.6", lw=0.7, ls=(0, (3, 2)), zorder=1)
+axb.set_yticks([-i for i in range(len(dsets))]); axb.set_yticklabels([fs.DATASET_TITLE[x] for x in dsets]); axb.set_ylim(-len(dsets) + 0.4, 0.65)
+axb.set_xlabel("Brier: certificate $-$ run-twice  (<0: certificate better)")
+axb.set_title("(b) paired Brier difference", loc="left", fontsize=fs.LABEL_PT)
+axb.legend(handles=[Line2D([], [], color=col, marker="o", ls="", ms=3, label=lab) for _, lab, col in contrasts] +
+                   [Line2D([], [], color="k", marker="o", ls="", ms=3, label="held-out instances"), Line2D([], [], color="k", marker="o", mfc="white", ls="", ms=3, label="leave-one-dataset-out")],
+           loc="upper center", bbox_to_anchor=(0.45, -0.28), frameon=False, ncol=1, borderaxespad=0, labelspacing=0.25, handletextpad=0.3)
+fig.subplots_adjust(left=0.075, right=0.985, top=0.92, bottom=0.37)
+
+plotted = pd.concat([pool.assign(panel="a", split="heldout_instance")[["panel", "split", "method", "bin_lo", "bin_hi", "n", "pred_mean", "obs_rate"]], pd.DataFrame(rows)])
+fs.save(fig, a.out, plotted, [p1, p2],
+        note="top-3 outcome, kernel_paired streams; (a) count-weighted pooling of certificate_bins over datasets x models x budget ladder (model != 'all'), held-out instances; "
+             "(b) certificate_paired_diff rows with model='all', m='all' (pooled over the four models and the ladder), instance-bootstrap CI as supplied; "
+             f"useful margin {a.margin}; the run-twice competitor spends 51 evaluations more than the certificate")

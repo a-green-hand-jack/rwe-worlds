@@ -1,0 +1,67 @@
+"""Adaptive vs non-adaptive selection (Brief: 'we test adaptive vs non-adaptive selection empirically (kNN/non-linear predictor)').
+
+Non-adaptive: greedy A-optimal under the global FA covariance (the main selector) and random draws.
+Adaptive ('local-A'): for each held-out model separately, after its scores on S are observed the next benchmark is the greedy A-optimal one
+under a LOCAL covariance, the shrunk covariance of the m nearest training models (in S, standardised scores):
+    Sigma_loc = (1 - a) cov(m nearest) + a Sigma_FA(global),  m = 40, a = 0.5,
+so the choice depends on the observed values, not only on the set S.  The first benchmark is the global greedy-A one (nothing is observed yet).
+Both are scored with the same predictors (10-NN as in the main runs, and FA conditioning), on the same fixed target sets, folds and grouped design as
+the main runs, in the identity space (original standardised scores).  Everything uses training rows only; the test row's own S scores steer the
+adaptive choice (as at deployment) but its unrun scores are never used.
+Run: python3 adaptive.py <dataset> <data_out> <identity-transform grouped fixed pkl (folds, seed, r_eff)> <out.pkl> [--quick]"""
+import sys, os, pickle, time, numpy as np
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+sys.path.insert(0, os.path.dirname(__file__))
+from bmk.fa import cov_of
+from bmk.protocol import fit_fold
+from bmk.select_predict import Predictors, SEQUENTIAL
+
+ds, dout, mainpkl, out = sys.argv[1:5]; quick = '--quick' in sys.argv
+D_ = np.load(f"{dout}/{ds}.npz", allow_pickle=True); X = D_['X']; M, N = X.shape
+R = pickle.load(open(mainpkl, 'rb')); SEED = R['seed']; K = [k for k in range(1, 11) if k <= N // 2]; NDR = 5 if quick else 30
+M_NN, ALPHA = 40, 0.5
+PRED = ('knn', 'fa')
+err = {}
+def add(key, te, v):
+    if key not in err: err[key] = np.zeros(M)
+    err[key][te] += v
+
+def local_A(Ytr, Sg_glob, T, C, xrow, first, kmax):
+    """Sequential local greedy A for one test row; returns S in order (first element fixed to the global choice)."""
+    S = [first]; cand = [c for c in C if c != first]
+    while len(S) < kmax:
+        d = ((Ytr[:, S] - xrow[S]) ** 2).sum(1); nn = np.argsort(d)[:M_NN]
+        Z = Ytr[nn] - Ytr[nn].mean(0); Sg = (1 - ALPHA) * (Z.T @ Z) / (len(nn) - 1) + ALPHA * Sg_glob
+        A = Sg[:, S]; Cc = Sg - A @ np.linalg.solve(Sg[np.ix_(S, S)], A.T)       # conditional covariance given S
+        col = Cc[:, cand]; gain = (col[T] ** 2).sum(0) / np.maximum(np.diag(Cc)[cand], 1e-12)
+        j = cand[int(np.argmax(gain))]; S.append(j); cand.remove(j)
+    return S
+
+t0 = time.time(); ranks = None
+for fi, (tr, te) in enumerate(R['folds']):
+    r_eff = R['info'][fi]['r_eff']; F = fit_fold(X, tr, [r_eff], SEED + fi, r_fixed=r_eff)
+    Yte = (X[te] - F['mu']) / F['sd']; P = Predictors(F['Ytr'], F['W'], F['D']); Sg_glob = cov_of(F['W'], F['D'])
+    for p in range(R['n_part']):
+        rng = np.random.default_rng([SEED, fi, p]); perm = rng.permutation(N); nT = int(round(0.3 * N)); T = np.sort(perm[:nT]); C = np.sort(perm[nT:])
+        Ctx = dict(W=F['W'], D=F['D'], Ytr=F['Ytr'], C=list(C), T=list(T), r=F['r'], raw_sd=F['sd'])
+        Sg_ = SEQUENTIAL['greedyA'](Ctx, max(K), rng)
+        # non-adaptive
+        for k in K:
+            for pr in PRED:
+                pv = P.predict(pr, Sg_[:k], list(T), Yte[:, Sg_[:k]]); add(('greedyA', pr, k), te, ((pv - Yte[:, T]) ** 2).mean(1) / R['n_part'])
+        # random draws (same draws for both predictors)
+        rr = np.random.default_rng([SEED + 7, fi, p])
+        for k in K:
+            for _ in range(NDR):
+                S = list(rr.choice(C, k, replace=False))
+                for pr in PRED:
+                    pv = P.predict(pr, S, list(T), Yte[:, S]); add(('random', pr, k), te, ((pv - Yte[:, T]) ** 2).mean(1) / (R['n_part'] * NDR))
+        # adaptive, one test model at a time
+        for ii, i in enumerate(te):
+            Sa = local_A(F['Ytr'], Sg_glob, list(T), list(C), Yte[ii], Sg_[0], max(K))
+            for k in K:
+                for pr in PRED:
+                    pv = P.predict(pr, Sa[:k], list(T), Yte[ii:ii + 1, Sa[:k]]); add(('adaptiveA', pr, k), [i], ((pv - Yte[ii:ii + 1, T]) ** 2).mean(1) / R['n_part'])
+    print('fold', fi, round(time.time() - t0), flush=True)
+    if quick and fi >= 1: break
+pickle.dump(dict(err=err, K=K, folds=R['folds'], family=R['family'], dataset=ds, seed=SEED, m_nn=M_NN, alpha=ALPHA, ndraws=NDR, n_part=R['n_part']), open(out, 'wb'))

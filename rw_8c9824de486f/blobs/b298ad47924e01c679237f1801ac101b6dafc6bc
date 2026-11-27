@@ -1,0 +1,128 @@
+"""Aggregate the common-target-set stage B (21_eval_ct.py) into the primary result files (ct_*.csv).
+Unit of resampling: held-out org group (B=5000); statistic: mean over models (equal weight) of the model's mean over its eligible splits.
+usage: python 24_aggregate_ct.py <data_dir> <ct_dir> <out_dir> [tag ...]      (default tags: ct)"""
+import os, sys, glob, json, numpy as np, pandas as pd
+sys.path.insert(0, os.path.dirname(__file__))
+from common import *
+B = 5000
+data_dir, ctdir, out = sys.argv[1:4]; tags = sys.argv[4:] or ["ct"]
+Y, mods, tasks, et = load_matrix(data_dir); N = Y.shape[1]; org = mods.org.values
+os.makedirs(out, exist_ok=True)
+EPS_RAW = [0.25, 0.5, 1.0, 1.5, 2.0, 3.0]
+FRAC_FLOOR = [0.1, 0.25, 0.5]      # epsilon as a fraction of the mean floor RMSE of the subset (`frac_<x>`)
+
+def boot_mean(vals, groups, seed):
+    ug, inv = np.unique(groups, return_inverse=True); rng = np.random.default_rng(seed)
+    dr = rng.integers(0, len(ug), size=(B, len(ug)))
+    gs = np.bincount(inv, weights=vals, minlength=len(ug)); gn = np.bincount(inv, minlength=len(ug)).astype(float)
+    reps = gs[dr].sum(1) / gn[dr].sum(1)
+    return vals.mean(), np.percentile(reps, 5), np.percentile(reps, 95), reps, (np.percentile(reps, 2.5), np.percentile(reps, 97.5))
+
+def load(tag):
+    fs = sorted(glob.glob(os.path.join(ctdir, f"*_{tag}.parquet"))); return pd.concat([pd.read_parquet(f) for f in fs], ignore_index=True)
+
+def n_heldout():
+    out = {}
+    for s in ("G", "T", "S", "R"):
+        if s == "S": a, tr, te = strength_split(Y); out[s] = te
+        elif s in ("G", "R"): out[s] = [x for f in make_splits(mods)[s] for x in f[2]]
+        else: out[s] = make_splits(mods)["T"][0][2]
+    return out
+
+HO = n_heldout()
+kmax = max(K_GRID)
+curves, contrasts, kst, decs = [], [], [], []
+for tag in tags:
+    d = load(tag); d["org"] = org[d.model.values]
+    fl = d[d.rule == "floor"].set_index(["split", "model", "k"])
+    for s in sorted(d.split.unique()):
+        ds = d[d.split == s]; ho = set(HO[s]); n_ho = len(ho)
+        entering = {k: set(ds[(ds.rule == "floor") & (ds.k == k)].model) for k in K_GRID}
+        fixed = entering[kmax] if entering[kmax] else set()
+        for sub in (["fixed", "all"] if len(fixed) >= 5 else ["all"]):
+            sel = lambda x: x[x.model.isin(fixed)] if sub == "fixed" else x
+            ex_curve = {}
+            for k in K_GRID:
+                F = sel(ds[(ds.rule == "floor") & (ds.k == k)]).set_index("model")
+                if len(F) < 5: continue
+                gF = org[F.index.values]
+                F_mse = F.rmse ** 2 + F.rmse_sd ** 2
+                dmean = F.delta_mean.mean(); dfl = 0.25 * F.floorj_mean.mean()
+                base = dict(tag=tag, split=s, subset=sub, k=k, N=N, n_models_at_k=len(F), n_excluded_at_k=n_ho - len(F), n_groups=len(set(gF)),
+                            n_splits_mean=float(F.n_elig.mean()), n_obsC_mean=float(F.n_obsC.mean()), n_obsT_mean=float(F.n_obsT.mean()))
+                R0 = sel(ds[(ds.rule == "S0") & (ds.inf == "P5") & (ds.k == k)]).set_index("model")
+                for (rule, inf), g in ds[(ds.k == k) & (ds.rule != "floor")].groupby(["rule", "inf"]):
+                    g = sel(g).set_index("model"); idx = g.index.intersection(F.index)
+                    if len(idx) < 5: continue
+                    gg = org[idx.values]; r = g.loc[idx, "rmse"].values; f = F.loc[idx, "rmse"].values
+                    rr = boot_mean(r, gg, 1000 + k); ee = boot_mean(r - f, gg, 2000 + k)
+                    row = dict(base, method=f"{rule}+{inf}", n_models_at_k=len(idx), n_groups=len(set(gg)), rmse_raw=rr[0], lo=rr[1], hi=rr[2], floor_raw=f.mean(),
+                               excess_raw=ee[0], excess_lo=ee[1], excess_hi=ee[2], rmse_sd_splits=g.loc[idx, "rmse_sd"].mean(), mae_raw=g.loc[idx, "mae"].mean(),
+                               rmse_mse_scale=float(np.sqrt((g.loc[idx, "rmse"] ** 2 + g.loc[idx, "rmse_sd"] ** 2).mean())))
+                    if inf == "P5" and g.t1_mse.notna().all():
+                        t1 = np.sqrt(g.loc[idx, "t1_mse"].values); t1f = np.sqrt(F.loc[idx, "t1_floor_mse"].values)
+                        row.update(t1_rmse_raw=t1.mean(), t1_floor_raw=t1f.mean(), excess_t1=(t1 - t1f).mean())
+                    if rule == "S0" and inf == "P5":
+                        pass
+                    curves.append(row)
+                    if rule == "S6" and inf == "P5": ex_curve[k] = dict(idx=idx, e=r - f, fl=float(f.mean()), p=(np.sqrt(g.loc[idx, "t1_mse"].values) - np.sqrt(F.loc[idx, "t1_floor_mse"].values)), g=gg, dmean=dmean, dfl=dfl)
+                    # paired contrast against S0 + same inference (S0+P5 for P2..P6 rules computed in the same tag)
+                    if rule != "S0" or inf != "P5":
+                        ref_inf = inf if (inf in ("P1", "P0") and rule == "S0") else "P5"
+                        if rule == "S0": continue
+                        R0 = sel(ds[(ds.rule == "S0") & (ds.inf == ref_inf) & (ds.k == k)]).set_index("model"); ii = idx.intersection(R0.index)
+                        if len(ii) < 5: continue
+                        gain = R0.loc[ii, "rmse"].values - g.loc[ii, "rmse"].values; g_ = org[ii.values]
+                        m, lo, hi, reps, (lo95, hi95) = boot_mean(gain, g_, 3000 + k)
+                        gx = ((R0.loc[ii, "rmse"] - F.loc[ii, "rmse"]) - (g.loc[ii, "rmse"] - F.loc[ii, "rmse"])).values
+                        dl = float(F.loc[ii, "delta_mean"].mean()); dfl_ = 0.25 * float(F.loc[ii, "floorj_mean"].mean())
+                        def verdict(dd):
+                            if lo > dd: return "design helps"
+                            if hi < -dd: return "random better"
+                            if lo > -dd and hi < dd: return "random matches"
+                            return "undecided"
+                        sdp = float(g.loc[ii, "rmse_sd"].mean())
+                        t1g = np.nan
+                        if rule.startswith("S6") and inf == "P5" and "t1_mse" in R0:
+                            t1g = float((np.sqrt(R0.loc[ii, "t1_mse"]) - np.sqrt(g.loc[ii, "t1_mse"])).mean())
+                        contrasts.append(dict(tag=tag, split=s, subset=sub, rule=rule, inf=inf, ref=f"S0+{ref_inf}", k=k, N=N, n_models=len(ii), n_groups=len(set(g_)), gain_mean=m, diff_mean=-m,
+                                              lo90=lo, hi90=hi, lo95=lo95, hi95=hi95, delta=dl, Delta=dl, delta_floor=dfl_, verdict=verdict(dl), verdict_floor=verdict(dfl_),
+                                              gain_excess=float(gx.mean()), frac_models_design_better=float((gain > 0).mean()), t1_predicted_gain=t1g,
+                                              mean_rmse_sd_splits=sdp))
+                # decomposition for S6 (P5): measured mse = t1 floor noise + floor misfit + design (T1) + estimation misfit
+                g6 = sel(ds[(ds.rule == "S6") & (ds.inf == "P5") & (ds.k == k)]).set_index("model"); i6 = g6.index.intersection(F.index)
+                if len(i6) >= 5:
+                    meas = (g6.loc[i6, "rmse"] ** 2 + g6.loc[i6, "rmse_sd"] ** 2).values; flm = F_mse.loc[i6].values; t1m = g6.loc[i6, "t1_mse"].values; t1f_ = F.loc[i6, "t1_floor_mse"].values
+                    comp = dict(measured=meas, noise_pred=t1f_, noise_misfit=flm - t1f_, design_pred=t1m - t1f_, est_misfit=meas - flm - (t1m - t1f_))
+                    row = dict(tag=tag, split=s, subset=sub, k=k, n_models=len(i6), n_groups=len(set(org[i6.values])), N=N, unit="raw points^2 (mean over models of mean-over-splits MSE)")
+                    for nme, v in comp.items():
+                        m_, lo_, hi_, _, _ = boot_mean(v, org[i6.values], 5000 + k); row[nme] = m_; row[nme + "_lo90"] = lo_; row[nme + "_hi90"] = hi_
+                    decs.append(row)
+            # k*(epsilon) on the excess over the floor (S6+P5)
+            if ex_curve:
+                kk = sorted(ex_curve); common = set.intersection(*[set(ex_curve[k]["idx"]) for k in kk]) if sub == "fixed" else None
+                reps_e, reps_p, pt_e, pt_p = [], [], [], []
+                for k in kk:
+                    c = ex_curve[k]; r1 = boot_mean(c["e"], c["g"], 4000 + k); r2 = boot_mean(c["p"], c["g"], 4000 + k)
+                    reps_e.append(r1[3]); reps_p.append(r2[3]); pt_e.append(r1[0]); pt_p.append(r2[0])
+                reps_e = np.array(reps_e); reps_p = np.array(reps_p); pt_e = np.array(pt_e); pt_p = np.array(pt_p)
+                pd.DataFrame(dict(tag=tag, split=s, subset=sub, k=kk, excess_emp=pt_e, excess_emp_lo=np.percentile(reps_e, 5, axis=1), excess_emp_hi=np.percentile(reps_e, 95, axis=1),
+                                  excess_t1=pt_p, excess_t1_lo=np.percentile(reps_p, 5, axis=1), excess_t1_hi=np.percentile(reps_p, 95, axis=1))).to_csv(os.path.join(out, f"ct_excess_curve_{tag}_{s}_{sub}.csv"), index=False)
+                floor_all = np.mean([ex_curve[k]["fl"] for k in kk]); dl_all = np.mean([ex_curve[k]["dmean"] for k in kk]); dfl_all = np.mean([ex_curve[k]["dfl"] for k in kk])
+                def kstar(curv, eps):
+                    ok = np.where(curv <= eps)[0]; return kk[ok[0]] if len(ok) else 9999
+                eps_list = [("delta_T", dl_all), ("2delta_T", 2 * dl_all), ("delta_floor", dfl_all), ("2delta_floor", 2 * dfl_all)] + [(f"eps_{e}", e) for e in EPS_RAW] \
+                            + [(f"frac_{x}", x * floor_all) for x in FRAC_FLOOR]
+                for name, eps in eps_list:
+                    rk = np.array([kstar(reps_e[:, i], eps) for i in range(reps_e.shape[1])], float); pk = np.array([kstar(reps_p[:, i], eps) for i in range(reps_p.shape[1])], float)
+                    pc = lambda a, q: float(np.percentile(a, q, method="lower" if q < 50 else "higher"))   # bounds are grid values (9999 = never reached)
+                    kst.append(dict(tag=tag, split=s, subset=sub, epsilon_name=name, epsilon=eps, k_emp=kstar(pt_e, eps), k_emp_lo=pc(rk, 5), k_emp_hi=pc(rk, 95),
+                                    frac_boot_never=float((rk == 9999).mean()), k_pred=kstar(pt_p, eps), k_pred_lo=pc(pk, 5), k_pred_hi=pc(pk, 95),
+                                    n_models=len(ex_curve[kk[0]]["idx"]), n_groups=len(set(ex_curve[kk[0]]["g"])), N=N, note="grid steps; 9999 = not reached on the grid"))
+pd.DataFrame(curves).to_csv(os.path.join(out, "ct_curves.csv"), index=False)
+pd.DataFrame(contrasts).to_csv(os.path.join(out, "ct_contrast.csv"), index=False)
+pd.DataFrame(kst).to_csv(os.path.join(out, "ct_kstar.csv"), index=False)
+pd.DataFrame(decs).to_csv(os.path.join(out, "ct_decomposition.csv"), index=False)
+json.dump(dict(B=B, resampling_unit="org group", n_ct_splits=N_CT_SPLITS, tags=tags, k_grid=K_GRID, n_heldout_models={s: len(v) for s, v in HO.items()}, protocol="common target set, PREREG Deviation 3"),
+          open(os.path.join(out, "ct_run_meta.json"), "w"), indent=1)
+print(len(curves), len(contrasts), len(kst), len(decs))

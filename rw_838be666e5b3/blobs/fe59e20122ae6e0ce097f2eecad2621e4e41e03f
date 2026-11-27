@@ -1,0 +1,12 @@
+# How much shorter can a prediction-powered interval be?
+
+Paper and code for a study of confidence-interval width for the population mean when the labeled set, the
+unlabeled set and the predictor are all fixed.
+
+Layout of the delivery:
+
+- `paper/`: LaTeX sources of the paper (main text, appendix, bibliography, impact and AI-disclosure statements, template files).
+- `figures/`, `tables/`: every figure and table of the paper, as the paper includes them.
+- `code/`: all code, environment and dependency versions, data acquisition, seeds, commands, expected run times,
+  and which script produces which figure and table (`code/README.md`).
+- `results/`: the per-cell results the figures and tables are computed from.

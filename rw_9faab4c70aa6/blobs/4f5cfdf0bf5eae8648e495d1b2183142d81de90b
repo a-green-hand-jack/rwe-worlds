@@ -1,0 +1,51 @@
+"""C8 summary: one row per tool x n (real_tool.parquet) and one row per draw (real_tool_draws.parquet) from run_c8.py output files.
+Usage: python summarise_c8.py OUTDIR gap_vs_n_real.parquet real_tool_w*.jsonl
+The replay interval is fixed in experiment-repo#2 before the result: pool-bootstrap 95% interval of the replay gap of random search with
+B = 20 at the same n (gap_vs_n_real.parquet); status `tested` needs >= 20 draws; `consistent` iff the tool's mean gap is inside it.
+Also saved: the tool's own search-log predictor (equal-theta E max, multiplier bootstrap) on the S-by-program matrix it computed, and the
+leakage part (score on S without the selected program's demonstration items)."""
+import sys, os, json
+import numpy as np, pandas as pd
+from scipy import stats
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "analysis"))
+from core import kappa_max
+
+# the interval fixed in experiment-repo#2 before the result (pool-bootstrap only, gap_vs_n_real.parquet as of commit bacf805); the file was regenerated
+# afterwards with total_ci intervals (wider: they add the Monte-Carlo spread over search draws), whose interval is reported beside it, not used for the verdict
+PREREG = {60: (0.0515044208133614, 0.0647353729565529)}
+out, gapf, files = sys.argv[1], sys.argv[2], sys.argv[3:]
+rows = [json.loads(l) for f in files for l in open(f)]
+rows = list({r["draw"]: r for r in reversed(rows)}.values())   # a draw run by two workers counts once (the first file listed)
+rows.sort(key=lambda r: r["draw"])
+rng = np.random.default_rng([41])
+D = []
+for r in rows:
+    M = np.array(r["score_matrix"], float)                        # (programs, n)
+    pk = kappa_max(M.T, rng, B=500)
+    prog = M.mean(1); mx = prog.max()
+    D.append(dict(draw=r["draw"], n=r["n"], n_programs=r["n_programs"], selected_seed=r["seeds"][r["selected"]], n_tied_at_max=int((prog == mx).sum()),
+                  reported=r["reported"], truth=r["truth"], truth_se=r["truth_se"], n_truth=r["n_truth"], gap=r["reported"] - r["truth"],
+                  reported_leak_free=r["reported_leak_free"], leak_part=r["reported"] - r["reported_leak_free"], gap_leak_free=r["reported_leak_free"] - r["truth"],
+                  n_demo_in_S=r["n_demo_in_S"], mean_program_acc_on_S=float(prog.mean()), sd_program_acc_on_S=float(prog.std()),
+                  pred_kappa=pk[0], kappa=pk[1], sigma_bar_over_sqrt_n=pk[2], lm_calls=r["lm_calls"], seconds=r["seconds"], dspy=r["dspy"]))
+D = pd.DataFrame(D); D.to_parquet(os.path.join(out, "real_tool_draws.parquet"), index=False)
+
+g = pd.read_parquet(gapf); T = []
+for n, d in D.groupby("n"):
+    nd = len(d); t = stats.t.ppf(0.975, nd - 1)
+    def ci(x): m = x.mean(); se = x.std(ddof=1) / np.sqrt(nd); return m, m - t * se, m + t * se
+    rp = g[(g.searcher == "random") & (g.B == 20) & (g.n == n)].iloc[0]
+    gm, glo, ghi = ci(d.gap)
+    plo, phi = PREREG[int(n)]
+    inside = bool(plo <= gm <= phi); inside_total = bool(rp.gap_lo <= gm <= rp.gap_hi)
+    T.append(dict(tool="dspy 3.0.4 BootstrapFewShotWithRandomSearch (16 candidate sets, 2 bootstrapped + 2 labeled demos)", n=int(n), budget=int(d.n_programs.iloc[0]),
+                  budget_unit="programs evaluated on all n items of S", gap=gm, gap_lo=glo, gap_hi=ghi, ci_kind="draw-spread-t", reported=d.reported.mean(), truth=d.truth.mean(),
+                  replay_gap=rp.gap, replay_lo=plo, replay_hi=phi, replay_def="random search B=20 on the matrix, pool-bootstrap 95% interval fixed in experiment-repo#2 before the result",
+                  replay_lo_total=rp.gap_lo, replay_hi_total=rp.gap_hi, inside_total_ci=inside_total, c8_interval_contains_replay_gap=bool(glo <= rp.gap <= ghi),
+                  n_draws=nd, status="tested" if nd >= 20 else "illustration", verdict="consistent" if (nd >= 20 and inside) else ("not consistent" if nd >= 20 else "not tested"),
+                  pred_kappa=d.pred_kappa.mean(), pred_over_gap=d.pred_kappa.mean() / gm, gap_leak_free=d.gap_leak_free.mean(), leak_part=d.leak_part.mean(),
+                  gap_sd_draws=d.gap.std(ddof=1), truth_se_mean=d.truth_se.mean(), n_truth=int(d.n_truth.iloc[0]), zero_shot_selected_share=float((d.selected_seed == -3).mean()),
+                  mean_n_tied_at_max=d.n_tied_at_max.mean(), mean_program_acc_on_S=d.mean_program_acc_on_S.mean(), sd_program_acc_on_S=d.sd_program_acc_on_S.mean(),
+                  pool="mmlu-pro-N1500-all", model="Qwen2.5-1.5B-Instruct", truth_def="accuracy of the selected program on n_truth random pool items outside S"))
+pd.DataFrame(T).to_parquet(os.path.join(out, "real_tool.parquet"), index=False)
+print(pd.DataFrame(T).T.to_string())

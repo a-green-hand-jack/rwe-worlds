@@ -1,0 +1,24 @@
+import pymupdf,re,json,sys
+sys.path.insert(0,'scripts')
+S=json.load(open('raw/sample.json'))
+M=json.load(open('raw/measure2.json'))
+HEAD=re.compile(r'^\s*(\d+\s*)?(References|REFERENCES|Bibliography)\s*$')
+STOP=re.compile(r'^\s*(A\s+)?(Appendix|APPENDIX|Additional|Proofs?|Supplementary|Broader|NeurIPS Paper Checklist|Checklist)\b[^\n]{0,80}$')
+out=[]
+for i,s in enumerate(S):
+    d=pymupdf.open(f'pdf/{i:02d}.pdf')
+    txt='';on=False;done=False
+    for k in range(2,len(d)):
+        for b in d[k].get_text('blocks'):
+            t=b[4].strip()
+            if not on:
+                if HEAD.match(t.split('\n')[0]) and len(t)<40: on=True
+                continue
+            if STOP.match(t.split('\n')[0]) and len(t)<100: done=True;break
+            txt+=t+'\n'
+        if done: break
+    nums=[int(x) for x in re.findall(r'^\[(\d+)\]',txt,re.M)]
+    years=len(re.findall(r'\b(?:19[5-9]\d|20[0-2]\d)\b',txt))
+    out.append(dict(i=i,numbered=max(nums,default=0),year_tokens=years))
+    print(i,s['title'][:40],max(nums,default=0),years,len(txt))
+json.dump(out,open('raw/refs.json','w'))

@@ -1,0 +1,4 @@
+#!/bin/bash
+# usage: launch.sh DATASET MODEL START END R   (one 1-CPU job)
+cd /hutian/repo
+ht-resource run local-compute --cpus 1 --memory 3000 --note "$1 $2 $3-$4 R=$5" -- env TMPDIR=/hutian/tmp python3 -u scripts/run_cell.py run $1 $2 0 $3 $4 $5

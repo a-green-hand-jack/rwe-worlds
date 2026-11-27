@@ -1,0 +1,35 @@
+\section{Introduction}
+\label{sec:intro}
+
+Running a language model on every item of a large benchmark is costly, and the cost recurs with every new model.
+A growing line of work therefore evaluates a model on a small subset of $n\ll N$ items and predicts its full-benchmark score, using the item-level results that earlier \emph{source} models already provide~\citep{vivek2024anchor,maiapolo2024tiny,kipnis2025metabench,pacchiardi2024100,li2025active}.
+These methods choose the items from the source matrix, by clustering or by item-response-theory (IRT) information, and read the target's score off a latent model fitted on the sources.
+They are validated mostly on held-out models that resemble the sources, entangle the choice of items with the choice of estimator, and are rarely compared with simple sampling that uses the sources only to spread the items over difficulty.
+
+We ask what the source models buy.
+Our frame is finite-population estimation: the target's full score is the mean of $N$ unknown binary values, the source matrix is a covariate known for every item, and a sample of $n$ items is drawn by a design.
+In that frame the sources can reduce the \emph{variance} of the estimate, through the design and through the estimator, while the \emph{bias} must be controlled by the design: items are drawn with probabilities bounded away from zero, and a correction by the target's own residuals makes the estimator unbiased when its predictor is fixed in advance.
+It separates whether a predictor fitted on the sources is accurate where the target resembles them from whether it stays accurate when the target is stronger than every source, as a new frontier model is.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{../figures/fig1_protocol}
+\caption{The protocol. A design picks $n$ items using only the source models' results; the target model is run on those items only; an estimator turns its $n$ answers and the source matrix into a predicted full-benchmark score, which is compared with the true score. The three splits differ in which models play the target.}
+\label{fig:protocol}
+\end{figure}
+
+We test this on 13 binary item-by-model matrices (seven from the Open LLM Leaderboard, six from HELM), under three splits of models into sources and targets (random models, held-out model families, and targets above every source), with seven designs, three predictors and their model, plug-in and difference estimators (Section~\ref{sec:setup}).
+The primary endpoint, fixed beforehand, is the RMSE relative to uniform sampling at $n=100$, with stratified sampling as the second baseline.
+Our contributions are:
+\begin{itemize}
+\item a controlled comparison of item-selection designs and estimators, so that a gain can be attributed to the design, to the estimator or to both (Section~\ref{sec:res-ablation});
+\item a measurement of how the error of source-fitted predictors depends on the distance of the target above the sources, split into bias and variance (Section~\ref{sec:res-bias});
+\item a reference for how much a predictor can help, from the fraction of item variance it explains (Section~\ref{sec:res-ceiling});
+\item the finding that error reductions do not always carry over to the ordering of models (Section~\ref{sec:res-order}).
+\end{itemize}
+
+The answer is conditional.
+When targets resemble the sources, the source-aided classes chosen without looking at the target benchmark's outcomes reach $0.65$--$0.79$ of the RMSE of uniform sampling at $n=100$ and $0.80$--$0.94$ of that of stratified sampling, model-based and difference-corrected methods being the best.
+When every target is stronger than every source, our IRT and kNN predictors are worse than uniform sampling ($1.96$ and $2.42$ times its RMSE) because they compress their estimates toward the source mean (the published tinyBenchmarks IRT estimator, run on six benchmarks, is not: $0.88$; Appendix~\ref{app:public}), by $5$ to $10$ points for targets one to three standard deviations above the sources; a difference correction reduces the bias without removing it, and what remains over stratified sampling is at most a tenth of its error, delivered by a balanced design paired with calibrated regression and by no other class.
+Anchor selection with an IRT plug-in estimate (a tinyBenchmarks-style method, our re-implementation) is not clearly better than uniform sampling in interpolation or lineage ($0.95$ and $1.03$).
+The code, the result tables and the scripts that draw every figure and table are released with the paper (Appendix~\ref{app:repro}).

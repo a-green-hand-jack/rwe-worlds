@@ -1,0 +1,159 @@
+"""Leakage-free protocol. For every outer fold: standardise on training rows; fit FA (rank by inner held-out likelihood) on training rows;
+then select S from the candidate columns using training-fold quantities only; then predict the held-out models' target columns from
+their scores on S.  Designs: 'fixed' (fixed target set T = 30% of columns, identical for every selector/predictor/k; S chosen in the
+other 70%; repeated over n_part random column partitions) and 'allrest' (S chosen in all columns, targets R = P \\ S, as in the
+evaluator's problem statement; R then depends on S)."""
+import numpy as np, collections
+from .fa import fit_fa, choose_rank, cov_of, loglik
+from .select_predict import SEQUENTIAL, PER_K, Predictors
+
+def grouped_folds(groups, n_folds, seed):
+    """Whole families go to one fold; greedy balancing of fold sizes (largest family first)."""
+    rng = np.random.default_rng(seed); fam = collections.defaultdict(list)
+    for i, g in enumerate(groups): fam[g].append(i)
+    order = sorted(fam, key=lambda g: (-len(fam[g]), rng.random()))
+    folds = [[] for _ in range(n_folds)]
+    for g in order: folds[int(np.argmin([len(f) for f in folds]))].extend(fam[g])
+    return [np.array(sorted(f)) for f in folds if len(f)]
+
+def random_folds(M, n_folds, seed):
+    perm = np.random.default_rng(seed).permutation(M); return [np.sort(f) for f in np.array_split(perm, n_folds)]
+
+def time_folds(times, cuts=(0.55, 0.7, 0.85)):
+    """Expanding window: train on models released before the cut (by rank), test on the next block. Returns [(train, test)]."""
+    order = np.argsort(times, kind='stable'); M = len(order); out = []
+    edges = [int(round(c * M)) for c in cuts] + [M]
+    for a, b in zip(edges[:-1], edges[1:]): out.append((np.sort(order[:a]), np.sort(order[a:b])))
+    return out
+
+def fit_fold(X, tr, ranks, seed, r_fixed=None):
+    mu = X[tr].mean(0); sd = X[tr].std(0) + 1e-9
+    Ytr = (X[tr] - mu) / sd
+    if r_fixed is None: r, score, rbest = choose_rank(Ytr, ranks, seed=seed)
+    else: r, score, rbest = r_fixed, {}, r_fixed
+    W, D = fit_fa(Ytr, r)
+    return dict(mu=mu, sd=sd, Ytr=Ytr, r=r, rank_scores=score, r_argmax=rbest, W=W, D=D)
+
+def lobo_ref(F, Yte, T):
+    """Held-out leave-one-benchmark-out predictors (fit on training rows): each target from all other N-1 columns of the new row."""
+    from sklearn.covariance import LedoitWolf
+    out = {}
+    for name, Sg in (('fa', cov_of(F['W'], F['D'])), ('lw', LedoitWolf().fit(F['Ytr']).covariance_)):
+        Lam = np.linalg.inv(Sg); pred = Yte - (Yte @ Lam) / np.diag(Lam); out['lobo_' + name] = pred[:, T]
+    return out
+
+EPS_LOGIT = 0.005
+
+def make_transform(X, kind):
+    """Column-wise transform used as part of the method. 'logit': columns whose scores all lie strictly in (0,1) are mapped by logit
+    (clipped to [EPS, 1-EPS]); other columns stay as they are. Returns (fwd, inv) acting on (n,N) arrays."""
+    if kind in (None, 'identity'): return (lambda A: A), (lambda A: A)
+    m = (X.min(0) > 0) & (X.max(0) < 1)
+    def fwd(A):
+        B = A.copy(); c = np.clip(A[:, m], EPS_LOGIT, 1 - EPS_LOGIT); B[:, m] = np.log(c / (1 - c)); return B
+    def inv(B):
+        A = B.copy(); A[:, m] = 1 / (1 + np.exp(-B[:, m])); return A
+    return fwd, inv
+
+def run(X, folds, k_grid, selectors, predictors, n_draws=200, n_part=5, design='fixed', seed=0, ranks=None,
+        frac_T=0.3, r_fixed=None, with_refs=True, verbose=False, track_bias=False, transform=None, track_extra=False, extra_draws=20):
+    """X: (M,N) raw scores, folds: list of (train_idx, test_idx). Returns dict of per-model error arrays and fold info."""
+    M, N = X.shape; ranks = ranks or [r for r in (1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25) if r <= N // 3]; kmax = max(k_grid)
+    bias = {}    # (selector, predictor, k) -> sum over partitions of per-model signed mean error (pred - y), only if track_bias
+    err = {}     # (selector, predictor, k) -> sum of per-model MSE over partitions (length M)
+    cnt = collections.Counter()
+    rand_draws = {}  # (predictor,k) -> list of per-draw dataset-level sums (filled per fold, indexed by [part, draw])
+    info = []
+    refs = collections.defaultdict(lambda: np.zeros(M))
+    def add(key, idx, vals, sb=None):
+        if key not in err: err[key] = np.zeros(M)
+        err[key][idx] += vals
+        if track_bias and sb is not None:
+            if key not in bias: bias[key] = np.zeros(M)
+            bias[key][idx] += sb
+    extra = {}   # (selector, predictor, k) -> dict(raw_se, raw_ae, pair_acc: per-model arrays; spear: list of per-(fold,partition) mean Spearman over targets)
+    EX_K = (1, 2, 3, 5, 10); EX_SEL = ('greedyA', 'random'); EX_PR = ('fa', 'ridge', 'colmean')
+    def add_extra(key, te, pv_z, Tt, w):
+        from scipy.stats import rankdata
+        if key not in extra: extra[key] = dict(raw_se=np.zeros(M), raw_ae=np.zeros(M), pair_acc=np.zeros(M), spear=[], col_se=np.zeros(N), col_n=np.zeros(N))
+        pr_raw = inv_cols(pv_z, Tt); y_raw = X[te][:, Tt]; ex = extra[key]
+        ex['raw_se'][te] += w * ((pr_raw - y_raw) ** 2).mean(1); ex['raw_ae'][te] += w * np.abs(pr_raw - y_raw).mean(1)
+        ex['col_se'][Tt] += w * (((pr_raw - mo[Tt]) / so[Tt] - Yte_o[:, Tt]) ** 2).sum(0); ex['col_n'][Tt] += w * len(te)   # per-benchmark squared error (original standardised scale)
+        if key[1] != 'colmean' and len(te) >= 3:
+            dp = pr_raw[:, None, :] - pr_raw[None, :, :]; dy = y_raw[:, None, :] - y_raw[None, :, :]
+            valid = (dy != 0); agree = ((dp * dy) > 0) + 0.5 * ((dp == 0) & valid)
+            ex['pair_acc'][te] += w * (agree * valid).sum((1, 2)) / np.maximum(valid.sum((1, 2)), 1)
+            rp = np.apply_along_axis(rankdata, 0, pr_raw); ry = np.apply_along_axis(rankdata, 0, y_raw)
+            c = [np.corrcoef(rp[:, j], ry[:, j])[0, 1] for j in range(rp.shape[1]) if rp[:, j].std() > 0 and ry[:, j].std() > 0]
+            ex['spear'].append((w, float(np.mean(c)) if c else np.nan))
+    ed = min(extra_draws, n_draws); rng_master = np.random.default_rng(seed)
+    for fi, (tr, te) in enumerate(folds):
+        fwd, inv = make_transform(X[tr], transform)
+        Z = fwd(X); F = fit_fold(Z, tr, ranks, seed + fi, r_fixed); Yte = (Z[te] - F['mu']) / F['sd']
+        # metrics are always on the ORIGINAL standardised scale (training-fold mean/sd of the raw scores), after back-transform
+        mo = X[tr].mean(0); so = X[tr].std(0) + 1e-9; Yte_o = (X[te] - mo) / so
+        def inv_cols(pv, Tt):
+            if transform in (None, 'identity'): return pv * F['sd'][Tt] + F['mu'][Tt]
+            full = np.zeros((pv.shape[0], N)); full[:, Tt] = pv * F['sd'][Tt] + F['mu'][Tt]; return inv(full)[:, Tt]
+        def bk(pv, Tt): return (inv_cols(pv, Tt) - mo[Tt]) / so[Tt]
+        P = Predictors(F['Ytr'], F['W'], F['D'])
+        info.append(dict(fold=fi, n_train=len(tr), n_test=len(te), r_eff=F['r'], r_argmax=F['r_argmax'], rank_scores=F['rank_scores']))
+        for p in range(n_part if design == 'fixed' else 1):
+            rng = np.random.default_rng([seed, fi, p])
+            if design == 'fixed':
+                perm = rng.permutation(N); nT = int(round(frac_T * N)); T = np.sort(perm[:nT]); Cd = np.sort(perm[nT:])
+            else:
+                T = np.arange(N); Cd = np.arange(N)
+            Ctx = dict(W=F['W'], D=F['D'], Ytr=F['Ytr'], C=list(Cd), T=list(T), r=F['r'], raw_sd=F['sd'])
+            def evalS(S):
+                S = list(S)
+                Tt = [t for t in T if t not in S] if design == 'allrest' else list(T)
+                return Tt, Yte[:, S]
+            def record(sel, S, k, preds=predictors, nrep=1.0):
+                Tt, xS = evalS(S)
+                for pr in preds:
+                    pv = bk(P.predict(pr, S, Tt, xS), Tt); e = ((pv - Yte_o[:, Tt]) ** 2).mean(1)
+                    add((sel, pr, k), te, e * nrep, (pv - Yte_o[:, Tt]).mean(1))
+                    if track_extra and sel in EX_SEL and pr in EX_PR and k in EX_K: add_extra((sel, pr, k), te, P.predict(pr, S, Tt, xS), Tt, 1.0)
+            # references (once per fold x partition)
+            if with_refs and design == 'fixed':
+                Tl = list(T); lo = lobo_ref(F, Yte, Tl)
+                for nm, pv in lo.items(): refs[nm][te] += ((bk(pv, Tl) - Yte_o[:, Tl]) ** 2).mean(1)
+                refs['colmean'][te] += (Yte_o[:, Tl] ** 2).mean(1)
+                # optimistic in-sample reference: FA (rank r_eff) fitted on train+test rows, test latent from the full row (targets visible)
+                Yall = np.vstack([F['Ytr'], Yte]); Wi, Di = fit_fa(Yall, F['r'])
+                # hat-matrix reconstruction with the target observed: x_hat = W E[z|x_all]
+                G = np.linalg.inv(np.eye(F['r']) + (Wi.T / Di) @ Wi); zhat = Yte @ (Di[:, None] ** -1 * Wi) @ G
+                refs['insample'][te] += ((bk((zhat @ Wi.T)[:, Tl], Tl) - Yte_o[:, Tl]) ** 2).mean(1)
+            # sequential selectors: one nested run
+            for sel in selectors:
+                if sel in SEQUENTIAL:
+                    Sfull = SEQUENTIAL[sel](Ctx, kmax, rng)
+                    for k in k_grid: record(sel, Sfull[:k], k)
+                elif sel in PER_K:
+                    for k in k_grid: record(sel, PER_K[sel](Ctx, k, rng), k)
+            # random draws (expectation) + oracle best-of-sampled
+            if 'random' in selectors or 'oracle' in selectors:
+                for k in k_grid:
+                    sums = {pr: np.zeros(len(te)) for pr in predictors}; sbs = {pr: np.zeros(len(te)) for pr in predictors}; best = {pr: (np.inf, None) for pr in predictors}
+                    for d in range(n_draws):
+                        S = list(rng.choice(Cd, k, replace=False)); Tt, xS = evalS(S)
+                        for pr in predictors:
+                            pv = bk(P.predict(pr, S, Tt, xS), Tt); e = ((pv - Yte_o[:, Tt]) ** 2).mean(1)
+                            sums[pr] += e
+                            if track_bias: sbs[pr] += (pv - Yte_o[:, Tt]).mean(1)
+                            if track_extra and pr in EX_PR and k in EX_K and d < ed: add_extra(('random', pr, k), te, P.predict(pr, S, Tt, xS), Tt, 1.0 / ed)
+                            if e.mean() < best[pr][0]: best[pr] = (e.mean(), e)
+                            rand_draws.setdefault((pr, k), np.zeros((n_part if design == 'fixed' else 1, n_draws)))[p, d] += e.sum() / 1.0
+                    for pr in predictors:
+                        if 'random' in selectors: add(('random', pr, k), te, sums[pr] / n_draws, sbs[pr] / n_draws)
+                        if 'oracle' in selectors: add(('oracle', pr, k), te, best[pr][1])
+        if verbose: print('fold', fi, 'r', F['r'], flush=True)
+    npart = n_part if design == 'fixed' else 1
+    out = {k: v / npart for k, v in err.items()}
+    out_refs = {k: v / npart for k, v in refs.items()}
+    # draws: dataset-level mean over models (sum over folds / M), averaged over partitions axis
+    rd = {k: v.mean(0) / M for k, v in rand_draws.items()} if rand_draws else {}
+    out_bias = {k: v / npart for k, v in bias.items()}
+    out_extra = {k: dict(raw_se=v['raw_se'] / npart, raw_ae=v['raw_ae'] / npart, pair_acc=v['pair_acc'] / npart, spear=v['spear'], col_se=v['col_se'], col_n=v['col_n']) for k, v in extra.items()}
+    return dict(err=out, refs=out_refs, draws=rd, info=info, bias=out_bias, extra=out_extra)

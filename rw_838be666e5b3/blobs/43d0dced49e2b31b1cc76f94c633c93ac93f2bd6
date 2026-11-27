@@ -1,0 +1,21 @@
+# tab_headline_full
+
+**Claim carried:** C2/C4: width, coverage with Wilson CI and paired ratio to PPI++ for every T1 arm at each headline n.
+
+**Shows:** one block per dataset; bold = shortest valid width (floor excluded); dagger = coverage fails the win rule; the last column is the paired ratio to PPI++ with the tuning left unclipped (the PPI++ row of the same name; `--` where the file has none, e.g. the floor).
+
+**How to read:** read the ratio column against 1 and the coverage column against the nominal level.
+
+**Computed on** (from the rows drawn):
+- datasets/scenarios: alphafold, ballots, census_education, census_healthcare, census_income, forest, galaxies, gene_expression, plankton
+- n: 200, 500
+- N: 1000, 10000, 5000, 8000
+- tier: T1
+- methods: calib_iso, calib_spline, floor, labels_z, pooled_linear, ppi, ppipp, ppipp_on_iso, ppipp_on_spline, ppipp_unclip, select, selectmin, strat_ppi
+- constructions: wald
+- sampling: labeled_only_resample, with_replacement
+- base seeds: 20282720.0, 20427675.0, 20553373.0, 20925496.0, 20934733.0, 21033679.0, 21198254.0, 21243444.0, 21252651.0
+- code commits: 146848fb9a8459fac152ed67ffd429c934ecc49c, 5e11b915d25abfdb3dc37480525a5cacb80b16f3, f7cde9586b0286b709e013b3a70a4e33d56cceb1
+- n (and N) per dataset: alphafold n=500 (N=8000); ballots n=500 (N=5000); census_education n=500 (N=10000); census_healthcare n=500 (N=10000); census_income n=500 (N=10000); forest n=200 (N=1000); galaxies n=500 (N=10000); gene_expression n=500 (N=10000); plankton n=500 (N=10000)
+- Monte-Carlo repetitions per row: min 2000, max 5000
+- rows: 117

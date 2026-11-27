@@ -1,0 +1,82 @@
+"""Diagnostics of misspecification on held-out leave-one-benchmark-out residuals, computed identically on the real matrix and on the synthetic ladder
+(C6 placement rule). Residual E_mj = standardised LOO error of model m on benchmark j, the model held out by group (real) or by fold (synthetic);
+predictive variance proxy P_mj = design_risk(fit, observed set)[j] (psi_j + posterior term). Diagnostics (all dimensionless):
+  calib   mean(E^2) / mean(P)                          (1 = the factor model's own variance is right)
+  calib_med  median(E^2/P) / 0.4549 (robust scale of the same ratio; 1 if Gaussian and calibrated)
+  kurt    excess kurtosis of E / sqrt(P)               (heavy tails)
+  rescorr mean |corr| of E between benchmark pairs     (pairs with >= 30 co-observed held-out models; correlated residuals)
+  het     Spearman corr(|E|/sqrt(P), fitted value)     (heteroscedastic ceiling)
+  link    corr(E, squared standardised fitted value)   (saturating link)
+Placement rule (fixed before looking at the real values): a rung is *consistent* with the real matrix if every diagnostic of the real matrix lies inside the
+[5%, 95%] range of that diagnostic over the rung's seeds, widened by 10% of the range; the real matrix is placed on the set of consistent rungs, or "outside
+the ladder" if the set is empty. usage: python 28_diagnostics.py <data_dir> <work_dir> <out_dir> [n_seeds]"""
+import os, sys, pickle, json, numpy as np, pandas as pd
+from scipy.stats import spearmanr, kurtosis
+sys.path.insert(0, os.path.dirname(__file__))
+from common import *
+from fa import fit_fa, design_risk
+from state import loo_predictions
+from synth import generate, LEVELS
+
+def diag(E, P, F):
+    """E, P, F: models x benchmarks (NaN where unobserved): LOO error, predictive variance proxy, LOO fitted value (all standardised)."""
+    m = ~np.isnan(E); e = E[m]; p = P[m]; f = F[m]
+    calib = float(np.mean(e ** 2) / np.mean(p)); u = e / np.sqrt(p); calib_med = float(np.median(u ** 2) / 0.4549)
+    kurt = float(kurtosis(u))
+    het = float(spearmanr(np.abs(u), f)[0])
+    # per-column standardised fitted value for the link diagnostic
+    fz = F.copy(); mu = np.nanmean(fz, 0); sd = np.nanstd(fz, 0) + 1e-9; fz = (fz - mu) / sd
+    link = float(np.corrcoef(e, fz[m] ** 2)[0, 1])
+    Ez = np.where(m, E, 0.0); M = m.astype(float); n = M.T @ M
+    num = Ez.T @ Ez; v = np.sqrt(np.diag(num) / np.maximum(np.diag(n), 1))
+    cor = num / np.maximum(n, 1) / (v[:, None] * v[None] + 1e-12)
+    iu = np.triu_indices(E.shape[1], 1); ok = n[iu] >= 30
+    resc = float(np.mean(np.abs(cor[iu][ok]))) if ok.any() else np.nan
+    return dict(calib=calib, calib_med=calib_med, kurt=kurt, rescorr=resc, het=het, link=link)
+
+def residuals(fit, Z, rows, E, P, F):
+    mask = ~np.isnan(Z)
+    for m in rows:
+        obs = np.where(mask[m])[0]
+        if len(obs) < 3: continue
+        pr = loo_predictions(fit, obs, Z[m, obs]); E[m, obs] = Z[m, obs] - pr; F[m, obs] = pr
+        P[m, obs] = design_risk(fit, obs)[obs]
+
+def real(data_dir, work):
+    Y, mods, tasks, et = load_matrix(data_dir); E = np.full(Y.shape, np.nan); P = E.copy(); F = E.copy()
+    for f in range(10):
+        st = pickle.load(open(os.path.join(work, "state", f"G_{f}.pkl"), "rb"))
+        Z = (Y - st["mu"]) / st["sd"]; residuals(st["fits"][st["best_rank"]["loo"]], Z, st["test"], E, P, F)
+    return diag(E, P, F)
+
+def synthetic(level, regime, seed, n_models=238, N=120, r_true=6, r_fit=6, dens=0.6, n_f=5):
+    g = generate(n_models, N, r_true, regime, level, seed * 1000 + 17); Y = g["Y"]
+    rng = np.random.default_rng(seed + 5)
+    p = rng.beta(2.0, 2.0 * (1 - dens) / dens, size=(n_models, 1)); Ym = np.where(rng.random((n_models, N)) < p, Y, np.nan)
+    fo = np.arange(n_models) % n_f; E = np.full(Ym.shape, np.nan); P = E.copy(); F = E.copy()
+    for f in range(n_f):
+        tr = np.where(fo != f)[0]; te = np.where(fo == f)[0]
+        mu = np.nanmean(Ym[tr], 0); sd = np.nanstd(Ym[tr], 0); Z = (Ym - mu) / sd
+        residuals(fit_fa(Z[tr], r_fit), Z, te, E, P, F)
+    return diag(E, P, F)
+
+if __name__ == "__main__":
+    data_dir, work, out = sys.argv[1:4]; n_seeds = int(sys.argv[4]) if len(sys.argv) > 4 else 20
+    os.makedirs(out, exist_ok=True); rows = [dict(source="real", rung="MTEB", seed=-1, **real(data_dir, work))]
+    rungs = [("separated", l) for l in LEVELS] + [("decaying", "L0_correct")]
+    for regime, lv in rungs:
+        r_true, r_fit = (40, 8) if regime == "decaying" else (6, 6)
+        for s in range(n_seeds):
+            rows.append(dict(source="synthetic", rung=(lv if regime == "separated" else "L0_decaying_spectrum"), seed=s, **synthetic(lv, regime, s, r_true=r_true, r_fit=r_fit)))
+        print(regime, lv, flush=True)
+    df = pd.DataFrame(rows); df.to_csv(os.path.join(out, "ladder_diagnostics.csv"), index=False)
+    D = ["calib", "calib_med", "kurt", "rescorr", "het", "link"]; rv = df[df.source == "real"].iloc[0]; res = {}
+    for rung, g in df[df.source == "synthetic"].groupby("rung"):
+        ok = {}
+        for d in D:
+            lo, hi = np.nanpercentile(g[d], 5), np.nanpercentile(g[d], 95); w = 0.1 * (hi - lo)
+            ok[d] = dict(real=float(rv[d]), lo=float(lo), hi=float(hi), inside=bool(lo - w <= rv[d] <= hi + w))
+        res[rung] = dict(consistent=all(v["inside"] for v in ok.values()), diagnostics=ok)
+    placed = [r for r, v in res.items() if v["consistent"]]
+    json.dump(dict(rule=__doc__.split("Placement rule")[1].split("usage")[0].strip(), n_seeds=n_seeds, placed_on=placed or "outside the ladder", rungs=res), open(os.path.join(out, "ladder_placement.json"), "w"), indent=1)
+    print(df.groupby("rung")[D].mean().round(3)); print(rv[D]); print("placed:", placed or "outside the ladder")

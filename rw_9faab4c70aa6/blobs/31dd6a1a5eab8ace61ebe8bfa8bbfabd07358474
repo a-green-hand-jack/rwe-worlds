@@ -1,0 +1,27 @@
+"""C7 tidy file from run_c7.py output.
+Usage: python summarise_c7.py c7.jsonl semisynth_fit.npz out.parquet
+One row per (kind, seed, mode, n, B, K); seed = -1 is the mean over the seeds (inside = fraction of seeds inside).
+kind: validation_split_half (check1), extrapolation (check2: fitted on 75 of 128 configurations, predicting all 128), misspec (check3, `mode` = fitted / indep / equicorr dependence), curve.
+Checks: real_value = measured gap on the half-B items (pool items outside S), lo/hi = item-bootstrap percentile interval of it (ci_kind item-bootstrap, centred on the point,
+Monte-Carlo noise of 40 S draws per replicate included, i.e. conservative); predicted = mean over 10 generated worlds of the mean gap with its draws; pred_sd_worlds = sd over those worlds.
+Curves: predicted = mean gap in generated worlds fitted to all 1500 items (truth = exact theta), coverage_* = lower-bound coverage; inside_support False for K > 128 or n > 200."""
+import sys, numpy as np, pandas as pd
+r = pd.read_json(sys.argv[1], lines=True); best = np.load(sys.argv[2], allow_pickle=True)["best"].item()
+KIND = dict(check1="validation_split_half", check2="extrapolation", check3="misspec", curve="curve")
+r["kind0"] = r.kind; r["kind"] = r.kind0.map(KIND)
+ch = r[r.kind0 != "curve"].copy()
+ch = ch.rename(columns=dict(measured="real_value", measured_lo="lo", measured_hi="hi"))
+ch["inside_support"] = (ch.n <= 200) & (ch.K <= 128); ch["ci_kind"] = "item-bootstrap"
+ch["inside"] = ch.inside.astype(float)
+cu = r[r.kind0 == "curve"].drop(columns=["predicted"]).rename(columns=dict(gap="predicted")).copy()
+cu["mode"] = "fitted"; cu["B"] = 100.0; cu["inside_support"] = (cu.n <= 200) & (cu.K <= 128); cu["ci_kind"] = "none"
+keys = ["kind", "mode", "n", "B", "K"]
+out = pd.concat([ch, cu], ignore_index=True)
+num = [c for c in out.columns if out[c].dtype.kind in "fi" and c not in keys + ["seed"]]
+mean = out.groupby(keys, dropna=False)[num].mean().reset_index(); mean["seed"] = -1
+mean["inside_support"] = (mean.n <= 200) & (mean.K <= 128); mean["ci_kind"] = np.where(mean.kind == "curve", "none", "item-bootstrap")
+out = pd.concat([out.drop(columns=["kind0"]), mean], ignore_index=True)
+out["inside"] = out["inside"].astype(float)
+out["pool"] = "mmlu-pro-N1500-all (generator fitted to all items, or half A; truth half B for checks)"; out["model"] = "Qwen2.5-1.5B-Instruct"; out["config_space"] = "128-config grid"
+out["fit_rank"] = best["rank"]; out["fit_l2"] = best["l2"]; out["fit_heldout_ll"] = best["heldout_ll"]
+out.to_parquet(sys.argv[3], index=False); print(len(out), "rows")

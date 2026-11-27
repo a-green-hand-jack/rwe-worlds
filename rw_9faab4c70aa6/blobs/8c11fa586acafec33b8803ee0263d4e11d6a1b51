@@ -1,0 +1,48 @@
+"""Build the item pool, folds and demonstration sets (seeded, deterministic).
+Pool = 1500 evaluation items (uniform random over the 12,032 MMLU-Pro test items, seed 0, no length cap)
+       + 12 demonstration items D (short items, <=120 tokens, from 12 different categories, drawn from the
+       remaining test items; they are *rows of the pool* so that the leakage counterfactual is possible but
+       are excluded from the evaluation items used for S and verification).
+Folds: 5 folds over the 1500 evaluation items, stratified by category.
+Row order is interleaved over folds so that any prefix of rows is fold-balanced.
+"""
+import sys, json; import os; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")
+import numpy as np, pandas as pd
+from harness import load_data, fmt_item, MODELS
+from transformers import AutoTokenizer
+
+N_EVAL, N_DEMO, SEED = 1500, 12, 0
+t = load_data()
+rng = np.random.default_rng(SEED)
+ev_idx = rng.choice(len(t), N_EVAL, replace=False)
+ev = t.iloc[np.sort(ev_idx)].copy(); ev["is_demo"] = False
+rest = t.drop(t.index[ev_idx])
+tok = AutoTokenizer.from_pretrained(MODELS["qwen2.5-1.5b"])
+rest = rest.assign(ntok=[len(tok.encode(fmt_item(r.question, list(r.options), "dot"))) for r in rest.itertuples()])
+short = rest[(rest.ntok <= 120) & (rest.options.map(len) == 10)]
+cats = sorted(short.category.unique()); rng.shuffle(cats)
+demo_rows = []
+for c in cats[:N_DEMO]:
+    demo_rows.append(short[short.category == c].sample(1, random_state=int(rng.integers(1 << 30))).iloc[0])
+dm = pd.DataFrame(demo_rows); dm["is_demo"] = True
+# folds for eval items, stratified by category
+ev["fold"] = -1
+for c, g in ev.groupby("category"):
+    perm = rng.permutation(len(g)); ev.loc[g.index[perm], "fold"] = np.arange(len(g)) % 5
+dm["fold"] = -1
+# interleave rows over folds
+ev = ev.iloc[rng.permutation(len(ev))]
+ev["rk"] = ev.groupby("fold").cumcount()
+ev = ev.sort_values(["rk", "fold", "question_id"]).drop(columns="rk")
+pool = pd.concat([ev, dm.drop(columns="ntok")], ignore_index=True)
+pool["row"] = np.arange(len(pool))
+# demonstration sets: A,B,C = demo items 0-2, 3-5, 6-8 (original order = random category order); spares 9-11
+demo_ids = dm.question_id.tolist()
+meta = {"seed": SEED, "demo_ids": demo_ids,
+        "sets": {"A": demo_ids[0:3], "B": demo_ids[3:6], "C": demo_ids[6:9]}, "spares": demo_ids[9:12]}
+pool.to_pickle(DATA + "/pool.pkl")
+pool[["row", "question_id", "category", "src", "answer", "answer_index", "fold", "is_demo"]].to_csv(DATA + "/pool_index.csv", index=False)
+json.dump(meta, open(DATA + "/pool_meta.json", "w"))
+print(pool.fold.value_counts().sort_index().to_dict(), len(pool), pool.category.nunique())
+print(pool.head(12)[["row", "question_id", "fold", "category", "is_demo"]])

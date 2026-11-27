@@ -1,0 +1,82 @@
+scope,design,perturbation,method,k_ratio_to_best,k_ratio_lo,k_ratio_hi,flipped_at_half_k,flipped_at_k,flipped_at_2k,share_unreachable,n_conclusions,note
+arena55k,crowd,delete,random,,,,0.000546448,0.000382514,0.00103825,,61,"uniform random alteration of 0.5, 1, 2 x k* (k* of the iterated search; k_best may be a little smaller), mean reversal probability over conclusions, 300 draws each; no k ratio (rarely reversed)"
+arena55k,crowd,delete,residual,17.6907,15.4415,24.5465,0.0163934,0.0163934,,0.229508,61,
+arena55k,crowd,delete,oneshot,1,1,1,0.0163934,0.672131,,0,61,
+arena55k,crowd,delete,iterated,1,1,1,0.0163934,1,,0,61,
+arena55k,crowd,delete,both,1,1,1,0.0163934,1,,0,61,
+arena55k,crowd,delete,first_order,1.25396,1.15064,1.467,,,,0,61,"k_lin / k_best; median realised gap fraction after refit at ceil(k_lin) = -0.286 (0 = exactly reversed, <0 overshoot)"
+arena55k,crowd,flip,random,,,,0.000765027,0.000874317,0.00180328,,61,"uniform random alteration of 0.5, 1, 2 x k* (k* of the iterated search; k_best may be a little smaller), mean reversal probability over conclusions, 300 draws each; no k ratio (rarely reversed)"
+arena55k,crowd,flip,residual,19.3692,15.8872,24.7807,0,0,,0.295082,61,
+arena55k,crowd,flip,oneshot,1,1,1,0.0327869,0.901639,,0,61,
+arena55k,crowd,flip,iterated,1,1,1,0.0327869,1,,0,61,
+arena55k,crowd,flip,both,1,1,1,0.0327869,1,,0,61,
+arena55k,crowd,flip,first_order,0.957922,0.941782,0.981997,,,,0,61,"k_lin / k_best; median realised gap fraction after refit at ceil(k_lin) = -0.0012 (0 = exactly reversed, <0 overshoot)"
+arena_single,crowd,delete,random,,,,0.0010929,0.000710383,0.00131148,,61,"uniform random alteration of 0.5, 1, 2 x k* (k* of the iterated search; k_best may be a little smaller), mean reversal probability over conclusions, 300 draws each; no k ratio (rarely reversed)"
+arena_single,crowd,delete,residual,18.6677,13.2062,28.0686,0,0,,0.147541,61,
+arena_single,crowd,delete,oneshot,1,1,1,0.0163934,0.704918,,0,61,
+arena_single,crowd,delete,iterated,1,1,1,0.0163934,1,,0,61,
+arena_single,crowd,delete,both,1,1,1,0.0163934,1,,0,61,
+arena_single,crowd,delete,first_order,1.23181,1.15057,1.3834,,,,0,61,"k_lin / k_best; median realised gap fraction after refit at ceil(k_lin) = -0.269 (0 = exactly reversed, <0 overshoot)"
+arena_single,crowd,flip,random,,,,0.00169399,0.00191257,0.00393443,,61,"uniform random alteration of 0.5, 1, 2 x k* (k* of the iterated search; k_best may be a little smaller), mean reversal probability over conclusions, 300 draws each; no k ratio (rarely reversed)"
+arena_single,crowd,flip,residual,19.6364,12.4783,22.7134,0,0,,0.262295,61,
+arena_single,crowd,flip,oneshot,1,1,1,0.0163934,0.95082,,0,61,
+arena_single,crowd,flip,iterated,1,1,1,0.0163934,1,,0,61,
+arena_single,crowd,flip,both,1,1,1,0.0163934,1,,0,61,
+arena_single,crowd,flip,first_order,0.976367,0.957718,0.986429,,,,0,61,"k_lin / k_best; median realised gap fraction after refit at ceil(k_lin) = -0.0116 (0 = exactly reversed, <0 overshoot)"
+mtbench_gpt4,llm_judge,delete,random,,,,0,0,0,,15,"uniform random alteration of 0.5, 1, 2 x k* (k* of the iterated search; k_best may be a little smaller), mean reversal probability over conclusions, 300 draws each; no k ratio (rarely reversed)"
+mtbench_gpt4,llm_judge,delete,residual,1.74309,1.62222,2.04211,0,0,,0,15,
+mtbench_gpt4,llm_judge,delete,oneshot,1,1,1.04941,0,0.6,,0,15,
+mtbench_gpt4,llm_judge,delete,iterated,1,1,1,0,1,,0,15,
+mtbench_gpt4,llm_judge,delete,both,1,1,1,0,1,,0,15,
+mtbench_gpt4,llm_judge,delete,first_order,1.90847,1.74412,2.57356,,,,0.533333,15,"k_lin / k_best; median realised gap fraction after refit at ceil(k_lin) = -0.778 (0 = exactly reversed, <0 overshoot)"
+mtbench_gpt4,llm_judge,flip,random,,,,0,0,0,,15,"uniform random alteration of 0.5, 1, 2 x k* (k* of the iterated search; k_best may be a little smaller), mean reversal probability over conclusions, 300 draws each; no k ratio (rarely reversed)"
+mtbench_gpt4,llm_judge,flip,residual,2.31395,1.88323,4.06557,0,0.0666667,,0,15,
+mtbench_gpt4,llm_judge,flip,oneshot,1,1,1,0,0.8,,0,15,
+mtbench_gpt4,llm_judge,flip,iterated,1,1,1,0,0.866667,,0,15,
+mtbench_gpt4,llm_judge,flip,both,1,1,1,0,1,,0,15,
+mtbench_gpt4,llm_judge,flip,first_order,0.694528,0.548118,0.888128,,,,0,15,"k_lin / k_best; median realised gap fraction after refit at ceil(k_lin) = 0.195 (0 = exactly reversed, <0 overshoot)"
+mtbench_human,expert,delete,random,,,,0,0,0,,15,"uniform random alteration of 0.5, 1, 2 x k* (k* of the iterated search; k_best may be a little smaller), mean reversal probability over conclusions, 300 draws each; no k ratio (rarely reversed)"
+mtbench_human,expert,delete,residual,2.14856,1.89112,2.51542,0,0,,0,15,
+mtbench_human,expert,delete,oneshot,1,1,1.04323,0,0.533333,,0,15,
+mtbench_human,expert,delete,iterated,1,1,1,0,1,,0,15,
+mtbench_human,expert,delete,both,1,1,1,0,1,,0,15,
+mtbench_human,expert,delete,first_order,1.5828,1.29517,2.57362,,,,0.266667,15,"k_lin / k_best; median realised gap fraction after refit at ceil(k_lin) = -0.506 (0 = exactly reversed, <0 overshoot)"
+mtbench_human,expert,flip,random,,,,0,0,0,,15,"uniform random alteration of 0.5, 1, 2 x k* (k* of the iterated search; k_best may be a little smaller), mean reversal probability over conclusions, 300 draws each; no k ratio (rarely reversed)"
+mtbench_human,expert,flip,residual,2.78657,1.39736,5.88392,0,0,,0,15,
+mtbench_human,expert,flip,oneshot,1,1,1.02671,0,0.6,,0,15,
+mtbench_human,expert,flip,iterated,1,1,1,0,1,,0,15,
+mtbench_human,expert,flip,both,1,1,1,0,1,,0,15,
+mtbench_human,expert,flip,first_order,0.842638,0.781846,0.946575,,,,0,15,"k_lin / k_best; median realised gap fraction after refit at ceil(k_lin) = 0.09 (0 = exactly reversed, <0 overshoot)"
+all_datasets,all,delete,random,,,,0.000657895,0.000438596,0.000942982,,152,"uniform random alteration of 0.5, 1, 2 x k* (k* of the iterated search; k_best may be a little smaller), mean reversal probability over conclusions, 300 draws each; no k ratio (rarely reversed)"
+all_datasets,all,delete,residual,14.4623,11.2941,17.0251,0.00657895,0.00657895,,0.151316,152,
+all_datasets,all,delete,oneshot,1,1,1,0.0131579,0.664474,,0,152,
+all_datasets,all,delete,iterated,1,1,1,0.0131579,1,,0,152,
+all_datasets,all,delete,both,1,1,1,0.0131579,1,,0,152,
+all_datasets,all,delete,first_order,1.29871,1.20635,1.44263,,,,0.0789474,152,"k_lin / k_best; median realised gap fraction after refit at ceil(k_lin) = -0.305 (0 = exactly reversed, <0 overshoot)"
+all_datasets,all,flip,random,,,,0.000986842,0.00111842,0.00230263,,152,"uniform random alteration of 0.5, 1, 2 x k* (k* of the iterated search; k_best may be a little smaller), mean reversal probability over conclusions, 300 draws each; no k ratio (rarely reversed)"
+all_datasets,all,flip,residual,15.1734,10.1848,18.3137,0,0.00657895,,0.223684,152,
+all_datasets,all,flip,oneshot,1,1,1,0.0197368,0.881579,,0,152,
+all_datasets,all,flip,iterated,1,1,1,0.0197368,0.986842,,0,152,
+all_datasets,all,flip,both,1,1,1,0.0197368,1,,0,152,
+all_datasets,all,flip,first_order,0.952882,0.941353,0.960846,,,,0,152,"k_lin / k_best; median realised gap fraction after refit at ceil(k_lin) = 0.00176 (0 = exactly reversed, <0 overshoot)"
+tiny_exact_mtbench_subproblems,expert,delete,iterated_vs_exact,1,1,1,,1,,,23,k_found / k_exact (exhaustive minimum); flipped_at_k column = share where the search found the exact minimum
+tiny_exact_mtbench_subproblems,expert,delete,frank_wolfe_vs_exact,1,1,1,,1,,,23,k_found / k_exact (exhaustive minimum); flipped_at_k column = share where the search found the exact minimum
+tiny_exact_mtbench_subproblems,expert,delete,lp_candidate_vs_exact,1,1,1,,,,,23,"ceil(LP relaxation) / k_exact (multi-start local minimisation: a lower-bound candidate, not certified)"
+tiny_exact_mtbench_subproblems,expert,flip,iterated_vs_exact,1,1,1,,1,,,30,k_found / k_exact (exhaustive minimum); flipped_at_k column = share where the search found the exact minimum
+tiny_exact_mtbench_subproblems,expert,flip,frank_wolfe_vs_exact,1,1,1,,1,,,30,k_found / k_exact (exhaustive minimum); flipped_at_k column = share where the search found the exact minimum
+tiny_exact_mtbench_subproblems,expert,flip,lp_candidate_vs_exact,1,1,1,,,,,30,"ceil(LP relaxation) / k_exact (multi-start local minimisation: a lower-bound candidate, not certified)"
+tiny_exact_mtbench_subproblems,expert,both,iterated_vs_exact,1,1,1,,1,,,53,k_found / k_exact (exhaustive minimum); flipped_at_k column = share where the search found the exact minimum
+tiny_exact_mtbench_subproblems,expert,both,frank_wolfe_vs_exact,1,1,1,,1,,,53,k_found / k_exact (exhaustive minimum); flipped_at_k column = share where the search found the exact minimum
+tiny_exact_mtbench_subproblems,expert,both,lp_candidate_vs_exact,1,1,1,,,,,53,"ceil(LP relaxation) / k_exact (multi-start local minimisation: a lower-bound candidate, not certified)"
+lp_sandwich_arena_sub8,crowd,delete,lp_candidate_over_upper,0.925897,0.675111,2.0844,,,,,16,"LP relaxation value / verified upper bound (continuous, no rounding); shares of conclusions: within 1% of the upper bound 0.125, candidate below it by more than 1% 0.625, candidate above the verified upper bound by more than 1% (local solver failed, candidate invalid) 0.25"
+lp_sandwich_arena_sub8,crowd,flip,lp_candidate_over_upper,0.724556,0.591276,0.904556,,,,,16,"LP relaxation value / verified upper bound (continuous, no rounding); shares of conclusions: within 1% of the upper bound 0, candidate below it by more than 1% 1, candidate above the verified upper bound by more than 1% (local solver failed, candidate invalid) 0"
+lp_sandwich_mtbench_gpt,crowd,delete,lp_candidate_over_upper,0.979524,0.928758,0.992944,,,,,15,"LP relaxation value / verified upper bound (continuous, no rounding); shares of conclusions: within 1% of the upper bound 0.4, candidate below it by more than 1% 0.6, candidate above the verified upper bound by more than 1% (local solver failed, candidate invalid) 0"
+lp_sandwich_mtbench_gpt,crowd,flip,lp_candidate_over_upper,0.996951,0.99181,0.997976,,,,,15,"LP relaxation value / verified upper bound (continuous, no rounding); shares of conclusions: within 1% of the upper bound 0.8, candidate below it by more than 1% 0.2, candidate above the verified upper bound by more than 1% (local solver failed, candidate invalid) 0"
+lp_sandwich_mtbench_human,expert,delete,lp_candidate_over_upper,0.987866,0.96161,0.997166,,,,,15,"LP relaxation value / verified upper bound (continuous, no rounding); shares of conclusions: within 1% of the upper bound 0.467, candidate below it by more than 1% 0.533, candidate above the verified upper bound by more than 1% (local solver failed, candidate invalid) 0"
+lp_sandwich_mtbench_human,expert,flip,lp_candidate_over_upper,0.995997,0.991284,0.999768,,,,,15,"LP relaxation value / verified upper bound (continuous, no rounding); shares of conclusions: within 1% of the upper bound 0.8, candidate below it by more than 1% 0.133, candidate above the verified upper bound by more than 1% (local solver failed, candidate invalid) 0.0667"
+lp_sandwich_nba,sports,delete,lp_candidate_over_upper,0.963379,0.95243,0.976727,,,,,137,"LP relaxation value / verified upper bound (continuous, no rounding); shares of conclusions: within 1% of the upper bound 0.204, candidate below it by more than 1% 0.715, candidate above the verified upper bound by more than 1% (local solver failed, candidate invalid) 0.0803"
+lp_sandwich_nba,sports,flip,lp_candidate_over_upper,0.907436,0.889918,0.944473,,,,,137,"LP relaxation value / verified upper bound (continuous, no rounding); shares of conclusions: within 1% of the upper bound 0.292, candidate below it by more than 1% 0.708, candidate above the verified upper bound by more than 1% (local solver failed, candidate invalid) 0"
+search_at_scale_arena55k,crowd,delete,restarts_vs_standard,1,1,1,,0.05,,,40,k found by Frank-Wolfe + 200 randomised restarts at budgets 0.85-0.99 k* / k_std; flipped_at_k column = share of conclusions where a smaller k was found
+search_at_scale_arena55k,crowd,flip,restarts_vs_standard,1,1,1,,0,,,40,k found by Frank-Wolfe + 200 randomised restarts at budgets 0.85-0.99 k* / k_std; flipped_at_k column = share of conclusions where a smaller k was found
+search_at_scale_arena55k,crowd,delete,planted_vs_known,0.993056,0.941176,1,,1,,,20,k_found / k_path on planted instances (k_path = size of the known undo path); flipped_at_k column = share with k_found <= k_path
+search_at_scale_arena55k,crowd,flip,planted_vs_known,1,1,1,,1,,,20,k_found / k_path on planted instances (k_path = size of the known undo path); flipped_at_k column = share with k_found <= k_path

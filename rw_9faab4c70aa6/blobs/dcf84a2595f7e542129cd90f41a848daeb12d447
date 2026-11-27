@@ -1,0 +1,26 @@
+# Data contract: what each figure/table reads
+
+figtab-repo reads tidy long-format files (parquet or csv; csv in bulk goes in Git LFS) from experiment-repo. One row = one estimate. Column names below; extra columns are ignored. Every file carries the tags `pool` (what population: e.g. `mmlu-pro-N1500-all` or length-capped definition), `model`, `config_space`, and a README line saying what was computed on what (draws, rotations, bootstrap B). Nothing is typed by hand into a figure.
+
+| Fig/Tab | Claim | File (name is a suggestion) | Columns |
+|---|---|---|---|
+| Fig 1 right | C1 | `gap_vs_n.*` | `n, searcher, K, reported (naive in-sample acc of selected cfg), fresh (acc of the same cfg on verification block), gap, gap_lo, gap_hi (between-pool bootstrap percentile CI), draws_disjoint, rotations, noise_floor` |
+| Fig 2 | C2,C3 | `gap_drivers.*` | per (n, K-subset, σ_θ stratum, searcher): `gap, gap_lo, gap_hi, predicted (κσ̄/√n), pred_lo, pred_hi, K_nominal, K_eff, sigma_theta, leak_delta` |
+| Fig 3 | C4 | `decision_rates.*` | `scenario (null kind), comparison (tuned-vs-untuned / A-vs-B), n, budget_ratio, rate, rate_lo, rate_hi, nominal, n_draws` |
+| Fig 4, Tab 2 | C5 | `protocols.*` | `protocol, estimand, N_tot, n_search, n_report, K_eff, overstate_prob, coverage, nominal, width, true_perf_cost, + CIs` |
+| Fig 5 | C6 | `bound_coverage.*` | `searcher, candidate_set (survivors / declared), n, K_eff, coverage, cov_lo, cov_hi, nominal, width` |
+| Fig 6 | C7 | `semisynth.*` | `kind (validation_split_half / extrapolation / misspec / curve), n, K, real_value (if any), predicted, lo, hi, inside_support (bool)` |
+| Tab 1 | setup | `matrix_facts.*` | `model, pool_size, K, sigma_theta, mean_pairwise_item_corr, letter_bias_share, acc_min, acc_max, delta_leak(+CI), compute (CPU-h / tokens)` |
+| Tab 3 | C8 | `real_tool.*` | `tool, n, budget, gap, replay_lo, replay_hi, n_draws, status (tested / illustration)` |
+
+Intervals: say in the file which kind each CI is (`ci_kind`: `pool-bootstrap` or `S-draw-spread`); figures label it.
+
+## Agreed adaptations (experiment-repo, `experiment-repo`#3 / #4)
+Files: parquet under `code/results/` on paper-repo `dev` (experiment-repo's path), one README section per file. Differences from the table above:
+- `fresh` = accuracy of the selected config on pool items **outside S** (N−n items; SE ≈ 0.013 = `noise_floor`), not a rotated block; no `rotations` column; use `draws` (S draws per cell) and `n_boot` (200).
+- Every file carries `pool, model, config_space, truth (pool_minus_S | exact_theta), arm (real | synthetic | semisynthetic)` and `ci_kind` per interval column pair (`pool-bootstrap` | `S-draw-spread`).
+- `gap_vs_n`: also `B_search` ∈ {5, 20, 100} (evaluated configs, K = 128 declared), `n` ∈ {30, 60, 100, 200, 400}; n = 400 flagged (`flag`: draws overlap, finite-pool effects).
+- Real-data protocol rows have paired columns `coverage_anticons`/`coverage_cons` (and overstate likewise); synthetic rows have one exact `coverage`.
+- Primary C5/C6 cells: N_tot ∈ {60,120,240} × random B ∈ {20,100}; Tab 2 is at N_tot = 120.
+Figures plot only the columns present; a scheduled-but-missing file means the figure is not delivered (no stand-in).
+- Outline v7 adds reference lines to Fig 1: full-pool accuracy of the fixed default configuration (id 0) and the mean over the 128 configurations. Put them in `matrix_facts` as `acc_default`, `acc_mean_cfg` (pool-minus-S not needed: they are pool constants), or in `gap_vs_n` as `fresh_default`, `fresh_mean_cfg` per (n, draw-averaged).

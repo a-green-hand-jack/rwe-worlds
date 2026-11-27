@@ -1,0 +1,8 @@
+{
+ "greedy_sequence_independent_of_y": true,
+ "mc_mse_batch": 0.6821081995745467,
+ "t1_closed_form": 0.6832777772950807,
+ "mc_se": 0.002643830222906302,
+ "abs_diff_closed_form_vs_mc": 0.001169577720533943,
+ "pass": true
+}

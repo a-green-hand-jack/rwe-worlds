@@ -1,0 +1,38 @@
+"""Stronger PPI++ baseline: the package (ppi-python 0.2.3) clips the estimated power-tuning parameter to [0, 1];
+the optimal scalar tuning b*N/M is > 1 when the predictor is under-dispersed (slope of Y on f above 1, e.g. gene_expression,
+census_income). This script re-draws exactly the replicates of every stored E3/E4 cell (same seed, same first rng use) and
+adds the arm `ppi++_unclip` (same lambda-hat formula, no clip). Check: the re-computed clipped PPI++ equals the stored one.
+Writes results/unclip/<exp>/<cell id>.npz.   usage: python exp_unclipped.py [only-substring]"""
+import sys, glob
+from common import *
+from pci import estimators as E
+
+only = sys.argv[1] if len(sys.argv) > 1 else ""
+for exp in ("exp3", "exp4"):
+    outd = os.path.join(RESULTS, "unclip", exp)
+    os.makedirs(outd, exist_ok=True)
+    for path in sorted(glob.glob(os.path.join(RESULTS, exp, "*.npz"))):
+        cid = os.path.basename(path)[:-4]
+        out = os.path.join(outd, cid + ".npz")
+        if os.path.exists(out) or only not in cid:
+            continue
+        z = np.load(path)
+        meta = json.loads(str(z["_meta"]))
+        pop = load_pool(meta["pop"])
+        n, N, R = meta["n"], meta["N"], meta["R"]
+        est, se, lam_u, lam_c = (np.empty(R) for _ in range(4))
+        chk = 0.0
+        for r in range(R):
+            rng = np.random.default_rng(np.random.SeedSequence([meta["seed"], r]))
+            s = pop.draw(rng, n, N)
+            y, fl, fu = s["y"], s["fl"], s["fu"]
+            e, sd, lam_u[r] = E.ppi_arm_unclipped(y, fl, fu)
+            est[r], se[r] = e, sd
+            lam_c[r] = E.ppi_pp_lambda(y, fl, fu, clip=True)
+            if r < 50:
+                e2, s2 = E.ppi_arm(y, fl, fu, None)
+                chk = max(chk, abs(e2 - z["ppi++|est"][r]), abs(s2 - z["ppi++|se"][r]))
+        assert chk < 1e-9, (cid, chk)
+        np.savez_compressed(out, est=est, se=se, lam_unclipped=lam_u, lam_clipped=lam_c, check_max_abs_diff=chk,
+                            _meta=np.array(json.dumps(dict(id=cid, pop=meta["pop"], n=n, N=N, R=R, seed=meta["seed"]))))
+        print(f"[unclip] {exp}/{cid} R={R} frac(lam>1)={np.mean(lam_u > 1):.3f} check={chk:.1e}", flush=True)

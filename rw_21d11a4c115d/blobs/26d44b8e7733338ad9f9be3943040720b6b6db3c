@@ -1,0 +1,33 @@
+# figtab-repo: figures and tables
+
+Every figure/table of the paper is drawn by a script in `figs/` from result files of `experiment-repo` (`results/*.csv`, schema in `figs/data.py`; a missing file or column stops the script). No data are typed in or synthesised here.
+
+| output (label) | script | claim |
+|---|---|---|
+| Fig. 1 `fig1_overview.pdf` (`fig:overview`) | `figs/fig1_overview.py` | C0 protocol and closure curve |
+| Fig. 2 `fig2_main.pdf` (`fig:main`) | `figs/fig2_main.py` | C1 error and closure vs k, factor model and best simple |
+| Fig. 3 `fig3_gap.pdf` (`fig:gap`) | `figs/fig3_gap.py` | C2 greedy vs random and other selectors, paired |
+| Fig. 4 `fig4_shift.pdf` (`fig:shift`) | `figs/fig4_shift.py` | C3 split difficulty and bias by model strength |
+| Fig. 5 `fig5_theory.pdf` (`fig:theory`) | `figs/fig5_theory.py` | C4 predicted vs empirical reducible risk, offset vs k-dependence |
+| Fig. 7 `fig7_history.pdf` (`fig:history`) | `figs/fig7_history.py` | C6 history needed (appendix) |
+| Fig. 8 `fig8_sparse.pdf` (suggested `fig:sparse`) | `figs/fig8_sparse.py` | C2 greedy A vs random on the sparse MTEB matrix (review M1) |
+| Fig. A1 `figA1_spectra.pdf` | `figs/figA1_spectra.py` | C0 spectra |
+| Fig. A2 `figA2_small.pdf` | `figs/figA2_small.py` | C1 small LLM matrices, descriptive |
+| Fig. A3 `figA3_coherence.pdf` | `figs/figA3_coherence.py` | C5 gap vs coherence / heuristic |
+| Table 1 `table1_datasets.tex` (`tab:datasets`) | `figs/table1_datasets.py` | C0 |
+| Table 2 `table2_kstar.tex` (`tab:kstar`) | `figs/table2_kstar.py` | C1 k* with CI and censoring |
+| Table 3 `table3_coherence.tex` (`tab:coherence`) | `figs/table3_coherence.py` | C5 |
+| Table 4 `table4_theory.tex` (`tab:theory`) | `figs/table4_theory.py` | C4 |
+| Main-text sparse table `table_sparse.tex` (`tab:sparse`) | `figs/table_sparse.py` | C2: greedy A vs random on the sparse MTEB matrix, six pools, k=3 (review M1) |
+| Table A6 `tableA6_sparse_k.tex` (`tab:sparse-k`) | `figs/tableA6_sparse_k.py` | sparse matrix: gap and closure by pool, k=1,3,5,10,20, both predictors |
+| Tables A1 `tab:grid`, A2 `tab:adaptive`, A3 `tab:robust`, A4 `tab:predictors`, A5 `tab:skill` | `figs/tableA1_exploratory.py`, `figs/tables_appendix.py` | C2, C4, C7, C6, C1 appendix |
+
+`tools/build_all.sh <results dir> <out dir>` rebuilds everything.
+
+Run: `python figs/fig2_main.py --results <results dir> --out out`. Each PDF gets a `<name>.json` sidecar (inputs' hashes, split, predictor, selectors, n families/models/targets).
+`figs/venue.py` holds the venue's widths and minimum type size (set to NeurIPS 2026: 5.5 in column, 7 pt minimum in figures, 8 pt in tables; `--draft` only used while unset). `tools/check_fonts.py FIG.pdf MIN_PT` verifies the smallest printed text and that no Type 3 font is embedded.
+Colours: Okabe-Ito, one colour per method across all figures (`figs/style.py`).
+
+Delivery: finished PDFs/`.tex` and these scripts go to `figures/`, `tables/` (and `figures/src/`) of `paper-repo` `dev`; this table is the figure/table-to-script map for the reproduction notes.
+
+Suggested figure captions (hand-written, edited against the data) are kept in `figs/captions/`; the delivered copies are `figures/*.caption.tex` in paper-repo. The predictor is called "factor model" (FA in tables) everywhere; Table 4 (`tab:theory`) is an appendix table, referenced by `\ref` only.

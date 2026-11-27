@@ -1,0 +1,14 @@
+# paper-repo — the delivered paper and its release
+
+Layout (who delivers each path is in `.forgejo/CODEOWNERS`):
+
+| Path | Content | Delivered by |
+|---|---|---|
+| `paper/` | LaTeX sources of the paper (`main.tex`, sections, appendix, checklist) | report |
+| `template/` | the venue's official style files and checklist template, unmodified | venue |
+| `code/` | all code, environment and dependency versions, data acquisition, seeds, run commands, expected run time, reproduction README mapping every table and figure to its script | analysis |
+| `results/` | result files the paper's numbers come from (large files in Git LFS) | analysis |
+| `figures/`, `tables/` | the delivered figures and tables with the scripts that generate them | presentation |
+| `refs/` | bibliography sources (`.bib`) | idea |
+
+The paper builds from `paper/main.tex` (`.forgejo/document.json`); the built PDF is not committed.

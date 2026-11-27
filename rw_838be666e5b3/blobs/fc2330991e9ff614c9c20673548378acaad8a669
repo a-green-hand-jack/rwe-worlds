@@ -1,0 +1,58 @@
+"""gene_expression: where does the gain over PPI++ come from? Same draws, arms that differ in one ingredient each:
+ppi++ (package, in-sample tuned lambda) | ppi++ with the population-optimal lambda (oracle, not feasible) |
+in-sample OLS regression estimator (g fit on all labels, no cross-fitting) | cross-fitted linear pooled (pool_linear) |
+cross-fitted spline/select | PPI++ applied to cross-fitted linear g.
+Added arms: PPI++ on a recentred predictor (f - E f + E Y, population constants: oracle; f - mean(f_all) + mean(Y_lab): data-driven);
+the PPI estimate is invariant to a constant shift of f, but the package's lambda-hat (gradients centred at the PPI point
+estimate, not at their own means) is not. Optional `shift` (in sd(Y) units) adds a constant to f first (ablation on other sets).
+usage: python gene_decomp.py OUT.npz R [pop] [shift]"""
+import sys
+from common import *
+from pci import estimators as E, calibrators as C
+
+out, R = sys.argv[1], int(sys.argv[2])
+nm = sys.argv[3] if len(sys.argv) > 3 else "gene_expression"
+shift = float(sys.argv[4]) if len(sys.argv) > 4 else 0.0
+pop = load_pool(nm)
+Y, f, _ = pop.arrays()
+if shift:
+    pop.f = pop.f + shift * Y.std()
+    f = pop.f
+N = 10000 if nm.startswith("gene") or nm.startswith("census") else 8000
+b = np.cov(Y, f, bias=True)[0, 1] / f.var()
+res = {}
+for n in (30, 100, 300, 500, 1000):
+    seed = 20261126 + hash_id(f"{nm}_decomp_n{n}") % 10**6
+    rows = []
+    for r in range(R):
+        rng = np.random.default_rng(np.random.SeedSequence([seed, r]))
+        s = pop.draw(rng, n, N)
+        y, fl, fu = s["y"], s["fl"], s["fu"]
+        M = n + N
+        row = {}
+        e, se = E.ppi_arm(y, fl, fu, None); row["ppi++"] = (e, se)
+        lam = b * N / M  # PPI++ lambda in the oracle form (b = population OLS slope)
+        h = y - lam * fl
+        e = lam * fu.mean() + h.mean()
+        se = np.sqrt(h.var(ddof=1) / n + lam ** 2 * fu.var(ddof=1) / N)
+        row["ppi++_oracle_lambda"] = (e, se)
+        c0 = pop.truth - f.mean()
+        row["ppi++_recentred_oracle"] = E.ppi_arm(y, fl + c0, fu + c0, None)
+        c1 = y.mean() - np.concatenate([fl, fu]).mean()
+        row["ppi++_recentred_data"] = E.ppi_arm(y, fl + c1, fu + c1, None)
+        A = np.column_stack([np.ones(n), fl]); beta = np.linalg.lstsq(A, y, rcond=None)[0]
+        gl, gu = beta[0] + beta[1] * fl, beta[0] + beta[1] * fu
+        row["ols_insample"] = E.pooled_fixed_g(y, gl, gu)
+        folds = np.arange(n) % 5; rng.shuffle(folds)
+        lin = E.crossfit_pooled(y, fl, fu, C.make_linear(), K=5, folds=folds)
+        row["pool_linear"] = (lin["est"], lin["se"])
+        row["ppi++_on_cf_linear"] = E.ppi_arm(y, lin["g_lab"], lin["g_unl"], None)
+        sp = E.crossfit_pooled(y, fl, fu, C.make_spline(5), K=5, folds=folds)
+        row["pool_spline"] = (sp["est"], sp["se"])
+        rows.append(row)
+    for a in rows[0]:
+        res[f"n{n}|{a}|est"] = np.array([r[a][0] for r in rows])
+        res[f"n{n}|{a}|se"] = np.array([r[a][1] for r in rows])
+    print(f"[gene_decomp] n={n} done", flush=True)
+res["_truth"] = np.array(pop.truth)
+np.savez_compressed(out, **res)

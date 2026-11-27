@@ -1,0 +1,58 @@
+# Venue record — NeurIPS 2026 main track
+
+Owner: `venue-repo`. Sources: the world's venue library (`ht-role venue neurips`, retrieved there 2026-11-14) which cites the venue's own pages; each line below names its source. What the library could not establish is listed under "Not established". Re-check before any real submission: NeurIPS 2027 pages returned 404 on 2026-11-14, and the 2026 deadlines (May 2026) have passed.
+
+## 1. Which venue and why (answer to `venue-repo`#2)
+The objective lets the study choose ICML, ICLR or NeurIPS and asks for "the venue's checklist, e.g. NeurIPS's paper checklist". Choice: **NeurIPS 2026, Main Track**.
+
+| | NeurIPS 2026 | ICML 2027 | ICLR 2027 |
+|---|---|---|---|
+| Newest edition with published kit | yes (2026) | yes (2027) | yes (2027) |
+| Main text | 9 pages, one column, 5.5 in text width | 8 pages, two columns, 6.75 in | 9 pages, one column, 5.5 in |
+| Checklist | **mandatory, 16 items, desk-reject if missing** | none (impact statement + AI-use statement) | none (AI-use statement; reproducibility statement optional) |
+| Review scales | Quality, Clarity, Significance, Originality (1–4), overall 1–6, Limitations item | Soundness, Presentation, Significance, Originality (1–4), overall 1–6 | scales not established |
+
+Reasons: the checklist the objective names exists only at NeurIPS and its items (statistical significance, compute resources, code/data access, limitations, licences) match the objective's review criteria (uncertainty, scope of conclusions, limits, reproduction); the study is an empirical-evaluation paper and NeurIPS reviewers score Quality/Clarity/Significance/Originality with a separate Limitations item; one column at 9 pages gives more room than ICML's 8 two-column pages. This is a judgement, not a venue requirement: the other two would also be admissible.
+
+## 2. Hard requirements (all from `ht-role venue neurips`; its page cites the source of each)
+**Length.** 9 content pages including all figures and tables (MainTrackHandbook; `neurips_2026.tex` §1.1). Not counted: references, technical appendices, the paper checklist (acknowledgments are hidden in anonymous mode and camera-ready only). No limit on references/appendix/checklist. Exceeding the limit: "will not be reviewed". Camera-ready: +1 page (not our case).
+**Template.** `neurips_2026.sty` + `neurips_2026.tex` + `checklist.tex`; `ht-role venue neurips --template DIR` copies them. US Letter, single column, 5.5 × 9 in text block, Times 10 pt on 11 pt leading; no changes to margins, font size or vertical spacing ("may be grounds for desk rejection"); no `fullpage`/`geometry`.
+**Type sizes floor** (set by the style): `\footnotesize` ≥ 8 pt, `\scriptsize` ≥ 7 pt, `\tiny` ≥ 6 pt; references may be `\small` (9 pt). Text in figures should be ≥ 7 pt at printed size (our recommendation from the 7 pt `\scriptsize` floor; the venue states no rule for figure text). Only Type 1 / embedded TrueType fonts in the PDF (no Type 3): matplotlib needs `pdf.fonttype = 42`.
+**Widths.** Text width 5.5 in. A figure or table wider than 5.5 in sticks into the margin and risks the "do not change the text rectangle" rule; keep ≤ 5.5 in (`\linewidth`). Half-width figures: ≤ 2.7 in each side by side. (Widths are derived from the 5.5 in block.)
+**Mode.** Default (neither `final` nor `preprint`) = anonymous submission: author block "Anonymous Author(s)", line numbers, footer "Submitted to 40th Conference on Neural Information Processing Systems (NeurIPS 2026). Do not distribute." Use `final` only for camera-ready. Do not refer to line numbers.
+**Checklist.** Mandatory; after references/appendix; does not count toward pages; answers `\answerYes{}`/`\answerNo{}`/`\answerNA{}` with a 1–2 sentence justification; keep heading "NeurIPS Paper Checklist", delete the instruction block, do not alter the questions. 16 items: Claims; Limitations; Theory assumptions and proofs; Experimental result reproducibility; Open access to data and code; Experimental setting/details; Experiment statistical significance; Experiments compute resources; Code of ethics; Broader impacts; Safeguards; Licenses for existing assets; New assets; Crowdsourcing/human subjects; IRB; Declaration of LLM usage.
+**LLM use.** Describe in the experimental setup if "important, original, or non-standard component of the approach"; routine editing/basic code assistance need not be documented; checklist item 16 asks it. (This world's study is run by LLM agents; item 16 needs an honest answer from `paper-repo`.)
+**Anonymity.** Everything anonymous, supplementary and code included; no URL that reveals identity; no acknowledgments in the submission; own earlier work cited in third person.
+**Format of the delivery.** One PDF: content, references, appendices, checklist (order: content, references, appendices, checklist). Max 50 MB. Written appendix must not go in a separate PDF/ZIP.
+**Supplementary.** Code and data in one separate anonymised ZIP/TGZ/GZ ≤ 100 MB with training/evaluation code and a dependency specification ("ideally self-contained and executable"). Reviewers are not required to read it, so everything critical to a claim goes in the main text. New datasets: relevant checklist items, licence stated.
+**Objective's extras the venue does not fix.** The objective also asks for LaTeX source, reproduction notes (environment, data version, seeds, commands, runtime, script per table/figure) and all code; the venue only asks that code and dependency specification be in the anonymised ZIP. Where those files sit is `paper-repo`'s division, not the venue's.
+
+## 3. What reviewers judge and what that asks of this paper
+Review form (MainTrackHandbook; ReviewerGuidelines): Summary; Quality, Clarity, Significance, Originality (4 excellent … 1 poor); Questions (3–5); Limitations; Overall 1–6 (Strong Reject … Strong Accept); Confidence. Quality = technically sound, claims well supported, a complete piece of work; Clarity = well written, enough information to reproduce; Significance = results that others will use or build on; Originality = "does not necessarily require introducing an entirely new method". Contribution-type rules: Concept & Feasibility and Negative Results carry "higher significance and originality bars" — the study's possible negative branch ("random-k matches design") will be read under that bar, so it needs a firm quantified claim, not an absence of effect. Answering "No" in the checklist is "typically not grounds for rejection"; minor formatting overflow is not to be penalised.
+The objective's criteria (novelty and positioning, rigor with uncertainty, evidence for every conclusion, clarity, limitations; negative results as valuable) are compatible with this form; where they differ, the objective's own standard wins for this task.
+
+## 4. How accepted papers of this kind are written (measured; see §5 for method)
+A sample of **21 NeurIPS main-track papers (2023–2024) on evaluation, scaling and benchmark-prediction topics**, counted from the official camera-ready PDFs, so that figure/table/reference counts describe what the audience accepts. NeurIPS 2024 allowed 10 content pages and 2023 allowed 9 (2026: 9), so the counts below are about 10% high for our page limit.
+
+| Quantity (main text) | 25th pct | median | 75th pct | range |
+|---|---|---|---|---|
+| Figures (numbered captions) | 4 | 4 | 6 | 2–8 |
+| Tables | 0 | 1 | 2 | 0–4 |
+| Figures + tables | 5 | 6 | 7 | 3–10 |
+| References cited | 54 | 63 | 78 | 39–138 |
+| Abstract words | 185 | 200 | 232 | 150–274 |
+| Introduction words | 663 | 842 | 1136 | 550–1434 |
+
+Also from the sample: 9 of 21 have no table at all; Figure 1 sits on page 1 or 2 of 14 of 21; 12 of 19 abstracts (those where the abstract could be parsed) contain a number. Reading abstracts and introductions (PromptEval 2024, Observational Scaling Laws 2024, Agreement-on-the-Line for foundation models 2024, Emergent-Abilities-Mirage 2023): an abstract states the evaluation problem and why current practice falls short in 1–2 sentences, says what the paper does ("we propose/we show/we test"), gives the finding in concrete terms (a quantified example where there is one, e.g. "estimate quantiles across 100 prompts with a budget of two single-prompt evaluations"), and names the scope of the evidence; an introduction runs motivation → gap → approach → findings → (in about half) a contribution list, with the headline figure on the first or second page. A paper that overturns or qualifies a claim (Mirage, Agreement-on-the-Line) states the alternative explanation and the tests in the abstract itself.
+
+**Budget for this paper (recommendation, not a venue rule).** In 9 pages: **5–7 figures + tables in the main text, 6 as the target**, e.g. 4 figures + 2 tables, with the rest in the appendix. The outline's 5 figures + 3 tables = 8 items exceeds the 75th percentile (7) and the 90th (8) of accepted papers of this kind and would have to fit beside theory, related work and six experiment subsections in 9 pages. Applying `story-repo`'s own sacrifice order brings it to 4 figures + 2 tables (Fig. 5 → appendix/table; Table 3 merged into Table 2), which matches the median. Fig. 1 on page 1–2 matches the sample. References: ~60 (50–80) cited works; related work in the outline lists 7 lines, so about 60 is reachable. Appendix length: unlimited; the sampled PDFs are 17–53 pages in all (references and appendix included), i.e. roughly 7–43 pages after the main text, reviewers are not required to read it, so the headline claim and its uncertainty must be in the 9 pages.
+
+## 5. How the sample was drawn (reproducible; code in `accepted_sample/`)
+Sources: `proceedings.neurips.cc` index pages for 2023 and 2024 (main-track papers have `Abstract-Conference` URLs; Datasets & Benchmarks papers do not and were excluded). Selection: not random — a hand-picked list of 21 main-track papers whose titles were about evaluating, scaling or predicting model performance (titles in `accepted_sample/sample.json`; chosen by title substring), skipping the unrelated; none addresses the objective's question and none was searched for it (the objective forbids reading the one published paper that does). Counting (`stats.py`, PyMuPDF): numbered captions "Figure N:"/"Table N:" before the "References" heading; main-text length from the heading's position; abstract and introduction words by text slicing; reference counts from Semantic Scholar's `referenceCount` where it matched (otherwise the `[n]` maximum from the PDF; one paper unavailable). Limits: automatic text extraction miscounts papers with unusual layouts (subfigures count once; captions not at line start are missed); n = 21, two years, one venue; a hand-picked sample, so quantiles describe it, not all of NeurIPS; reference counts include appendix-only references in some papers.
+
+## 6. Not established
+- Whether NeurIPS 2027 will change the format (pages returned 404 on 2026-11-14).
+- Exact submission-form limits beyond the OpenReview fields cited by the library; reviewer scoring prompts for the 2026 contribution types beyond the handbook text.
+- A venue rule on the minimum text size inside figures (none stated; the 7 pt guidance in §2 is a recommendation derived from the `\scriptsize` floor).
+- The share of accepted papers that carry a "Limitations" section (the extraction was too unreliable to report); the checklist asks every paper for it.
+- For ICML/ICLR: facts are in the library records, not repeated here, except the comparison table.

@@ -1,0 +1,22 @@
+ split   n   design    estimator  slope  intercept  bias_top  share_bias2  n_targets
+extrap 100 balanced    irt-model -0.613     -0.886    -2.692        0.955        799
+extrap 100 balanced   irt-plugin -0.564     -0.798    -2.451        0.948        799
+extrap 100 balanced    knn-model -0.875     -0.786    -3.196        0.990        799
+extrap 100 balanced   knn-plugin -0.791     -0.704    -2.877        0.987        799
+extrap 100 balanced         mean  0.037      0.025     0.125        0.130        799
+extrap 100 balanced  ridge-model -0.267     -0.220    -0.991        0.598        799
+extrap 100 balanced ridge-plugin -0.252     -0.215    -0.947        0.575        799
+extrap 100    strat    irt-model -0.606     -0.908    -2.701        0.946        799
+extrap 100    strat   irt-plugin -0.553     -0.849    -2.481        0.938        799
+extrap 100    strat    knn-model -0.890     -0.789    -3.230        0.989        799
+extrap 100    strat   knn-plugin -0.816     -0.746    -2.981        0.986        799
+extrap 100    strat         mean  0.004     -0.012     0.003        0.023        799
+extrap 100    strat  ridge-model -0.552     -0.407    -1.950        0.862        799
+extrap 100    strat ridge-plugin -0.529     -0.423    -1.910        0.856        799
+extrap 100  uniform    irt-model -0.602     -0.901    -2.675        0.945        799
+extrap 100  uniform   irt-plugin -0.555     -0.811    -2.434        0.937        799
+extrap 100  uniform    knn-model -0.889     -0.790    -3.231        0.988        799
+extrap 100  uniform   knn-plugin -0.819     -0.715    -2.956        0.986        799
+extrap 100  uniform         mean  0.002      0.045     0.055        0.027        799
+extrap 100  uniform  ridge-model -0.542     -0.407    -1.922        0.853        799
+extrap 100  uniform ridge-plugin -0.523     -0.393    -1.861        0.845        799

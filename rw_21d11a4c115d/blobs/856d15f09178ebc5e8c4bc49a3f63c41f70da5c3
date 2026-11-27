@@ -1,0 +1,38 @@
+# Prior work and how the study relates to it
+
+Material for the paper's Related Work and Introduction (delivered by `paper-repo`; `references.bib` holds the entries).
+Every item below was looked up (title/abstract/metadata) by this role; the starter-list items were read from `starter_literature.md` descriptions and the abstracts found by search. Items to be cited only after their full text is checked by the writer are marked (verify before citing).
+
+## A. Cheaper evaluation of one benchmark (reduce items, not benchmarks)
+- Polo et al. 2024, tinyBenchmarks (arXiv:2402.14992); Vivek et al. 2024, Anchor Points (EACL 2024); Perlitz et al. 2024, Efficient Benchmarking of Language Models (NAACL 2024); Kipnis et al. 2024, metabench (arXiv:2407.12844); Fluid Language Model Benchmarking (arXiv:2509.11106, IRT-based adaptive item selection).
+- Relation: they pick *items inside a benchmark* to recover that benchmark's score. We pick *whole benchmarks* to predict *other* benchmarks of a new model. Same spirit (a low-dimensional latent skill explains many scores; IRT and adaptive testing), different unit and target. metabench is the nearest on selection from model-score matrices; its target is the original benchmark's total.
+
+## B. Cross-benchmark predictability and agreement
+- Ruan, Maddison, Hashimoto 2024, Observational Scaling Laws (NeurIPS 2024): a few capability principal components from ~100 public models predict downstream scores; Polo et al. 2024, Sloth (arXiv:2412.06540): scaling laws for skills across families; Perlitz et al. 2024, BenchBench (arXiv:2407.13696): benchmark agreement testing and its methodological choices; Hendrycks et al. 2020 (MMLU), Muennighoff et al. 2022 (MTEB), Liang et al. 2022 (HELM), Zheng et al. 2023 (MT-Bench/Arena), Zhuo et al. 2024 (BigCodeBench): the benchmarks and leaderboards that supply data.
+- Relation: they show the matrix is low-dimensional and that scores are predictable from compute/family. They take the predictor's input as given (compute, model family or the full set of scores). The open question is the *design*: which k runs, how error falls with k, how it holds up under family or time shift. BenchBench's warning that agreement conclusions depend on protocol choices motivates our family/time-held-out protocol.
+
+## C. Matrix completion and low-rank models with missing entries
+- Candès & Recht 2009 (exact matrix completion, uniform random observation); Mazumder, Hastie, Tibshirani 2010 (Soft-Impute); Tipping & Bishop 1999 (probabilistic PCA, EM); Salakhutdinov & Mnih 2007 (PMF); Hernández-Lobato et al. 2014 (PMF with data missing not at random); Udell et al. 2016 (Generalized Low Rank Models).
+- Relation: these supply the predictors we compare with and our model (PPCA/EM with missing data). They assume observations are random, while here the new row's observed set is *chosen*, which is our subject. Missingness in leaderboards is not random (MNAR), a limitation we measure.
+
+## D. Choosing what to observe
+- Cold-start item selection / active learning in collaborative filtering (Elahi, Ricci, Rubens 2016 survey, Computer Science Review; "The item selection problem for user cold-start recommendation", arXiv:2010.14013); active/adaptive matrix completion ("Noise-tolerant life-long matrix completion via adaptive sampling", arXiv:1612.00100) (verify before citing).
+- Column subset selection: CUR (Mahoney & Drineas 2009, PNAS), leverage-score/DEIM/pivoted-QR selection (Drineas et al.; Boutsidis et al.) (verify before citing).
+- Subset selection with guarantees: Krause, Singh, Guestrin sensor placement in GPs (mutual-information criterion, greedy near-optimality); Das & Kempe 2011 (submodularity ratio, greedy subset selection for linear prediction); Bian et al. 2017 (greedy guarantees for non-submodular objectives incl. Bayesian A-optimality, arXiv:1703.02100); Ranieri et al. 2014 (FrameSense, sensor placement for linear inverse problems).
+- Relation: our greedy A-optimal selector is the Bayesian linear-Gaussian instance of these. What is new is the transfer to benchmark matrices with the evaluation issues in A/B (MNAR history, family clusters, shift, saturation), the closed-form k-curve, and the empirical finding of when selection matters over random.
+
+## E. Baselines the study is compared with (sources)
+Random selection; coverage; max-variance; one-factor best; k-medoids; pivoted QR/leverage/CUR (Mahoney-Drineas); D-optimal; greedy A-optimal. Predictors: mean, one-factor offset, ridge/PLS, kNN, Soft-Impute (Mazumder et al.), PPCA posterior (Tipping-Bishop), Gaussian conditioning. See the `Brief` wiki page for the list; experiment-repo reports any that cannot run as published.
+
+## F. Not consulted
+The task's prohibited-content list was respected: no search for the already-published study of this question; none of its derivatives seen. If one appears in later searches, stop and record where in the reproduction notes.
+
+## G. Status of the entries
+`references.bib`: venue, year and title were found by search; author lists marked "and others", and page numbers, are to be completed from the source by the report role. Do not cite beyond what is in this file without checking the source.
+
+## H. Added in revision 2
+- Matrix-Chernoff / leverage-score sampling (coherence) results are the planned source for the 'random is near greedy' statement; checked sources so far: Mahoney & Drineas 2009; Papailiopoulos et al. 2014 'Provable deterministic leverage score sampling' (KDD, abstract only). The exact theorem will be taken from the source by whoever writes the theory section; no statement is to be cited from memory.
+- Position (from idea review): the selector is a known toolkit applied to a new matrix; the contribution is the protocol and finding, the k-curve law with its validity regime, and the honest comparison with random.
+
+## I. Added in revision 4: matrix-Chernoff source
+Tropp 2012 (`tropp2012user`) is read and its statement is in `theory_sources.md` with the derivation for uniform benchmark sampling; Gross-Nesme 2010 (`gross2010note`) for sampling without replacement is abstract-only (verify before citing).

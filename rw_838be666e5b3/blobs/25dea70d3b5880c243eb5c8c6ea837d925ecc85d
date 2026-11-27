@@ -1,0 +1,183 @@
+"""Estimators and interval constructions for the mean E[Y] with n labels, N unlabeled records.
+
+Notation: M = n + N records carry Z (T1: f only; T2: f and X); n of them (a simple random subset)
+carry Y. For a fixed g, theta_g = mean_{all M} g(Z) + mean_{labeled} (Y - g(Z)) with
+Var = Var(Y)/M + (1/n - 1/M) Var(Y - g)   (pooled estimator; Brief, 'Setup and the floor').
+"""
+import numpy as np
+from scipy import stats
+
+Z975 = stats.norm.ppf(0.975)
+
+
+# --------------------------------------------------------------------------- cross-fitting
+def crossfit_pooled(y, Zl, Zu, fit, K=5, rng=None, folds=None):
+    """Cross-fitted pooled estimator.
+
+    Returns dict with est, se (fold-pooled residual variance), se_pf (per-fold-centred residual
+    variance), g_lab (out-of-fold g on labels), g_unl (fold-averaged g on unlabeled), h.
+    SE^2 = Var(Y)/M + (1/n - 1/M) Var(h), h_i = Y_i - g^{(-k(i))}(Z_i)."""
+    n, N = len(y), len(Zu)
+    M = n + N
+    if folds is None:
+        folds = np.arange(n) % K
+        rng.shuffle(folds)
+    K = int(folds.max()) + 1
+    g_lab = np.empty(n)
+    g_unl = np.zeros(N)
+    for k in range(K):
+        te = folds == k
+        pred = fit(Zl[~te], y[~te])
+        g_lab[te] = pred(Zl[te])
+        g_unl += pred(Zu) / K
+    h = y - g_lab
+    est = (g_unl.sum() + g_lab.sum()) / M + h.mean()
+    vy = y.var(ddof=1)
+    se = np.sqrt(vy / M + (1 / n - 1 / M) * h.var(ddof=1))
+    # per-fold variant: residual variance pooled from within-fold centred residuals
+    ss = sum(((h[folds == k] - h[folds == k].mean()) ** 2).sum() for k in range(K))
+    vh_pf = ss / (n - K)
+    se_pf = np.sqrt(vy / M + (1 / n - 1 / M) * vh_pf)
+    return dict(est=est, se=se, se_pf=se_pf, g_lab=g_lab, g_unl=g_unl, h=h, vh=h.var(ddof=1))
+
+
+def pooled_fixed_g(y, g_lab, g_unl):
+    """Pooled estimator for a given (already computed) g on labeled and unlabeled records."""
+    n, N = len(y), len(g_unl)
+    M = n + N
+    h = y - g_lab
+    est = (g_unl.sum() + g_lab.sum()) / M + h.mean()
+    se = np.sqrt(y.var(ddof=1) / M + (1 / n - 1 / M) * h.var(ddof=1))
+    return est, se
+
+
+def unl_only_fixed_g(y, g_lab, g_unl):
+    """PPI-type estimator with averaging over the unlabeled records only (lambda = 1)."""
+    h = y - g_lab
+    n, N = len(y), len(g_unl)
+    return g_unl.mean() + h.mean(), np.sqrt(h.var(ddof=1) / n + g_unl.var(ddof=1) / N)
+
+
+# --------------------------------------------------------------------------- PPI package arms
+def ppi_arm(y, f_lab, f_unl, lam=None):
+    """PPI (lam=1) / PPI++ (lam=None, tuned) via ppi-python; returns est, se from its own CLT
+    interval (alpha = 0.05) so that the width is exactly the package's."""
+    from ppi_py import ppi_mean_ci
+    lo, hi = ppi_mean_ci(y, f_lab, f_unl, alpha=0.05, lam=lam)
+    lo, hi = float(np.squeeze(lo)), float(np.squeeze(hi))
+    return (lo + hi) / 2, (hi - lo) / (2 * Z975)
+
+
+def ppi_pp_lambda(y, f_lab, f_unl, clip=True):
+    """The power-tuning parameter ppi-python 0.2.3 estimates for the mean (`ppi_mean_pointestimate`, lam=None):
+    lam-hat = cov-hat(Y, f) / ((1 + n/N) Var-hat(f_pooled)), centred at the PPI point estimate, clipped to [0, 1] when clip=True.
+    Replicates the package's code path; returns the unclipped value when clip=False."""
+    from ppi_py.ppi import _calc_lam_glm
+    y, fl, fu = (np.asarray(a, float).reshape(-1, 1) for a in (y, f_lab, f_unl))
+    th = fu.mean(0) + (y - fl).mean(0)
+    return float(_calc_lam_glm(y - th, fl - th, fu - th, np.eye(1), coord=None, clip=clip, optim_mode="overall"))
+
+
+def ppi_arm_unclipped(y, f_lab, f_unl):
+    """PPI++ with the same estimated lambda but *not* restricted to [0, 1] (the optimal scalar tuning is b*N/M, which
+    exceeds 1 when the predictor is under-dispersed, slope of Y on f > 1); interval = the package's CLT interval at that lambda."""
+    lam = ppi_pp_lambda(y, f_lab, f_unl, clip=False)
+    e, se = ppi_arm(y, f_lab, f_unl, lam)
+    return e, se, lam
+
+
+def classical_arm(y):
+    return y.mean(), y.std(ddof=1) / np.sqrt(len(y))
+
+
+# --------------------------------------------------------------------------- intervals
+def wald_z(est, se):
+    return est - Z975 * se, est + Z975 * se
+
+
+def wald_t(est, se, df):
+    q = stats.t.ppf(0.975, df)
+    return est - q * se, est + q * se
+
+
+def wilson_eff(est, se, M_floor):
+    """Wilson/score interval for a proportion with effective sample size n_eff = p(1-p)/se^2
+    (reduces to the usual Wilson interval for the sample mean, se^2 = p(1-p)/n)."""
+    p = float(np.clip(est, 0.0, 1.0))
+    pt = float(np.clip(est, 0.5 / M_floor, 1 - 0.5 / M_floor))
+    neff = pt * (1 - pt) / max(se, 1e-12) ** 2
+    z = Z975
+    c = (p + z * z / (2 * neff)) / (1 + z * z / neff)
+    hw = z / (1 + z * z / neff) * np.sqrt(p * (1 - p) / neff + z * z / (4 * neff * neff))
+    return c - hw, c + hw
+
+
+def clopper_pearson(k, n):
+    lo = 0.0 if k == 0 else stats.beta.ppf(0.025, k, n - k + 1)
+    hi = 1.0 if k == n else stats.beta.ppf(0.975, k + 1, n - k)
+    return lo, hi
+
+
+def boot_t_pooled(y, g_lab, g_unl, rng, B=400):
+    """Studentised (bootstrap-t) interval for the pooled estimator with g held at its
+    cross-fitted values: labeled pairs (Y, g) and unlabeled g are resampled separately."""
+    n, N = len(y), len(g_unl)
+    M = n + N
+    est, se = pooled_fixed_g(y, g_lab, g_unl)
+    il = rng.integers(0, n, size=(B, n))
+    iu = rng.integers(0, N, size=(B, N))
+    yb, gl, gu = y[il], g_lab[il], g_unl[iu]
+    h = yb - gl
+    eb = (gu.sum(1) + gl.sum(1)) / M + h.mean(1)
+    seb = np.sqrt(yb.var(1, ddof=1) / M + (1 / n - 1 / M) * h.var(1, ddof=1))
+    t = (eb - est) / seb
+    qlo, qhi = np.quantile(t, [0.025, 0.975])
+    return est - qhi * se, est - qlo * se
+
+
+# --------------------------------------------------------------------------- arm bundles
+def run_arms_T1(y, f_lab, f_unl, calibrators, K, rng, extra_ppi=True):
+    """All T1 (f only) arms on one sample. `calibrators` maps name -> fit(Z, y).
+    Returns dict arm -> dict(est, se, ...). Arms named as in the Brief."""
+    out = {}
+    out["classical"] = dict(zip(("est", "se"), classical_arm(y)))
+    for nm, lam in (("ppi", 1.0), ("ppi++", None)):
+        out[nm] = dict(zip(("est", "se"), ppi_arm(y, f_lab, f_unl, lam)))
+    folds = np.arange(len(y)) % K
+    rng.shuffle(folds)                       # same folds for every calibrator in one sample
+    store = {}
+    for nm, fit in calibrators.items():
+        r = crossfit_pooled(y, f_lab, f_unl, fit, K=K, folds=folds)
+        store[nm] = r
+        out["pool_" + nm] = dict(est=r["est"], se=r["se"], se_pf=r["se_pf"], vh=r["vh"])
+    if extra_ppi:
+        for nm, tag in (("isotonic", "ppi++_on_iso"), ("spline", "ppi++_on_spline")):
+            if nm in store:
+                r = store[nm]
+                out[tag] = dict(zip(("est", "se"), ppi_arm(y, r["g_lab"], r["g_unl"], None)))
+    return out, store
+
+
+def select_g(res, names, base="linear", rule="1se", z=1.0):
+    """Data-driven choice of g among cross-fitted candidates, on the residuals of one common K-fold
+    split (selection inside the repeated-sampling loop; the residuals also feed the SE, so the
+    effect of selection on coverage is measured, not assumed away).
+    rule '1se' (the safeguard): keep `base` unless some candidate lowers the mean squared residual
+    by more than z standard errors of the paired difference; then take the one with the largest
+    reduction. rule 'min': smallest estimated Var(h) (no safeguard).
+    `res` maps candidate name -> crossfit_pooled output (needs h)."""
+    hb = res[base]["h"]
+    if rule == "min":
+        best = min(names, key=lambda a: res[a]["vh"])
+    else:
+        best, gain = base, 0.0
+        n = len(hb)
+        for c in names:
+            if c == base:
+                continue
+            d = hb ** 2 - res[c]["h"] ** 2
+            m, se = d.mean(), d.std(ddof=1) / np.sqrt(n)
+            if se > 0 and m > z * se and m > gain:
+                best, gain = c, m
+    r = res[best]
+    return dict(est=r["est"], se=r["se"], pick=best)

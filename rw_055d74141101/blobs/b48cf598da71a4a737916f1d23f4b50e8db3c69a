@@ -1,0 +1,42 @@
+"""Fig. 2: equal-N subsampling. (A) raw k*/n against subsample size n with an n^(-1/2) guide anchored at the smallest n of each curve;
+(B) F/z against n. One curve per dataset and perturbation family; intervals are the supplied lo/hi (replicate spread)."""
+import matplotlib; matplotlib.use("Agg")
+import matplotlib.pyplot as plt, os
+from matplotlib.lines import Line2D
+from style import setup, fig_size, design_style, short_name, plain_log, SCRIPTED
+from common import args, load, write_prov
+
+a = args("fig2"); setup(); os.makedirs(a.out, exist_ok=True)
+prov = {"inputs": {}, "dropped": {}}
+df = load(a.data, "fragility_vs_N.csv", ["dataset", "design", "synthetic", "perturbation", "n_sub", "stat", "value", "lo", "hi"], prov)
+prov["n_rep"] = sorted(map(int, df.n_rep.unique())) if "n_rep" in df else None
+w, h = fig_size("text", 0.40)
+fig, axes = plt.subplots(1, 2, figsize=(w, h))
+panels = [("kN", r"$k^*/n$ (raw)", True), ("F_over_z", r"$F/z$ (SE units)", False)]
+for ax, (stat, ylab, logy) in zip(axes, panels):
+    for (ds, d, fam, syn), g in df[df.stat == stat].groupby(["dataset", "design", "perturbation", "synthetic"]):
+        g = g.sort_values("n_sub"); st = design_style(d); filled = fam == "delete"
+        ax.plot(g.n_sub, g.value, color=st["color"], marker=st["marker"], ms=3, mfc=st["color"] if filled else "white", mew=0.7,
+                ls="--" if syn else "-", lw=0.9, alpha=0.9)
+        ax.fill_between(g.n_sub, g.lo, g.hi, color=st["color"], alpha=0.15, lw=0)
+        if stat == "kN":
+            n0, v0 = g.n_sub.iloc[0], g.value.iloc[0]
+            ax.plot(g.n_sub, v0 * (g.n_sub / n0) ** -0.5, color="0.5", lw=0.6, ls=":", zorder=0)
+    ax.set_xscale("log"); ax.set_xlabel(r"subsample size $n$ (comparisons)"); ax.set_ylabel(ylab, fontsize=SCRIPTED if "^" in ylab else None)
+    if logy: ax.set_yscale("log")
+    else:                                           # F/z is ~1-2 across n; a few tiny-n points would flatten the axis, so clip and mark them
+        ymax = 3.0; ax.set_ylim(0.5, ymax)
+        off = df[(df.stat == stat) & (df.value > ymax)]
+        for r in off.itertuples():
+            ax.plot(r.n_sub, ymax * 0.985, marker="^", ms=4, color="k", clip_on=False, zorder=5)
+        if len(off):
+            ax.annotate(f"{len(off)} point{'s' if len(off) > 1 else ''} off scale (max {off.value.max():.0f}, $n\\leq{int(off.n_sub.max())}$)", xy=(0.97, 0.9), xycoords="axes fraction", ha="right", va="top")
+        prov["F_over_z_off_scale"] = [{"dataset": r.dataset, "perturbation": r.perturbation, "n_sub": int(r.n_sub), "value": float(r.value), "n_pairs": int(r.n_pairs) if "n_pairs" in off else None} for r in off.itertuples()]
+for ax in axes: plain_log(ax)
+for ax, t in zip(axes, "AB"): ax.set_title(f"({t})", loc="left", pad=2)
+des = [x for x in ("crowd", "llm_judge", "expert", "sports") if (df.design == x).any()]
+hs = [Line2D([], [], color=design_style(x)["color"], marker=design_style(x)["marker"], ms=3, lw=0.9, label=design_style(x)["label"]) for x in des]
+hs += [Line2D([], [], color="k", marker="o", ms=3, lw=0, label="deletion"), Line2D([], [], color="k", marker="o", mfc="white", ms=3, lw=0, mew=0.7, label="outcome flip"),
+       Line2D([], [], color="0.5", ls=":", lw=0.8, label="slope $-$1/2 guide")]
+fig.legend(handles=hs, loc="outside lower center", ncol=4, handletextpad=0.3, columnspacing=0.9)
+fig.savefig(os.path.join(a.out, "fig2.pdf")); write_prov(a.out, "fig2", prov)

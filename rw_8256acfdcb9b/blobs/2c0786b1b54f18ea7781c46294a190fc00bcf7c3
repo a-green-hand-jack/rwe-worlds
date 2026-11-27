@@ -1,0 +1,35 @@
+# Reproduction
+
+Environment (recorded): Python 3.11.2, numpy 2.4.6, scipy 1.17.1, pandas 3.0.6, pyarrow 26.0.0, scikit-learn 1.9.1, shap 0.51.0,
+xgboost 3.2.0, folktables 0.0.12, openml 0.15.1. CPU only. `pip install -r requirements.txt` (versions pinned there).
+
+Data (not redistributed; the loaders of the five main-grid datasets fetch them, except Arrhythmia, which is downloaded by hand as below; `SHAPRELIAB_DATA` is the data directory, default `/hutian/data`):
+German Credit (UCI id 144, `german.data`), ACS 2018 1-year person file for California via folktables (`ACSEmployment` d=16, `ACSIncome` d=10),
+Pima Indians Diabetes (OpenML 37), Give Me Some Credit (OpenML 46929; median imputation). **Arrhythmia (large-d extension, d=279; the loader `data.arrhythmia()` does not download it)**: UCI id 5, DOI 10.24432/C5BS32, CC BY 4.0, UCI page last updated 2024-02-05 (verified 2026-10-27, task `data.md`); `curl -LO https://archive.ics.uci.edu/static/public/5/arrhythmia.zip`, unzip, and put `arrhythmia.data` and `arrhythmia.names` in `$SHAPRELIAB_DATA/arrhythmia/`. The file used has 452 rows (md5 of `arrhythmia.data`: `821c372c8c8886e29c9586fd1b81eb42`); target = any arrhythmia class (2-16) against normal (class 1), '?' filled by the column median. One fixed seed (0) for split, models, background (B=50
+rows of the training split) and the explained instances (Arrhythmia: 316 training / 136 test rows, 40 explained test instances; run seeds are derived from the instance index, budget index and repeat in `scripts/large_d_arrhythmia.py`). `SHAPRELIAB_WORK` (default `/hutian/work`) holds the stored runs (several GB; not in the repository).
+
+## Pipeline
+| step | command | what it does | cost |
+|---|---|---|---|
+| 0 | `python scripts/run_cell.py prep DATASET 0` | split, fit LR/RF/GBM/MLP, choose background and instances | seconds |
+| 1 | `python scripts/run_cell.py run DATASET MODEL 0 START END R` (`scripts/launch.sh`) | per instance: exact value table over all 2^d coalitions (`exact.py`), exact Shapley (E1), interventional TreeSHAP check (RF, GBM), R runs of each estimator on the table: unchanged `shap.KernelExplainer` (`l1_reg` False / "auto" / "num_features(10)"; each budget a separate run), unbiased paired Kernel SHAP and antithetic permutation (nested streams) | German RF ≈ 400-600 s per instance (1 core), ACS-Employment RF ≈ 250 s, MLP/GBM/LR 60-300 s; d≤10 ≈ 20 s |
+| 2 | `python scripts/extend_budgets.py DATASET MODEL R` | budgets m = 32, 64, 128 for d ≥ 16 on the stored tables (no model evaluations) | minutes |
+| 3 | `python scripts/floors.py DATASET MODEL N_INST K` | floors b (K backgrounds) and c (K retrained models: bootstrap, seed, hyperparameter; AUC filter) | minutes to 20 min |
+| 4 | `scripts/background_sens.py DATASET MODEL SPEC START END R` | background sensitivity (B20, B200, kmeans50) | hours for German |
+| 5 | `python scripts/validate_lookup.py results/validity/lookup_vs_direct.csv` | lookup table vs direct model evaluation; real `KernelExplainer` vs lookup, same seed | 1 min |
+| 6 | `python scripts/build_instance_level.py` → `build_aux_tables.py` → `derive_tables.py` → `r1_certificate.py` → `r1_summary.py` → `background_tables.py` | all tables in `results/tables` (see `results/README.md`) | minutes |
+| 7 | `python scripts/mstar_tobit.py DATASET` (each dataset), then `mstar_tobit.py merge`; `python scripts/mstar_robust.py DATASET` then `mstar_robust.py merge` | Tobit slope of m*(g); grid-thinning and stable-crossing variants of it | minutes per dataset |
+| 8 | `python scripts/probit_fit.py` | M5 probit fit of per-instance correctness on g√m/σ with collapse table (`probit_*.csv/parquet`) | ≈ 3 min |
+| 9 | `python scripts/floor_b_by_background.py DATASET MODEL N_INST K` (`scripts/launch_floor_b.sh`), then `python scripts/floor_b_table.py` | floor b for B20 / B200 / kmeans50 (K independent backgrounds, exact), paired with floor a (`floor_b_by_background.csv`) | seconds (trees, LR) to ≈ 1 h (MLP) |
+| 10 | `python scripts/large_d_arrhythmia.py prep`, then `python scripts/large_d_arrhythmia.py run MODEL 0 40 20` for MODEL = `rf` and `gbm` (the 40 instances can be split into several `START END` jobs), then `python scripts/large_d_table.py` | large-d extension, Arrhythmia d=279, `shap` Kernel only (`l1_reg` False / "auto" at m = 2606 only / "num_features(10)"; m = 256, 1024, 2606; R = 20) against interventional TreeSHAP on the same B=50 background (no value table or enumeration at d=279; the model is evaluated directly); `large_d_table.py` writes `results/tables/large_d_arrhythmia.csv`, `large_d_arrhythmia_instances.csv`, `large_d_arrhythmia_reference.csv` (additivity gap of the TreeSHAP reference per instance) | prep seconds; RF ≈ 134 s and GBM ≈ 95 s per instance (1 core), 2.36 CPU-h for the 80 runs in all; table seconds |
+`scripts/retime.py` writes `results/retime_*.json` (fit time, evaluation time and exact-table time per model and dataset).
+
+## Where each reported number is computed
+* P_c, P_c^ε, margin, tolerance group: `metrics.py` (`correct_exact`, `correct_tol`, `tol_group`, `margin`); counted per instance in `tables.run_metrics`.
+* A (run-to-run agreement): `tables.run_metrics`, pairs of the R runs with equal top-k set (`n_pairs_agree / n_pairs`).
+* Evaluation unit and m_eff: `tables.evals_per_run`, `tables.m_eff`.
+* Headline shares, CIs, H1 contrast, φ-error, scaling slopes, paired differences, m*, guidance: `derive.py`.
+* Floors: `floors.py` (draws) and `build_aux_tables.py` (pairwise agreement counts); floor b by B: `floor_b_by_background.py`, paired with floor a in `floor_b_table.py`.
+* Margin strata and flat tolerance groups: `derive.margin_strata`; probit M5 fit: `probit.py` (`fit_cell`, `instance_points`), `scripts/probit_fit.py`; Tobit: `derive.mstar_tobit`; its robustness variants: `scripts/mstar_robust.py`.
+* Certificate (R1): `r1.instance_records` (runs), `r1.calibrated`, `r1.summarize`, `r1.budget_rule`, `r1.coverage` (analysis); `scripts/r1_certificate.py`, `scripts/r1_summary.py`.
+* Large-d extension (paper §5.2, last paragraph: strict and tolerance-aware P_c, share of instances with P_c ≥ 0.9, run-to-run agreement, Pearson, the 7 of 40 forest instances whose TreeSHAP reference misses additivity by more than 1e-3): `scripts/large_d_table.py` (uses `metrics.py` as above) → `large_d_arrhythmia.csv` (`k` = 3, `quartile` = all, `m` = 2606), `large_d_arrhythmia_reference.csv`; stored runs from `scripts/large_d_arrhythmia.py`.

@@ -1,0 +1,54 @@
+"""Table 3 on the common target set: pipelines (selection S0 or S6) x (inference P0-P6), from the `ctx` stage-B parquet files (21_eval_ct.py rules S0,S6,INF; 20 of the 50 shared splits).
+Per held-out model: RMSE on its observed T cells, averaged over its eligible splits (as in `ct_curves.csv`); the resampling unit is the held-out organisation group (B=5000), the headline subset is
+the fixed k_max subset (models entering at k_max = 109). Per (split, k, selection, inference):
+  rmse_raw (+lo/hi 90%), excess_raw over the model's own floor (+lo/hi), floor_raw,
+  diff_vs_P5 = RMSE(sel+P5) - RMSE(sel+Px) paired by model (positive: Px better than P5; the proposed inference is P5), with 90% bounds and the verdict at delta_T and delta_floor (margins as in ct_contrast.csv),
+  gain_S6_vs_S0 = RMSE(S0+Px) - RMSE(S6+Px) paired by model, 90% bounds, verdicts at both margins.
+Verdict: 'helps' if lo90 > margin, 'hurts' if hi90 < -margin, 'matches' if inside [-margin, margin] with both bounds, else 'undecided'.
+usage: python 37_pipeline_table.py <data_dir> <ctx_dir> <out_csv> [tag]"""
+import os, sys, glob, numpy as np, pandas as pd
+sys.path.insert(0, os.path.dirname(__file__))
+from common import *
+B = 5000
+data_dir, ctdir, out = sys.argv[1:4]; tag = sys.argv[4] if len(sys.argv) > 4 else "ctx"
+Y, mods, tasks, et = load_matrix(data_dir); org = mods.org.values; kmax = max(K_GRID)
+d = pd.concat([pd.read_parquet(f) for f in sorted(glob.glob(os.path.join(ctdir, f"*_{tag}.parquet")))], ignore_index=True); d["org"] = org[d.model.values]
+
+def boot(vals, groups, seed):
+    ug, inv = np.unique(groups, return_inverse=True); rng = np.random.default_rng(seed); dr = rng.integers(0, len(ug), size=(B, len(ug)))
+    gs = np.bincount(inv, weights=vals, minlength=len(ug)); gn = np.bincount(inv, minlength=len(ug)).astype(float); reps = gs[dr].sum(1) / gn[dr].sum(1)
+    return vals.mean(), np.percentile(reps, 5), np.percentile(reps, 95)
+
+def verdict(lo, hi, m):
+    if lo > m: return "helps"
+    if hi < -m: return "hurts"
+    if lo > -m and hi < m: return "matches"
+    return "undecided"
+
+rows = []
+for s in sorted(d.split.unique()):
+    ds = d[d.split == s]; fixed = set(ds[(ds.rule == "floor") & (ds.k == kmax)].model)
+    for k in [1, 2, 3, 5, 8, 12, 20, 32]:
+        F = ds[(ds.rule == "floor") & (ds.k == k) & ds.model.isin(fixed)].set_index("model")
+        if len(F) < 5: continue
+        dT = F.delta_mean.mean(); dF = 0.25 * F.floorj_mean.mean()
+        R = {(r, i): g[g.k == k].set_index("model")["rmse"] for (r, i), g in ds[ds.rule != "floor"].groupby(["rule", "inf"])}
+        for sel in ("S0", "S6"):
+            for inf in ("P0", "P1", "P2", "P3", "P4", "P5", "P6"):
+                if (sel, inf) not in R: continue
+                idx = R[(sel, inf)].index.intersection(F.index); g = org[idx.values]; r = R[(sel, inf)].loc[idx].values; f = F.loc[idx, "rmse"].values
+                m, lo, hi = boot(r, g, 11 + k); e, elo, ehi = boot(r - f, g, 12 + k)
+                row = dict(split=s, k=k, selection=sel, inference=inf, n_models=len(idx), n_groups=len(set(g)), rmse_raw=m, rmse_lo=lo, rmse_hi=hi, floor_raw=f.mean(),
+                           excess_raw=e, excess_lo=elo, excess_hi=ehi, delta_T=dT, delta_floor=dF)
+                if (sel, "P5") in R and inf != "P5":
+                    j = idx.intersection(R[(sel, "P5")].index); gj = org[j.values]; x = (R[(sel, "P5")].loc[j] - R[(sel, inf)].loc[j]).values; dm, dlo, dhi = boot(x, gj, 13 + k)
+                    row.update(diff_vs_P5=dm, diff_vs_P5_lo=dlo, diff_vs_P5_hi=dhi, verdict_vs_P5=verdict(dlo, dhi, dT), verdict_vs_P5_floor=verdict(dlo, dhi, dF))
+                if sel == "S6" and ("S0", inf) in R:
+                    j = idx.intersection(R[("S0", inf)].index); gj = org[j.values]; x = (R[("S0", inf)].loc[j] - R[("S6", inf)].loc[j]).values; gm, glo, ghi = boot(x, gj, 14 + k)
+                    row.update(gain_S6_vs_S0=gm, gain_lo=glo, gain_hi=ghi, verdict_gain=verdict(glo, ghi, dT), verdict_gain_floor=verdict(glo, ghi, dF))
+                rows.append(row)
+t = pd.DataFrame(rows); t.to_csv(out, index=False)
+with pd.option_context("display.width", 250, "display.max_columns", 30):
+    p = t[(t.split == "G") & t.k.isin([5, 12, 32])]
+    print(p.pivot_table(index=["selection", "inference"], columns="k", values="rmse_raw").round(2))
+    print(p[p.selection == "S6"][["k", "inference", "diff_vs_P5", "diff_vs_P5_lo", "diff_vs_P5_hi", "verdict_vs_P5", "verdict_vs_P5_floor"]].round(2).to_string())

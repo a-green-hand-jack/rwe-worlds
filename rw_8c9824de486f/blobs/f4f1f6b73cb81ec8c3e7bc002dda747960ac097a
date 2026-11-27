@@ -1,0 +1,29 @@
+{
+ "log": {
+  "raw_models": 536,
+  "raw_tasks": 1291,
+  "text_tasks": 988,
+  "models_after_revision_pick": 441,
+  "cells_after_split": 62744,
+  "cells_after_dataset_revision": 59039,
+  "cells_after_subsets": 57921,
+  "dedup_dropped_variants": 7,
+  "dedup_dropped_samename": 0
+ },
+ "M": 238,
+ "N": 328,
+ "cells": 45775,
+ "n_groups": 83,
+ "type_counts": {
+  "Retrieval": 117,
+  "Classification": 73,
+  "Clustering": 56,
+  "STS": 28,
+  "PairClassification": 17,
+  "Reranking": 13,
+  "BitextMining": 10,
+  "MultilabelClassification": 8,
+  "InstructionReranking": 3,
+  "Summarization": 3
+ }
+}

@@ -1,0 +1,5 @@
+k,kind,n_models,rel_gap_mean,rel_gap_max,frac_same,rmse_greedy,rmse_refined
+2,exhaustive,24,0.1754,0.389,0.1667,10.3483,9.2417
+3,exhaustive,24,0.3499,0.5225,0.0,9.2643,8.7492
+8,swap,24,0.0524,0.0731,0.0,8.5193,8.4408
+20,swap,24,0.0174,0.0532,0.0833,7.734,7.8031

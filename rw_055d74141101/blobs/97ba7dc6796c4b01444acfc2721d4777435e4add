@@ -1,0 +1,140 @@
+@article{bradley1952,
+  author={Bradley, Ralph Allan and Terry, Milton E.},
+  title={Rank Analysis of Incomplete Block Designs: {I}. The Method of Paired Comparisons},
+  journal={Biometrika}, volume={39}, number={3/4}, pages={324--345}, year={1952}}
+@inproceedings{chiang2024,
+  author={Chiang, Wei-Lin and Zheng, Lianmin and Sheng, Ying and Angelopoulos, Anastasios Nikolas and Li, Tianle and Li, Dacheng and Zhang, Hao and Zhu, Banghua and Jordan, Michael and Gonzalez, Joseph E. and Stoica, Ion},
+  title={Chatbot Arena: An Open Platform for Evaluating {LLM}s by Human Preference},
+  booktitle={International Conference on Machine Learning}, year={2024}}
+@inproceedings{zheng2023,
+  author={Zheng, Lianmin and Chiang, Wei-Lin and Sheng, Ying and Zhuang, Siyuan and Wu, Zhanghao and Zhuang, Yonghao and Lin, Zi and Li, Zhuohan and Li, Dacheng and Xing, Eric P. and Zhang, Hao and Gonzalez, Joseph E. and Stoica, Ion},
+  title={Judging {LLM}-as-a-Judge with {MT-Bench} and Chatbot Arena},
+  booktitle={Advances in Neural Information Processing Systems, Datasets and Benchmarks Track}, year={2023}}
+@inproceedings{koh2017,
+  author={Koh, Pang Wei and Liang, Percy},
+  title={Understanding Black-box Predictions via Influence Functions},
+  booktitle={International Conference on Machine Learning}, year={2017}}
+@article{broderick2020,
+  author={Broderick, Tamara and Giordano, Ryan and Meager, Rachael},
+  title={An Automatic Finite-Sample Robustness Metric: When Can Dropping a Little Data Make a Big Difference?},
+  journal={arXiv preprint arXiv:2011.14999}, year={2020}}
+@inproceedings{min2025,
+  author={Min, Rui and Pang, Tianyu and Du, Chao and Liu, Qian and Cheng, Minhao and Lin, Min},
+  title={Improving Your Model Ranking on Chatbot Arena by Vote Rigging},
+  booktitle={International Conference on Machine Learning}, year={2025}}
+@article{singh2025,
+  author={Singh, Shivalika and Nan, Yiyang and Wang, Alex and D'Souza, Daniel and Kapoor, Sayash and \"Ust\"un, Ahmet and Koyejo, Sanmi and Deng, Yuntian and Longpre, Shayne and Smith, Noah A. and Ermis, Beyza and Fadaee, Marzieh and Hooker, Sara},
+  title={The Leaderboard Illusion}, journal={arXiv preprint arXiv:2504.20879}, year={2025}}
+@misc{huang2025,
+  author={{Huang et al.}},
+  title={Dropping Just a Handful of Preferences Can Change Top Large Language Model Rankings},
+  howpublished={arXiv:2508.11847}, year={2025}, note={Not read by us (see Appendix).}}
+@article{ameli2024,
+  author={Ameli, Siavash and Zhuang, Siyuan and Stoica, Ion and Mahoney, Michael W.},
+  title={A Statistical Framework for Ranking {LLM}-Based Chatbots},
+  journal={arXiv preprint arXiv:2412.18407}, year={2024}}
+@inproceedings{chatzi2024,
+  author={Chatzi, Ivi and Straitouri, Eleni and Thejaswi, Suhas and Gomez Rodriguez, Manuel},
+  title={Prediction-Powered Ranking of Large Language Models},
+  booktitle={Advances in Neural Information Processing Systems}, volume={37}, year={2024}}
+@article{liu2023,
+  author={Liu, Yue and Fang, Ethan X. and Lu, Junwei},
+  title={Lagrangian Inference for Ranking Problems},
+  journal={Operations Research}, volume={71}, number={1}, pages={202--223}, year={2023}}
+@article{hunter2004,
+  author={Hunter, David R.},
+  title={{MM} algorithms for generalized {Bradley--Terry} models},
+  journal={The Annals of Statistics}, volume={32}, number={1}, pages={384--406}, year={2004}}
+@article{negahban2017,
+  author={Negahban, Sahand and Oh, Sewoong and Shah, Devavrat},
+  title={Rank Centrality: Ranking from Pairwise Comparisons},
+  journal={Operations Research}, volume={65}, number={1}, pages={266--287}, year={2017}}
+@article{chen2019,
+  author={Chen, Yuxin and Fan, Jianqing and Ma, Cong and Wang, Kaizheng},
+  title={Spectral method and regularized {MLE} are both optimal for top-$K$ ranking},
+  journal={The Annals of Statistics}, volume={47}, number={4}, pages={2204--2235}, year={2019}}
+@article{kiraly2017,
+  author={Kir{\'a}ly, Franz J. and Qian, Zhaozhi},
+  title={Modelling Competitive Sports: {Bradley--Terry--\'El\H{o}} Models for Supervised and On-Line Learning of Paired Competition Outcomes},
+  journal={arXiv preprint arXiv:1701.08055}, year={2017}}
+
+@article{ma2022poison,
+  author = {Ke Ma and Qianqian Xu and Jinshan Zeng and Xiaochun Cao and Qingming Huang},
+  title = {Poisoning attack against estimating from pairwise comparisons},
+  journal = {IEEE Transactions on Pattern Analysis and Machine Intelligence},
+  volume = {44}, number = {10}, pages = {6393--6408}, year = {2022}
+}
+
+@article{ma2022hodge,
+  author = {Ke Ma and Qianqian Xu and Jinshan Zeng and Guorong Li and Xiaochun Cao and Qingming Huang},
+  title = {A tale of {HodgeRank} and spectral method: Target attack against rank aggregation is the fixed point of adversarial game},
+  journal = {IEEE Transactions on Pattern Analysis and Machine Intelligence},
+  pages = {1--18}, year = {2022}
+}
+
+@article{ma2024seq,
+  author = {Ke Ma and Qianqian Xu and Jinshan Zeng and Wei Liu and Xiaochun Cao and Yingfei Sun and Qingming Huang},
+  title = {Sequential manipulation against rank aggregation: Theory and algorithm},
+  journal = {IEEE Transactions on Pattern Analysis and Machine Intelligence},
+  volume = {46}, number = {12}, pages = {9353--9370}, year = {2024}
+}
+
+@article{yang2024monotone,
+  author = {Yuepeng Yang and Antares Chen and Lorenzo Orecchia and Cong Ma},
+  title = {Top-{$K$} ranking with a monotone adversary},
+  journal = {arXiv preprint arXiv:2402.07445}, year = {2024}
+}
+
+@inproceedings{oh2022rls,
+  author = {Sejoon Oh and Berk Ustun and Julian McAuley and Srijan Kumar},
+  title = {Rank list sensitivity of recommender systems to interaction perturbations},
+  booktitle = {ACM International Conference on Information and Knowledge Management},
+  pages = {1584--1594}, year = {2022}
+}
+
+@article{rao1967,
+  author = {P. V. Rao and L. L. Kupper},
+  title = {Ties in paired-comparison experiments: A generalization of the {Bradley--Terry} model},
+  journal = {Journal of the American Statistical Association},
+  volume = {62}, number = {317}, pages = {194--204}, year = {1967}
+}
+
+@article{davidson1970,
+  author = {Roger R. Davidson},
+  title = {On extending the {Bradley--Terry} model to accommodate ties in paired comparison experiments},
+  journal = {Journal of the American Statistical Association},
+  volume = {65}, number = {329}, pages = {317--328}, year = {1970}
+}
+
+@article{hampel1974,
+  author = {Frank R. Hampel},
+  title = {The influence curve and its role in robust estimation},
+  journal = {Journal of the American Statistical Association},
+  volume = {69}, number = {346}, pages = {383--393}, year = {1974}
+}
+
+@article{cook1977,
+  author = {R. Dennis Cook},
+  title = {Detection of influential observation in linear regression},
+  journal = {Technometrics},
+  volume = {19}, number = {1}, pages = {15--18}, year = {1977}
+}
+
+@article{frank1956,
+  author = {Marguerite Frank and Philip Wolfe},
+  title = {An algorithm for quadratic programming},
+  journal = {Naval Research Logistics Quarterly},
+  volume = {3}, number = {1--2}, pages = {95--110}, year = {1956}
+}
+
+@book{efron1993,
+  author = {Bradley Efron and Robert J. Tibshirani},
+  title = {An Introduction to the Bootstrap},
+  publisher = {Chapman \& Hall}, year = {1993}
+}
+
+@book{elo1978,
+  author = {Arpad E. Elo},
+  title = {The Rating of Chessplayers, Past and Present},
+  publisher = {Arco}, year = {1978}
+}

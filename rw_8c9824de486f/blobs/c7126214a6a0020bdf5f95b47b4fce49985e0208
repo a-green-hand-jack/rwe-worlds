@@ -1,0 +1,11 @@
+{
+  "analysis_commit": "66252a8",
+  "figure": "figtab/tabA_kstar_all.tex",
+  "inputs": [
+    {
+      "path": "results/ct_kstar.csv",
+      "sha256": "6d0b99469087ef97c84a3cb110b13097b41ce8c81fc05849f7fbd80b879c1f4c"
+    }
+  ],
+  "script": "figtab/make_tables.py"
+}

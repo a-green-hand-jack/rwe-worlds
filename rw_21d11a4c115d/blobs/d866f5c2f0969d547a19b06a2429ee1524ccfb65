@@ -1,0 +1,22 @@
+# Review of the idea, round 2 (Brief revision 2, 2026-11-25 15:58)
+
+Verdict: all round-1 points are adopted and the Brief is now a design that can be run and can fail. The W4 design (dense pool, one target set, paired grid, family-clustered intervals), the leakage rule, the three-tier theory check and the pre-registered definitions are what I asked for. Four things in the pre-registered definitions can still make a hypothesis untestable or the test too easy; they are cheap to fix before any run.
+
+## R1. Closure reference E_ref is too optimistic, so k* may be undefined
+E_ref is an in-sample rank-r fit to all of P with the targets visible. For the held-out row that nearly interpolates the targets, so E_ref is very small, and C(k) >= 0.9 may be unreachable for any k <= N/2. Then "k* is a handful" is false for a reason that is about the reference, not the data. Fix: (a) add an honest ceiling, the held-out leave-one-benchmark-out predictor (predict each target from all other N-1 benchmarks of the new row, fitted on training models); take C(k) against that as the primary closure and keep the in-sample fit as a labelled optimistic reference; (b) report k* as censored (">N/2" or "not reached") instead of dropping it; (c) when the first factor carries ~80% of variance (as in the MMLU matrix) k*(0.9) can be 1 and below r_eff; the H1 window [r_eff, 2 r_eff] then reads "not supported" for a reason the Brief already expects. Say which of the two outcomes would be called what ("k* < r_eff: dominated by general factor", "in window", "above window").
+
+## R2. H4 tolerance is diluted by the floor
+Risk includes tr(D_R). When the floor is large (idiosyncratic variation, or binomial noise in MMLU subjects), the relative gap |predicted - empirical|/empirical is small for any model that gets the floor right, so 15% is easy. Fix: apply the tolerance also to the reducible part (Risk - tr D_R, with the empirical floor taken from the in-sample residual on the training fold), or to the closure curve C(k). State which one decides "tracks".
+
+## R3. H2 has few k values and many comparisons
+"k <= r_eff" is a single value when r_eff is 1-2, and there are ~8 selectors x predictors x datasets x splits. Fix: name one primary comparison (greedy A-optimal vs random expectation, PPCA predictor, grouped K-fold, standardised error, over a fixed k grid such as k = 1..min(10, N/2)) and treat the rest as exploratory with a stated multiplicity treatment (e.g. Holm across selectors) or as descriptive only. Also define "clearly better" over the whole k grid, not only k <= r_eff, because the interesting question (how large k) lives above r_eff.
+
+## R4. The LLM side is still subtasks of one benchmark
+HELM MMLU 79 x 57 is a good matrix, but each subject has ~100 questions, so D there is mostly binomial noise: a different regime from MTEB (idiosyncratic), and it is not "other benchmarks" in the objective's sense. The Brief says so; it should also say how conclusions from the two regimes are combined: do not pool them. For real cross-benchmark LLM data, the objective (and data.md) invites merging leaderboards despite name mismatches and missing cells: a union matrix of HELM Lite (10), HELM Capabilities, Open LLM Leaderboard (6) and LiveBench categories, joined by model name, gives a sparse matrix with N of a few dozen. It needs a documented name-matching rule and an audit of the matches, and I have not checked how many models overlap; mark it as "try, report the overlap, drop if too small", and run the sparse-history study there.
+
+## Minor
+- Record in each experiment commit which Brief revision (timestamp) its pre-registered thresholds come from, so deviations are checkable.
+- The matrix-Chernoff statement is still "to be checked from the source"; fine, but do not put a constant in the paper until it is.
+- MTEB time proxy: if most results arrive in a few bulk commits, first-commit date is not a release date; test this before running time-forward, and drop H3's time part if the proxy is bulk-dominated.
+
+No further round needed unless the definitions change; answer in the issue.

@@ -1,0 +1,11 @@
+diagnostic,spearman_with_floor_ratio,n_matrices
+calib,0.8,5
+calib_med,0.8,5
+kurt,0.5,5
+rescorr,0.8,5
+het,0.9,5
+link,-1.0,5
+top1_share,-0.3,5
+top3_share,-0.1,5
+participation_ratio,0.3,5
+participation_ratio_over_N,-0.6,5

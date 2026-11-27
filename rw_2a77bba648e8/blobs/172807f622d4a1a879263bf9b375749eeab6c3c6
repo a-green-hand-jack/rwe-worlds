@@ -1,0 +1,113 @@
+@article{aronow2017estimating, author={Aronow, Peter M. and Samii, Cyrus}, title={Estimating average causal effects under general interference, with application to a social network experiment}, journal={Annals of Applied Statistics}, year={2017}, note={arXiv:1305.6156}}
+@inproceedings{ugander2013graph, author={Ugander, Johan and Karrer, Brian and Backstrom, Lars and Kleinberg, Jon}, title={Graph cluster randomization: network exposure to multiple universes}, booktitle={KDD}, year={2013}, note={arXiv:1305.6979}}
+@article{eckles2017design, author={Eckles, Dean and Karrer, Brian and Ugander, Johan}, title={Design and analysis of experiments in networks: Reducing bias from interference}, journal={Journal of Causal Inference}, year={2017}, note={arXiv:1404.7530}}
+@article{chin2019regression, author={Chin, Alex}, title={Regression adjustments for estimating the global treatment effect in experiments with interference}, journal={Journal of Causal Inference}, year={2019}, doi={10.1515/jci-2018-0026}, note={arXiv:1808.08683}}
+@inproceedings{karrer2021network, author={Karrer, Brian and Shi, Liang and Bhole, Monica and Goldman, Matt and Palmer, Tyrone and Gelman, Charlie and Konutgan, Mikael and Sun, Feng}, title={Network experimentation at scale}, booktitle={KDD}, year={2021}, note={arXiv:2012.08591}}
+@inproceedings{cortez2022staggered, author={Cortez, Mayleen and Eichhorn, Matthew and Yu, Christina Lee}, title={Staggered rollout designs enable causal inference under interference without network knowledge}, booktitle={NeurIPS}, year={2022}, note={arXiv:2205.14552}}
+@article{han2023model, author={Han, Kevin and Ugander, Johan}, title={Model-based regression adjustment with model-free covariates for network interference}, journal={Journal of Causal Inference}, year={2023}, doi={10.1515/jci-2023-0005}, note={arXiv:2302.04997}}
+@inproceedings{chen2023optimized, author={Chen, Qianyi and Li, Bo and Deng, Lu and Wang, Yong}, title={Optimized covariance design for {AB} test on social network under interference}, booktitle={NeurIPS}, year={2023}, note={arXiv:2311.14042}}
+@article{traud2012social, author={Traud, Amanda L. and Mucha, Peter J. and Porter, Mason A.}, title={Social structure of {F}acebook networks}, journal={Physica A}, year={2012}, note={arXiv:1102.2166}}
+@inproceedings{rossi2015network, author={Rossi, Ryan A. and Ahmed, Nesreen K.}, title={The network data repository with interactive graph analytics and visualization}, booktitle={AAAI}, year={2015}}
+@inproceedings{mcauley2012learning, author={McAuley, Julian and Leskovec, Jure}, title={Learning to discover social circles in ego networks}, booktitle={NIPS}, year={2012}}
+@inproceedings{defferrard2016convolutional, author={Defferrard, Micha{\"e}l and Bresson, Xavier and Vandergheynst, Pierre}, title={Convolutional neural networks on graphs with fast localized spectral filtering}, booktitle={NeurIPS}, year={2016}, note={arXiv:1606.09375}}
+@inproceedings{kipf2017semi, author={Kipf, Thomas N. and Welling, Max}, title={Semi-supervised classification with graph convolutional networks}, booktitle={ICLR}, year={2017}, note={arXiv:1609.02907}}
+@article{savje2021average, author={Sävje, Fredrik and Aronow, Peter M. and Hudgens, Michael G.}, title={Average treatment effects in the presence of unknown interference}, journal={Annals of Statistics}, year={2021}, doi={10.1214/20-aos1973}}
+@article{leung2022causal, author={Leung, Michael P.}, title={Causal inference under approximate neighborhood interference}, journal={Econometrica}, year={2022}, doi={10.3982/ecta17841}}
+@article{leung2022rate, author={Leung, Michael P.}, title={Rate-optimal cluster-randomized designs for spatial interference}, journal={Annals of Statistics}, year={2022}, doi={10.1214/22-aos2224}}
+@article{li2022random, author={Li, Shuangning and Wager, Stefan}, title={Random graph asymptotics for treatment effect estimation under network interference}, journal={Annals of Statistics}, year={2022}, doi={10.1214/22-aos2191}}
+@article{yu2022estimating, author={Yu, Christina Lee and Airoldi, Edoardo M. and Borgs, Christian and Chayes, Jennifer T.}, title={Estimating the total treatment effect in randomized experiments with unknown network structure}, journal={Proceedings of the National Academy of Sciences}, year={2022}, doi={10.1073/pnas.2208975119}}
+@article{savje2023causal, author={Sävje, Fredrik}, title={Causal inference with misspecified exposure mappings: separating definitions and assumptions}, journal={Biometrika}, year={2023}, doi={10.1093/biomet/asad019}}
+@misc{gao2023causal, author={Gao, Mengsi and Ding, Peng}, title={Causal inference in network experiments: regression-based analysis and design-based properties}, year={2023}, note={arXiv:2309.07476}}
+@article{ugander2023randomized, author={Ugander, Johan and Yin, Hao}, title={Randomized graph cluster randomization}, journal={Journal of Causal Inference}, year={2023}, doi={10.1515/jci-2022-0014}}
+@article{candogan2023correlated, author={Candogan, Ozan and Chen, Chen and Niazadeh, Rad}, title={Correlated cluster-based randomized experiments: Robust variance minimization}, journal={Management Science}, year={2023}, doi={10.1287/mnsc.2021.02741}}
+@article{basse2018designs, author={Basse, Guillaume and Airoldi, Edoardo M.}, title={Designs for estimating the treatment effect in networks with interference}, journal={Annals of Statistics}, year={2020}, doi={10.1214/18-aos1807}}
+@inproceedings{gui2015network, author={Gui, Huan and Xu, Ya and Bhasin, Anmol and Han, Jiawei}, title={Network {A/B} testing: From sampling to estimation}, booktitle={WWW}, year={2015}, doi={10.1145/2736277.2741081}}
+@misc{sussman2017elements, author={Sussman, Daniel L. and Airoldi, Edoardo M.}, title={Elements of estimation theory for causal effects in the presence of network interference}, year={2017}, note={arXiv:1702.03578}}
+@article{hu2022average, author={Hu, Yuchen and Li, Shuangning and Wager, Stefan}, title={Average direct and indirect causal effects under interference}, journal={Biometrika}, year={2022}, doi={10.1093/biomet/asac008}}
+@misc{thiyageswaran2024data, author={Thiyageswaran, Vydhourie and McCormick, Tyler and Brennan, Jennifer}, title={Data-adaptive exposure thresholds for the {H}orvitz-{T}hompson estimator of the average treatment effect in experiments with network interference}, year={2024}, note={arXiv:2405.15887}}
+@article{shirani2024causal, author={Shirani Faradonbeh, Mohamad Sadegh and Bayati, Mohsen}, title={Causal message-passing for experiments with unknown and general network interference}, journal={Proceedings of the National Academy of Sciences}, year={2024}, doi={10.1073/pnas.2322232121}}
+@article{crump2009dealing, author={Crump, Richard K. and Hotz, V. Joseph and Imbens, Guido W. and Mitnik, Oscar A.}, title={Dealing with limited overlap in estimation of average treatment effects}, journal={Biometrika}, year={2009}, doi={10.1093/biomet/asn055}}
+@article{damour2021overlap, author={D'Amour, Alexander and Ding, Peng and Feller, Avi and Lei, Lihua and Sekhon, Jasjeet}, title={Overlap in observational studies with high-dimensional covariates}, journal={Journal of Econometrics}, year={2021}, doi={10.1016/j.jeconom.2019.10.014}}
+
+@article{barabasi1999emergence,
+  author = {Barab{\'a}si, Albert-L{\'a}szl{\'o} and Albert, R{\'e}ka},
+  title = {Emergence of scaling in random networks},
+  journal = {Science},
+  volume = {286},
+  number = {5439},
+  pages = {509--512},
+  year = {1999}
+}
+
+@article{blondel2008fast,
+  author = {Blondel, Vincent D. and Guillaume, Jean-Loup and Lambiotte, Renaud and Lefebvre, Etienne},
+  title = {Fast unfolding of communities in large networks},
+  journal = {Journal of Statistical Mechanics: Theory and Experiment},
+  volume = {2008},
+  number = {10},
+  pages = {P10008},
+  year = {2008}
+}
+
+@article{erdos1959random,
+  author = {Erd{\H{o}}s, Paul and R{\'e}nyi, Alfr{\'e}d},
+  title = {On random graphs {I}},
+  journal = {Publicationes Mathematicae Debrecen},
+  volume = {6},
+  pages = {290--297},
+  year = {1959}
+}
+
+@article{holland1983stochastic,
+  author = {Holland, Paul W. and Laskey, Kathryn Blackmond and Leinhardt, Samuel},
+  title = {Stochastic blockmodels: First steps},
+  journal = {Social Networks},
+  volume = {5},
+  number = {2},
+  pages = {109--137},
+  year = {1983}
+}
+
+@article{karrer2011stochastic,
+  author = {Karrer, Brian and Newman, M. E. J.},
+  title = {Stochastic blockmodels and community structure in networks},
+  journal = {Physical Review E},
+  volume = {83},
+  number = {1},
+  pages = {016107},
+  year = {2011}
+}
+
+@article{watts1998collective,
+  author = {Watts, Duncan J. and Strogatz, Steven H.},
+  title = {Collective dynamics of `small-world' networks},
+  journal = {Nature},
+  volume = {393},
+  number = {6684},
+  pages = {440--442},
+  year = {1998}
+}
+
+@article{white1980heteroskedasticity, author={White, Halbert}, title={A heteroskedasticity-consistent covariance matrix estimator and a direct test for heteroskedasticity}, journal={Econometrica}, volume={48}, number={4}, pages={817--838}, year={1980}}
+@article{horvitz1952generalization, author={Horvitz, Daniel G. and Thompson, Donovan J.}, title={A generalization of sampling without replacement from a finite universe}, journal={Journal of the American Statistical Association}, volume={47}, number={260}, pages={663--685}, year={1952}}
+@article{liu2014large, author={Liu, Lan and Hudgens, Michael G.}, title={Large sample randomization inference of causal effects in the presence of interference}, journal={Journal of the American Statistical Association}, volume={109}, number={505}, pages={288--301}, year={2014}}
+@article{leung2020treatment, author={Leung, Michael P.}, title={Treatment and spillover effects under network interference}, journal={Review of Economics and Statistics}, volume={102}, number={2}, pages={368--380}, year={2020}}
+@inproceedings{saveski2017detecting, author={Saveski, Martin and Pouget-Abadie, Jean and Saint-Jacques, Guillaume and Duan, Weitao and Ghosh, Souvik and Xu, Ya and Airoldi, Edoardo M.}, title={Detecting network effects: Randomizing over randomized experiments}, booktitle={Proceedings of the 23rd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining}, year={2017}, doi={10.1145/3097983.3098192}}
+@article{pedregosa2011scikit, author={Pedregosa, Fabian and Varoquaux, Ga{\"e}l and Gramfort, Alexandre and Michel, Vincent and Thirion, Bertrand and Grisel, Olivier and Blondel, Mathieu and Prettenhofer, Peter and Weiss, Ron and Dubourg, Vincent and Vanderplas, Jake and Passos, Alexandre and Cournapeau, David and Brucher, Matthieu and Perrot, Matthieu and Duchesnay, {\'E}douard}, title={Scikit-learn: Machine learning in {P}ython}, journal={Journal of Machine Learning Research}, volume={12}, pages={2825--2830}, year={2011}}
+@article{tibshirani1996regression, author={Tibshirani, Robert}, title={Regression shrinkage and selection via the lasso}, journal={Journal of the Royal Statistical Society: Series B}, volume={58}, number={1}, pages={267--288}, year={1996}}
+@article{hoerl1970ridge, author={Hoerl, Arthur E. and Kennard, Robert W.}, title={Ridge regression: Biased estimation for nonorthogonal problems}, journal={Technometrics}, volume={12}, number={1}, pages={55--67}, year={1970}}
+@article{breiman2001random, author={Breiman, Leo}, title={Random forests}, journal={Machine Learning}, volume={45}, number={1}, pages={5--32}, year={2001}}
+@article{friedman2001greedy, author={Friedman, Jerome H.}, title={Greedy function approximation: A gradient boosting machine}, journal={Annals of Statistics}, volume={29}, number={5}, pages={1189--1232}, year={2001}}
+@article{hudgens2008toward, author={Hudgens, Michael G. and Halloran, M. Elizabeth}, title={Toward causal inference with interference}, journal={Journal of the American Statistical Association}, volume={103}, number={482}, pages={832--842}, year={2008}, doi={10.1198/016214508000000292}}
+@article{forastiere2021identification, author={Forastiere, Laura and Airoldi, Edoardo M. and Mealli, Fabrizia}, title={Identification and estimation of treatment and interference effects in observational studies on networks}, journal={Journal of the American Statistical Association}, volume={116}, number={534}, pages={901--918}, year={2021}, doi={10.1080/01621459.2020.1768100}}
+@article{johari2022experimental, author={Johari, Ramesh and Li, Hannah and Liskovich, Inessa and Weintraub, Gabriel Y.}, title={Experimental design in two-sided platforms: An analysis of bias}, journal={Management Science}, volume={68}, number={10}, pages={7069--7089}, year={2022}, doi={10.1287/mnsc.2021.4247}}
+
+@article{armstrong2020simple,
+  author  = {Armstrong, Timothy B. and Koles{\'a}r, Michal},
+  title   = {Simple and honest confidence intervals in nonparametric regression},
+  journal = {Quantitative Economics},
+  volume  = {11},
+  number  = {1},
+  pages   = {1--39},
+  year    = {2020}
+}

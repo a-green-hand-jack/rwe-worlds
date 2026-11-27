@@ -1,0 +1,87 @@
+"""Random-perturbation baselines: P_flip(f) for uniformly random deletion and random outcome change of a fraction f of
+the comparisons, for ~60 pairs per data set spread over the z range.  usage: 02_random.py UNIT [--draws 300]"""
+import argparse, os, sys, time
+import numpy as np, pandas as pd
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src")); sys.path.insert(0, os.path.dirname(__file__))
+import btlib as B, analysis as A
+from importlib import import_module
+core = import_module("core01")
+OUT = core.OUT
+FGRID = [0.005, 0.01, 0.02, 0.05, 0.1, 0.15, 0.2, 0.3, 0.5]
+
+
+def random_counts(cnt, k, mode, rng):
+    flat = cnt.ravel().astype(np.int64)
+    pick = rng.multivariate_hypergeometric(flat, int(k))
+    pick = pick.reshape(cnt.shape)
+    if mode == "delete":
+        return cnt - pick
+    out = cnt - pick
+    for src in range(3):
+        dest = [o for o in range(3) if o != src]
+        to0 = rng.binomial(pick[:, src], 0.5)
+        out[:, dest[0]] += to0
+        out[:, dest[1]] += pick[:, src] - to0
+    return out
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("unit"); ap.add_argument("--draws", type=int, default=300); ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--npairs", type=int, default=60)
+    a = ap.parse_args()
+    d = core.get(a.unit)
+    P = A.Prepared(d)
+    order = np.argsort(-P.theta)
+    Hinv = np.linalg.inv(P.H)
+    pairs = [(order[r], order[s]) for r in range(P.M) for s in range(r + 1, P.M)]
+    z = np.array([(P.theta[x] - P.theta[y]) / np.sqrt((lambda dd: dd @ Hinv @ dd)(B.make_d(P.M, x, y))) for x, y in pairs])
+    idx = np.argsort(z)
+    pick = sorted(set(idx[np.linspace(0, len(idx) - 1, min(a.npairs, len(idx))).astype(int)]) | {0})
+    sel = [pairs[i] for i in pick]
+    rows = []
+    rng = np.random.default_rng(a.seed)
+    for mode in ("delete", "flip"):
+        for f in FGRID:
+            k = int(round(f * P.N))
+            if k < 1:
+                continue
+            gaps = np.empty((a.draws, len(sel)))
+            for r in range(a.draws):
+                c = random_counts(P.cnt, k, mode, rng)
+                th = B.fit(P.g, c, theta0=P.theta)
+                gaps[r] = [th[x] - th[y] for x, y in sel]
+            for j, (x, y) in enumerate(sel):
+                rows.append(dict(unit=a.unit, mode=mode, f=f, k=k, a=x, b=y, z_fisher=z[pick[j]], N=P.N,
+                                 p_flip=(gaps[:, j] <= 0).mean(), gap_mean=gaps[:, j].mean(), gap_sd=gaps[:, j].std(ddof=1),
+                                 gap0=P.theta[x] - P.theta[y], draws=a.draws))
+    os.makedirs(f"{OUT}/random", exist_ok=True)
+    pd.DataFrame(rows).to_parquet(f"{OUT}/random/{a.unit.replace(':', '_')}.parquet")
+    # equal-budget comparison: random change of k = 0.5 k*, k*, 2 k* comparisons, k* = the verified adversarial count of the same pair and family
+    core_fn = f"{OUT}/core/{a.unit.replace(':', '_')}.parquet"
+    if os.path.exists(core_fn):
+        cr = pd.read_parquet(core_fn)
+        eq = []
+        for mode in ("delete", "flip"):
+            c = cr[cr.family == mode].set_index(["a", "b"])
+            for (x, y) in sel:
+                if (x, y) not in c.index:
+                    continue
+                kk = c.loc[(x, y), "k_ver"]
+                if not np.isfinite(kk) or kk < 1:
+                    continue
+                for mult in (0.5, 1.0, 2.0):
+                    k = int(min(max(1, round(mult * kk)), 0.9 * P.N))
+                    fl = 0
+                    for r in range(a.draws):
+                        cc = random_counts(P.cnt, k, mode, rng)
+                        th = B.fit(P.g, cc, theta0=P.theta)
+                        fl += th[x] - th[y] <= 0
+                    eq.append(dict(unit=a.unit, mode=mode, a=x, b=y, mult=mult, k=k, k_star=kk, f=k / P.N, N=P.N, z_fisher=c.loc[(x, y), "z_fisher"],
+                                   z_boot=c.loc[(x, y), "z_boot"], p_flip_random=fl / a.draws, draws=a.draws))
+        pd.DataFrame(eq).to_parquet(f"{OUT}/random/{a.unit.replace(':', '_')}.eqbudget.parquet")
+    print(a.unit, "done", flush=True)
+
+
+if __name__ == "__main__":
+    main()

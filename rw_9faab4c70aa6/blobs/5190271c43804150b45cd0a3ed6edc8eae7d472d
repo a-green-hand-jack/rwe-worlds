@@ -1,0 +1,59 @@
+"""Tidy long-format result file for C4 (decisions from reported scores), real arm: the pool itself (rep = -1, point value) and
+pool-bootstrap replicates (rep >= 0, interval).  Same columns as decision_rates_synthetic.parquet plus
+  scenario  all = the whole 128-configuration space; window = the configurations whose pool accuracy lies in the densest 0.02-wide window
+            (a near-null, not an exact null: the window's true accuracies still differ);
+  sigma_theta       sd of pool accuracy over the candidate configurations (the pool, rep -1); for `window` this is the spread inside the window;
+  window_k, window_acc_range  number of configurations in the window and the max-min of their pool accuracy (pool); `all` rows carry K = 128 and the full range;
+  window_k_boot_mean   mean number of configurations in the window over the bootstrap replicates (the window is re-chosen in each).
+`rate` = rate over draws of S on the pool (rep -1, `n_draws` draws); `rate_lo/hi` = 95% pool-bootstrap interval with the Monte-Carlo variance of the replicates removed
+(intervals.total_ci: between-pool variance with its own sampling error added, plus the Monte-Carlo error of the point rate).  Truth is the accuracy on pool items outside S, so the false-declaration rates have no exact nominal level: `nominal` is left empty.
+Usage: python summarise_decisions_real.py decisions_real.jsonl MATRIX.npz OUT.parquet"""
+import sys, os, json
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "analysis"))
+import numpy as np, pandas as pd
+from intervals import pool_ci, total_ci, rate_mc_var
+import run_decisions as RD
+from run_protocols import _make_world
+
+Q_TVU = {"naive_false_declare": ("naive", "false_declare"), "maxt_false_declare": ("maxt", "false_declare"), "split_false_declare": ("split", "false_declare"),
+         "naive_declare": ("naive", "declare"), "maxt_declare": ("maxt", "declare"), "split_declare": ("split", "declare")}
+Q_AVB = {"A_sig": ("p_A_sig", "declare A better"), "A_sig_wrong": ("p_A_sig_wrong", "declare A better, true diff <= 0"),
+         "A_wins_reported": ("p_A_wins_reported", "reported A > reported B"), "p_flip": ("p_flip", "sign of reported diff wrong")}
+d = pd.DataFrame([json.loads(l) for l in open(sys.argv[1])]); z = np.load(sys.argv[2]); MAT = (z["Y"], z["factors"])
+reps = sorted(d.rep.unique()); K = MAT[0].shape[1]
+
+
+def window_info(rep):
+    w = _make_world("real", dict(rep=rep), MAT); p = w.Y.mean(0); c = RD.window(w)
+    return dict(all=(K, float(p.std()), float(p.max() - p.min())), window=(len(c), float(p[c].std()), float(p[c].max() - p[c].min())))
+
+
+WI = {r: window_info(r) for r in reps}
+rows = []
+
+
+def add(g, col, mc, **kw):
+    p = g[g.rep == -1]; b = g[g.rep >= 0]
+    if p.empty or b[col].dropna().empty: return
+    x = float(p[col].iloc[0]); draws = int(p.draws.iloc[0]); bd = int(b.draws.iloc[0])
+    # between-pool interval with its own sampling error and the Monte-Carlo error of the point (x rests on `draws` draws of S): intervals.total_ci
+    lo, hi, se, se_ub, res = total_ci(b[col].values, rate_mc_var(b[col].values, bd), float(np.sqrt(x * (1 - x) / draws)), center=x)
+    mclim = not res; lo, hi = max(lo, 0.0), min(hi, 1.0)
+    sc = kw["scenario"]; kk, sd, rg = WI[-1][sc]
+    kb = float(np.mean([WI[r][sc][0] for r in reps if r >= 0]))
+    rows.append(dict(rate=x, rate_lo=lo, rate_hi=hi, worlds=int((b[col].notna()).sum()), n_draws=draws, n_draws_boot=bd, ci_kind="pool-bootstrap", ci_mc_limited=mclim, arm="real",
+                     truth="accuracy on pool items outside S", pool="mmlu-pro-N1500-all", sigma_theta=sd, window_k=kk, window_acc_range=rg, window_k_boot_mean=kb, **kw))
+
+
+for (sc, comp, n, bud), g in d.groupby(["scenario", "comparison", "n", "budget"]):
+    if comp == "tuned_vs_untuned":
+        for q, (prot, kind) in Q_TVU.items():
+            add(g, q, True, scenario=sc, comparison=comp, n=n, budget=bud, budget_ratio=np.nan, protocol=prot,
+                quantity="declare tuning helped" + (", true gain <= 0" if kind == "false_declare" else ""), nominal=np.nan,
+                mean_true_gain=float(g[g.rep == -1].mean_true_gain.iloc[0]), mean_reported_gain=float(g[g.rep == -1].mean_report_gain.iloc[0]))
+    else:
+        a, b = (int(x) for x in bud.strip("()").split(","))
+        for q, (col, lab) in Q_AVB.items():
+            add(g, col, True, scenario=sc, comparison=comp, n=n, budget=bud, budget_ratio=a / b, protocol="reported z (naive)", quantity=lab, nominal=np.nan,
+                mean_true_gain=float(g[g.rep == -1].mean_true_diff.iloc[0]), mean_reported_gain=float(g[g.rep == -1].mean_report_diff.iloc[0]))
+r = pd.DataFrame(rows); r.to_parquet(sys.argv[3], index=False); print(len(r), "rows")

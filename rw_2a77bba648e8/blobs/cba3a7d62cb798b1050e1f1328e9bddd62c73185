@@ -1,0 +1,123 @@
+"""Fig 7 (C6): the data-computable diagnostic against the best trivial benchmark.
+A: held-out predicted vs realised log RMSE of the Chin regression, combined score (leverage + spec-disagreement, corner x curvature),
+   leave-one-mechanism-out; B: the same for the best degree benchmark n p(1-p)/d. One point per (run, mechanism, s, sigma) cell;
+   orange = fixed discriminating set D (heterogeneous degree, cluster, real graphs, misspecified rungs), grey = tie cells (equal-degree graphs).
+C: held-out R^2 gain over the best benchmark per held-out group. Pooled value (diamond) with the group-resampling 95% interval;
+   dashed line = threshold 0.05 of the rule specified before the runs. Filled = score specified before the runs; open = exploratory noise-adjusted S (labelled).
+   Block 1: part (i), L vs degree benchmarks on D* rows (counted in the verdict), leave-one-family-out.
+   Block 2/3: combined score, leave-one-mechanism-out / leave-one-family-out.
+Input: diagnostic.csv, diagnostic_absolute.csv, diag_cells.parquet, diagnostic_groups.csv, acceptance.csv. Usage: fig7_diagnostic.py RESULTS_DIR OUT_DIR
+"""
+import argparse
+import pathlib
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+import common
+import style
+
+ap = argparse.ArgumentParser()
+ap.add_argument("data"); ap.add_argument("out")
+a = ap.parse_args()
+style.apply()
+data = pathlib.Path(a.data)
+diag, meta = common.load(a.data, "diagnostic")
+dc, _ = common.load(a.data, "diag_cells")
+grp = pd.read_csv(data / "diagnostic_groups.csv")
+acc = pd.read_csv(data / "acceptance.csv")
+absr = pd.read_csv(data / "diagnostic_absolute.csv")
+absr = absr[(absr.variant == "pre-registered") & (absr.holdout == "mechanism") & (absr.group == "pooled")].set_index("predictor").held_out_r2
+diag = diag.merge(dc[["cell_id", "Drun"]], on="cell_id", how="left")
+assert diag.Drun.notna().all()
+
+PLACED = 0.85  # fraction of the text width the paper places this figure at (type is 8 pt only at 1:1)
+fig = plt.figure(figsize=(style.TEXTWIDTH, 3.45))
+gs = fig.add_gridspec(2, 2, height_ratios=[1.35, 1], hspace=0.85, wspace=0.28)
+D_COL, T_COL = "#D55E00", "0.55"
+lims = (-4.7, 0.9)
+for k, (col, ttl) in enumerate([("pred_logrmse_combined", "combined score"), ("pred_logrmse_best_benchmark", "benchmark $np(1-p)/d$")]):
+    ax = fig.add_subplot(gs[0, k])
+    for isD, c, mk, lab in [(False, T_COL, "o", "tie cells"), (True, D_COL, "o", "set D")]:
+        t = diag[diag.Drun == isD]
+        ax.scatter(t[col], t.realised_logrmse, s=3, c=c, alpha=0.35, lw=0, marker=mk, rasterized=True, label=lab)
+    ax.plot(lims, lims, color="k", lw=0.7)
+    ax.axvline(diag.pred_logrmse_constant.mean(), color="k", lw=0.8, ls=":", label="constant-only")   # held-out constant (mean of the training mechanisms)
+    key = "combined score" if k == 0 else "best degree benchmark (n p(1-p)/d)"
+    f2 = lambda v: f"{v:.2f}".replace("-", "\u2212")
+
+    ax.set_xlim(lims); ax.set_ylim(lims); ax.set_aspect("equal")
+    ax.set_xlabel("held-out predicted log RMSE"); ax.set_title(f"{ttl}\n$R^2$ {f2(absr[key])}; constant {f2(absr['constant only (training-group mean)'])}", fontsize=style.MIN_PT, pad=3, linespacing=1.15)
+    if k == 0:
+        ax.set_ylabel("realised log RMSE")
+    ax.text(-0.2 if k == 0 else -0.22, 1.2, "AB"[k], transform=ax.transAxes, fontweight="bold")
+
+from matplotlib.lines import Line2D
+fig.legend([Line2D([], [], marker="o", color=D_COL, ls="", ms=4), Line2D([], [], marker="o", color=T_COL, ls="", ms=4), Line2D([], [], color="k", ls=":", lw=0.8)],
+           ["discriminating set D", "tie cells", "held-out constant prediction"], frameon=False, loc="lower center", ncol=2,
+           bbox_to_anchor=(0.5, 1.0), columnspacing=1.2, handletextpad=0.3)   # above the panels, not over the points
+# panel C
+cx = fig.add_subplot(gs[1, :])
+f_ = lambda s, sub: acc[(acc.variant == s) & acc.criterion.str.contains(sub, regex=False)]
+pooled = {
+    "part (i)": f_("pre-registered", "D*, cell misfit share").iloc[0],
+    "combined, LOMO": f_("pre-registered", "pooled held-out R2 gain over best benchmark, leave-one-mechanism-out").iloc[0],
+    "combined, LOFO": f_("pre-registered", "pooled held-out R2 gain over best benchmark, leave-one-family-out").iloc[0],
+}
+pooled_expl = {
+    "combined, LOMO": f_("exploratory: noise-adjusted S", "pooled held-out R2 gain over best benchmark, leave-one-mechanism-out").iloc[0],
+    "combined, LOFO": f_("exploratory: noise-adjusted S", "pooled held-out R2 gain over best benchmark, leave-one-family-out").iloc[0],
+}
+FAM = ["BA", "DCSBM", "ER", "SBM", "Stanford3", "WS", "ego-Facebook"]
+FAMN = {"ego-Facebook": "ego-FB", "DCSBM": "DC-SBM"}
+blocks = [("part (i), L vs benchmarks\nD* rows, hold out family", "part (i)", FAM,
+           lambda g: grp[(grp.variant == "pre-registered") & grp.kind.str.startswith("family (part i, D*") & (grp.group == g)], None),
+          ("combined score\nhold out mechanism", "combined, LOMO", list("abcdef"),
+           lambda g: grp[(grp.variant == "pre-registered") & (grp.kind == "mechanism") & (grp.group == g)],
+           lambda g: grp[(grp.variant == "exploratory: noise-adjusted S") & (grp.kind == "mechanism") & (grp.group == g)]),
+          ("combined score\nhold out family", "combined, LOFO", FAM,
+           lambda g: grp[(grp.variant == "pre-registered") & (grp.kind == "family") & (grp.group == g)],
+           lambda g: grp[(grp.variant == "exploratory: noise-adjusted S") & (grp.kind == "family") & (grp.group == g)])]
+x = 0; xt, xl = [], []; rows = []
+for bi, (title, key, groups, fpre, fexp) in enumerate(blocks):
+    x0 = x
+    pr = pooled[key]
+    cx.errorbar(x, pr.value, yerr=[[pr.value - pr.ci_lo], [pr.ci_hi - pr.value]], marker="D", ms=4.5, color="k", elinewidth=0.9, capsize=2, zorder=4)
+    rows.append(dict(block=title.replace("\n", " "), group="pooled", variant="pre-registered", gain=pr.value, lo=pr.ci_lo, hi=pr.ci_hi))
+    if key in pooled_expl:
+        pe = pooled_expl[key]
+        cx.errorbar(x + 0.28, pe.value, yerr=[[pe.value - pe.ci_lo], [pe.ci_hi - pe.value]], marker="D", ms=4.5, color="k", mfc="white",
+                    elinewidth=0.9, capsize=2, zorder=4)
+        rows.append(dict(block=title.replace("\n", " "), group="pooled", variant="exploratory: noise-adjusted S", gain=pe.value, lo=pe.ci_lo, hi=pe.ci_hi))
+    xt.append(x); xl.append("pooled")
+    x += 1.2
+    for g in groups:
+        r = fpre(g)
+        assert len(r) == 1, (key, g, len(r))
+        cx.plot(x, r.r2_gain.iloc[0], marker="o", ms=3.8, color="#0072B2", ls="", zorder=3)
+        rows.append(dict(block=title.replace("\n", " "), group=g, variant="pre-registered", gain=r.r2_gain.iloc[0]))
+        if fexp is not None:
+            e = fexp(g)
+            assert len(e) == 1
+            cx.plot(x + 0.22, e.r2_gain.iloc[0], marker="o", ms=3.8, color="#0072B2", mfc="white", ls="", zorder=3)
+            rows.append(dict(block=title.replace("\n", " "), group=g, variant="exploratory: noise-adjusted S", gain=e.r2_gain.iloc[0]))
+        xt.append(x); xl.append(FAMN.get(g, g)); x += 1
+    cx.annotate(title, xy=((x0 + x - 1) / 2, 1.02), xycoords=("data", "axes fraction"), ha="center", va="bottom", fontsize=style.MIN_PT)
+    if bi < len(blocks) - 1:
+        cx.axvline(x + 0.1, color="0.8", lw=0.6); x += 1.0
+cx.axhline(0, color="k", lw=0.6); cx.axhline(0.05, color="k", lw=0.8, ls="--")
+cx.set_xticks(xt); cx.set_xticklabels(xl, rotation=40, ha="right", rotation_mode="anchor")
+cx.tick_params(axis="x", length=2, pad=1.5)
+cx.set_ylabel("held-out R² gain"); cx.grid(axis="x", visible=False)
+cx.text(-0.06, 1.28, "C", transform=cx.transAxes, fontweight="bold")
+from matplotlib.lines import Line2D
+h = [Line2D([], [], marker="o", ms=3.8, color="#0072B2", ls=""), Line2D([], [], marker="o", ms=3.8, color="#0072B2", mfc="white", ls=""),
+     Line2D([], [], marker="D", ms=4.5, color="k", ls=""), Line2D([], [], color="k", ls="--", lw=0.8)]
+cx.legend(h, ["group, specified before the runs", "group, exploratory (noise-adjusted S)", "pooled, 95% group-resampling interval", "threshold 0.05"],
+          frameon=False, loc="lower center", bbox_to_anchor=(0.5, -1.62), ncol=1, handletextpad=0.3, columnspacing=1.2)
+style.check_min_type(fig)
+o = common.out_dir(meta, a.out)
+style.save(fig, o / "fig7_diagnostic.pdf", width=PLACED * (style.TEXTWIDTH - 0.04), dpi=300)
+pd.DataFrame(rows).to_csv(o / "fig7_diagnostic_C.csv", index=False)
+diag[["cell_id", "group_mech", "group_family", "Drun", "pred_logrmse_combined", "pred_logrmse_best_benchmark", "realised_logrmse"]].to_csv(o / "fig7_diagnostic_AB.csv", index=False)

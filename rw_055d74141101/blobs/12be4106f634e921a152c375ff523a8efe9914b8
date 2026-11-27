@@ -1,0 +1,21 @@
+{
+ "inputs": {
+  "search_quality.csv": {
+   "sha256": "4987a212cd7660b1bf3e368c689465cd0e3902048ffb19391f45b937a5f33a4b",
+   "rows": 81,
+   "design": [
+    "all",
+    "crowd",
+    "expert",
+    "llm_judge",
+    "sports"
+   ],
+   "perturbation": [
+    "both",
+    "delete",
+    "flip"
+   ]
+  }
+ },
+ "rows": 18
+}

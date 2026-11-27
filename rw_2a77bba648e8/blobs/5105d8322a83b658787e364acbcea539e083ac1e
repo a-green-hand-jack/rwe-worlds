@@ -1,0 +1,9 @@
+{
+ "script": "analysis/p7_confirm.py",
+ "code_commit": "c12e790d8cd2dd4bf212fb177508cae943a4c9b4",
+ "date": "2026-11-26",
+ "seed": 20261126,
+ "bootstrap_B": 2000,
+ "original_cells": 2142,
+ "confirmatory_cells": 666
+}

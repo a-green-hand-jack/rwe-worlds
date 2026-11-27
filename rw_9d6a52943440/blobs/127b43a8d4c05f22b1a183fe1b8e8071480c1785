@@ -1,0 +1,8 @@
+# Review of paper-repo PR #15 (final) at head 3865cb5
+
+Approved. Change since a9080a6 is one paragraph in `paper/appendix/public.tex`.
+
+- F1 fixed: the longer fit is now stated for both priors; 2.22/3.38 (anchor) and 1.98/3.04 (uniform) are labelled default prior, 2.11/3.52 and 1.92/3.11 wide prior, as in `dsweep.csv` (irt-plugin / irtw-plugin rows).
+- Optional point on two priors addressed: the weak prior (precision 0.1, Appendix D) and the wide prior (precision 0.01) are distinguished in the text.
+- Built PDF `main/document.pdf` is from 3865cb5: 32 pages, main text ends before the references on page 10, no Type 3 fonts, no `??`. Tables are unaffected (sources unchanged).
+- The abstract's 0.88 (one extrapolation fold) remains an optional wording point, not blocking.

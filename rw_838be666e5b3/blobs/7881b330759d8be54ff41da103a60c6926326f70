@@ -1,0 +1,30 @@
+"""Stronger, still cross-fitted floor estimate for the 1-D (T1) sets: the best of a wider set of calibrator classes
+(cubic splines with 8/16/32 knots, isotonic, 10/30 stratum means, histogram gradient boosting on f) by 5-fold cross-fitted
+MSE of the *population pool*. Within-class estimate (an upper bound on E Var(Y|f) only within these classes); writes
+results/floors_strong.json."""
+import json
+from common import *
+from pci import calibrators as C
+from pci.pops import _cv_predict
+
+CLASSES = [("spline8", C.make_spline(8)), ("spline16", C.make_spline(16)), ("spline32", C.make_spline(32)),
+           ("isotonic", C.make_isotonic()), ("bins10", C.make_bins(10)), ("bins30", C.make_bins(30)),
+           ("gbm", C.make_gbm(300, 16, learning_rate=0.05, min_samples_leaf=50))]
+out = {}
+for nm in ["galaxies", "forest", "alphafold", "gene_expression", "census_income", "census_healthcare",
+           "census_education", "plankton", "ballots"]:
+    y, f, _ = load_pool(nm).arrays()
+    sub = slice(None)
+    if len(y) > 200_000:
+        sub = np.random.default_rng(0).choice(len(y), 200_000, replace=False)
+    ys, fs = y[sub], f[sub]
+    lin = C.make_linear()(fs, ys)(fs)
+    res = {}
+    for cn, fit in CLASSES:
+        mh = _cv_predict(fs, ys, fit, seed=0)
+        res[cn] = dict(sigma2_res=float(np.mean((ys - mh) ** 2)), V_g=float(mh.var()),
+                       Delta=float(np.mean((mh - lin) ** 2)))
+    best = min(res, key=lambda k: res[k]["sigma2_res"])
+    out[nm] = dict(res[best], model=best, all=res, lin_resvar=float(np.mean((ys - lin) ** 2)), pool_size=int(len(y)))
+    print(nm, best, {k: round(v["sigma2_res"], 5) for k, v in res.items()}, flush=True)
+    json.dump(out, open(os.path.join(RESULTS, "floors_strong.json"), "w"), indent=1)

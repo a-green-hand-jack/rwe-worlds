@@ -1,0 +1,52 @@
+"""Fig 3 (claim M4): where the single shap run fails: share of instances with P_c >= 0.9 (strict, exact top-3 set) and with P_c^eps >= 0.9
+(tolerance-aware) by within-cell quartile of the exact margin g_3, with the share of instances whose tolerance group is flat beside them.
+
+Reads: margin_strata (analysis; quartiles Q1-Q4 of the exact margin within dataset x model, instance-bootstrap CIs; d >= 16 at the shap default
+budget, d <= 10 at the largest sampled budget because the default enumerates).
+Usage: python fig3_margin.py DATA_DIR OUT_PREFIX [--estimator shap_kernel --l1 False]
+"""
+import argparse
+import numpy as np, pandas as pd, matplotlib.pyplot as plt
+import figstyle as fs
+
+ap = argparse.ArgumentParser()
+ap.add_argument("data"); ap.add_argument("out")
+ap.add_argument("--estimator", default="shap_kernel"); ap.add_argument("--l1", default="False")
+a = ap.parse_args()
+fs.setup()
+ms, p1 = fs.load(a.data, "margin_strata")
+fs.require(ms, ["dataset", "model", "estimator", "l1_reg", "budget_m", "d", "budget_role", "margin_bin", "n_instances", "share_pc_exact_ge09",
+                "share_pc_exact_ge09_ci_lo", "share_pc_exact_ge09_ci_hi", "share_pc_eps_ge09", "share_flat_group"], "margin_strata")
+d = ms[(ms.estimator == a.estimator) & (ms.l1_reg == a.l1) & ms.budget_role.notna() & (ms.budget_role != "") & ms.margin_bin.isin(["Q1", "Q2", "Q3", "Q4"])]
+dsets = [x for x in fs.DATASET_TITLE if x in set(d.dataset)]
+models = [m for m in fs.MODELS if m in set(d.model)]
+if not dsets: raise SystemExit("no margin_strata rows for the selection")
+fig, ax = plt.subplots(len(models), len(dsets), figsize=(0.8 * fs.WIDTH_IN, 0.8 * (0.95 * len(models) + 0.7) + 0.12), sharex=True, sharey=True, squeeze=False)
+rows = []
+for r, m in enumerate(models):
+    st = fs.MODEL_STYLE[m]
+    for c, ds in enumerate(dsets):
+        g = d[(d.dataset == ds) & (d.model == m)].sort_values("margin_bin")
+        if g.empty: ax[r, c].axis("off"); continue
+        x = np.arange(4)
+        ax[r, c].bar(x, g.share_flat_group, width=0.55, color="0.85", lw=0, zorder=1, label="flat group")
+        ax[r, c].plot(x, g.share_pc_eps_ge09, color=st["color"], ls=":", lw=1.0, zorder=2, label="$P_c^{\\epsilon}\\geq0.9$")
+        ax[r, c].errorbar(x, g.share_pc_exact_ge09, yerr=[g.share_pc_exact_ge09 - g.share_pc_exact_ge09_ci_lo, g.share_pc_exact_ge09_ci_hi - g.share_pc_exact_ge09],
+                          color=st["color"], marker=st["marker"], lw=1.0, capsize=1.5, capthick=0.6, elinewidth=0.6, zorder=3, label="$P_c\\geq0.9$")
+        rows += [dict(dataset=ds, model=m, budget_m=int(q.budget_m), budget_role=q.budget_role, quartile=q.margin_bin, n_instances=int(q.n_instances),
+                      share_pc_exact_ge09=q.share_pc_exact_ge09, ci_lo=q.share_pc_exact_ge09_ci_lo, ci_hi=q.share_pc_exact_ge09_ci_hi,
+                      share_pc_eps_ge09=q.share_pc_eps_ge09, share_flat_group=q.share_flat_group) for q in g.itertuples()]
+        if r == 0:
+            role = "default" if g.budget_role.iloc[0] == "default" else "sampled"
+            ax[r, c].set_title(f"{fs.DATASET_TITLE[ds]}\n$m$={int(g.budget_m.iloc[0])} ({role})\n$n$={int(g.n_instances.iloc[0])} per quartile", fontsize=fs.MIN_PT)
+        if c == 0: ax[r, c].set_ylabel(m.upper())
+        ax[r, c].set_xticks(x); ax[r, c].set_xticklabels([f"Q{b+1}" for b in range(4)])
+ax[-1, len(dsets) // 2].set_xlabel("within-cell quartile of the exact margin $g_3$ (Q1 = smallest)")
+lo = np.floor(min(r["ci_lo"] for r in rows) * 10) / 10
+ax[0, 0].set_ylim(max(0.0, lo - 0.05), 1.05)
+from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
+h = [Line2D([], [], color="0.2", marker="o", lw=1.0), Line2D([], [], color="0.2", ls=":", lw=1.0), Patch(color="0.85")]
+fig.legend(h, ["share with $P_c\\geq0.9$ (95% CI over instances)", "share with $P_c^{\\epsilon}\\geq0.9$", "share with a flat tolerance group"], loc="upper center", ncol=2, frameon=False, handlelength=1.6, columnspacing=1.0, handletextpad=0.4, bbox_to_anchor=(0.5, 1.0))
+fig.tight_layout(pad=0.4, h_pad=0.4, w_pad=0.4, rect=(0, 0, 1, 0.915))
+fs.save(fig, a.out, pd.DataFrame(rows), [p1], note=f"{a.estimator} l1_reg={a.l1}, k=3; quartiles of the exact margin g_3 within each dataset x model (margin_strata.csv from analysis); budget = shap default 2d+2048 for d>=16 (German, ACS Employment), largest sampled budget for d<=10 where the default enumerates all coalitions (deterministic, so those panels are not default-budget evidence); n instances per quartile in the csv (10-25: the intervals are wide); the tolerance-aware share is 1 almost everywhere because P_c^eps is satisfied vacuously inside a flat group (grey bars), so the strict share is the informative one; the CI is over instances of one trained model per cell")

@@ -1,0 +1,37 @@
+"""Fig. A2 (appendix, claim C1, descriptive only): the three LLM-benchmark matrices too small for a closure target (N < 12 families
+in the largest folds). Standardised RMSE of the factor model against k for greedy A and random, family-bootstrap 95% band, with the
+column-mean, leave-one-benchmark-out and in-sample references. No k* is read off: the bands are wide and the held-out rows few."""
+import argparse, os
+import pandas as pd
+import style, venue
+import matplotlib.pyplot as plt
+
+p = argparse.ArgumentParser()
+p.add_argument("--results", required=True); p.add_argument("--out", default="out"); p.add_argument("--draft", action="store_true")
+p.add_argument("--predictor", default="fa")
+a = p.parse_args()
+v = venue.get(a.draft)
+size = style.setup(v["TEXT_WIDTH_IN"], v["MIN_FONT_PT"], aspect=0.36)
+f1, f2 = os.path.join(a.results, "small_panels.csv"), os.path.join(a.results, "small_panels_refs.csv")
+s = pd.read_csv(f1); r = pd.read_csv(f2)
+NAMES = {"helm_lite": "HELM Lite", "helm_capabilities": "HELM Capabilities", "llm_union16": "LLM union"}
+fig, axs = plt.subplots(1, 3, figsize=size, sharey=True)
+meta = {}
+for ax, ds in zip(axs, NAMES):
+    d = s[(s.dataset == ds) & (s.predictor == a.predictor) & (s.k != "grid_avg")].copy(); d["k"] = d.k.astype(int)
+    for sel in ("random", "greedyA"):
+        e = d[d.selector == sel].sort_values("k")
+        ax.fill_between(e.k, e.ci_lo, e.ci_hi, color=style.COLORS[sel], alpha=0.15, lw=0)
+        ax.plot(e.k, e.std_rmse, color=style.COLORS[sel], marker=style.MARKERS[sel], ms=3.2, lw=1.0, label=style.SHORT_LABELS[sel])
+    rr = r[r.dataset == ds].set_index("reference").std_rmse
+    for key, ref in (("colmean", "colmean"), ("lobo_fa", "lobo"), ("insample", "insample")):
+        ax.axhline(rr[key], color=style.REF_STYLE[ref]["color"], ls=style.REF_STYLE[ref]["ls"], lw=0.9, label=style.REF_STYLE[ref]["label"])
+    n = d.iloc[0]
+    ax.set_title(f"{NAMES[ds]}\n{int(n.n_families)} fam., {int(n.n_models)} models, {int(n.n_benchmarks)} bench.", loc="left")
+    ax.set_xlabel("columns observed, k"); ax.set_xticks(sorted(d.k.unique()))
+    meta[ds] = dict(n_families=int(n.n_families), n_models=int(n.n_models), n_benchmarks=int(n.n_benchmarks), k_max=int(d.k.max()))
+axs[0].set_ylabel("standardised RMSE")
+h, l = axs[0].get_legend_handles_labels()
+fig.legend(h, l, loc="outside lower center", ncol=3, columnspacing=1.2)
+print(style.save(fig, "figA2_small", a.out, dict(claim="C1", inputs={f1: style.sha(f1), f2: style.sha(f2)}, split="grouped", predictor=a.predictor,
+                                                bars="family-bootstrap 95% CI", panels=meta, draft=a.draft)))

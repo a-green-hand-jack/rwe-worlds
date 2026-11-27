@@ -1,0 +1,84 @@
+"""Fig. 2 (claim C1): error and closure C(k) against k, grouped K-fold, one column per data regime.
+
+Top row: standardised RMSE on the unrun benchmarks with floor/ceiling references.
+Bottom row: closure C(k) against the primary LOBO reference, 0.8/0.9/0.95 levels, r_eff marked.
+Datasets are separate columns and never pooled.
+"""
+import argparse, numpy as np
+import style, venue
+from data import load
+import matplotlib.pyplot as plt
+
+p = argparse.ArgumentParser()
+p.add_argument("--results", required=True); p.add_argument("--out", default="out")
+p.add_argument("--datasets", nargs="+", default=["mteb_eng", "mteb_multi", "helm_mmlu"])
+p.add_argument("--selectors", nargs="+", default=["greedyA", "random"])
+p.add_argument("--predictors", nargs="+", default=["fa", "best_simple"]); p.add_argument("--split", default="grouped")
+p.add_argument("--design", default="fixed")
+p.add_argument("--draft", action="store_true")
+a = p.parse_args()
+PRED_LS = ["-", "--", ":"]
+v = venue.get(a.draft)
+size = style.setup(v["TEXT_WIDTH_IN"], v["MIN_FONT_PT"], aspect=0.58)
+cur, p1 = load(a.results, "curves"); ref, p2 = load(a.results, "refs")
+clo, p3 = load(a.results, "closure"); ks, p4 = load(a.results, "kstar")
+# primary design: targets are a fixed random 30% of columns, selection from the other 70%
+if "design" in cur.columns:
+    cur = cur[cur.design == a.design]
+if "design" in clo.columns:
+    clo = clo[clo.design == a.design]
+
+fig, axs = plt.subplots(2, len(a.datasets), figsize=size, sharex="col", squeeze=False)
+meta = {}
+for j, ds in enumerate(a.datasets):
+    ax, bx = axs[0, j], axs[1, j]
+    c = cur[(cur.dataset == ds) & (cur.split == a.split) & (cur.metric == "std_rmse")]
+    cl = clo[(clo.dataset == ds) & (clo.split == a.split)]
+    for s in a.selectors:
+        for pi, pr in enumerate(a.predictors):
+            d = c[(c.selector == s) & (c.predictor == pr)].sort_values("k")
+            e = cl[(cl.selector == s) & (cl.predictor == pr)].sort_values("k")
+            # colour + marker = selector, line style + marker fill = predictor
+            kw = dict(color=style.COLORS[s], marker=style.MARKERS[s], ls=PRED_LS[pi], ms=3.2, lw=1.0,
+                      mfc=style.COLORS[s] if pi == 0 else "white", mew=0.8)
+            ax.plot(d.k, d["mean"], **kw)
+            bx.plot(e.k, e.C_lobo, **kw)
+            if (s, pi) == (a.selectors[0], 0):   # band for the headline curve only; paired differences are Fig. 3
+                ax.fill_between(d.k, d.ci_lo, d.ci_hi, color=kw["color"], alpha=0.18, lw=0)
+                bx.fill_between(e.k, e.C_lobo_lo, e.C_lobo_hi, color=kw["color"], alpha=0.18, lw=0)
+    r = ref[(ref.dataset == ds) & (ref.split == a.split) & (ref.metric == "std_rmse")]
+    for name, st in style.REF_STYLE.items():
+        row = r[r.reference == name]
+        if len(row):
+            ax.axhline(row.value.iloc[0], lw=0.9, **{k_: v_ for k_, v_ in st.items() if k_ != "label"})
+    for lev in (0.8, 0.9, 0.95):
+        bx.axhline(lev, color="0.7", lw=0.5 if lev != 0.9 else 0.9, ls="-")
+    reff = ks[(ks.dataset == ds)].r_eff.iloc[0]
+    for x in (ax, bx):
+        x.axvline(reff, color="0.5", lw=0.8, ls="-", alpha=0.6)
+        x.set_xscale("log")
+    bx.text(reff, 0.02, " r_eff", transform=bx.get_xaxis_transform(), va="bottom", ha="left", color="0.3")
+    tk = [1, 2, 3, 5, 10, 20] if d.k.max() <= 20 else [1, 2, 3, 5, 10, 30]; bx.set_xticks(tk); bx.set_xticklabels([str(x) for x in tk]); bx.minorticks_off() if False else None
+    bx.xaxis.set_minor_locator(plt.NullLocator()); ax.xaxis.set_minor_locator(plt.NullLocator())
+    bx.set_xlim(0.85, d.k.max() * 1.1)
+    if j == 0:
+        ax.set_ylabel("standardised RMSE"); bx.set_ylabel(r"closure $C(k)$")
+    bx.set_xlabel("benchmarks run, $k$")
+    bx.set_ylim(None, 1.02)
+    lo = min([r.value.min()] + list(d["mean"].tolist()))
+    ax.set_ylim(max(0.0, lo - 0.06), None)
+    n = c.iloc[0]
+    ax.set_title(style.DATASET_SHORT.get(ds, ds) + f"\n{int(n.n_families)} families, {int(n.n_models)} models\n{int(n.n_targets)} target benchmarks")
+    meta[ds] = dict(split=a.split, predictors=a.predictors, selectors=a.selectors, n_families=int(n.n_families),
+                    n_models=int(n.n_models), n_targets=int(n.n_targets), ks=[int(x) for x in sorted(d.k.unique())])
+# one legend in three groups: selector (colour), predictor (line style), reference lines
+from matplotlib.lines import Line2D
+hs = [Line2D([], [], color=style.COLORS[s], marker=style.MARKERS[s], ms=3.2, lw=1.0, label=style.LABELS[s]) for s in a.selectors]
+hp = [Line2D([], [], color="0.25", ls=PRED_LS[i], marker="o", ms=3.2, lw=1.0, mfc="0.25" if i == 0 else "white", label=style.PRED_LABELS.get(pr, pr))
+      for i, pr in enumerate(a.predictors)]
+used = [n_ for n_ in style.REF_STYLE if (ref.reference == n_).any()]
+hr = [Line2D([], [], lw=0.9, label=style.REF_STYLE[n_]["label"], **{k_: v_ for k_, v_ in style.REF_STYLE[n_].items() if k_ != "label"}) for n_ in used]
+fig.legend(hs + hp + hr, [h.get_label() for h in hs + hp + hr], loc="outside lower center", ncol=3, columnspacing=1.2, handlelength=2.2)
+print(style.save(fig, "fig2_main", a.out, dict(claim="C1", inputs={x: style.sha(x) for x in (p1, p2, p3, p4)}, panels=meta,
+                                               design=a.design, band="headline curve (first selector, first predictor) only; family-clustered bootstrap 95%",
+                                               draft=a.draft)))

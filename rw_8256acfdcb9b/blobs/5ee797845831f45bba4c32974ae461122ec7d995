@@ -1,0 +1,81 @@
+"""Models on raw-attribute matrices and the output space explained for each family.
+
+LR, MLP: log-odds; GBM (XGBoost): raw margin (log-odds); RF: class-1 probability (what TreeSHAP explains).
+Categorical attributes are one-hot encoded *inside* the model (LR, MLP) or used as integer codes (RF, GBM);
+in every case the player is the raw attribute.
+"""
+import numpy as np
+from sklearn.compose import ColumnTransformer
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.neural_network import MLPClassifier
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+import xgboost as xgb
+
+OUTPUT_SPACE = {"lr": "log-odds", "mlp": "log-odds", "gbm": "log-odds (raw margin)", "rf": "P(class 1)"}
+
+
+def _prep(d, cat_idx):
+    num = [i for i in range(d) if i not in cat_idx]
+    tr = []
+    if num:
+        tr.append(("num", StandardScaler(), num))
+    if cat_idx:
+        tr.append(("cat", OneHotEncoder(handle_unknown="infrequent_if_exist", min_frequency=0.01,
+                                        sparse_output=False), list(cat_idx)))
+    return ColumnTransformer(tr)
+
+
+class Model:
+    """Wrapper: fit on raw X; f(Z) returns the explained output (float64 vector) for raw rows Z."""
+
+    def __init__(self, kind, d, cat_idx, seed=0, **hp):
+        self.kind, self.d, self.cat_idx, self.seed, self.hp = kind, d, cat_idx, seed, hp
+
+    def fit(self, X, y):
+        k, hp = self.kind, self.hp
+        if k == "lr":
+            self.m = make_pipeline(_prep(self.d, self.cat_idx),
+                                   LogisticRegression(C=hp.get("C", 1.0), max_iter=2000))
+            self.m.fit(X, y)
+        elif k == "mlp":
+            self.m = make_pipeline(_prep(self.d, self.cat_idx),
+                                   MLPClassifier(hidden_layer_sizes=hp.get("hidden", (32,) if len(y) < 5000 else (64, 64)),
+                                                 alpha=hp.get("alpha", 1.0 if len(y) < 5000 else 1e-3),
+                                                 max_iter=hp.get("max_iter", 500), early_stopping=len(y) > 5000,
+                                                 n_iter_no_change=10, random_state=self.seed))
+            self.m.fit(X, y)
+        elif k == "rf":
+            self.m = RandomForestClassifier(n_estimators=hp.get("n_estimators", 100),
+                                            min_samples_leaf=hp.get("min_samples_leaf", 5),
+                                            max_features=hp.get("max_features", "sqrt"),
+                                            n_jobs=1, random_state=self.seed)
+            self.m.fit(X, y)
+        elif k == "gbm":
+            self.m = xgb.XGBClassifier(n_estimators=hp.get("n_estimators", 200), max_depth=hp.get("max_depth", 4),
+                                       learning_rate=hp.get("learning_rate", 0.1), subsample=0.8,
+                                       colsample_bytree=0.8, n_jobs=1, random_state=self.seed, tree_method="hist")
+            self.m.fit(X, y)
+        else:
+            raise ValueError(k)
+        return self
+
+    def f(self, Z):
+        k = self.kind
+        if k == "rf":
+            return self.m.predict_proba(Z.astype(np.float32))[:, 1].astype(np.float64)
+        if k == "gbm":
+            return self.m.get_booster().inplace_predict(Z.astype(np.float32), predict_type="margin").astype(np.float64)
+        if k == "lr":
+            return self.m.decision_function(Z)
+        if k == "mlp":  # pre-sigmoid output, exact (predict_proba would saturate)
+            pre, clf = self.m[:-1], self.m[-1]
+            a = pre.transform(Z)
+            for W, b in zip(clf.coefs_[:-1], clf.intercepts_[:-1]):
+                a = np.maximum(a @ W + b, 0.0)  # relu
+            return (a @ clf.coefs_[-1] + clf.intercepts_[-1]).ravel()
+        raise ValueError(k)
+
+    def proba(self, Z):
+        return self.m.predict_proba(Z)[:, 1]

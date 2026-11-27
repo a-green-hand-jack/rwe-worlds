@@ -1,0 +1,25 @@
+\section{Introduction}
+\label{sec:intro}
+
+Randomised experiments on a social or marketplace network violate the assumption that one unit's outcome does not depend on another's assignment, and the quantity of interest is usually the \emph{global average treatment effect} (GATE): the difference in mean outcome if every unit were treated rather than none.
+Difference in means (DM) is biased for it; design-based estimators with an exposure mapping \citep{aronow2017estimating,ugander2013graph,eckles2017design} are unbiased only if the mapping is right, and weight the few units whose exposure is extreme.
+\emph{Regression adjustment} \citep{chin2019regression,han2023model} avoids both: fit the outcome on the unit's own treatment and graph-based exposure covariates such as the treated fraction of its neighbours, then predict at the all-treated and all-control assignments and difference the predictions. It uses every unit and needs no weights.
+
+How well it works, what governs its error and when it fails is not known.
+The estimator fits a model where exposures occur and evaluates it where they do not: under Bernoulli($p$) assignment a unit with $d$ neighbours sees a treated fraction concentrated around $p$ with spread $\sqrt{p(1-p)/d}$, and the two global corners, fraction $1$ and fraction $0$, lie far outside it.
+\citet{chin2019regression} points this out qualitatively and draws the analogy to off-policy evaluation.
+We take it as the organising idea, not as a novelty, and ask what it predicts and whether the predictions hold.
+Our reading is that the error has two parts with different drivers: the \emph{variance} is the leverage of the corner contrast in the regression, which grows with degree; the \emph{bias} is the response's curvature times the raw distance from the observed exposures to the corner, which does not grow with degree for a smooth response and which cannot be identified without an assumption on the response when the data never visit the corner. We formed this reading after a prediction we had specified failed (Section~\ref{sec:diag}); the tests that followed did not confirm it, so it is a hypothesis.
+
+We test this on simulated experiments in which the GATE is known exactly, so that each estimator's error, bias and variance are measured. The simulations cross six interference mechanisms, five synthetic graph families and two real Facebook graphs, Bernoulli and graph-cluster assignment, and estimators from DM to data-adaptive learners. The predictions and the acceptance rule for a diagnostic were specified before the runs.
+
+\paragraph{What we find.}
+\begin{itemize}[leftmargin=1.5em,itemsep=0pt,topsep=2pt]
+\item \textbf{Regime map.} Regression beats DM in most cells; the spillover share above which it wins, $s^\star$, rises with degree because the variance does. A threshold response is the exception on synthetic graphs, not on the two real ones (\S\ref{sec:regime}).
+\item \textbf{Variance and bias differ.} Variance follows leverage (SD exponents $-0.50$ in $n$, $+0.55$ in $1{+}d$). A formula that uses the true response lies inside the 95\% Monte Carlo interval of the measured bias in 85\% of cells, and depends on degree differently for each mechanism (\S\ref{sec:varbias}).
+\item \textbf{Two negative results.} No data-computable score we tried predicts the bias usefully, and the usual 95\% interval covers 74\% of Bernoulli cells, failing where bias exceeds noise (\S\ref{sec:diag}, \S\ref{sec:coverage}).
+\item \textbf{Designs and learners.} Cluster designs trade bias against variance; on a sample of cells, flexible learners do not beat the regression except on the threshold response, where three of five cannot be told apart from it and a small untuned graph network has a lower RMSE than it (paired interval below zero) in 5 of 13 cells (\S\ref{sec:cluster}, \S\ref{sec:regime}).
+\end{itemize}
+
+\paragraph{What is not new, and scope.}
+The extrapolation viewpoint is in \citet{chin2019regression}, leverage-based variance is textbook OLS, and DM's bias under interference is known. To our knowledge, the quantified split tested across mechanisms, graphs and designs, the map of where regression loses, and the diagnostic and interval checks are new. We propose no new estimator. All outcomes are simulated, and the shares we report are shares of our grid, not frequencies in any population of graphs.

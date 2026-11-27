@@ -1,0 +1,191 @@
+"""Aggregate raw results into the tables behind every figure/table. usage: python scripts/03_analyze.py [rawdir] [outdir]
+
+Outputs (outdir=results/):
+  per_bench.csv.gz        bench, split, n, method: rmse, mae, bias (mean signed error), bias2, var, k targets, n families
+  primary.csv          RMSE ratio to uniform|mean per (bench,split,n,method) + family-bootstrap CI over benchmarks (geomean)
+  ratio_by_n.csv.gz       geometric-mean ratio over (non-thin / all) benchmarks per (split,n,method) with CI   [Fig. 2]
+  ordering.csv.gz         Spearman/Kendall/top-k per (bench,split,n,method), averaged over fold x draw          [Table 4]
+  pairwise.csv.gz         pairwise order accuracy by true-gap bin, with the sample-only reference               [Fig. 6]
+  bias_by_score.csv.gz    signed error by target position relative to the source score distribution            [Fig. 3]
+  ceiling.csv          predictor quality on unsampled items vs achieved gain                                [Fig. 5]
+  targets.csv          k targets / families per (bench, split) and thin flag                                [Table 1]
+"""
+import os
+for v in ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS"):
+    os.environ[v] = "1"
+import sys, pickle, pathlib, importlib.util, glob
+root = pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(root / "src"))
+import numpy as np, pandas as pd
+from scipy.stats import rankdata, norm
+from bpred import data
+
+raw = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else root / "results" / "raw")
+out = pathlib.Path(sys.argv[2] if len(sys.argv) > 2 else root / "results"); out.mkdir(exist_ok=True, parents=True)
+B = 2000
+BASE = "uniform|mean"
+BASES = ["uniform|mean", "strat|mean"]
+GAP_BINS = [0, 0.005, 0.01, 0.02, 0.04, 0.08, 1.01]
+rng = np.random.default_rng(0)
+
+files = sorted(glob.glob(str(raw / "*__*.pkl")))
+per_bench, ordering, pairwise, bias_rows, ceil_rows, tgt_rows, tl_rows = [], [], [], [], [], [], []
+boot_store = {}      # (bench,split,n) -> dict(fam list, SE[f,method], cnt[f], methods)
+
+# per-target frames for bootstrap
+for fpath in files:
+    D = pickle.load(open(fpath, "rb"))
+    recs = D["records"]; b, sp = recs[0]["bench"], recs[0]["split"]
+    if os.environ.get("TWO_PCT"):          # n/N = 2 % runs: label n = 0, the actual n is kept in n_actual
+        for r in recs:
+            r["n_act"], r["n"] = r["n"], 0
+    Dd = data.get(b); Y = Dd["Y"]; Yf = Y.astype(np.float32); fams_all = Dd["families"]
+    from_run = importlib.util.spec_from_file_location("run", root / "scripts" / "02_run.py")
+    run = importlib.util.module_from_spec(from_run); from_run.loader.exec_module(run)
+    fold_defs = run.make_folds(Y, fams_all, sp)
+    tgt_rows.append(dict(bench=b, split=sp, k_targets=int(sum(len(r["tgt"]) for r in recs if r["n"] == recs[0]["n"])),
+                         n_families=len(set(np.concatenate([r["fam"] for r in recs if r["n"] == recs[0]["n"]])))))
+    for n in sorted({r["n"] for r in recs}):
+        rs = [r for r in recs if r["n"] == n]
+        methods = sorted(rs[0]["preds"])
+        fam = np.concatenate([r["fam"] for r in rs]); true = np.concatenate([r["true"] for r in rs])
+        E2, BIAS, VAR, MAE = {}, {}, {}, {}
+        for m in methods:
+            e2, bi, va, ma = [], [], [], []
+            for r in rs:
+                P = r["preds"][m].astype(np.float64); e = P - r["true"][None]
+                e2.append((e ** 2).mean(0)); bi.append(e.mean(0)); ma.append(np.abs(e).mean(0))
+                va.append(P.var(0, ddof=1) if P.shape[0] > 1 else np.zeros(P.shape[1]))
+            E2[m], BIAS[m], VAR[m], MAE[m] = map(np.concatenate, (e2, bi, va, ma))
+        names_t = np.concatenate([Dd["names"][r["tgt"]] for r in rs])
+        for m in methods:
+            ch = [r["chosen"].get(m, ("fixed", m.split("|")[1])) for r in rs]
+            tl_rows.append(pd.DataFrame(dict(
+                bench=b, split=sp, n=n, N=rs[0]["N"], n_over_N=rs[0].get("n_act", n) / rs[0]["N"], method=m, design=m.split("|")[0],
+                estimator=m.split("|")[1], fold=np.concatenate([[r["fold"]] * len(r["tgt"]) for r in rs]),
+                target_model=names_t, family=fam, true_score=true, est_mean=true + BIAS[m], bias=BIAS[m],
+                draw_var=VAR[m], sq_err=E2[m], n_draws=rs[0]["preds"][m].shape[0],
+                chosen=np.concatenate([[f"{c[0]}:{c[1]}"] * len(r["tgt"]) for c, r in zip(ch, rs)]),
+                qualifies_extrap=sp.startswith("extrap"))).astype({"bias": "float32", "est_mean": "float32", "draw_var": "float32", "sq_err": "float32", "true_score": "float32"}))
+        ufam = np.unique(fam); fidx = np.searchsorted(ufam, fam)
+        cnt = np.bincount(fidx, minlength=len(ufam)).astype(float)
+        SE = {m: np.bincount(fidx, E2[m], len(ufam)) for m in methods}
+        boot_store[(b, sp, n)] = (ufam, cnt, SE)
+        for m in methods:
+            per_bench.append(dict(bench=b, split=sp, n=n, n_actual=rs[0].get("n_act", n), N=rs[0]["N"], method=m, rmse=float(np.sqrt(E2[m].mean())),
+                                  mae=float(MAE[m].mean()), bias=float(BIAS[m].mean()), bias2=float((BIAS[m] ** 2).mean()),
+                                  var=float(VAR[m].mean()), n_draws=rs[0]["preds"][m].shape[0], bias2_unbiased=float((BIAS[m] ** 2).mean() - VAR[m].mean() / rs[0]["preds"][m].shape[0]), k_targets=len(true), n_families=len(ufam)))
+        # signed error by position relative to source scores
+        pos = []
+        for r, (si, ti) in zip(rs, fold_defs):
+            sc = Y[si].mean(1); pos.append((r["true"] - sc.mean()) / (sc.std() + 1e-9))
+        pos = np.concatenate(pos); pb = np.digitize(pos, [-1, 0, 1, 2, 3])
+        labels = ["<-1sd", "-1..0", "0..1", "1..2", "2..3", ">3sd"]
+        for m in methods:
+            if "|fixed:" in m: continue
+            for k in np.unique(pb):
+                s = pb == k
+                bias_rows.append(dict(bench=b, split=sp, n=n, method=m, pos_bin=labels[k], k=int(s.sum()),
+                                      bias=float(BIAS[m][s].mean()), rmse=float(np.sqrt(E2[m][s].mean()))))
+        # ordering metrics + pairwise accuracy (per fold x draw, then averaged)
+        ref_cache = {}
+        acc_sum = {}
+        for r, (si, ti) in zip(rs, fold_defs):
+            T = len(r["tgt"]); iu, ju = np.triu_indices(T, 1)
+            tv = r["true"]; gap = tv[iu] - tv[ju]; ag = np.abs(gap)
+            A = Yf[r["tgt"]]; q = (A @ (1 - A).T + (1 - A) @ A.T) / A.shape[1]
+            qij = q[iu, ju]; N = A.shape[1]
+            sd = np.sqrt(np.maximum(qij - gap ** 2, 1e-6) * (1 - n / N) / n)
+            refacc = norm.cdf(ag / sd)
+            gb = np.digitize(ag, GAP_BINS[1:-1])
+            sy = np.sign(gap)
+            rk_true = rankdata(tv)
+            kk = max(1, int(round(0.1 * T))); top_true = np.argsort(-tv)[:kk]
+            for m in methods:
+                if "|fixed:" in m: continue
+                P = r["preds"][m].astype(np.float64)
+                Rr = P.shape[0]
+                rk = np.apply_along_axis(rankdata, 1, P)
+                sp_ = np.array([np.corrcoef(rk[i], rk_true)[0, 1] for i in range(Rr)])
+                dx = P[:, iu] - P[:, ju]; sx = np.sign(dx)
+                tau = (sx * sy).sum(1) / np.sqrt((sx ** 2).sum(1) * (sy ** 2).sum())
+                corr = ((sx * sy) > 0) + 0.5 * (sx == 0)
+                prec = np.array([len(set(np.argsort(-P[i])[:kk]) & set(top_true)) / kk for i in range(Rr)])
+                if kk >= 5:
+                    ti_ = top_true; ii, jj = np.triu_indices(kk, 1)
+                    tt = tv[ti_]; stt = np.sign(tt[ii] - tt[jj])
+                    dxt = np.sign(P[:, ti_][:, ii] - P[:, ti_][:, jj])
+                    tautop = (dxt * stt).sum(1) / np.sqrt((dxt ** 2).sum(1) * (stt ** 2).sum() + 1e-12)
+                else:
+                    tautop = np.full(Rr, np.nan)
+                ordering.append(dict(bench=b, split=sp, n=n, method=m, fold=r["fold"], k=T, spearman=sp_.mean(),
+                                     kendall=tau.mean(), prec_topdecile=prec.mean(), kendall_topdecile=np.nanmean(tautop) if kk >= 5 else np.nan))
+                for g in np.unique(gb):
+                    s = gb == g
+                    pairwise.append(dict(bench=b, split=sp, n=n, method=m, fold=r["fold"], gap_bin=int(g), pairs=int(s.sum()),
+                                         acc=float(corr[:, s].mean()), ref_acc=float(refacc[s].mean()), gap_mean=float(ag[s].mean())))
+    # ceiling diagnostics (uniform design at all n)
+    for r in recs:
+        if "brier_irt" in r["diag"]:
+            mu = r["true"]; base = np.maximum(mu * (1 - mu), 1e-9)
+            ceil_rows.append(dict(bench=b, split=sp, n=r["n"], fold=r["fold"], k=len(mu), brier_const=float(base.mean()),
+                                  brier_p=float(r["diag"]["brier_p"].mean()), brier_irt=float(r["diag"]["brier_irt"].mean()),
+                                  brier_knn=float(r["diag"]["brier_knn"].mean())))
+    print("analysed", b, sp, flush=True)
+
+tl = pd.concat(tl_rows, ignore_index=True)
+tl.to_parquet(raw / "target_level.parquet", index=False)
+pb = pd.DataFrame(per_bench)
+tg = pd.DataFrame(tgt_rows); tg["thin"] = (tg.k_targets < 10) | (tg.n_families < 5)
+tg.to_csv(out / "targets.csv", index=False)
+pb = pb.merge(tg[["bench", "split", "thin"]], on=["bench", "split"])
+base = pb[pb.method == BASE][["bench", "split", "n", "rmse"]].rename(columns={"rmse": "rmse_uniform"})
+pb = pb.merge(base, on=["bench", "split", "n"]); pb["ratio"] = pb.rmse / pb.rmse_uniform
+bs = pb[pb.method == "strat|mean"][["bench", "split", "n", "rmse"]].rename(columns={"rmse": "rmse_strat_mean"})
+pb = pb.merge(bs, on=["bench", "split", "n"]); pb["ratio_vs_strat_mean"] = pb.rmse / pb.rmse_strat_mean
+pb.to_csv(out / "per_bench.csv.gz", index=False)
+
+# family-bootstrap ratio per benchmark, geometric mean over benchmarks (baselines: uniform|mean and strat|mean)
+rows = []
+for (sp, n), g in pb.groupby(["split", "n"]):
+    for flavour in ("non_thin", "all"):
+        gg = g if flavour == "all" else g[~g.thin]
+        benches = sorted(gg.bench.unique())
+        if not benches: continue
+        methods = sorted(gg.method.unique())
+        logr = {(m, bl): [] for m in methods for bl in BASES}
+        for b in benches:
+            ufam, cnt, SE = boot_store[(b, sp, n)]
+            F = len(ufam); C = rng.multinomial(F, np.ones(F) / F, size=B).astype(float)
+            den = C @ cnt
+            rm = {m: np.sqrt((C @ SE[m]) / den) for m in methods if m in SE}
+            for m in methods:
+                for bl in BASES:
+                    logr[(m, bl)].append(np.log(rm[m] / rm[bl]) if m in rm else np.full(B, np.nan))
+        for m in methods:
+            for bl in BASES:
+                L = np.stack(logr[(m, bl)])
+                col = "ratio" if bl == BASE else "ratio_vs_strat_mean"
+                sub = gg[gg.method == m].set_index("bench")
+                pt = np.exp(np.mean(np.log(sub.loc[[x for x in benches if x in sub.index], col].values)))
+                gm = np.exp(np.nanmean(L, 0))
+                rows.append(dict(split=sp, n=n, flavour=flavour, baseline=bl, method=m, geomean_ratio=pt,
+                                 ci_lo=np.nanpercentile(gm, 2.5), ci_hi=np.nanpercentile(gm, 97.5), n_bench=len(benches)))
+rb = pd.DataFrame(rows); rb.to_csv(out / "ratio_by_n.csv.gz", index=False)
+rb[rb.n == (0 if os.environ.get("TWO_PCT") else 100)].to_csv(out / "primary.csv", index=False)
+
+od = pd.DataFrame(ordering)
+od.groupby(["bench", "split", "n", "method"], as_index=False)[["spearman", "kendall", "prec_topdecile", "kendall_topdecile"]].mean().merge(
+    tg[["bench", "split", "k_targets", "n_families", "thin"]], on=["bench", "split"]).to_csv(out / "ordering.csv.gz", index=False)
+pw = pd.DataFrame(pairwise)
+pw["w_acc"] = pw.acc * pw.pairs; pw["w_ref"] = pw.ref_acc * pw.pairs; pw["w_gap"] = pw.gap_mean * pw.pairs
+a = pw.groupby(["bench", "split", "n", "method", "gap_bin"], as_index=False)[["pairs", "w_acc", "w_ref", "w_gap"]].sum()
+a["acc"] = a.w_acc / a.pairs; a["ref_acc"] = a.w_ref / a.pairs; a["gap_mean"] = a.w_gap / a.pairs
+a[["bench", "split", "n", "method", "gap_bin", "pairs", "gap_mean", "acc", "ref_acc"]].to_csv(out / "pairwise.csv.gz", index=False)
+pd.DataFrame(bias_rows).to_csv(out / "bias_by_score.csv.gz", index=False)
+cd = pd.DataFrame(ceil_rows)
+cd = cd.assign(w=cd.k).groupby(["bench", "split", "n"], as_index=False).apply(
+    lambda g: pd.Series({c: np.average(g[c], weights=g.k) for c in ["brier_const", "brier_p", "brier_irt", "brier_knn"]} | {"k": g.k.sum()}), include_groups=False)
+cd["q_p"] = 1 - cd.brier_p / cd.brier_const; cd["q_irt"] = 1 - cd.brier_irt / cd.brier_const; cd["q_knn"] = 1 - cd.brier_knn / cd.brier_const
+cd.to_csv(out / "ceiling.csv", index=False)
+print("done")

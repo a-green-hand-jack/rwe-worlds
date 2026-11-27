@@ -1,0 +1,81 @@
+"""Aggregation of the three auxiliary analyses into tidy CSVs (family-clustered bootstrap, B=2000, seed 0, shared resamples within a result):
+  adaptive.csv              adaptive (local-A) vs non-adaptive (greedy A, random) selection, kNN and FA predictors   <- results_raw/adaptive/*.pkl (adaptive.py)
+  per_benchmark_skill.csv   per-benchmark skill 1 - MSE_j(method) / MSE_j(column mean), spread over benchmarks         <- results_raw/colskill/*.pkl
+  per_benchmark_skill_long.csv   the same per benchmark (k in 3 and 10)
+  small_panels.csv, small_panels_refs.csv   small-N case studies (HELM Lite, HELM Capabilities, HELM Lite + Open LLM Leaderboard block): curves and references,
+                             descriptive only (no k*, no H1/H2/H4 verdict)                                            <- results_raw/small/*.pkl
+python3 aggregate_extra.py <results_raw> <results> <data_out>"""
+import sys, os, glob, pickle, numpy as np, pandas as pd
+rawd, resd, dout = sys.argv[1:4]
+B = 2000
+
+class Boot:
+    def __init__(self, fam, seed=0):
+        u, self.fi = np.unique(fam, return_inverse=True); self.F = len(u); self.n_f = np.bincount(self.fi, minlength=self.F).astype(float)
+        self.cnt = np.random.default_rng(seed).multinomial(self.F, np.ones(self.F) / self.F, size=B).astype(float); self.den = self.cnt @ self.n_f
+    def mean(self, e):
+        s = np.bincount(self.fi, weights=e, minlength=self.F); return s.sum() / self.n_f.sum(), (self.cnt @ s) / self.den
+def ci(b): return float(np.percentile(b, 2.5)), float(np.percentile(b, 97.5))
+
+# ---------------------------------------------------------------- adaptive vs non-adaptive
+rows = []
+for f in sorted(glob.glob(f"{rawd}/adaptive/*.pkl")):
+    R = pickle.load(open(f, 'rb')); ds = R['dataset']; te = np.sort(np.concatenate([b for _, b in R['folds']])); bt = Boot(R['family'][te]); K = R['K']
+    kg = [k for k in K if k <= 10]
+    for pr in ('knn', 'fa'):
+        mse = {(m, k): bt.mean(R['err'][(m, pr, k)][te]) for m in ('random', 'greedyA', 'adaptiveA') for k in K}
+        for k in list(K) + ['grid_avg']:
+            for m in ('random', 'greedyA', 'adaptiveA'):
+                if k == 'grid_avg': p = np.mean([mse[(m, kk)][0] for kk in kg]); b = np.mean([mse[(m, kk)][1] for kk in kg], axis=0)
+                else: p, b = mse[(m, k)]
+                lo, hi = ci(np.sqrt(b)); rows.append((ds, pr, 'rmse', m, '', k, np.sqrt(p), lo, hi, np.nan))
+            for a, c in (('adaptiveA', 'greedyA'), ('adaptiveA', 'random'), ('greedyA', 'random')):
+                if k == 'grid_avg': pa = np.mean([mse[(a, kk)][0] for kk in kg]); ba = np.mean([mse[(a, kk)][1] for kk in kg], axis=0); pc = np.mean([mse[(c, kk)][0] for kk in kg]); bc = np.mean([mse[(c, kk)][1] for kk in kg], axis=0)
+                else: pa, ba = mse[(a, k)]; pc, bc = mse[(c, k)]
+                # gap on the RMSE scale; negative = first method better
+                g = np.sqrt(pa) - np.sqrt(pc); gb = np.sqrt(ba) - np.sqrt(bc); lo, hi = ci(gb)
+                pval = float(min(1.0, 2 * min((gb >= 0).mean(), (gb <= 0).mean())))
+                rows.append((ds, pr, 'rmse_gap', a, c, k, g, lo, hi, pval))
+pd.DataFrame(rows, columns=['dataset', 'predictor', 'metric', 'method', 'versus', 'k', 'value', 'ci_lo', 'ci_hi', 'p_boot']).to_csv(f"{resd}/adaptive.csv", index=False)
+
+# ---------------------------------------------------------------- per-benchmark skill
+rows, long = [], []
+for f in sorted(glob.glob(f"{rawd}/colskill/*.pkl")):
+    R = pickle.load(open(f, 'rb')); ds = R['dataset']; tasks = np.load(f"{dout}/{ds}.npz", allow_pickle=True)['tasks']
+    for sel in ('random', 'greedyA'):
+        for pr in ('fa', 'ridge'):
+            for k in (1, 2, 3, 5, 10):
+                if (sel, pr, k) not in R['extra'] or (sel, 'colmean', k) not in R['extra']: continue
+                e, c = R['extra'][(sel, pr, k)], R['extra'][(sel, 'colmean', k)]
+                ok = c['col_n'] > 0; skill = np.full(len(tasks), np.nan); skill[ok] = 1 - (e['col_se'][ok] / e['col_n'][ok]) / (c['col_se'][ok] / c['col_n'][ok])
+                s = skill[ok]
+                rows.append((ds, sel, pr, k, int(ok.sum()), float(np.median(s)), float(np.percentile(s, 25)), float(np.percentile(s, 75)), float(s.min()), float(s.max()),
+                             float((s < 0).mean()), float((s < 0.5).mean())))
+                if k in (3, 10):
+                    for j in np.where(ok)[0]: long.append((ds, sel, pr, k, str(tasks[j]), float(skill[j])))
+pd.DataFrame(rows, columns=['dataset', 'selector', 'predictor', 'k', 'n_benchmarks', 'skill_median', 'skill_q25', 'skill_q75', 'skill_min', 'skill_max',
+                            'share_benchmarks_skill_below_0', 'share_benchmarks_skill_below_0.5']).to_csv(f"{resd}/per_benchmark_skill.csv", index=False)
+pd.DataFrame(long, columns=['dataset', 'selector', 'predictor', 'k', 'benchmark', 'skill']).to_csv(f"{resd}/per_benchmark_skill_long.csv", index=False)
+
+# ---------------------------------------------------------------- small-N case studies (descriptive)
+rows, refrows = [], []
+for f in sorted(glob.glob(f"{rawd}/small/*.pkl")):
+    R = pickle.load(open(f, 'rb')); ds = R['dataset']; N = np.load(f"{dout}/{ds}.npz", allow_pickle=True)['X'].shape[1]
+    te = np.sort(np.concatenate([b for _, b in R['folds']])); fam = R['family'][te]; bt = Boot(fam); kg = [k for k in R['k_grid'] if k <= 10]
+    mse = {key: bt.mean(v[te]) for key, v in R['err'].items()}; refs = {key: bt.mean(v[te]) for key, v in R['refs'].items()}
+    for nm_, (p, b) in refs.items(): lo, hi = ci(np.sqrt(b)); refrows.append((ds, nm_, np.sqrt(p), lo, hi, len(set(fam)), len(te), N))
+    for (sel, pr, k), (p, b) in sorted(mse.items()):
+        lo, hi = ci(np.sqrt(b)); rows.append((ds, sel, pr, k, np.sqrt(p), lo, hi, len(set(fam)), len(te), N))
+    for sel in sorted({s for s, _, _ in mse}):
+        for pr in sorted({p for _, p, _ in mse}):
+            if all((sel, pr, k) in mse for k in kg):
+                p = np.mean([mse[(sel, pr, k)][0] for k in kg]); b = np.mean([mse[(sel, pr, k)][1] for k in kg], axis=0); lo, hi = ci(np.sqrt(b))
+                rows.append((ds, sel, pr, 'grid_avg', np.sqrt(p), lo, hi, len(set(fam)), len(te), N))
+    # greedy A vs random (fa) as a description, not a test
+    for pr in ('fa',):
+        ba = np.mean([mse[('greedyA', pr, k)][1] for k in kg], axis=0); br = np.mean([mse[('random', pr, k)][1] for k in kg], axis=0)
+        pa = np.mean([mse[('greedyA', pr, k)][0] for k in kg]); prn = np.mean([mse[('random', pr, k)][0] for k in kg]); gb = np.sqrt(ba) - np.sqrt(br); lo, hi = ci(gb)
+        rows.append((ds, 'greedyA_minus_random', pr, 'grid_avg', np.sqrt(pa) - np.sqrt(prn), lo, hi, len(set(fam)), len(te), N))
+pd.DataFrame(rows, columns=['dataset', 'selector', 'predictor', 'k', 'std_rmse', 'ci_lo', 'ci_hi', 'n_families', 'n_models', 'n_benchmarks']).to_csv(f"{resd}/small_panels.csv", index=False)
+pd.DataFrame(refrows, columns=['dataset', 'reference', 'std_rmse', 'ci_lo', 'ci_hi', 'n_families', 'n_models', 'n_benchmarks']).to_csv(f"{resd}/small_panels_refs.csv", index=False)
+print('adaptive', os.path.exists(f"{resd}/adaptive.csv"), 'per-benchmark rows', len(rows), 'small panel files', len(glob.glob(f"{rawd}/small/*.pkl")))

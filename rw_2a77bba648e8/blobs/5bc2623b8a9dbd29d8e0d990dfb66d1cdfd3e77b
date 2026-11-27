@@ -1,0 +1,11 @@
+# figtab: figures and tables of the paper
+
+One generator per main-text figure or table. Each reads only the analysis role's result tables (`results/` of paper-repo `dev`, schema as delivered by `experiment-repo`#2),
+draws at the placed width (`style.save` crops the PDF to the 5.5 in text width, so it is placed at 1:1), stops if any text is below the venue's 8 pt (`style.check_min_type`)
+and writes the PDF or TeX plus a CSV of the plotted values. No number is typed in or computed outside the analysis tables beyond plotting statistics (bin means for Fig 9, `exp` of log ratios).
+
+    python3 fig1_regime_map.py RESULTS_DIR OUT_DIR      # likewise fig3, fig5, fig6, fig7, fig9
+    python3 t1_mechanisms.py RESULTS_DIR OUT_DIR        # t2_acceptance.py
+
+Delivered copies live in `figures/gen/` of paper-repo `dev` (with `figures/*.pdf`, `tables/*.tex`, `figures/CAPTIONS.md` and the map in its `REPRODUCE.md` §9).
+`common.py` loads and relabels the tables; `style.py` holds the shared style (Okabe-Ito palette, marker/linestyle redundancy, Type 42 fonts); `venue.json` the type sizes and widths of the venue.

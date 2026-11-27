@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Per-target bias over many draws (story-repo#5 item 2): n = 100, R = 100 outer draws (draws 0-9 are those of the main runs), uniform/strat/pps/balanced.
+cd "$(dirname "$0")/.."
+for b in mmlu_pro bbh openllm_math gpqa musr arc_challenge ifeval legalbench commonsense gsm math med_qa mmlu; do
+  for s in interp extrap; do
+    ht-resource run local-compute --cwd "$PWD" --cpus 1 --memory 6000 --note "highR-$b-$s" -- \
+      python3 -I -u scripts/02_run.py "$b" "$s" --draws 10 --R 100 --d 2 --ngrid 100 --designs uniform,strat,pps,balanced \
+      --no-cat --tag _R100 --out results/raw_highR > /dev/null
+  done
+done

@@ -1,0 +1,5 @@
+predictor,coefficients
+S_adj (parametric-bootstrap noise part) + corner x curvature,"[1, log n, log feature, log C] = -2.0513, 0.0436, 0.2959, 0.0973"
+"S_adj (null-column noise part, exploratory definition) + corner x curvature","[1, log n, log feature, log C] = -3.8060, 0.2786, 0.4731, 0.0843"
+S_bar (pre-registered) + corner x curvature,"[1, log n, log feature, log C] = -3.3934, 0.1553, 0.1890, 0.1743"
+corner x curvature alone,"[1, log n, log feature, log C] = -2.4809, 0.0224, 0.2165"

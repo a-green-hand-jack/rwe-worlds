@@ -1,0 +1,32 @@
+# Protocol (fixed before any method was scored on targets)
+
+Written 2026-11-26 before running `scripts/02_run.py`. Changes after seeing results are logged in the section "Deviations" at the end, with the reason.
+
+## Data
+13 binary matrices (7 Open LLM Leaderboard v2, 6 HELM) of `data.md`, commit 55faff49…; see `scripts/00_download.sh`, audit in `results/audit.csv`.
+Pre-processing (`src/bpred/data.py`): OLL models repeated under the same name are dropped (keep first); any model whose response vector is identical to an earlier model's is dropped (keep first); items answered identically by all models are kept (they contribute zero variance and make the problem easier for no method in particular; counted in the audit). HELM row→model names come from `helm_model_list.txt` (83 rows); `legalbench` has 79 rows with no published row→name mapping, so its families are unknown (each row its own family; it is excluded from the lineage split and its extrapolation/interpolation CIs cluster by row).
+Family = first matching keyword of the lower-cased model name (`family_of`, e.g. qwen, llama, mistral, openai-gpt, claude), else the organisation prefix. Heuristic; checked on the audit output.
+
+## Splits (per benchmark; sources = models given to the method, targets = models only scored at the end)
+- **interp** — random 5-fold over models (seed 0); targets = the fold, sources = the other 4 folds. Near-duplicates (same family) stay in the sources.
+- **lineage** — 5-fold over *families* (families assigned to folds by greedy size balancing, seed 0); targets = the families of the fold, sources = every other family. Not run for legalbench.
+- **extrap** — targets = the top 25 % of models by full-benchmark score, sources = the rest; hence every target is above every source (ties at the boundary resolved by dropping tied targets). One configuration per benchmark; subset draws are the only replication.
+Thin cells: a (benchmark, split) with fewer than 10 targets or fewer than 5 independent families among targets is flagged "thin", excluded from the main aggregate and shown with them included as well.
+
+## Budget and the primary endpoint
+n grid {10, 25, 50, 100, 200, 400} restricted to n ≤ N/2 (so some small benchmarks have fewer points). **Primary n = 100** (reported with n/N). **Primary endpoint:** RMSE ratio to uniform random sampling at n = 100, where RMSE = sqrt(mean over targets and subset draws of (pred − true full score)²) per (benchmark, split) and ratio = RMSE_method / RMSE_uniform on the same draws and targets; aggregated by geometric mean over benchmarks (non-thin; plus all). CIs: bootstrap over families (resampling target families, with all draws of a family kept) — "paired" because the ratio is formed inside each bootstrap replicate. Everything else (MAE, signed bias, Spearman, Kendall, top-decile precision, pairwise order accuracy vs true gap δ, error vs true score) is secondary. Rank correlations: per (fold, draw) over targets, then averaged over folds and draws.
+Draws: R = 10 independent subsets per (fold, n) for interp and lineage, R = 40 for extrap (single fold). One subset per draw serves all targets. Deterministic designs (info-top-n; CAT, which depends on the target only) have no draw variance; they count once.
+
+## Methods (all selection/tuning uses sources only; target contributes its n answers; same n for every method; shared seeds)
+Designs: `uniform`, `strat` (sorted-by-source-difficulty systematic: one random item per stratum of N/n items), `pps` (π_i = n[(1−ε)w_i/Σw + ε/N], w_i = √(p̂_i(1−p̂_i)), systematic PPS in difficulty order, π capped at 1), `balanced` (greedy forward selection from a random pool of 4n items so that the subset mean reproduces every source's full score), `anchor` (k-means with n clusters on the item×source response matrix, medoid per cluster, weight = cluster size), `infotop` (top-n items by the Fisher information a'a·p(1−p) of the d = 2 latent-factor model, averaged over the source abilities), `cat` (adaptive max-information selection under the d = 1 2PL model, per target).
+Predictors fitted on sources: `calreg` (full score on subset score, OLS across sources), `irt` (logistic latent-factor / 2PL, d latent dims, MAP ability from the sample), `knn` (k nearest sources by agreement on the sample), `ridge` (kernel ridge from sample responses to the full response vector).
+Estimators: `mean` (Hájek, weights 1/π or cluster size), `calreg`, `X-model` (mean over all N predicted items), `X-plugin` (observed on sampled, predicted on unsampled), `diff-X(λ)` = (1/N)Σ_all p̂ + λ·Hájek mean of cross-fitted (5-fold over the sample) residuals; `diffnaive-irt` = same with non-cross-fitted residuals (diagnostic for the cross-fitting bias).
+Hyperparameters (ε ∈ {0.1, 0.3, 0.6}, knn k ∈ {3, 10, 30}, ridge α, λ ∈ {0, 0.25, 0.5, 0.75, 1}) are chosen per (benchmark, split fold, n) by RMSE on an **inner split of the sources that mimics the outer split** (interp: random 20 % of sources; lineage: held-out families; extrap: top 25 % of sources), never on targets. Latent dimension d of `irt` is fixed globally before the main run by a pilot on source-only inner validation (recorded in `results/pilot_d.csv`).
+Not run unless noted in REPRODUCE.md: assessor (Pacchiardi et al.), active evaluation acquisition (Li et al.), SubLIME, the original tinyBenchmarks/metabench code (we implement `anchor`×{irt-plugin} and `infotop`×{calreg, irt-model} as the closest re-implementations; they are not the published code and differ in the IRT fitter, the embedding for clustering and the regression/GAM step).
+
+## Secondary analyses planned
+Bias/variance decomposition per method class and split; signed error vs true target score (binned); ceiling (C4): item-level residual variance of the source-based predictor on unsampled items vs the Bernoulli variance μ(1−μ) of a constant predictor, against the achieved RMSE ratio; pairwise-order accuracy vs gap δ with the sample-only reference.
+
+## Deviations
+- After the main results (2026-11-26) the splits `extrap10` (targets = top 10 %) and `extrap50` (top 50 %) were added as a sensitivity check of the 25 % choice of `extrap`; they were not part of the preregistered endpoint. Their thin cells follow the same rule (HELM extrap10 has <10 targets).
+- Analysis addition: besides uniform, RMSE ratios are also reported against `strat|mean` (the strongest source-aided design with the plain estimator), to separate what the design and what the estimator buy.

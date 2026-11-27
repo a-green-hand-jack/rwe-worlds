@@ -1,0 +1,54 @@
+"""Appendix A2 (hypothesis H1, aggregate agreement against decision-level reliability): per cell, at a small budget (smallest m >= 3d present for all
+four models of the dataset) and at the reference budget (shap default where it samples, else the largest sampling budget):
+mean per-instance Pearson (A), share of instances with P_c^eps >= 0.9, and the contrast A minus share in points with its instance-bootstrap CI;
+a dagger marks 'decision level lower' by the pre-fixed rule (contrast >= 10 points with the CI excluding 0). Also the strict contrast (eps = 0) at the reference budget.
+Read from h1_contrast.csv and cells.csv. Usage: python tabA2_h1.py DATA_DIR OUT_PREFIX
+"""
+import argparse, json, os, sys
+import numpy as np, pandas as pd
+_here = os.path.dirname(os.path.abspath(__file__))
+for _d in (_here, os.path.join(_here, "..", "figs")):   # figstyle.py: next to this script (delivered layout) or in ../figs (repo layout)
+    sys.path.insert(0, _d)
+import figstyle as fs
+
+ap = argparse.ArgumentParser(); ap.add_argument("data"); ap.add_argument("out"); ap.add_argument("--estimator", default="shap_kernel"); ap.add_argument("--l1", default="False")
+a = ap.parse_args()
+H, p1 = fs.load(a.data, "h1_contrast"); C, p2 = fs.load(a.data, "cells")
+fs.require(H, ["dataset", "model", "estimator", "l1_reg", "budget_m", "R", "pearson_mean", "share_pc_eps", "contrast_eps", "ci_lo_eps", "ci_hi_eps",
+               "lower_decision_level_eps_10", "contrast_exact", "ci_lo_exact", "ci_hi_exact", "lower_decision_level_exact_10"], "h1_contrast")
+H = H[(H.estimator == a.estimator) & (H.l1_reg == a.l1) & (H.R > 1)]
+ref = fs.ref_budget(C, a.estimator, a.l1)
+d_of = C.drop_duplicates(["dataset", "model"]).set_index(["dataset", "model"]).d
+def small(ds):
+    h = H[H.dataset == ds]; d = int(d_of[(ds, h.model.iloc[0])])
+    ok = None
+    for m in fs.MODELS:
+        s = set(h[(h.model == m) & (h.budget_m >= 3 * d)].budget_m)
+        ok = s if ok is None else ok & s
+    return min(ok) if ok else None
+def f1(x): return f"{0.0 if abs(x) < 0.05 else x:.1f}"   # no "-0.0"
+def pt(r, sfx):
+    s = f"{f1(r['contrast_'+sfx])} [{f1(r['ci_lo_'+sfx])}, {f1(r['ci_hi_'+sfx])}]"
+    return s + ("$^\\dagger$" if r["lower_decision_level_%s_10" % sfx] else "")
+out = ["{\\footnotesize\\setlength{\\tabcolsep}{3pt}", "\\begin{tabular}{@{}llrrrrrr@{}}", "\\toprule",
+       " & & \\multicolumn{3}{c}{small $m$} & \\multicolumn{3}{c}{reference $m$} \\\\ \\cmidrule(lr){3-5}\\cmidrule(l){6-8}",
+       "Dataset & Model & $m$ & $\\epsilon$ contrast & strict contrast & $m$ & $\\epsilon$ contrast & strict contrast \\\\", "\\midrule"]
+rows, prev = [], None
+for ds in fs.DATASET_TITLE:
+    ms = small(ds) if (H.dataset == ds).any() else None
+    for m in fs.MODELS:
+        h = H[(H.dataset == ds) & (H.model == m)]
+        r = ref[(ref.dataset == ds) & (ref.model == m)]
+        if h.empty or r.empty or ms is None: continue
+        s, rr = h[h.budget_m == ms].iloc[0], h[h.budget_m == r.budget_m.iloc[0]].iloc[0]
+        if prev is not None and ds != prev: out.append("\\addlinespace")
+        out.append(f"{fs.DATASET_TITLE[ds] if ds != prev else ''} & {m.upper()} & {int(s.budget_m)} & {pt(s, 'eps')} & {pt(s, 'exact')} & {int(rr.budget_m)} & {pt(rr, 'eps')} & {pt(rr, 'exact')} \\\\")
+        for tag, x in (("small", s), ("reference", rr)): rows.append(dict(budget=tag, **x.to_dict()))
+        prev = ds
+out += ["\\bottomrule", "\\end{tabular}}"]
+os.makedirs(os.path.dirname(a.out) or ".", exist_ok=True)
+open(a.out + ".tex", "w").write("\n".join(out) + "\n"); pd.DataFrame(rows).to_csv(a.out + ".csv", index=False)
+json.dump({"table": os.path.basename(a.out), "inputs": fs.inputs([p1, p2]),
+           "note": f"{a.estimator}, l1_reg={a.l1}, k=3; contrast = mean per-instance Pearson (x100) minus 100 x share of instances with P_c^eps >= 0.9 (eps = 0.05; strict: eps = 0), points, "
+                   "instance-bootstrap 95% CI; dagger = contrast >= 10 points with the CI excluding 0 (pre-fixed H1 rule); small m = smallest m >= 3d present for all four models; reference m as in figstyle.ref_budget"},
+          open(a.out + ".json", "w"), indent=1)

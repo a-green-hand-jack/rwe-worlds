@@ -1,0 +1,34 @@
+\documentclass{article}
+\usepackage{../venue/neurips_2026}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{amsfonts,amsmath,amssymb,amsthm}
+\usepackage{nicefrac}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\newtheorem{proposition}{Proposition}
+
+\title{How many benchmarks must you run? Choosing and sizing the run set that predicts a new model's other scores}
+\author{Anonymous Author(s)}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+\input{abstract}
+\end{abstract}
+\input{introduction}
+\input{related}
+\input{method}
+\input{protocol}
+\input{theory}
+\input{experiments}
+\input{discussion}
+\bibliographystyle{plainnat}
+\bibliography{../refs/refs}
+\input{appendix}
+\input{checklist}
+\end{document}

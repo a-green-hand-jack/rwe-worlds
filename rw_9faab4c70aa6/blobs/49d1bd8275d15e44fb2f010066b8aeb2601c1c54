@@ -1,0 +1,67 @@
+"""Tidy result files for C5 (reporting protocols at equal total item budget) and C6 (bound coverage), from run_protocols.py rows.
+Writes OUTDIR/protocols_<tag>.parquet and OUTDIR/bound_coverage_<tag>.parquet.  One input row = (world/replicate, searcher, N_tot, B, protocol)
+aggregated over `draws` draws of the item set U; the output aggregates over worlds (synthetic, semisynthetic: `rep` = simulated world;
+real: `rep` >= 0 = pool-bootstrap replicate, rep = -1 = the pool itself, whose value is the point estimate and whose interval is the pool-bootstrap one).
+Intervals: t over worlds (`world-spread-t`) for the simulated arms; pool-bootstrap percentile with Monte-Carlo variance not removed for real (`pool-bootstrap`).
+Usage: python summarise_protocols.py protocols_X.jsonl OUTDIR TAG ARM"""
+import sys, os, json
+import numpy as np, pandas as pd
+from scipy import stats
+
+src, out, tag, arm = sys.argv[1:5]; os.makedirs(out, exist_ok=True)
+d = pd.DataFrame([json.loads(l) for l in open(src)])
+if "sigma_theta" not in d: d["sigma_theta"] = np.nan
+d["B"] = d.B.fillna(-1)
+POOL = dict(synthetic="synthetic-N1500-U-draws", semisynthetic="semisynthetic-N1500", real="mmlu-pro-N1500-all")[arm]
+TRUTH = dict(synthetic="exact theta of the world", semisynthetic="exact theta of the world", real="pool_minus_U")[arm]
+# items used for search / report, as fractions of N_tot
+SPLIT = {"naive": (1, 1), "optimism_bootstrap": (1, 1), "boot632": (1, 1), "crossfit": (0.8, 1), "split20": (0.8, 0.2), "split50": (0.5, 0.5)}
+BOUNDS = ("maxt", "bonferroni", "sidak", "pointwise_lb")
+ESTIMAND = {"naive": "acc. of deployed config on fresh items (in-sample estimate)", "optimism_bootstrap": "acc. of deployed config on fresh items",
+            "boot632": "acc. of deployed config on fresh items", "crossfit": "mean acc. of the fold-trained configs (not the deployed one)",
+            "split20": "acc. of the split-trained config", "split50": "acc. of the split-trained config"}
+
+
+def interval(x, rep, point=None):
+    x = np.asarray(x, float); ok = ~np.isnan(x); x, rep = x[ok], np.asarray(rep)[ok]
+    if arm == "real":
+        b = x[rep >= 0]; o = x[rep < 0]
+        m = o[0] if len(o) else b.mean()
+        sh = m - b.mean() if len(b) > 1 else 0.0     # bootstrap spread placed on the point estimate (resampled pools carry duplicated items)
+        if len(b) < 2: return m, (np.nan, np.nan), "pool-bootstrap"
+        lo, hi = np.percentile(b, 2.5) + sh, np.percentile(b, 97.5) + sh
+        if np.nanmax(np.abs(x)) <= 1 and np.nanmin(x) >= 0: lo, hi = max(lo, 0.0), min(hi, 1.0)   # rates and coverages are clipped to [0,1]
+        return m, (lo, hi), "pool-bootstrap"
+    w = len(x); t = stats.t.ppf(0.975, w - 1) if w > 1 else np.nan; se = x.std(ddof=1) / np.sqrt(w) if w > 1 else np.nan
+    return x.mean(), (x.mean() - t * se, x.mean() + t * se), "world-spread-t"
+
+
+keys = ["sigma_theta", "searcher", "N_tot", "B"]
+naive_theta = d[d.protocol == "naive"].set_index(["rep"] + keys).mean_theta
+prows, brows = [], []
+for k, g in d.groupby(keys, dropna=False):
+    base = dict(arm=arm, pool=POOL, truth=TRUTH, searcher=k[1], N_tot=int(k[2]), B=None if k[3] < 0 else k[3], sigma_theta=k[0], n_boot_or_worlds=int(g.rep.nunique()), draws=int(g.draws.iloc[0]))
+    for prot, h in g.groupby("protocol"):
+        nt = naive_theta.reindex(pd.MultiIndex.from_arrays([h.rep] + [[v] * len(h) for v in k])).values
+        cost = h.mean_theta.values - nt
+        base_p = dict(base, protocol=prot)
+        if prot in SPLIT:
+            fs, fr = SPLIT[prot]; m, (lo, hi), kind = interval(h.overstate_anti, h.rep)
+            r = dict(base_p, estimand=ESTIMAND[prot], n_search=int(round(fs * k[2])), n_report=int(round(fr * k[2])), K_eff=np.nan, overstate_prob=m, overstate_lo=lo, overstate_hi=hi,
+                     overstate_cons=interval(h.overstate_cons, h.rep)[0], bias=interval(h.bias, h.rep)[0], mae=interval(h.mae, h.rep)[0], reported=interval(h.mean_report, h.rep)[0],
+                     true_perf=interval(h.mean_theta, h.rep)[0], true_perf_cost=interval(cost, h.rep)[0], ci_kind=kind, nominal=0.5)
+            if prot.startswith("split"):   # exact binomial lower bound of the held-out part: coverage of 'theta >= lb'
+                c, (clo, chi), _ = interval(h.cover_anti, h.rep); r.update(coverage=c, cov_lo=clo, cov_hi=chi, coverage_cons=interval(h.cover_cons, h.rep)[0], width=interval(h.slack, h.rep)[0])
+            prows.append(r)
+        if prot.split("[")[0] in BOUNDS or prot.startswith("split"):
+            cs = prot.split("[")[1].rstrip("]") if "[" in prot else ("held-out part (exact binomial)" if prot.startswith("split") else "pointwise")
+            c, (clo, chi), kind = interval(h.cover_anti, h.rep); wd = interval(h.slack, h.rep)[0]
+            row = dict(base_p, candidate_set=cs, n=int(k[2]), K_eff=np.nan, coverage=c, cov_lo=clo, cov_hi=chi, coverage_cons=interval(h.cover_cons, h.rep)[0], nominal=0.95, width=wd, ci_kind=kind)
+            if "cover_noisy" in h: row["coverage_noisy"] = interval(h.cover_noisy, h.rep)[0]
+            brows.append(row)
+            if prot.split("[")[0] in BOUNDS:
+                prows.append(dict(base_p, estimand="lower bound on acc. of deployed config on fresh items", n_search=int(k[2]), n_report=int(k[2]), coverage=c, cov_lo=clo, cov_hi=chi, coverage_cons=interval(h.cover_cons, h.rep)[0], nominal=0.95,
+                                  width=wd, true_perf=interval(h.mean_theta, h.rep)[0], true_perf_cost=0.0, ci_kind=kind, candidate_set=cs))
+P = pd.DataFrame(prows); Bd = pd.DataFrame(brows)
+P.to_parquet(f"{out}/protocols_{tag}.parquet", index=False); Bd.to_parquet(f"{out}/bound_coverage_{tag}.parquet", index=False)
+print(len(P), len(Bd))

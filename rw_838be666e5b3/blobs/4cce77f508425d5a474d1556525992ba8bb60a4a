@@ -1,0 +1,15 @@
+# tab_decomp
+
+**Claim carried:** C2/C8 (appendix): where the width gap to the package PPI++ comes from, arm by arm on the same draws.
+
+**Shows:** decomp.csv (3000 draws per cell, one draw shared by all arms): width ratio to the package PPI++ (`ppi-python` 0.2.3, tuning clipped to [0, 1]) = (SD ratio of the point estimates over the draws) x (the arm's SE/SD divided by the package PPI++'s SE/SD; SE/SD = mean estimated standard error over the SD of the estimates); SE/SD below 1 = the estimated standard error is too small. Arms: package PPI++; PPI++ with the population-optimal tuning (`ppi++_oracle_lambda`: no estimation noise in lambda); in-sample OLS slope and cross-fitted linear, pooled; PPI++ on the cross-fitted linear predictor; cross-fitted spline. n = 100, 500 (decomp.csv has more). The two `recentred` arms of decomp.csv equal the package PPI++ to 1e-9 in every cell and are not shown. Longtable.
+
+**How to read:** SD ratio below 1 = the point estimate is less variable than PPI++'s; SE/SD below 1 = the interval is shorter than the spread of the estimate warrants, so read both with coverage: a short interval whose SE/SD is below 1 under-covers.
+
+**Computed on** (from the rows drawn):
+- datasets/scenarios: census_income, forest, galaxies, gene_expression
+- n: 100, 500
+- N: 10000
+- n (and N) per dataset: census_income n=100, 500 (N=10000); forest n=100, 500 (N=10000); galaxies n=100, 500 (N=10000); gene_expression n=100, 500 (N=10000)
+- Monte-Carlo repetitions per row: min 3000, max 3000
+- rows: 72

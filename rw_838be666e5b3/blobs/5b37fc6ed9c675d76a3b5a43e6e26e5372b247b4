@@ -1,0 +1,17 @@
+# fig_breakeven_all_a
+
+**Claim carried:** C3 (appendix): the break-even panels for the nine real datasets (the reference grid of breakeven.csv).
+
+**Shows:** width of the cross-fitted calibrated interval divided by PPI++ width (paired) against the number of labels n, per dataset and calibrator, with 95% CI band; dotted line and shaded band = predicted n* with its interval; text = predicted n* lies outside the plotted grid.
+
+**How to read:** crossing of the curve through 1 should sit at the dotted line if the formula holds; a curve that never crosses in the grid means n* was not reached there. 
+
+**Computed on** (from the rows drawn):
+- datasets/scenarios: alphafold, ballots, census_education, census_healthcare, census_income, forest, galaxies, gene_expression, plankton
+- n: 100, 1000, 200, 30, 300, 3000, 500
+- N: 1000, 10000, 5000, 8000
+- n (and N) per dataset: alphafold n=30, 100, 300, 500, 1000, 3000 (N=8000); ballots n=30, 100, 300, 500 (N=5000); census_education n=30, 100, 300, 500, 1000, 3000 (N=10000); census_healthcare n=30, 100, 300, 500, 1000, 3000 (N=10000); census_income n=30, 100, 300, 500, 1000, 3000 (N=10000); forest n=30, 100, 200, 300, 500 (N=1000); galaxies n=30, 100, 300, 500, 1000, 3000 (N=10000); gene_expression n=30, 100, 300, 500, 1000, 3000 (N=10000); plankton n=30, 100, 300, 500, 1000, 3000 (N=10000)
+- Monte-Carlo repetitions per row: min 2000, max 5000
+- rows: 153
+
+**Placement:** natural size 6.58 in wide, 5.14 in tall; the smallest type is 7 pt at that size (column 3.25 in, text block 6.75 in). Intended for a `figure*`; include it at `width=6.58in` or up to the full width of its float, never narrower (scaling by s gives 7s pt).

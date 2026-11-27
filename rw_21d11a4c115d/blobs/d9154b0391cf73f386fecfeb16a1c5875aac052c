@@ -1,0 +1,38 @@
+{
+  "claim": "C4",
+  "excluded_points_not_drawn": {
+    "helm_mmlu/bootstrap": 0,
+    "helm_mmlu/real": 1,
+    "mteb_eng/bootstrap": 0,
+    "mteb_eng/real": 0,
+    "mteb_multi/bootstrap": 0,
+    "mteb_multi/real": 0,
+    "synthetic_N60_r4/fitted": 0,
+    "synthetic_N60_r4/true": 0,
+    "synthetic_N60_r4_M2000/fitted": 0,
+    "synthetic_N60_r4_M250/fitted": 0,
+    "synthetic_N60_r4_M60/fitted": 0,
+    "synthetic_N60_r4_M600/fitted": 0
+  },
+  "figure": "fig5_theory",
+  "generated": "2026-11-25",
+  "height_in": 2.31,
+  "inputs": {
+    "theory.csv": "9c85bf0e77a2"
+  },
+  "intervals": "bars in (a): synthetic and bootstrap tiers 2.5-97.5 percentile over 8 replicates; real tier family bootstrap (2000)",
+  "synthetic_history_size_M": {
+    "synthetic_N60_r4": 110,
+    "synthetic_N60_r4_M2000": 2000,
+    "synthetic_N60_r4_M250": 250,
+    "synthetic_N60_r4_M60": 60,
+    "synthetic_N60_r4_M600": 600
+  },
+  "tiers_present": [
+    "bootstrap",
+    "fitted",
+    "real",
+    "true"
+  ],
+  "width_in": 5.5
+}

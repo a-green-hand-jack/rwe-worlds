@@ -1,0 +1,81 @@
+"""Large-d extension: Arrhythmia (d=279), random forest and boosting, shap Kernel SHAP against interventional TreeSHAP.
+
+Usage: large_d_arrhythmia.py prep | run MODEL START END R
+The value function is the one of the main grid (B=50 random training rows, seed 0, RF: P(class 1), GBM: raw margin).
+No value table exists at d=279: Kernel SHAP runs against the model itself, as shipped; the reference is interventional
+TreeSHAP on the same background, exact for trees. The three l1_reg variants share the coalition sample of one seed
+(shap draws the sample before the regression), so the model evaluations of one (m, seed) are cached and reused.
+"""
+import sys, os, time, pickle, warnings
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+import numpy as np
+from shapreliab import pipeline as P
+
+DS, SEED = "arrhythmia", 0
+BUDGETS = [256, 1024, 2 * 279 + 2048]
+L1 = P.SHAP_L1  # noreg: False, auto: "auto", nf10: "num_features(10)" (the shap default)
+
+
+class Cached:
+    """Memo of the last call with more than one row: same seed and m give the same synthetic rows, so the model is evaluated once."""
+
+    def __init__(self, f):
+        self.f, self.key, self.val, self.calls = f, None, None, 0
+
+    def __call__(self, Z):
+        if len(Z) == 1:  # the single-row calls (f(x)) must not evict the big one
+            return self.f(Z)
+        key = (Z.shape, hash(Z.tobytes()))
+        if key != self.key:
+            self.key, self.val = key, self.f(Z)
+            self.calls += 1
+        return self.val
+
+
+def run_instance(kind, i, R):
+    import shap
+    out = P.cell_dir(DS, SEED)
+    fn = os.path.join(out, f"inst_{kind}_{i:04d}.npz")
+    if os.path.exists(fn):
+        return
+    sp = np.load(os.path.join(out, "split.npz"))
+    m = pickle.load(open(os.path.join(out, f"model_{kind}.pkl"), "rb"))
+    bg, x = sp["bg"], sp["X"][i]
+    t0 = time.time()
+    te = shap.TreeExplainer(m.m, data=bg, feature_perturbation="interventional")
+    sv = np.asarray(te.shap_values(x[None], check_additivity=False))
+    sv = sv[0, :, 1] if sv.ndim == 3 else sv[0]
+    fx, base = float(m.f(x[None])[0]), float(m.f(bg).mean())
+    res = dict(phi_tree=sv, x=x, fx=fx, base=base, budgets=np.array(BUDGETS))
+    cf = Cached(m.f)
+    ke = shap.KernelExplainer(cf, bg)
+    for bi, mm in enumerate(BUDGETS):
+        for r in range(R):
+            seed = (i * 1000003 + bi * 1009 + r * 7 + 13) % (2**31 - 1)
+            for name, l1 in L1.items():
+                if name == "auto" and mm != BUDGETS[-1]:
+                    continue
+                np.random.seed(seed)
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    e = np.asarray(ke.shap_values(x[None], nsamples=mm, l1_reg=l1, silent=True)).ravel()
+                res.setdefault(f"shap_{name}_{mm}", []).append(e)
+    for k in list(res):
+        if k.startswith("shap_"):
+            res[k] = np.array(res[k])
+    res["t_total"] = time.time() - t0
+    tmp = fn + ".tmp.npz"
+    np.savez_compressed(tmp, **res)
+    os.replace(tmp, fn)
+
+
+if __name__ == "__main__":
+    if sys.argv[1] == "prep":
+        meta = P.prepare(DS, SEED, kinds=["rf", "gbm"])
+        print({k: (round(v["auc"], 4), round(v["acc"], 4)) for k, v in meta["models"].items()}, meta["n_train"], meta["n_test"])
+    else:
+        _, kind, a, b, R = sys.argv[1:]
+        for i in range(int(a), int(b)):
+            t = time.time()
+            run_instance(kind, i, int(R))
+            print(f"{kind} inst {i} {time.time()-t:.1f}s", flush=True)

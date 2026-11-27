@@ -1,0 +1,22 @@
+"""Training-side states for the exploratory k*(epsilon) rule (Brief rev. 7 item 3, post hoc): inside the training models of an outer (split, fold),
+the same group-CV folds as the rank choice (`common.inner_group_folds`, 5 folds) are held out one by one; for each the factor fits (ranks = those the outer fold
+chose) are refitted on the remaining training models. The pseudo-state is evaluated by 21_eval_ct.py exactly like an outer fold (split names GI/TI/SI,
+fold = 10 * outer_fold + inner_fold), so the training-side excess-over-floor curve is computed with the identical protocol and never sees the outer test models.
+usage: python 25_inner_states.py <data_dir> <work_dir> <split> <outer_fold>"""
+import os, sys, pickle, numpy as np
+sys.path.insert(0, os.path.dirname(__file__))
+from common import *
+from fa import fit_fa
+data_dir, work, split, fold = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
+Y, mods, tasks, et = load_matrix(data_dir)
+st = pickle.load(open(os.path.join(work, "state", f"{split}_{fold}.pkl"), "rb"))
+train = st["train"]; groups = mods.org.values[train]; fo = inner_group_folds(groups)
+ranks = sorted(set(st["best_rank"].values()))
+for g in np.unique(fo):
+    tr = train[fo != g]; te = train[fo == g]
+    mu, sd = standardise(Y[tr]); Z = (Y[tr] - mu) / sd
+    fits = {r: fit_fa(Z, r) for r in ranks}
+    ps = dict(split=split + "I", fold=10 * fold + int(g), train=tr, test=te, mu=mu, sd=sd, best_rank=st["best_rank"], fits=fits,
+              floor=st["floor"], gap=st["gap"], delta=st["delta"])
+    pickle.dump(ps, open(os.path.join(work, "state", f"{split}I_{10 * fold + int(g)}.pkl"), "wb"))
+print(split, fold, "inner states", len(np.unique(fo)))

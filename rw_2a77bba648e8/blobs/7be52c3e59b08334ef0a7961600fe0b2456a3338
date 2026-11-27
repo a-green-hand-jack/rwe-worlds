@@ -1,0 +1,237 @@
+"""The frozen list of Tier-G/O(known) simulation runs (see ANALYSIS_PLAN.md). One run = one
+(graph family, n, d, design, p, baseline, edge-noise) configuration; it covers all 6 mechanisms x
+shares {0.25,0.5,0.75} (+ the s=0 null) and all noise levels at once.
+Usage: python scripts/grid.py list | run SHARD NSHARDS OUTDIR"""
+import json
+import os
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+import sys
+import time
+import warnings
+
+warnings.filterwarnings("ignore")
+
+import numpy as np
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+
+SEED = 20261125
+SEED_CONF = 20261126        # confirmatory runs (P7): disjoint streams from every earlier run
+DS = [5, 20, 80]
+PS = [0.1, 0.25, 0.5, 0.75, 0.9]
+SYN = dict(G=10, R=300, B=100, Rb=30)           # 3000 assignments, 300 with bootstrap
+REAL = dict(G=1, R=3000, B=100, Rb=300)          # fixed real graph: no graph-draw variance
+
+
+def runs():
+    out = []
+
+    def add(rid, **kw):
+        c = dict(id=rid, seed=SEED); c.update(kw); out.append(c)
+
+    # R1 core factorial: SBM n=3000, Bernoulli, iid baseline
+    for d in DS:
+        for p in PS:
+            add(f"core_SBM_n3000_d{d}_p{p}", family="SBM", n=3000, d=d, p=p, base="iid", **SYN)
+    # R2 sample-size slice
+    for n in (1000, 10000):
+        for d in DS:
+            add(f"n_SBM_n{n}_d{d}_p0.5", family="SBM", n=n, d=d, p=0.5, base="iid", **SYN)
+    # R3 other synthetic families
+    for fam in ("ER", "BA", "WS"):
+        for d in DS:
+            for p in (0.25, 0.5, 0.75):
+                add(f"fam_{fam}_n3000_d{d}_p{p}", family=fam, n=3000, d=d, p=p, base="iid", **SYN)
+    # R4 baselines correlated with degree / community
+    for fam, kinds in (("SBM", ("deg", "comm")), ("BA", ("deg",)), ("ER", ("deg",))):
+        for kind in kinds:
+            for d in DS:
+                add(f"base_{fam}_{kind}_n3000_d{d}_p0.5", family=fam, n=3000, d=d, p=0.5, base=kind, **SYN)
+    # R6 real graphs (degree set by edge thinning; target 80 means full graph for ego-Facebook, 44)
+    for fam in ("Stanford3", "ego-Facebook"):
+        for d in DS:
+            for p in (0.25, 0.5, 0.75):
+                add(f"real_{fam}_d{d}_p{p}", family=fam, n=0, d=d, p=p, base="iid", **REAL)
+    # R7 graph-cluster randomisation: Louvain resolution sweep and SBM-truth oracle clusters
+    for d in DS:
+        for res in (0.3, 1.0, 3.0):
+            add(f"clus_SBM_d{d}_res{res}_p0.5", family="SBM", n=3000, d=d, p=0.5, base="iid",
+                design="cluster", clustering="louvain", res=res, **SYN)
+        add(f"clus_SBM_d{d}_truth_p0.5", family="SBM", n=3000, d=d, p=0.5, base="iid",
+            design="cluster", clustering="truth", **SYN)
+    for fam in ("ER", "BA"):
+        for res in (0.3, 1.0, 3.0):
+            add(f"clus_{fam}_d20_res{res}_p0.5", family=fam, n=3000, d=20, p=0.5, base="iid",
+                design="cluster", clustering="louvain", res=res, **SYN)
+    # R8 edge noise: the estimators see a graph with a fraction q of true edges removed
+    for d in DS:
+        for q in (0.1, 0.3):
+            add(f"edge_SBM_d{d}_q{q}_p0.5", family="SBM", n=3000, d=d, p=0.5, base="iid", q_edge=q, **SYN)
+    # R9 sanity checks: no baseline (sigma = 0 with the correct form gives error 0)
+    for fam in ("SBM", "BA"):
+        add(f"sanity_{fam}_d20_p0.5", family=fam, n=3000, d=20, p=0.5, base="none", G=3, R=100, B=0)
+    return out
+
+
+def s_runs():
+    """frozen runs recomputed with the `bz` functional (estimated spillover share); outcomes of every other estimator are identical"""
+    return [c for c in runs() if not c["id"].startswith(("clus_", "edge_", "sanity_"))]
+
+
+def ext_runs(kind):
+    """Runs added in rev. 1 after the review of the analysis plan; not in the frozen rev-0 list.
+    X: degree-corrected SBM, weak-mixing SBM and real-graph cluster designs; F: fine spillover-share grid; G: convex mirror (g) of (c)"""
+    out = []
+
+    def add(rid, **kw):
+        c = dict(id=rid, seed=SEED); c.update(kw); out.append(c)
+    if kind == "X":
+        for d in DS:
+            for p in (0.25, 0.5):
+                add(f"dc_DCSBM_n3000_d{d}_p{p}", family="DCSBM", n=3000, d=d, p=p, base="iid", **SYN)
+            add(f"dcbase_DCSBM_deg_n3000_d{d}_p0.5", family="DCSBM", n=3000, d=d, p=0.5, base="deg", **SYN)
+        for res in (0.3, 1.0, 3.0):
+            add(f"clus_SBMweak_d20_res{res}_p0.5", family="SBM", n=3000, d=20, p=0.5, base="iid", mix=0.6,
+                design="cluster", clustering="louvain", res=res, **SYN)
+            for fam in ("ego-Facebook", "Stanford3"):
+                add(f"clus_{fam}_d20_res{res}_p0.5", family=fam, n=0, d=20, p=0.5, base="iid",
+                    design="cluster", clustering="louvain", res=res, **REAL)
+        add("clus_SBMweak_d20_truth_p0.5", family="SBM", n=3000, d=20, p=0.5, base="iid", mix=0.6,
+            design="cluster", clustering="truth", **SYN)
+    elif kind == "Z":
+        # weak unit baselines (SD 0.25): the treatment-misfit share of the variance is no longer negligible (issue #5, point 1)
+        for d in DS:
+            add(f"lowbase_SBM_n3000_d{d}_p0.5", family="SBM", n=3000, d=d, p=0.5, base="iid", base_sd=0.25, **SYN)
+        add("lowbase_BA_n3000_d20_p0.5", family="BA", n=3000, d=20, p=0.5, base="iid", base_sd=0.25, **SYN)
+    elif kind == "F":
+        for d in DS:
+            add(f"fine_SBM_n3000_d{d}_p0.5", family="SBM", n=3000, d=d, p=0.5, base="iid", **SYN)
+    elif kind == "P":
+        # fine treatment-probability grid around 1/2 for (c) and the convex mirror (g), d = 20 (outline rev. 6, C3)
+        for p in (0.35, 0.4, 0.45, 0.55, 0.6, 0.65):
+            add(f"pfine_SBM_n3000_d20_p{p}", family="SBM", n=3000, d=20, p=p, base="iid", **SYN)
+    elif kind == "D":
+        # rerun of every run that enters the diagnostic analysis, with the extra stored arrays (dn2, s2hat, mhat); same seeds and settings as the originals
+        return [c for c in runs() if not c["id"].startswith(("sanity_",))] + ext_runs("X") + ext_runs("Z")
+    elif kind in ("C", "H"):
+        # confirmatory set of P7 (ANALYSIS_PLAN addendum 4): new seed, new graph draws, mechanisms (a)-(h); two families not in the frozen list
+        def addc(rid, **kw):
+            c = dict(id=rid, seed=SEED_CONF); c.update(kw); out.append(c)
+        if kind == "C":
+            for d in DS:
+                for p in (0.25, 0.5, 0.75):
+                    addc(f"conf_SBM_n3000_d{d}_p{p}", family="SBM", n=3000, d=d, p=p, base="iid", **SYN)
+                    for fam in ("HK", "LN"):
+                        addc(f"conf_{fam}_n3000_d{d}_p{p}", family=fam, n=3000, d=d, p=p, base="iid", **SYN)
+        else:   # (g) alone on the remaining p of the full grid
+            for d in DS:
+                for p in (0.1, 0.9):
+                    addc(f"conf_SBM_n3000_d{d}_p{p}", family="SBM", n=3000, d=d, p=p, base="iid", **SYN)
+    elif kind == "G":
+        for d in DS:
+            add(f"convex_SBM_n3000_d{d}_p0.5", family="SBM", n=3000, d=d, p=0.5, base="iid", **SYN)
+        for p in (0.25, 0.75):
+            add(f"convex_SBM_n3000_d20_p{p}", family="SBM", n=3000, d=20, p=p, base="iid", **SYN)
+    return out
+
+
+def tierA_runs():
+    """Tier A subset: Bernoulli designs, null + six mechanisms at s=0.5, 200 assignments per run"""
+    out = []
+    SA = dict(G=5, R=40)
+
+    def add(rid, **kw):
+        c = dict(id=rid, seed=SEED); c.update(kw); out.append(c)
+    for d in DS:
+        for p in (0.25, 0.5, 0.75):
+            add(f"A_SBM_n3000_d{d}_p{p}", family="SBM", n=3000, d=d, p=p, base="iid", **SA)
+    for fam in ("ER", "BA", "WS"):
+        add(f"A_{fam}_n3000_d20_p0.5", family=fam, n=3000, d=20, p=0.5, base="iid", **SA)
+    for fam in ("Stanford3", "ego-Facebook"):
+        add(f"A_{fam}_d20_p0.5", family=fam, n=0, d=20, p=0.5, base="iid", G=1, R=200)
+    return out
+
+
+if __name__ == "__main__":
+    import pickle
+    import zlib
+    RUNS = runs()
+    if sys.argv[1] in ("runX", "runF", "runG", "runP", "runZ", "runS", "runD", "runC", "runH"):
+        kind = sys.argv[1][-1]
+        if kind == "F":
+            os.environ["GATE_SHARES"] = ",".join(str(round(0.1 * k, 1)) for k in range(1, 10))
+        if kind in ("G", "P"):
+            os.environ["GATE_MECHS"] = "cg"
+        if kind == "C":
+            os.environ["GATE_MECHS"] = "abcdefgh"
+        if kind == "H":
+            os.environ["GATE_MECHS"] = "g"
+        shard, nsh, outdir = int(sys.argv[2]), int(sys.argv[3]), sys.argv[4]
+        os.makedirs(outdir, exist_ok=True)
+        from gate import sim
+        for i, c in enumerate(s_runs() if kind == "S" else ext_runs(kind)):
+            if i % nsh != shard:
+                continue
+            f = os.path.join(outdir, c["id"] + ".pkl")
+            if os.path.exists(f) or os.path.exists(os.path.join(outdir, c["id"] + ".degenerate.json")):
+                continue
+            t = time.time()
+            try:
+                res = sim.run_config(c)
+            except sim.DegenerateDesign as e:
+                with open(os.path.join(outdir, c["id"] + ".degenerate.json"), "w") as fh:
+                    json.dump(dict(id=c["id"], K=e.K, graph_draw=e.gi, reason=str(e)), fh)
+                print(f"DEGENERATE {c['id']} {e}", flush=True)
+                continue
+            with open(f + ".tmp", "wb") as fh:
+                pickle.dump(res, fh, protocol=4)
+            os.replace(f + ".tmp", f)
+            print(f"DONE {c['id']} {time.time()-t:.0f}s", flush=True)
+        sys.exit(0)
+    if sys.argv[1] == "runA":
+        shard, nsh, outdir = int(sys.argv[2]), int(sys.argv[3]), sys.argv[4]
+        os.makedirs(outdir, exist_ok=True)
+        from gate import tierA
+        for i, c in enumerate(tierA_runs()):
+            if i % nsh != shard:
+                continue
+            f = os.path.join(outdir, c["id"] + ".pkl")
+            if os.path.exists(f):
+                continue
+            t = time.time()
+            res = tierA.run_tierA(c)
+            with open(f + ".tmp", "wb") as fh:
+                pickle.dump(res, fh, protocol=4)
+            os.replace(f + ".tmp", f)
+            print(f"DONE {c['id']} {time.time()-t:.0f}s", flush=True)
+        sys.exit(0)
+    if sys.argv[1] == "list":
+        for i, c in enumerate(RUNS):
+            print(i, c["id"])
+        print(len(RUNS), "runs")
+        for k in "XFGPZDCH":
+            print("ext", k, [c["id"] for c in ext_runs(k)])
+    else:
+        shard, nsh, outdir = int(sys.argv[2]), int(sys.argv[3]), sys.argv[4]
+        os.makedirs(outdir, exist_ok=True)
+        from gate import sim
+        for i, c in enumerate(RUNS):
+            if i % nsh != shard:
+                continue
+            f = os.path.join(outdir, c["id"] + ".pkl")
+            if os.path.exists(f) or os.path.exists(os.path.join(outdir, c["id"] + ".degenerate.json")):
+                continue
+            t = time.time()
+            try:
+                res = sim.run_config(c)
+            except sim.DegenerateDesign as e:
+                with open(os.path.join(outdir, c["id"] + ".degenerate.json"), "w") as fh:
+                    json.dump(dict(id=c["id"], K=e.K, graph_draw=e.gi, reason=str(e)), fh)
+                print(f"DEGENERATE {c['id']} {e}", flush=True)
+                continue
+            tmp = f + ".tmp"
+            with open(tmp, "wb") as fh:
+                pickle.dump(res, fh, protocol=4)
+            os.replace(tmp, f)
+            print(f"DONE {c['id']} {time.time()-t:.0f}s", flush=True)

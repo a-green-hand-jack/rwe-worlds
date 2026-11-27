@@ -1,0 +1,52 @@
+# Reproduction
+
+Environment: Python 3.11, numpy 2.4.6, scipy 1.17.1, pandas 3.0.6, scikit-learn 1.9.1, torch 2.14.1 (CPU), joblib 1.6.0, pyarrow 26.0.0 (`requirements.txt`). BLAS single-threaded (set in the scripts). CPU only; each worker is one process with 1 CPU and < 6 GB.
+
+## All at once
+```
+bash scripts/00_download.sh
+python3 -I scripts/01_audit.py
+bash scripts/run_all.sh 8       # 8 workers; SKIP="extra msrc ..." leaves stages out
+```
+`run_all.sh` runs the stages below in order (`main variants msrc 2pct extra inner50 kmstrong highR dsweep analyze`) with `xargs -P`; every stage writes its own raw directory, `analyze` writes the CSVs.
+
+## Stages (what each runs; hours are the wall-clock time of the single-threaded jobs, measured inside the runner on a shared host, so an upper bound of their CPU time)
+| stage | command (per benchmark, split cell) | raw dir | hours (wall, 1 thread) |
+|---|---|---|---|
+| `main` | `02_run.py BENCH {interp,lineage,extrap} --draws 10 --d 2` (n ∈ {10, 25, 50, 100, 200, 400}, n ≤ N/2; 7 designs, ~100 method variants) | `results/raw` | 3.3 |
+| `variants` | the same for `extrap10`, `extrap50` (top 10 % / 50 % as targets) | `results/raw` | 1.4 |
+| `2pct` | `--ngrid n2` with `n2 = round(0.02 N)`; n/N = 2 % secondary endpoint | `results/raw_2pct` | 0.9 |
+| `msrc` | `--ngrid 100 --designs uniform,strat,pps,balanced --no-cat --msrc M --tag _M{10,30,100}` (interp, extrap) | `results/raw_msrc` | 0.4 |
+| `extra` | `--ngrid 100` and `--ngrid n2`, `--designs uniform,strat,pps,balanced --no-cat --extra` (target-recalibrated estimators `recal-*` and weak-prior IRT `irtw-*`) | `results/raw_extra/{n100,2pct}` | 64 jobs for each budget, 1.45 (n = 100) + 1.21 (2 %) = 2.7 hours |
+| `dsweep` | six benchmarks (arc_challenge, bbh, gpqa, ifeval, musr, openllm_math) × interp (5 folds) / extrap (fold 0), designs anchor and uniform, `--ngrid 100 --extra --no-cat`; four settings by tag: `_d10` (d = 10), `_d2w` (d = 2), both with `BPRED_IRTW_PREC=0.01`; `_fit2`, `_fit10` (d = 2, 10; `BPRED_IRT_STEPS=2000 BPRED_IRT_REG=0.1 BPRED_IRTW_PREC=0.01`). Check of whether the IRT settings explain the gap to the public p-IRT | `results/raw_dsweep` | 48 jobs (6 benchmarks × 2 splits × 4 settings), 25 s–10 min wall each, 1.45 hours in total (wall-clock on a loaded host) |
+| `inner50` | extrap, n = 100, uniform/strat/pps/balanced, `--inner-frac 0.5 --tag _inner50` (larger-gap inner split for the tuning of λ) | `results/raw_inner50` | 0.1 |
+| `kmstrong` | anchor design only, `BPRED_KMEANS=strong` (k-means n_init 10, 300 iterations instead of 1 / 25), n = 100, interp and extrap, 7 benchmarks | `results/raw_kmstrong` | 0.1 |
+| `highR` | interp, extrap, n = 100, uniform/strat/pps/balanced, `--R 100 --tag _R100` (100 subset draws per fold; draws 0–9 equal the main run's) | `results/raw_highR` | about 1.5 wall-clock hours in total (26 cells, 1 CPU each) |
+
+The largest cells are `mmlu_pro`, `bbh`, `openllm_math` (up to ~25 min each in `main`). The Open LLM Leaderboard benchmarks dominate the cost.
+
+Seeds: `BASE_SEED = 20261126` combined with the tuple (benchmark, split, fold, n, draw, design index); fold assignment uses seed 0; bootstraps use fixed seeds in the analysis scripts. Reruns on the same machine reproduce the pickles; other CPUs/BLAS were not tested.
+
+## Analyses
+| command | writes |
+|---|---|
+| `python3 -I scripts/03_analyze.py` | `results/{targets,primary,per_bench,ratio_by_n,ordering,pairwise,bias_by_score,ceiling}*` and `results/raw/target_level.parquet` |
+| `TWO_PCT=1 python3 -I scripts/03_analyze.py results/raw_2pct results/twopct` | the same for n/N = 2 % |
+| `python3 -I scripts/03_analyze.py results/raw_inner50 results/inner50` | larger-gap inner split |
+| `python3 -I scripts/09_paired.py results/raw/target_level.parquet results/raw_inner50/target_level.parquet results/inner50/paired_vs_main.csv` | paired family-bootstrap ratio (inner50 over main, same target resamples; B = 2000) for every shared method: `b_over_a` with `ci_lo`/`ci_hi`; columns in `RESULTS_SCHEMA.md` |
+| `python3 -I scripts/03_analyze.py results/raw_extra/n100 results/extra_n100` and `TWO_PCT=1 … raw_extra/2pct results/extra_2pct` | target-recalibrated and weak-prior estimators |
+| `python3 -I scripts/03_analyze.py results/raw_highR results/highR` | per-target bias at R = 100 (`per_bench.bias2_unbiased`; per target `draw_var / n_draws` in `target_level.parquet` gives the Monte-Carlo variance of the draw mean) |
+| `python3 -I scripts/10_ceiling_centred.py results/raw results/ceiling_centred.csv 100` | centred vs uncentred Brier reference for the IRT difference estimator (uniform design, n = 100): `q`, `q_c`, references `ref`, `ref_c`, observed `obs` per (bench, split) |
+| `python3 -I scripts/14_bias_r100.py results/highR/per_bench.csv.gz results/per_bench.csv.gz results/highR_vs_main.csv results/raw_highR/target_level.parquet results/highR_target_bias.csv` | Table 3's bias²/variance/MSE at R = 10 and R = 100 side by side, and per-target bias against its Monte-Carlo standard error |
+| `python3 -I scripts/11_extrap_bias.py results/raw/target_level.parquet results/extrap_bias.csv` | signed bias of the model-based estimators against the target's distance above the sources (extrapolation, n = 100): slope, bias of the top quarter, share of squared bias |
+| `python3 -I scripts/12_public_baselines.py BENCH SPLIT --pub DIR [--irt --folds 1 --D 10 --epochs 2000] --out results/raw_public` then `python3 -I scripts/13_public_compare.py results/raw_public results/raw results/public_baselines.csv` | public anchor-selection code (tinyBenchmarks tutorials, Anchor Points, py-irt fork) run on our folds and targets (k-means / k-medoids random states 0 … draws−1); ratio to `uniform|mean` next to our `anchor|*` re-implementations. Setup: `DIR` holds clones of the three public repositories named in the header of the script (`tb`, `ap`, `pyirt`); extra packages `kmedoids`, `pyro-ppl`, `pydantic<2`, `typer`, `rich`, `toml`, `ordered-set`, `jsonlines`; stage A on all folds, stage B (IRT) on interpolation fold 0 and extrapolation of six benchmarks; the 26 result files took 2.0 hours of wall-clock time in all (single thread, shared host), the longest cells (bbh, stage B) about 24 minutes |
+| `python3 -I scripts/15_dsweep.py results/raw_dsweep results/raw results/dsweep.csv` | `dsweep.csv`: pooled RMSE over folds and ratio to the main run's `uniform\|mean` on the same targets, per (bench, split, config, design, method); config `d2` is the main run; prints the geometric mean over benchmarks per split and design |
+| `python3 -I scripts/04_msrc.py results/raw results/raw_msrc results` | `msrc.csv` |
+| `python3 -I scripts/05_bands.py results/raw/target_level.parquet results` | `bias_bands.csv`, `pairwise_bands.csv` |
+| `python3 -I scripts/06_select.py results/raw/target_level.parquet results` | `selected.csv`, `primary_suite.csv`; adds `n_draws`, `bias2_unbiased` to `per_bench.csv.gz` |
+| `python3 -I scripts/06_select.py results/raw_2pct/target_level.parquet results/twopct --n 0`; with the target-recalibrated class: `… results --extra results/raw_extra/n100/target_level.parquet --tag _extra` (and `results/raw_2pct/… results/twopct --n 0 --extra results/raw_extra/2pct/target_level.parquet --tag _extra`) | the same for 2 %, and `selected_extra.csv`, `primary_suite_extra.csv` |
+| `python3 -I scripts/07_kmstrong.py results/raw results/raw_kmstrong results/kmstrong.csv` | `kmstrong.csv` |
+| `python3 -I scripts/08_recal.py results/raw_extra/n100 results/recal_fallback_n100.csv` | share of (draw, target) pairs where the recalibration regression fell back to the Hájek mean |
+| `python3 -I scripts/pilot_d.py ifeval,gsm,mmlu,arc_challenge results/pilot_d.csv` | `pilot_d.csv` (source-only pilot that fixed d = 2, ~10 min) |
+
+Three notes. (1) `03_analyze.py` draws its bootstrap replicates from one random stream in file order, so adding a benchmark file shifts the later intervals by up to ~0.016 in the geometric-mean ratio without changing a point estimate. (2) Raw outputs (`results/raw*`) are not in git; `run_all.sh` regenerates them. (3) Thresholds and definitions (thin cell, qualifying extrapolation targets, the primary endpoint) are in `PROTOCOL.md`.

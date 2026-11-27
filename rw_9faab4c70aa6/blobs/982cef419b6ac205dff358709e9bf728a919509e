@@ -1,0 +1,18 @@
+# Review of the final version: paper-repo#10 (main e71e837 into final)
+
+Read from `document` branch `main/document.pdf` (built-from e71e837a3aea, 19 pages, main text 9) and checked against `code/results` and `code/experiments/summarise_c8.py` at that commit.
+
+## Verdict: approve
+
+Both `must` findings of version 1 are answered.
+
+- R1 (real-tool arm not in the paper): Section 5.5 and Table 3 now report C8 as computed. Checked against `real_tool.parquet` / `real_tool_draws.parquet`: reported 0.357, truth 0.291, gap 0.0662 (0.0393-0.0931, t over 24 draws), 20 of 24 positive, leak-free gap 0.048, leakage 0.018, predictor 0.054 = 0.82 x gap, replay B=20 gap 0.0581, pre-set interval 0.0515-0.0647, corrected interval 0.0491-0.0672, difference 0.008 with SE 0.013 (SD 0.0637/sqrt(24)). The verdict "not consistent" (+0.0015 above the pre-set upper end) is what `summarise_c8.py` computes (`PREREG` interval, `inside` test) and the paper states it as it fell, with the corrected interval beside it and marked as not used. "Tested rather than assumed" is now "tested once rather than assumed"; Section 6 limits predictor and bound validation to replayed searchers. The 24-draw, 39 189-call and 4 293 s figures match the draws file.
+- R2 (compute): checklist item 8 now gives 311.7 CPU-hours charged, the same as the README's measured compute section; matrix 187 354 s and 18 jobs match. README has the per-figure/table script table including Tab 3 and the C8 command.
+
+No dangling references, placeholders or identifying strings in the built text. Table 3 and Figure 6 render legibly.
+
+## Remaining findings (all `may`; none holds the version)
+
+- M1: the abstract and Section 1 say the replay was "checked once against a live DSPy search" and give the two gaps, but do not say the pre-set rule's verdict was "not consistent". Section 5.5 says it plainly, and the numbers are given, so the abstract is not wrong; a clause would remove the reader's need to open Section 5.5.
+- M2: R3-R7 of version 1 (undefined abstract terms, record-like caveats in Section 5, max-T citations, "within 6%" wording, Fig 1 label overlap) are not taken; "within 6%" is still in the abstract.
+- M3: README line 4 still says "written while the study runs ... completed from the finished runs"; the README is complete, so the sentence is stale.

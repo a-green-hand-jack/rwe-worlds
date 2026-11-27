@@ -1,0 +1,108 @@
+# Venue record: NeurIPS 2026, Main Track (contribution type "General")
+
+Sources: `ht-role venue neurips` (the world's venue library, retrieved 2026-11-14 from neurips.cc pages and the official style kit) and, for contribution types, https://neurips.cc/Conferences/2026/ReviewerGuidelines (fetched 2026-11-25). Section "Accepted papers" below is my own measurement (`tools/`). Everything else is quoted or paraphrased from those sources; where I recommend something the venue does not require, it says **recommendation**.
+
+## 1. Choice of venue
+
+The objective lets the study pick one of ICML, ICLR, NeurIPS and requires the newest edition's official template and checklist. I pick **NeurIPS 2026 Main Track** (newest NeurIPS edition with a published call; NeurIPS 2027 pages return HTTP 404 on 2026-11-14, so the edition and its template are the 2026 ones).
+
+Why not the others (from the same library):
+
+| | NeurIPS 2026 | ICML 2027 | ICLR 2027 |
+|---|---|---|---|
+| main-text limit | 9 pages, floats included | 8 pages | 9 pages |
+| layout | one column, 5.5 in text width | two columns, 6.75 in text width, 3.25 in columns | one column, 5.5 in |
+| checklist | mandatory, in the kit (`checklist.tex`), outside the page limit | none in the library record | none; an optional reproducibility statement |
+
+The outline plans eight main figures and two tables; a single-column 9-page body is the best fit, and the NeurIPS paper checklist is the one the objective names as an example. A switch would change page budget and widths below; ask me first.
+
+**Contribution type: choose "General"** (reviewers read criteria by the type the authors select; it cannot be changed after submission). "Negative Results" is for papers whose main contribution is understanding a negative result and has a *higher* significance and originality bar ("unexpected or surprising", "changes our understanding of an important question", and not "simply an empirical observation that some experiment did not turn out as expected"). The study's thesis (an extrapolation account of regression-GATE error, a regime map, a diagnostic) is evaluation-of-existing-methods work, which the General originality criterion names explicitly ("new insights, deepen understanding, or highlight important properties of existing methods"). If results reverse the thesis into a pure negative finding, tell me and reconsider.
+
+## 2. What the venue requires
+
+### Length and structure
+- Main text: **at most 9 content pages, including all figures and tables**. Not counted: references, acknowledgments, technical appendices, the paper checklist. Over the limit: "will not be reviewed" (kit) / may be desk rejected (handbook). Camera-ready gets 10 pages; submission is the standard here.
+- References, appendix and checklist have no page limit. Order inside the single PDF (suggested by the handbook): content, references, appendices, checklist. The paper must stand alone without the appendix; reviewers are not required to read appendix or supplement.
+- Required sections: none fixed by the venue. The objective (not the venue) requires abstract, introduction, related work, method, experiments, discussion and limitations, references.
+- A broader-impacts section is not required; any societal-impact discussion inside the paper counts against the 9 pages.
+
+### Layout (enforced by `neurips_2026.sty`; do not edit it, "tweaking the style files may be grounds for desk rejection")
+- US Letter; one column; text block 5.5 in wide x 9 in high; left margin 1.5 in, top 1 in; Times 10 pt on 11 pt leading; paragraphs unindented, 5.5 pt apart; page numbers on.
+- `\footnotesize` is floored at 8 pt, `\scriptsize` at 7 pt, `\tiny` at 6 pt by the style. References may use `\small` (9 pt). Do not load `fullpage`/`geometry` tricks, do not shrink margins or fonts.
+- Submission mode (no `final`/`preprint` option): anonymous author block, line numbers (do not refer to them), footer "Submitted to 40th Conference on Neural Information Processing Systems (NeurIPS 2026). Do not distribute." Use `\usepackage{neurips_2026}`; add `final` only for a camera-ready.
+- Fonts: only Type 1 or embedded TrueType in the PDF; Type 3 and non-embedded fonts will be flagged for fixing. For matplotlib set `pdf.fonttype: 42` (and `ps.fonttype: 42`). (The kit's own sample PDF contains one Type 3 font; do not read that as permission.)
+- Template: copy with `ht-role venue neurips --template DIR` (files `neurips_2026.sty`, `neurips_2026.tex`, `checklist.tex`; no bibliography style; natbib is loaded by the style, any consistent citation style is accepted). Kit licence: none stated. I checked that the kit builds with `latexmk -pdf` (12 pages, US Letter).
+
+### Sizes and widths figures and tables print at (for `figtab-repo`)
+- Figure width: at most the 5.5 in text width; use `\includegraphics[width=<k>\linewidth]` (kit instruction). Full-width figure = 5.5 in; two side-by-side panels = about 2.65 in each.
+- Venue rules on content: "neat, clean, and legible"; lines dark enough to reproduce; figure number and caption **after** the figure, table number and title **before** the table; captions lower case except first word and proper nouns; the kit's own caption advice: "explain what the figure shows and add a key take-away message". Colour allowed, but figure captions and text should remain legible in black-and-white print (use markers/line styles as well as colour).
+- Tables: centred, `booktabs`, no vertical rules; a table font may be `\small` (9 pt) or `\footnotesize` (8 pt, the style's floor); do not go below 8 pt in tables.
+- Caption size: the style sets no caption font; captions print at the body size (10 pt).
+- **Recommendation** (the venue sets no figure-text minimum): text inside figures at the printed size of at least 7 pt (the style's `\scriptsize` floor), preferably 8 pt; figure files as vector PDF with fonts embedded.
+
+### Anonymity and links
+- Submission is double blind: authors, affiliations, own-repository URLs, usernames and acknowledgments must not appear in the paper or in any supplementary or linked material, code included. External links must be anonymous to browse. Own earlier work is cited in the third person.
+- Consequence for this study: repository, role and host names must not be written into the paper or the code archive.
+
+### Checklist (mandatory; no checklist means desk rejection)
+- `checklist.tex` goes after the references and appendix, outside the page limit, 16 items: Claims; Limitations; Theory assumptions and proofs; Experimental result reproducibility; Open access to data and code; Experimental setting/details; Experiment statistical significance; Experiments compute resources; Code of ethics; Broader impacts; Safeguards; Licenses for existing assets; New assets; Crowdsourcing and human subjects; IRB; Declaration of LLM usage.
+- Answer each with `\answerYes{}`, `\answerNo{}` or `\answerNA{}` and a 1-2 sentence justification (pointing to the section when the answer is yes). Delete the instruction block, keep the heading "NeurIPS Paper Checklist", do not alter the questions. A "no" with honest justification is "typically not grounds for rejection"; reviewers use the checklist as one factor.
+- Items that need this study's facts: statistical significance (error bars, how computed), compute resources (CPU hours, hardware), licences of existing assets (socfb-Stanford3 is CC BY-SA from Network Repository, with required citations to Rossi and Ahmed 2015 and Traud, Mucha and Porter 2012; SNAP ego-Facebook has no licence listed, cite McAuley and Leskovec 2012 — all from `data.md`), new assets (the code/simulation harness), LLM usage.
+- LLM declaration: LLM/agent use must be described in the paper if it is an "important, original, or non-standard component of the approach"; spell checking, editing aid and basic code assistance need not be. Agents cannot be authors.
+
+### Code, data and supplementary material
+- Code and data: one separate anonymised ZIP (also `.tgz`/`.gz`), at most **100 MB**; "include training and evaluation code and a specification of dependencies"; ideally self-contained and executable. Written appendices must not go in the ZIP; the PDF is one file, at most **50 MB**.
+- The objective also asks for reproduction notes (environment and dependency versions, data acquisition steps and versions, seeds, commands, expected run time, which script makes each table and figure) and, if met, the record of any encounter with the withheld paper. Those are objective requirements, not NeurIPS ones; they should sit in the code ZIP (README) and be summarised in the paper's checklist answers.
+- Data and result files in bulk go to Git LFS in this world (delivery rules).
+
+### What cannot be established
+- NeurIPS 2026 deadlines have passed (abstract 2026-05-04, paper 2026-05-06); this is a simulated submission, not a live one. NeurIPS 2027 has no published call (404 on 2026-11-14), so re-check before any real submission.
+- The abstract length limit of the submission form is not recorded in the library; I know of none from the kit. The measured accepted abstracts below are 169-266 words.
+- The OpenReview form's other field limits (title length etc.) are not recorded.
+- No licence is stated for the style kit.
+
+## 3. What reviewers judge acceptance by
+
+Review form (handbook): Summary; contribution-type confirmation; Strengths and Weaknesses across **Quality, Clarity, Significance, Originality** (each rated 1 poor to 4 excellent); Questions (ideally 3-5); Limitations; Overall 1-6 (6 strong accept, 5 accept, 4 borderline accept, 3 borderline reject, 2 reject, 1 strong reject); Confidence 1-5; ethics flags; formatting concerns (which should not lower the score; going over by a few lines is not to be penalised).
+
+For a **General** paper:
+- Quality: technically sound; claims well supported by theory or experiment; complete work rather than work in progress; authors "careful and honest about evaluating both the strengths and weaknesses of their work".
+- Clarity: well written and organised; "a superbly written paper provides enough information for an expert reader to reproduce its results".
+- Significance: results impactful for the community; advance understanding "in a demonstrable way"; others likely to build on them.
+- Originality: new insights, deeper understanding or important properties of existing methods count; a new method is not required.
+- Reviewers are instructed not to penalise honesty about limitations. This matches the objective's own standard (evidence per conclusion, uncertainty, scope of validity, honest negative results); where the objective's criteria are the stricter, the objective wins.
+
+## 4. Accepted papers: how they are written (own measurement)
+
+Sample: seven NeurIPS main-conference papers on interference and experiments on networks, proceedings PDFs, from the proceedings index titles of 2020-2024 (all before 2025; chosen by title match for interference/spillover/network experiments, plus one peer-influence paper): Markovian Interference in Experiments (2022); Staggered Rollout Designs Enable Causal Inference Under Interference Without Network Knowledge (2022); Cluster Randomized Designs for One-Sided Bipartite Experiments (2022); Using Embeddings for Causal Estimation of Peer Influence in Social Networks (2022); Optimized Covariance Design for AB Test on Social Network under Interference (2023); Multi-Armed Bandits with Network Interference (2024); Higher-Order Causal Message Passing for Experimentation with Complex Interference (2024). Reproduce with `tools/fetch_sample.sh DIR` and `python3 -I tools/accepted_stats.py DIR`. Counts come from text extraction and are accurate to about one item. Caveat on representativeness: these are mostly theory-plus-simulation method papers; none is a pure empirical study, and this study's own mix (simulation, regime map, diagnostic) is not in the sample. My title search of the 2020-2024 proceedings did not surface an accepted NeurIPS main-track empirical study of regression estimators under interference (the search was by title keywords, not exhaustive).
+
+| paper | References heading on PDF page | figures | tables | abstract words | references |
+|---|---|---|---|---|---|
+| Markovian 2022 | 11 | 2 | 0 | 169 | 60 |
+| Staggered 2022 | 11 | 2 | 0 | 178 | 25 |
+| Bipartite 2022 | 11 | 2 | 3 | 220 | 38 |
+| Embeddings 2022 | 11 | 1 | 2 | 192 | 37 |
+| Cov. design 2023 | 10 | 0 | 2 | 232 | 43 |
+| Bandits 2024 | 9 | 2 | 0 | 266 | 33 |
+| HO-CMP 2024 | 11 | 5 | 1 | 191 | 66 |
+
+(The main text ends on or before the page holding the "References" heading. These are camera-ready versions, which may use 10 pages; the submission limit is 9. Algorithm boxes are not counted as tables.)
+
+- **Page use**: all fill the page budget; 0-5 figures (median 2) and 0-3 tables (median 1) in the main text; figures plus tables 2-6 (median 2). More floats than that is outside what this audience's accepted papers carry in the main text. Appendices run from none to about 11 pages.
+- **Prior work**: 25-66 references, median 38. Related work is a paragraph or sub-subsection inside the introduction in 5 of 7, a separate Section 2 in 1 (Bandits), a late section in 1 (Embeddings).
+- **Abstract** (169-266 words, median 192): (1) one or two sentences placing the problem in online platforms/experiments and naming interference as the obstacle; (2) the gap in existing methods ("all existing approaches require...", "far less is known"); (3) what the paper does, in plain terms, with the key technical device; (4) results: theory statements and "extensive simulations demonstrate...". None of the seven states a measured number. For this study, a measured abstract that states the main quantified finding and its scope is stronger than the sample's habit.
+- **Introduction** (about 1.5-2 pages, roughly 700-1,650 words by extraction): motivation from online experimentation and social platforms; standard SUTVA failure and the bias of difference-in-means; the estimand (total/global treatment effect); what existing designs/estimators do and where they fall short; what the paper does; an contribution paragraph (labelled "Contributions" in 4 of 7, a contributions sentence in a fifth); related literature either inside the introduction or as the next section.
+- **Experiments**: synthetic networks (SBM, Erdos-Renyi, power-law, random graphs) and, in at least 3 of 7, a real graph or a real platform case; comparisons against named baselines (difference-in-means, Horvitz-Thompson, Hajek, cluster-randomised variants); varied interference strength, density and model misspecification; tables with bias/SD/RMSE across settings or figures with error vs. a size parameter.
+- **Limitations**: none of the seven has a stand-alone limitations section; they end with "Conclusion"/"Discussion". NeurIPS now asks for limitations in the checklist and reviewers are told not to penalise them, and the objective requires a limitations section, so the paper gives it its own section or clearly marked subsection.
+
+## 5. Budget for the study (answering the outline's proposal)
+
+Arithmetic (planning estimate, not a venue rule): 9 content pages of 9 in = 81 in of vertical text height. A full-width 5.5 in figure about 2.3 in tall with its caption takes about 2.9 in, roughly a third of a page; a table with caption takes 1.5-2.5 in.
+
+- **Main text floats: up to 6 figures plus 2 tables** (each figure may be a multi-panel figure of up to 4 panels at 5.5 in width, panel text at least 7 pt printed). That is about 2.4 pages of floats and leaves about 6 pages for text. Beyond that the text drops below about 5.5 pages and the introduction, method and discussion get squeezed (planning judgement).
+- The outline's proposal fits: main text Figs 1, 3, 5, 7 plus Tables 1-2 (4 figures, 2 tables, about 1.7 pages). Figs 2, 4, 6, 8 can join as extra panels or one extra multi-panel figure up to the cap of 6, or go to the appendix with a pointer sentence in the main text. Eight separate main-text figures plus two tables does not fit, and exceeds anything in the sample (max 5 figures).
+- **Appendix**: no limit, text only in the same PDF (not a separate PDF, not in the ZIP). Use it for the cell list, calibration and sanity tables, derivations, full tables behind each figure, extra graph families. Keep each main-text claim self-contained.
+- **Prior work**: aim at 35-60 references, all actually read; 25 is the lowest in the sample.
+- **Abstract**: no venue limit known; **recommendation** at most about 220 words.
+- **Introduction**: about 1.5 pages ending with an explicit contributions list that says what is not new (the brief's own requirement).
+- Page counting is done from the built PDF of `paper-repo`: pages before the References heading must be at most 9 including every figure and table.

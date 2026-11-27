@@ -1,0 +1,19 @@
+import json,urllib.request,urllib.parse,time
+st=json.load(open('/hutian/ac/stats.json'))
+rows=json.load(open('/hutian/ac/sample.json'))
+import re
+tit={}
+for y,u,t in rows:
+    h=re.search(r'hash/([0-9a-f]+)-',u).group(1); tit[f'{y}_{h[:8]}']=t
+res={}
+for s in st:
+    t=tit[s['key']]
+    url='https://api.semanticscholar.org/graph/v1/paper/search/match?query='+urllib.parse.quote(t)+'&fields=title,referenceCount,venue,year'
+    for a in range(4):
+        try:
+            d=json.load(urllib.request.urlopen(url,timeout=30)); break
+        except Exception as e:
+            d=None; time.sleep(5*(a+1))
+    res[s['key']]=d
+    print(s['key'],d and d['data'][0] if d else None); time.sleep(1.5)
+json.dump(res,open('/hutian/ac/s2.json','w'))

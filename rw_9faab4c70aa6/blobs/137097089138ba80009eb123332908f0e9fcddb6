@@ -1,0 +1,33 @@
+"""Assemble the cached chunk files into the item x configuration matrix.
+Output data/matrix.npz: rows (pool row ids with all K configs complete), logp (R,K,10) float16, Y (R,K) uint8 correct,
+pred (R,K) predicted letter index, margin (R,K) = logp(top) - logp(second).  Config id c = g*16 + m."""
+import sys, glob, os, json, re
+import numpy as np, pandas as pd
+DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")
+G, M, BS = 8, 16, 24
+def assemble(src, out):
+    pool = pd.read_pickle(DATA + "/pool.pkl")
+    per = {}
+    for f in glob.glob(f"{src}/m_g*_b*.npz"):
+        if f.endswith(".tmp.npz"): continue
+        g, b = map(int, re.findall(r"m_g(\d+)_b(\d+)", f)[0]); z = np.load(f)
+        per[(g, b)] = (z["rows"], z["logp"])
+    blocks = sorted({b for (g, b) in per if all((gg, b) in per for gg in range(G))})
+    if not blocks: raise SystemExit("no complete blocks")
+    rows = np.concatenate([per[(0, b)][0] for b in blocks])
+    logp = np.concatenate([np.concatenate([per[(g, b)][1] for g in range(G)], axis=1) for b in blocks], axis=0)   # (R, G*M, 10)
+    for g in range(G):
+        for b in blocks: assert (per[(g, b)][0] == per[(0, b)][0]).all()
+    ans = pool.set_index("row").loc[rows, "answer_index"].values
+    pred = logp.argmax(-1)
+    srt = np.sort(logp, -1)
+    margin = srt[..., -1] - srt[..., -2]
+    Y = (pred == ans[:, None]).astype(np.uint8)
+    keep = ~pool.set_index("row").loc[rows, "is_demo"].values.astype(bool)       # demonstration items are not pool items
+    factors = np.stack(np.unravel_index(np.arange(G * M), (4, 2, 8, 2)), 1)    # (set, label, instruction, cue) levels of config c
+    cat = pool.set_index("row").loc[rows, "category"].values
+    np.savez_compressed(out, rows=rows[keep], logp=logp[keep].astype(np.float16), Y=Y[keep], pred=pred[keep].astype(np.int8),
+                        margin=margin[keep].astype(np.float16), ans=ans[keep], factors=factors, category=cat[keep])
+    return rows[keep], Y[keep]
+if __name__ == "__main__":
+    rows, Y = assemble(sys.argv[1], sys.argv[2]); print("rows", len(rows), "K", Y.shape[1], "mean acc", Y.mean(), "sd of config acc", Y.mean(0).std())

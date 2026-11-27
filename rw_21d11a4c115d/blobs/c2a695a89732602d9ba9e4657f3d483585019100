@@ -1,0 +1,41 @@
+import pymupdf,re,json
+S=json.load(open('raw/sample.json'))
+HEAD=re.compile(r'^\s*(\d+\s*)?(References|REFERENCES|Bibliography)\s*$')
+def find_ref(d):
+    for k,p in enumerate(d):
+        if k<2: continue
+        for b in p.get_text('blocks'):
+            if HEAD.match(b[4].strip().split('\n')[0]) and len(b[4].strip())<40:
+                return k,b[1]/p.rect.height
+    return None,None
+def ref_blocks(d,k,y0):
+    cnt=0;started=False
+    out=[]
+    for j in range(k,len(d)):
+        p=d[j]
+        for b in p.get_text('blocks'):
+            if j==k and b[1]/p.rect.height<=y0+1e-6: continue
+            t=b[4].strip().replace('\n',' ')
+            if re.match(r'^(Appendix|A)\s+[A-Z]',t) and len(t)<120 and j>k: return out
+            if re.match(r'^\s*(A\s+)?(Appendix|Additional|Proofs?|Supplementary|Broader|NeurIPS Paper Checklist)\b',t) and len(t)<100 and j>k: return out
+            out.append(t)
+    return out
+res=[]
+for i,s in enumerate(S):
+    d=pymupdf.open(f'pdf/{i:02d}.pdf'); n=len(d)
+    k,y=find_ref(d)
+    pages=[p.get_text() for p in d]
+    main=''.join(pages[:k])+''.join(b[4] for b in d[k].get_text('blocks') if b[1]/d[k].rect.height<y)
+    figs=sorted(set(re.findall(r'^\s*(?:Figure|Fig\.)\s+(\d+)\s*[:.]',main,re.M)),key=int)
+    tabs=sorted(set(re.findall(r'^\s*Table\s+(\d+)\s*[:.]',main,re.M)),key=int)
+    first=pages[0]+pages[1]
+    ma=re.search(r'Abstract\s*(.*?)(?:\n\s*1\s*\.?\s*Introduction|\n\s*1\s*\n\s*Introduction|Introduction\s*\n)',first,re.S)
+    abst=ma.group(1) if ma else ''
+    mi=re.search(r'\n\s*1\s*\.?\s*(?:\n\s*)?Introduction\s*\n(.*?)\n\s*2\s*\.?\s*(?:\n\s*)?[A-Z]',main,re.S)
+    intro=mi.group(1) if mi else ''
+    rb=ref_blocks(d,k,y)
+    entries=[t for t in rb if re.search(r'\b(19|20)\d\d\b',t) and len(t)>35]
+    nums=[int(m.group(1)) for t in rb for m in [re.match(r'^\[(\d+)\]',t)] if m]
+    res.append(dict(i=i,group=s['group'],title=s['title'][:60],total_pages=n,main_pages=round(k+y,2),figs=len(figs),maxfig=max(map(int,figs),default=0),tabs=len(tabs),maxtab=max(map(int,tabs),default=0),abs_words=len(abst.split()),intro_words=len(intro.split()),refs_blocks=len(entries),refs_max_num=max(nums,default=0)))
+json.dump(res,open('raw/measure2.json','w'),indent=1)
+for r in res: print(r)

@@ -1,0 +1,7 @@
+# Paper delivery
+
+- `paper/` LaTeX sources of the paper (NeurIPS 2026 main track template); built from `.forgejo/document.json`.
+- `code/`, `results/`, `REPRODUCE.md`: analysis code, result tables and reproduction instructions.
+- `figures/`: figure and table generators and their outputs.
+
+`.forgejo/CODEOWNERS` says who delivers which path.

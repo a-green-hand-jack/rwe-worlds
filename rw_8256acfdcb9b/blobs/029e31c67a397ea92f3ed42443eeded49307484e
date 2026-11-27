@@ -1,0 +1,28 @@
+# figs
+
+Scripts that draw the paper's figures from the result tables of `experiment-repo` (what each reads: `../docs/data_contract.md`).
+Everything at once: `../make_all.sh RESULT_TABLES_DIR OUT_ROOT`. One figure: `python3 figN_*.py DATA_DIR OUT_PREFIX [options]`; each writes
+`OUT_PREFIX.pdf`, `.csv` (the plotted numbers) and `.json` (input hashes, size, selection). Scripts fail when an input or column is missing; they never fill in values.
+
+| Figure | Script | Claim |
+|---|---|---|
+| Fig 1 | `fig1_concept.py` | concept: one instance, runs against the exact values |
+| Fig 2 | `fig2_headline.py` | M2, M3 (share vs budget, aggregate agreement, P_c distribution) |
+| Fig 3 | `fig3_margin.py` | M4 |
+| Fig 4 | `fig4_budget.py` | M5 (error vs m, paired estimator differences at equal evaluations, m* vs margin) |
+| Fig 5 | `fig5_floors.py` | M6 |
+| Fig 6 | `fig6_certificate.py` | R1 |
+| Tables | `../tables/tab1_design.py` (1), `tab2_guidance.py` (2), `tab3_certificate.py` (3), `tabA1_sensitivity.py`, `tabA2_h1.py` | design, guidance, R1 budget rule, appendix |
+
+Rev 6 (Outline): Fig 5 labels floor b "B=50" and draws open markers where fewer than K=10 retrained models were kept; Fig 6/Table 3 label the registered contrast and the matched-deliverable variant and give each Brier with its base rate; Table 2 says d is descriptive; every figure json carries the interval scope sentence. Fig 4c is secondary until the probit fit exists.
+
+Not yet drawn: appendix A2 (background sensitivity: `background_sensitivity.csv` not delivered), the RF log-odds vs probability comparison of A1.
+Sizes: NeurIPS 2026 text block 5.5 in; 7 pt ticks/legend, 8 pt labels, 6 pt sub/superscripts (`figstyle.py`, venue-repo#3: the venue states no floor, 7 pt is its recommendation). Fonts embedded as Type 42.
+
+Update after experiment-repo#4: Fig 4 panel (c) draws the interval-censored (Tobit) fit from `mstar_tobit` instead of c/g² from `mstar_fit` (which excludes censored instances), the interpolated m* points stay as secondary; new panel (d) shows the Tobit slope per model for strict P_c and P_c^ε with the H3 value −2 dotted. It is descriptive: the probit fit on g√m/σ_k that decides M5 (Outline rev 6) is still not delivered. New appendix figure `figA_background.py` (B=20, B=200, k-means 50 against B=50; German and ACS Employment, partial). Appendix A2 of the Outline (background) is this figure; the delivered `tabA2_h1` is the H1 contrast table and keeps its name.
+
+Update after Outline rev 7: Fig 4 (c, d) is the primary M5 evidence (Tobit fit, Gaussian residuals assumed under heavy right-censoring; the probit/collapse fit is a robustness check, not yet delivered). Fig 5 marks the German MLP retraining floors (c) as n/a and draws no number (`--unusable german:mlp`; AUC filter kept 1/24 bootstrap, 3/24 hyper-parameter, 6/15 seed retrainings).
+
+Update after Outline rev 8 and experiment-repo#6: Fig 3 is drawn from `margin_strata` (strict share P_c>=0.9, tolerance-aware share and the flat-group share per quartile, n per quartile in the title); new `fig7_floor_b.py` (floor b by background against floor a of shap default and paired Kernel; run again with `--floora largest_sampled` for d<=10 as `figA_floor_b_sampled`); new `figB_m5_robust.py` (probit collapse, beta, Tobit slope under grid thinning); Fig 1 has two instances; Table 3(b) gives the saving with its CI per dataset (pooled models), the pooled "about 25%" is no longer printed; Table 2 reads the `criterion` column.
+
+Update (paper-repo#7): `caption_ranges.py` (run by `make_all.sh`) writes `figures/caption_ranges.json`: every range a caption quotes (min/max with the cell that attains it, median, n cells, counts of CIs below/above 0 for signed quantities), computed from the plotted `.csv`, not typed by hand.

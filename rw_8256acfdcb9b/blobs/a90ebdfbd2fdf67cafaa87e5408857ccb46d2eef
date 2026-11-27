@@ -1,0 +1,149 @@
+"""Stage 3: reference_phi, runs_example, floors, validity tables. usage: build_aux_tables.py [OUT_DIR]"""
+import sys, os, json, glob, re
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+import numpy as np, pandas as pd
+from shapreliab import pipeline as P, metrics as M, tables as T
+
+out = sys.argv[1] if len(sys.argv) > 1 else "results/tables"
+il = pd.read_parquet(os.path.join(out, "instance_level.parquet"))
+meta = {ds: json.load(open(os.path.join(P.cell_dir(ds, 0), "meta.json"))) for ds in P.N_INST}
+
+
+def sig(arr, k):
+    m = M.topk_mask(arr, k)
+    return (m * (1 << np.arange(m.shape[1]))).sum(1)
+
+
+# ---------------- reference_phi
+rows = []
+for ds in P.N_INST:
+    names = meta[ds]["names"]
+    for kind in P.KINDS:
+        for f in sorted(glob.glob(os.path.join(P.cell_dir(ds, 0), f"inst_{kind}_*.npz"))):
+            if f.endswith(".tmp.npz"):
+                continue
+            i = int(re.search(r"_(\d+)\.npz$", f).group(1))
+            r = np.load(f)
+            fx = float(r["fx"])
+            p = fx if kind == "rf" else 1 / (1 + np.exp(-fx))
+            ts = r["phi_treeshap"] if "phi_treeshap" in r.files else None
+            for j, nm in enumerate(names):
+                rows.append(dict(dataset=ds, model=kind, instance_id=i, feature=j, feature_name=nm, phi_exact=float(r["phi"][j]),
+                                 phi_treeshap=float(ts[j]) if ts is not None else np.nan, f_x=fx, p_model=p, v_empty=float(r["v"][0]),
+                                 output_space=meta[ds]["models"][kind]["output_space"]))
+pd.DataFrame(rows).to_parquet(os.path.join(out, "reference_phi.parquet"), index=False)
+
+# ---------------- runs_example (Fig 1): rule fixed before looking: German Credit RF, the instance at the median of the
+# exact k=3 margin among its instances (sorted ascending, element n//2), shap KernelExplainer l1_reg='auto' at the default budget
+g = il[(il.dataset == "german") & (il.model == "rf") & (il.kind == "topk3") & (il.estimator == "shap_kernel") & (il.l1_reg == "auto") & (il.budget_m == 2088)]
+g = g.sort_values(["margin_gk", "instance_id"])
+# two instances, both fixed by position in the margin-sorted order before looking at their runs: n//2 (median margin) and n//8 (median of the smallest-margin quartile)
+sel = [("median_margin", len(g) // 2), ("small_margin_quartile_median", len(g) // 8)]
+rows, txt = [], []
+for tag, pos in sel:
+    iid = int(g.iloc[pos].instance_id)
+    r = np.load(os.path.join(P.cell_dir("german", 0), f"inst_rf_{iid:04d}.npz"))
+    est = r["shap_auto_2088"]
+    rows += [dict(dataset="german", model="rf", instance_id=iid, selection=tag, repeat=rr, feature=j, feature_name=meta["german"]["names"][j],
+                  phi_run=float(est[rr, j]), phi_exact=float(r["phi"][j])) for rr in range(est.shape[0]) for j in range(est.shape[1])]
+    txt.append(f"{tag}: position {pos} (0-based) of the n={len(g)} instances sorted by exact k=3 margin -> instance_id={iid}, margin={g.iloc[pos].margin_gk:.4f}")
+pd.DataFrame(rows).to_parquet(os.path.join(out, "runs_example.parquet"), index=False)
+open(os.path.join(out, "runs_example_README.txt"), "w").write(
+    "Selection rules (fixed by position in the margin order, before looking at any run): German Credit, RF, shap.KernelExplainer l1_reg='auto', m=2088 (=2d+2048), "
+    f"{est.shape[0]} independent runs each. The first instance (n//2) was fixed in the first delivery; the second (n//8) was added at figtab-repo's request "
+    "after the first showed no set change in 100/100 runs (so it is chosen to show what a small-margin instance looks like; it is one instance of the 40, "
+    "not evidence of frequency).\n" + "\n".join(txt) + "\n")
+
+# ---------------- floors: a (runs), b (background), c (retrain; bootstrap / seed / hyperparameter)
+rows = []
+bc_inst = {}
+for ds in P.N_INST:
+    d = meta[ds]["d"]
+    for kind in P.KINDS:
+        fn = os.path.join(P.cell_dir(ds, 0), f"floors_{kind}.npz")
+        info_f = f"results/floors/{ds}_{kind}.json"
+        if not os.path.exists(fn):
+            continue
+        fl = np.load(fn)
+        info = json.load(open(info_f)) if os.path.exists(info_f) else {}
+        n = fl["b"].shape[0]
+        bc_inst[(ds, kind)] = n
+        for name in fl.files:
+            arr = fl[name]
+            K = arr.shape[1]
+            if K < 2:
+                continue
+            fname = {"b": "b_background", "c_boot": "c_bootstrap", "c_seed": "c_seed", "c_hp": "c_hparam"}[name]
+            for i in range(n):
+                for k in T.KS:
+                    if k >= d:
+                        continue
+                    s = sig(arr[i], k)
+                    _, c = np.unique(s, return_counts=True)
+                    rows.append(dict(dataset=ds, model=kind, floor=fname, budget_m=-1, instance_id=i, k=k, n_models=K, n_pairs=K * (K - 1) // 2,
+                                     n_agree=int((c * (c - 1) // 2).sum()), estimator="exact_explanation", l1_reg="NA"))
+        # floor a on the same instances, per estimator and budget
+        a = il[(il.dataset == ds) & (il.model == kind) & (il.kind.isin(["topk1", "topk3", "topk5"])) & (il.R > 1) & (il.instance_id < n)]
+        for _, r_ in a.iterrows():
+            rows.append(dict(dataset=ds, model=kind, floor="a_run", budget_m=int(r_.budget_m), instance_id=int(r_.instance_id), k=int(r_.k), n_models=int(r_.R),
+                             n_pairs=int(r_.n_pairs), n_agree=int(r_.n_pairs_agree), estimator=r_.estimator, l1_reg=r_.l1_reg))
+fl = pd.DataFrame(rows)
+fl.to_parquet(os.path.join(out, "floors.parquet"), index=False)
+js = []
+for f in sorted(glob.glob("results/floors/*.json")):
+    j = json.load(open(f)); ds, kind = os.path.basename(f)[:-5].rsplit("_", 1)
+    js.append(dict(dataset=ds, model=kind, n_instances=j["n"], K=j["K"], auc_ref=j["auc_ref"], filter=j["filter"],
+                   **{f"{v}_{kk}": vv for v, dd in j["variants"].items() for kk, vv in dd.items()}))
+pd.DataFrame(js).to_csv(os.path.join(out, "floors_models.csv"), index=False)
+
+# ---------------- validity (M1)
+rows = []
+for ds in P.N_INST:
+    for kind in P.KINDS:
+        files = [f for f in sorted(glob.glob(os.path.join(P.cell_dir(ds, 0), f"inst_{kind}_*.npz"))) if not f.endswith(".tmp.npz")]
+        rel_ts, zero_sd, T_stat, def_diff = [], {}, {}, []
+        for f in files:
+            r = np.load(f)
+            ref = r["phi"]
+            nref = np.linalg.norm(ref)
+            ef = os.path.join(os.path.dirname(f), os.path.basename(f).replace("inst_", "ext_"))
+            ext = np.load(ef) if os.path.exists(ef) else None
+            if "phi_treeshap" in r.files:
+                rel_ts.append(np.linalg.norm(r["phi_treeshap"] - ref) / nref)
+            if "shap_default_exact" in r.files:
+                def_diff.append(np.linalg.norm(r["shap_default_exact"] - ref) / nref)
+            for src_ in ([r] + ([ext] if ext is not None else [])):
+              for key in src_.files:
+                mt = T.KEY_RE.match(key)
+                if not mt:
+                    continue
+                est = src_[key]
+                if est.shape[0] < 5:
+                    continue
+                tr = np.trace(np.cov(est.T))
+                kk = (T.EST[mt.group(1)], int(mt.group(2)))
+                zero_sd.setdefault(kk, []).append(np.sqrt(tr) / nref)
+                if np.sqrt(tr) > 1e-8 * nref and est.shape[0] >= 30:
+                    T_stat.setdefault(kk, []).append(est.shape[0] * np.sum((est.mean(0) - ref) ** 2) / tr)
+        d = meta[ds]["d"]
+        if rel_ts:
+            rows.append(dict(dataset=ds, model=kind, check="E1_exact_vs_E2_treeshap", estimator="", l1_reg="", budget_m=-1, n_instances=len(rel_ts),
+                             max_value=float(max(rel_ts)), median_value=float(np.median(rel_ts)), note="relative L2 distance between exact enumeration on the stored table and interventional TreeSHAP (same background)"))
+        if def_diff:
+            rows.append(dict(dataset=ds, model=kind, check="shap_default_budget_exact_enumeration", estimator="shap_kernel", l1_reg="False", budget_m=2 * d + 2048,
+                             n_instances=len(def_diff), max_value=float(max(def_diff)), median_value=float(np.median(def_diff)), note="d<=10: shap default 2d+2048 >= 2^d-2 enumerates all coalitions; relative L2 distance to exact"))
+        for (est_l1, m), v in zero_sd.items():
+            rows.append(dict(dataset=ds, model=kind, check="run_to_run_sd_over_norm_phi", estimator=est_l1[0], l1_reg=est_l1[1], budget_m=m, n_instances=len(v),
+                             max_value=float(max(v)), median_value=float(np.median(v)), note="sqrt(trace Cov over runs)/||phi||; 0 = zero variance (expected for additive LR with shap Kernel and permutation)"))
+        for (est_l1, m), v in T_stat.items():
+            rows.append(dict(dataset=ds, model=kind, check="unbiasedness_T", estimator=est_l1[0], l1_reg=est_l1[1], budget_m=m, n_instances=len(v),
+                             max_value=float(max(v)), median_value=float(np.median(v)), note="T = R*||mean_run - phi||^2 / trace(Cov): about 1 (<=~2) if unbiased; >>1 means bias"))
+val = pd.DataFrame(rows)
+# reading of a nonzero spread for the additive negative control (LR): not sampling variance. The model is additive, so any well-posed estimate is exact;
+# a spread appears only where shap's weighted regression is under-determined or ill-conditioned (fewer informative coalitions than free parameters at small m)
+lr_bad = (val.model == "lr") & (val.check == "run_to_run_sd_over_norm_phi") & ((val.estimator == "permutation_antithetic") | ((val.estimator == "shap_kernel") & (val.l1_reg == "False"))) & (val.max_value > 1e-8)
+val["reading"] = ""
+val.loc[lr_bad, "reading"] = ("LR negative control: the spread is estimator bias/ill-conditioning at small m (m < about 2(d-1): rank-deficient regression, solution not unique; "
+                              "values up to 1e31*||phi|| are numerical), not sampling variance; the exact-enumeration reference is unaffected")
+val.to_csv(os.path.join(out, "validity.csv"), index=False)
+print("aux done", len(fl), len(rows))

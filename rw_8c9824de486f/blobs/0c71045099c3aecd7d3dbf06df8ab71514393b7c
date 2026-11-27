@@ -1,0 +1,36 @@
+"""Sensitivity of the floor to the factor rank (post hoc, PREREG Deviation 4f): the floor of the C/T protocol uses the LOO-selected rank (inner CV on training groups); on shifted test
+models (T, S) a lower rank may predict better with all of C revealed, which makes the measured excess over that floor negative. For each (split, fold) the floor RMSE (all observed C cells
+revealed, scored on observed T cells) is computed at every rank of the grid, over the same C/T splits as the main run (all 50 by default; MC_FLOOR_SPLITS=n takes the first n) and the models with >= 109 observed C cells.
+Output rows: one per (split, rank): mean over models (equal weight) of the model's mean-over-splits floor RMSE, group-bootstrap 90% bounds; plus 'min_over_ranks' (per-model oracle rank) and 'selected' (the protocol's rank).
+usage: python 33_floor_rank.py <data_dir> <work_dir> <out_csv>"""
+import os, sys, pickle, numpy as np, pandas as pd
+sys.path.insert(0, os.path.dirname(__file__))
+from common import *
+from fa import fit_fa, predict_row
+data_dir, work, out = sys.argv[1:4]; NS = int(os.environ.get("MC_FLOOR_SPLITS", 50)); B = 2000
+Y, mods, tasks, et = load_matrix(data_dir); mask = ~np.isnan(Y); TT = make_ct_splits(tasks["type"].values)[:NS]; org = mods.org.values
+rows = []
+for split, folds in (("G", range(10)), ("T", [0]), ("S", [0])):
+    per = {}
+    for f in folds:
+        st = pickle.load(open(os.path.join(work, "state", f"{split}_{f}.pkl"), "rb")); mu, sd, train = st["mu"], st["sd"], st["train"]; Z = (Y - mu) / sd
+        fits = {r: fit_fa(Z[train], r) for r in RANKS}
+        for m in st["test"]:
+            obs = np.where(mask[m])[0]; cur = {r: [] for r in RANKS}; sel = []
+            for s in range(NS):
+                T = TT[s]; obsT = obs[T[obs]]; obsC = obs[~T[obs]]
+                if len(obsT) < 37 or len(obsC) < max(K_GRID): continue
+                for r in RANKS:
+                    p = predict_row(fits[r], obsC, Z[m, obsC]); cur[r].append(np.sqrt(np.mean(((p[obsT] - Z[m, obsT]) * sd[obsT]) ** 2)))
+                sel.append(RANKS.index(st["best_rank"]["loo"]))
+            if len(sel) >= int(0.4 * NS): per[(f, m)] = ({r: np.mean(v) for r, v in cur.items()}, st["best_rank"]["loo"])
+    keys = list(per); g = org[[m for f, m in keys]]; ug, inv = np.unique(g, return_inverse=True); rng = np.random.default_rng(3)
+    dr = rng.integers(0, len(ug), size=(B, len(ug))); cnt = np.bincount(inv, minlength=len(ug)).astype(float)
+    def ci(x):
+        s = np.bincount(inv, weights=x, minlength=len(ug)); rp = s[dr].sum(1) / cnt[dr].sum(1); return x.mean(), np.percentile(rp, 5), np.percentile(rp, 95)
+    for r in RANKS:
+        x = np.array([per[k][0][r] for k in keys]); m_, lo, hi = ci(x); rows.append(dict(split=split, rank=r, floor_rmse=m_, lo90=lo, hi90=hi, n_models=len(keys), n_groups=len(ug)))
+    x = np.array([min(per[k][0].values()) for k in keys]); m_, lo, hi = ci(x); rows.append(dict(split=split, rank="min_over_ranks", floor_rmse=m_, lo90=lo, hi90=hi, n_models=len(keys), n_groups=len(ug)))
+    x = np.array([per[k][0][per[k][1]] for k in keys]); m_, lo, hi = ci(x); rows.append(dict(split=split, rank="selected", floor_rmse=m_, lo90=lo, hi90=hi, n_models=len(keys), n_groups=len(ug)))
+    print(split, flush=True)
+df = pd.DataFrame(rows); df.to_csv(out, index=False); print(df.round(3).to_string())

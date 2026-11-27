@@ -1,0 +1,13 @@
+#!/bin/bash
+# Sensitivity of the main C/T result to the factor rank (post hoc, PREREG Deviation 4j): every fold uses one fixed rank (MC_RANKS=r) instead of the inner-CV choice; stage A and
+# stage B (S0, S6 x P5, 20 of the 50 shared splits) for G, then aggregation with 24_aggregate_ct.py. usage: 39_rank_sens.sh <data_dir> <work_base> <res_base> [ranks]
+export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
+cd "$(dirname "$0")"
+D=$1; WB=$2; RB=$3; RANKS_LIST=${4:-"4 8 12"}
+for r in $RANKS_LIST; do
+  export MC_RANKS=$r; W=$WB/rank$r; mkdir -p $W $RB/rank$r
+  ( for f in 0 1 2 3 4 5 6 7 8 9; do echo "G $f"; done ) | xargs -P ${NP:-4} -L 1 sh -c "python3 -u state.py $D $W \$0 \$1"
+  ( for f in 0 1 2 3 4 5 6 7 8 9; do echo "G $f"; done ) | xargs -P ${NP:-4} -L 1 sh -c "python3 -u 21_eval_ct.py $D $W \$0 \$1 $W/ct S0,S6 ct 20"
+  python3 24_aggregate_ct.py $D $W/ct $RB/rank$r ct
+done
+echo HUTIAN_WAKE: rank sensitivity done

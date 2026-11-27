@@ -1,0 +1,52 @@
+"""Fig. 1: (A) calibration, observed k* of each dataset and z stratum against the k* the dataset's own same-graph null gives in the
+same stratum (the real pair's gap and g_max do not enter the predictor), (B) Q_real/Q_null of each pair against z.
+Declared z range only (z_fisher in [1, 8]); --family selects the perturbation family (core: delete)."""
+import argparse, os, numpy as np, matplotlib; matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from style import setup, fig_size, design_style, design_legend, margin, plain_log, SCRIPTED
+from common import load, write_prov
+
+ap = argparse.ArgumentParser(); ap.add_argument("--data", required=True); ap.add_argument("--out", required=True)
+ap.add_argument("--family", default="delete"); ap.add_argument("--zmin", type=float, default=1.0); ap.add_argument("--zmax", type=float, default=8.0)
+a = ap.parse_args(); setup(); os.makedirs(a.out, exist_ok=True)
+prov = {"inputs": {}, "dropped": {}, "family": a.family, "z_range": [a.zmin, a.zmax]}
+df = load(a.data, "fragility_conclusions.csv", ["dataset", "design", "z_fisher", "Q", "Q_null", "perturbation"], prov)
+df = df[df.perturbation == a.family]
+n0 = len(df); df = df[(df.z_fisher >= a.zmin) & (df.z_fisher <= a.zmax)]
+prov["dropped"]["outside declared z range"] = n0 - len(df)
+prov["dropped"]["no null value for B (null run on a z-stratified sample of pairs only)"] = int(df.Q_null.isna().sum())
+prov["pairs_drawn_B"] = int(df.Q_null.notna().sum())
+bz = load(a.data, "fragility_by_z.csv", ["dataset", "design", "family", "zbin", "n_pairs", "n_null_pairs", "k_med", "k_q25", "k_q75", "k_null_med", "k_null_q25", "k_null_q75"], prov)
+bz = bz[(bz.family == a.family) & bz.zbin.isin(["[1,2)", "[2,4)", "[4,8)"])]
+prov["dropped"]["strata without null replicates"] = int(bz.k_null_med.isna().sum()); bz = bz.dropna(subset=["k_null_med", "k_med"])
+prov["strata_drawn_A"] = len(bz); prov["strata_A_by_design"] = {k: int(v) for k, v in bz.design.value_counts().items()}
+prov["n_null_pairs_per_stratum_range"] = [int(bz.n_null_pairs.min()), int(bz.n_null_pairs.max())] if len(bz) else None
+d = margin()
+w, h = fig_size("text", 0.50)
+fig, (ax, bx) = plt.subplots(1, 2, figsize=(w, h))
+A = bz[(bz.k_null_med > 0) & (bz.k_med > 0)]
+lim = (min(A.k_null_q25.min(), A.k_q25.min()) * 0.8, max(A.k_null_q75.max(), A.k_q75.max()) * 1.25)
+xs = np.array(lim)
+ax.fill_between(xs, xs * np.exp(-d), xs * np.exp(d), color="0.85", lw=0, zorder=0)
+ax.plot(xs, xs, color="0.4", lw=0.6, zorder=1)
+B = df.dropna(subset=["Q_null"]); B = B[B.Q_null > 0]
+for des, g in A.groupby("design"):
+    st = design_style(des)
+    ax.errorbar(g.k_null_med, g.k_med, xerr=[g.k_null_med - g.k_null_q25, g.k_null_q75 - g.k_null_med], yerr=[g.k_med - g.k_q25, g.k_q75 - g.k_med],
+                fmt="none", ecolor=st["color"], elinewidth=0.3, alpha=0.3, zorder=1)
+    ax.scatter(g.k_null_med, g.k_med, s=7, marker=st["marker"], color=st["color"], alpha=0.8, lw=0, zorder=2)
+for des, g in B.groupby("design"):
+    st = design_style(des); bx.scatter(g.z_fisher, g.Q / g.Q_null, s=5, marker=st["marker"], color=st["color"], alpha=0.45, lw=0, zorder=2)
+ax.set_xscale("log"); ax.set_yscale("log"); ax.set_xlim(lim); ax.set_ylim(lim); ax.set_aspect("equal", adjustable="box")
+ax.set_xlabel(r"null $k^*$ at the same $z$ (median)", fontsize=SCRIPTED); ax.set_ylabel(r"observed $k^*$ (median)", fontsize=SCRIPTED)
+plain_log(ax)
+plain_log(ax)
+bx.axhspan(np.exp(-d), np.exp(d), color="0.85", lw=0, zorder=0); bx.axhline(1, color="0.4", lw=0.6)
+bx.set_xscale("log"); bx.set_yscale("log"); bx.set_xlim(a.zmin * 0.9, a.zmax * 1.1); bx.set_xlabel(r"separation $z$"); bx.set_ylabel(r"$Q$ real / $Q$ null")
+from matplotlib.ticker import NullFormatter, FixedLocator
+bx.set_yticks([0.5, 0.7, 1, 1.4, 2]); bx.set_yticklabels(["0.5", "0.7", "1", "1.4", "2"]); bx.yaxis.set_minor_formatter(NullFormatter())
+bx.set_xticks([1, 2, 4, 8]); bx.set_xticklabels(["1", "2", "4", "8"]); bx.xaxis.set_minor_formatter(NullFormatter())
+for x_, t in ((ax, "(A)"), (bx, "(B)")): x_.set_title(t, loc="left", pad=2)
+design_legend(fig, sorted(set(A.design) | set(B.design)), loc="outside lower center", ncol=4, handletextpad=0.2, columnspacing=0.8)
+name = "fig1" if a.family == "delete" else f"fig1_{a.family}"
+fig.savefig(os.path.join(a.out, f"{name}.pdf")); write_prov(a.out, name, prov)

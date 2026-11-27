@@ -1,0 +1,42 @@
+{
+ "script": "analysis/p6_true_m.py",
+ "code_commit": "c7fa2e50d638093cfb835a3dee39140ae23f21de",
+ "date": "2026-11-26",
+ "source": "confirmatory",
+ "noise_level": 0.5,
+ "population": "confirmatory cells, primary: Bernoulli, iid baseline SD 1, no edge noise, s > 0, mechanisms (a)-(h) present in the run set; exploratory-after-results",
+ "kappa_matched": {
+  "all but threshold|cubic": 0.013013556599987593,
+  "all but threshold|true01": 0.34202082066529277,
+  "all but threshold|true_obs": 0.40622936376028146,
+  "all but threshold|cubic_free": 0.17483369069584212,
+  "all but threshold|lean": 0.3169435072820325,
+  "all|cubic": 0.01438333461068015,
+  "all|cubic_free": 0.11456918937247335,
+  "all|lean": 0.20016841183204043,
+  "smooth, true M finite|cubic": 0.010622852385900473,
+  "smooth, true M finite|true01": 0.22546150052201058,
+  "smooth, true M finite|true_obs": 0.26478885373377326,
+  "smooth, true M finite|cubic_free": 0.3052319276679487,
+  "smooth, true M finite|lean": 0.6427696881918428,
+  "linear in z, not a function of f|cubic": 0.020391461211560817,
+  "linear in z, not a function of f|true01": null,
+  "linear in z, not a function of f|true_obs": null,
+  "linear in z, not a function of f|cubic_free": 0.10424206631655035,
+  "linear in z, not a function of f|lean": 0.17897018701151043
+ },
+ "arms": [
+  "Same interval as P6, B2 form: tau_hat +- cv(kappa B2 / SE_HC0) SE_HC0 with B2 = 0.5 M ((1-p)^2 + p^2), cv(t) the 0.90 quantile of |N(t, 1)|,",
+  "but with M taken from other sources than the in-run cubic M-hat (`mhat3`, the P6 version, noise level 0.5):",
+  "cubic       the P6 M-hat (reference)",
+  "true01      sup over f in [0, 1] of |d^2/df^2| of the generating treatment part (uses the truth, like the exact-theory predictor; infeasible)",
+  "(a), (f): 0;  (c), (g), (h): analytic;  (b), (e): 0, because the outcome is linear in the assignment vector (so linear in f and in the count);",
+  "(d): not twice differentiable, so no finite M and no arm",
+  "true_obs    the same over the draw's observed [min f, max f] (the range over which the cubic M-hat is evaluated)",
+  "cubic_free  the cubic M-hat fitted to the treatment part alone of the same assignment (no baseline, no noise: the sigma = 0 run); infeasible; defined for every mechanism",
+  "lean        max(cubic M-hat - cubic M-hat of the mechanism-free column of the same draw, 0): the cubic M-hat minus its own noise level, the noise level being",
+  "the cubic curvature of the null column (same baseline noise, outcome linear in z); infeasible as stated (a feasible analogue needs a placebo outcome)",
+  "Controls on the same cells (primary population: Bernoulli, iid baseline SD 1, no edge noise, s > 0, noise level 0.5): HC0 at 0.90; oracle (z SE + |bias|);"
+ ],
+ "description": "P6 true-M arm, table 'p6_true_m_confirmatory_cells': per-cell M, bias, SE, HC0 and oracle coverage and width"
+}

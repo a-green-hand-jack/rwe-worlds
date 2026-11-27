@@ -1,0 +1,32 @@
+"""C6 scope sweeps on the common target set: data conditions are applied to the *training* matrix (held-out models keep their full run sets), then the pseudo-state is
+evaluated by 21_eval_ct.py like any outer fold (same protocol, S0/S6 x P5). usage: python 30_scope_ct.py <data_dir> <work_dir> <condition> <fold>
+conditions: ref | M50 | M25 (training models kept) | dens70 | dens50 | dens30 (share of training cells kept) | logit (scores logit-transformed, errors then in logit units)
+            | suite (benchmark = mean of the tasks of one task type x first domain; N ~ 40) | types (benchmark = mean over a task type; N = 10)
+The state of condition c, fold f is saved as <work_dir>/state/<c>_<f>.pkl; k grid and rank grid come from MC_KGRID / MC_RANKS (as in common.py)."""
+import os, sys, pickle, numpy as np, pandas as pd
+sys.path.insert(0, os.path.dirname(__file__))
+from common import *
+from state import build_state
+data_dir, work, cond, fold = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
+Y, mods, tasks, et = load_matrix(data_dir)
+f, tr, te = [s for s in make_splits(mods)["G"] if s[0] == fold][0]
+rng = np.random.default_rng(SEED + 7 * fold + sum(map(ord, cond)))
+Yw = Y.copy(); ttype = tasks["type"].values
+if cond in ("M50", "M25"):
+    tr = np.sort(rng.choice(tr, int(len(tr) * (0.5 if cond == "M50" else 0.25)), replace=False))
+if cond.startswith("dens"):
+    p = int(cond[4:]) / 100.0; sub = Yw[tr]; drop = (rng.random(sub.shape) > p) & ~np.isnan(sub); sub[drop] = np.nan; Yw[tr] = sub
+if cond == "logit":
+    q = np.clip(Y / 100, 0.005, 0.995); Yw = np.log(q / (1 - q))
+if cond in ("suite", "types"):
+    key = ttype if cond == "types" else np.array([t + "/" + str(d).split("|")[0] for t, d in zip(tasks["type"], tasks["domains"])])
+    groups = sorted(set(key)); Yn = np.full((Y.shape[0], len(groups)), np.nan)
+    for i, g in enumerate(groups):
+        c = np.where(key == g)[0]
+        with np.errstate(all="ignore"): Yn[:, i] = np.nanmean(Y[:, c], 1)
+    Yw = Yn; ttype = np.array(["all"] * len(groups)) if cond == "types" else np.array([g.split("/")[0] for g in groups])
+st = build_state(Yw, mods, cond, fold, tr, te)
+st["Y"] = Yw; st["ttype"] = ttype
+os.makedirs(os.path.join(work, "state"), exist_ok=True)
+pickle.dump(st, open(os.path.join(work, "state", f"{cond}_{fold}.pkl"), "wb"))
+print(cond, fold, "N", Yw.shape[1], "M_train", len(tr), "ranks", st["best_rank"], flush=True)

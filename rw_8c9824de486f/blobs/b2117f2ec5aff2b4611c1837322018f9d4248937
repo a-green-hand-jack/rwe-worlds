@@ -1,0 +1,53 @@
+"""Ladder diagnostics (the set fixed in 28_diagnostics.py: calib, calib_med, kurt, rescorr, het, link) on further real matrices / hold-outs, requested by story-repo (#8):
+OLB G and S, and MTEB S and T beside the MTEB G marker of 28_diagnostics.py. Computed with the same functions, on the same outer-fold LOO residuals (model held out by the
+protocol's fold, best inner-CV 'loo' rank), and placed against the *unchanged* synthetic ladder (results/ladder/ladder_diagnostics.csv, N = 120, 238 models) with the same rule
+(each real diagnostic inside the rung's [5%,95%] seed range widened by 10%). No rung search. The OLB diagnostics are at another shape (39 benchmarks, 4507 models), so the ladder
+ranges are a reference scale, not a matched design; this is stated wherever the placement is reported.
+Spectral decay (not among the diagnostics fixed in advance; added because the request names it, descriptive only): eigenvalues of the pairwise-correlation matrix of the
+standardised training-side matrix of outer fold 0 of each protocol: top-1 share, top-3 share, participation ratio (sum l)^2 / sum l^2, and the same ratio normalised by N.
+usage: python 40_ladder_real.py <mteb_data_dir> <mteb_work> <olb_data_dir> <olb_work> <ladder_dir> <out_dir>"""
+import os, sys, pickle, json, numpy as np, pandas as pd
+sys.path.insert(0, os.path.dirname(__file__))
+from common import *
+import importlib.util
+spec = importlib.util.spec_from_file_location("diag28", os.path.join(os.path.dirname(__file__), "28_diagnostics.py")); d28 = importlib.util.module_from_spec(spec); spec.loader.exec_module(d28)
+
+def pcorr(Zm, mk):
+    Zf = np.where(mk, Zm, 0.0); mf = mk.astype(float); n = mf.T @ mf; sxy = Zf.T @ Zf; sx = Zf.T @ mf; sy = sx.T; sxx = (Zf ** 2).T @ mf; syy = sxx.T
+    num = sxy - sx * sy / np.maximum(n, 1); den = np.sqrt(np.maximum(sxx - sx ** 2 / np.maximum(n, 1), 1e-12) * np.maximum(syy - sy ** 2 / np.maximum(n, 1), 1e-12))
+    C = num / den; np.fill_diagonal(C, 1.0); return np.nan_to_num(C)
+
+def spectral(Z, train):
+    Zt = Z[train]; C = pcorr(Zt, ~np.isnan(Zt)); ev = np.sort(np.linalg.eigvalsh(C))[::-1]; ev = np.maximum(ev, 0); N = len(ev)
+    pr = ev.sum() ** 2 / (ev ** 2).sum()
+    return dict(top1_share=float(ev[0] / ev.sum()), top3_share=float(ev[:3].sum() / ev.sum()), participation_ratio=float(pr), participation_ratio_over_N=float(pr / N), n_benchmarks=N)
+
+def run(data_dir, work, split, folds, label):
+    Y, mods, tasks, et = load_matrix(data_dir); E = np.full(Y.shape, np.nan); P = E.copy(); F = E.copy(); sp = None
+    for f in folds:
+        st = pickle.load(open(os.path.join(work, "state", f"{split}_{f}.pkl"), "rb"))
+        Z = (Y - st["mu"]) / st["sd"]; d28.residuals(st["fits"][st["best_rank"]["loo"]], Z, st["test"], E, P, F)
+        if sp is None: sp = spectral(Z, st["train"])
+    n_obs = int((~np.isnan(E)).sum()); r = d28.diag(E, P, F)
+    return dict(matrix=label, split=split, n_folds=len(folds), n_heldout_cells=n_obs, **r, **sp)
+
+if __name__ == "__main__":
+    md, mw, od, ow, lad, out = sys.argv[1:7]; os.makedirs(out, exist_ok=True)
+    jobs = [(md, mw, "G", range(10), "MTEB"), (md, mw, "S", [0], "MTEB"), (md, mw, "T", [0], "MTEB"), (od, ow, "G", range(10), "OLB"), (od, ow, "S", [0], "OLB")]
+    rows = []
+    for a in jobs: rows.append(run(*a)); print(rows[-1], flush=True)
+    df = pd.DataFrame(rows); df.to_csv(os.path.join(out, "ladder_real_matrices.csv"), index=False)
+    L = pd.read_csv(os.path.join(lad, "ladder_diagnostics.csv")); L = L[L.source == "synthetic"]; D = ["calib", "calib_med", "kurt", "rescorr", "het", "link"]
+    pl = {}
+    for _, rv in df.iterrows():
+        key = f"{rv.matrix}_{rv.split}"; res = {}
+        for rung, g in L.groupby("rung"):
+            ok = {}
+            for d in D:
+                lo, hi = np.nanpercentile(g[d], 5), np.nanpercentile(g[d], 95); w = 0.1 * (hi - lo)
+                ok[d] = dict(real=float(rv[d]), lo=float(lo), hi=float(hi), inside=bool(lo - w <= rv[d] <= hi + w))
+            res[rung] = dict(consistent=all(v["inside"] for v in ok.values()), n_inside=sum(v["inside"] for v in ok.values()), diagnostics=ok)
+        placed = [r for r, v in res.items() if v["consistent"]]
+        pl[key] = dict(placed_on=placed or "outside the ladder", n_diagnostics_inside_by_rung={r: v["n_inside"] for r, v in res.items()}, rungs=res)
+    json.dump(pl, open(os.path.join(out, "ladder_real_matrices_placement.json"), "w"), indent=1)
+    print(df.round(3).to_string()); [print(k, v["placed_on"], v["n_diagnostics_inside_by_rung"]) for k, v in pl.items()]

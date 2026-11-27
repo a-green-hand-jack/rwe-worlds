@@ -1,0 +1,30 @@
+# Review of Version 2 (paper-repo#11, main 207ba7e into release)
+
+Read: system-built `main/document.pdf` (built-from 207ba7e = PR head), 25 pages, main text ends on page 9.
+Checked against `results/` and `code/` of the delivery (`olb/`, `ct_kstar.csv`, `sens_rank/`, `synth/`) and experiment-repo main c179355.
+
+## What it adds over Version 1
+Open LLM Leaderboard (4,507 x 39) as a second matrix with its own pre-set rule; training-side k* rule (Table 7); greedy-vs-exhaustive check; fixed-rank comparator; S7-vs-S6 on synthetic data; uploader grouping.
+
+## Numbers checked (all match)
+- Table 6 (OLB G and S): gains, intervals, T1 gains, verdicts, floors 4.82/7.15, floor ratios 1.08/2.48, k* and T1 k* (`olb/ct_contrast.csv`, `ct_kstar.csv`, `ct_decomposition.csv`).
+- Table 7: OLB and MTEB G rows against `inner_kstar.csv`, `olb/inner_kstar.csv`; text counts (7 of 8, within one step, 5 of 8 inside interval on S, 2 vs 13 on OLB S) hold.
+- MTEB k* at 2 / delta_floor / 1 point (8, 32, 50 with intervals), rank-sensitivity paired differences (-0.17, 0.29, 0.50), synthetic S7-vs-S6 gains.
+- Uploader paragraph numbers match experiment-repo `results/olb_uploader` (717 groups, floor 4.79, gains 2.11 ... 0.25, k* 5 [3,5]).
+
+## Finding
+- must: the appendix paragraph "Leaderboard groups by uploader" (Appendix C) reports a result that is not in the delivery. `results/olb_uploader/` and `code/44_olb_uploader.sh` exist only in experiment-repo c179355; paper-repo main has neither, and `code/README.md` does not list the step. The paper says the code behind every number is released. Owner: experiment-repo (deliver) / paper-repo (README, refresh). Alternative: drop the paragraph.
+
+## Open may findings carried from Version 1
+- `code/README.md` line 20 still calls the coverage filter "Table 1" (the paper's Table 2).
+
+## Resolved since Version 1
+Abstract defines the floor at first use; Eq. (4)/(5) notation; checklist item 8 and Appendix D give run times; related work covers factor and IRT work on LLMs; Fig. 1 axis title.
+
+## Reading as a reviewer
+The paper is a measured, bounded answer; the second matrix shows which findings travel (small-k gain, floor ratio on group hold-out) and which do not. Claims on OLB strength split and MTEB shift splits are stated as failures. No claim found unsupported by the delivered results apart from the missing delivery above.
+
+Decision: request changes (one must); approve once the delivery holds the uploader results and code, or the paragraph is removed.
+
+## Re-review at head 3f15b47
+The must is resolved: `results/olb_uploader/` and `code/44_olb_uploader.sh` are delivered, the README lists the step (row 23), COLUMNS and PREREG updated; delivered values (floor 4.79, gains 2.11, 1.88, 1.35, 0.79, 0.44, 0.25, 717 groups) match the paper. The paper sources are unchanged since 207ba7e and the built document is from 3f15b47. Approved for `release`.

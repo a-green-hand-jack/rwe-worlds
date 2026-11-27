@@ -1,0 +1,53 @@
+\documentclass{article}
+\usepackage{template/neurips_2026}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{amsfonts,amsmath,amssymb}
+\usepackage{nicefrac}
+\usepackage{microtype}
+\usepackage{courier}
+\usepackage{xcolor}
+\usepackage{graphicx}
+
+\title{What do source models buy? Design-based benchmark prediction from a few items}
+\author{Anonymous Author(s)}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Methods that predict a model's full-benchmark score from a few items, using the item-level results of earlier \emph{source} models, are usually validated on models that resemble the sources.
+We treat the task as estimating a finite-population mean with the source matrix as a covariate: the sources can reduce the variance through the choice of items and the estimator, while the bias must be controlled by the design.
+On 13 binary item-by-model matrices, three splits of models into sources and targets (random models, held-out families, targets above every source) and seven designs combined with model-based, plug-in and difference estimators, we ask what the sources buy at $n=100$ items.
+When targets resemble the sources, the method classes chosen without looking at the outcomes reach $0.65$--$0.79$ of the RMSE of uniform sampling and $0.80$--$0.94$ of that of stratified sampling.
+For targets above every source, our IRT and kNN predictors are worse than uniform sampling ($1.96$ and $2.42$ times its RMSE) because they compress their estimates toward the source mean, although the published tinyBenchmarks IRT estimator, run on six benchmarks, is not ($0.88$); a difference correction reduces the bias of ours without removing it, and the only class clearly below stratified sampling, by about a tenth of its error, pairs a balanced design with calibrated regression.
+There the design and the estimator draw on the same information in the sources: a target-recalibrated regression on a stratified or balanced design is within $3\%$ of the error of the plain mean on that design.
+The gain needs many source models and does not carry over to the ordering of models above the sources.
+Anchor selection with the sample mean is no better than uniform sampling in our code.
+\end{abstract}
+
+
+\input{sections/intro}
+\input{sections/related}
+\input{sections/method}
+\input{sections/setup}
+\input{sections/results}
+\input{sections/discussion}
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\appendix
+\input{appendix/related_long}
+\input{appendix/data}
+\input{appendix/recal}
+\input{appendix/public}
+\input{appendix/reproducibility}
+
+\newpage
+\input{sections/checklist}
+\end{document}

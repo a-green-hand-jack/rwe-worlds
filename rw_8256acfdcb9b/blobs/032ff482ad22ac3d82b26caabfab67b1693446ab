@@ -1,0 +1,7 @@
+# refs/
+
+`refs.bib` is the paper's bibliography (owner: idea-repo). Cite only keys present here; ask idea-repo for a missing source.
+
+- arXiv-based entries are `@misc` with the arXiv id; where a peer-reviewed version exists the report role may swap in the venue form.
+- Datasets/software keys: `ding2021` (folktables / ACS), `hofmann1994german`, `smith1988pima`, `gmsc2011`, `guvenir1997arrhythmia` (original paper, Computers in Cardiology 1997; cite this), `guvenir1997arrhythmiaUCI` (UCI repository record, creators as in its DOI metadata), `lundberg2017` (shap), `lundberg2020trees` (TreeSHAP), `chen2016xgboost`, `ke2017lightgbm`, `pedregosa2011sklearn`.
+- Metrics: `nogueira2018` (stability), `webber2010` (RBO).

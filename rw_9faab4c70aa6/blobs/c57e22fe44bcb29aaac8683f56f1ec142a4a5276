@@ -1,0 +1,40 @@
+"""Tidy long-format result file for C4 (decisions from reported scores), synthetic arm.
+One row per (scenario, comparison, n, budget, quantity).  `rate` = mean over simulated worlds (rep) of the rate over 500 draws of S;
+interval = t-interval over worlds (`ci_kind = world-spread-t`).  Quantities:
+  tuned_vs_untuned: naive/maxt/split `*_false_declare` = P(declare 'tuning helped' and true gain <= 0); `*_declare` = P(declare).
+  A_vs_B (tuned A vs tuned B): `A_sig` P(declare A better), `A_sig_wrong` same with true diff <= 0, `A_wins_reported`, `flip`.
+`nominal` = 0.05 (one-sided) where a false-declaration rate has a nominal level, else empty.
+Usage: python summarise_decisions.py decisions_synth.jsonl OUT.parquet"""
+import sys, json
+import numpy as np, pandas as pd
+from scipy import stats
+
+d = pd.DataFrame([json.loads(l) for l in open(sys.argv[1])])
+Q_TVU = {"naive_false_declare": ("naive", "false_declare"), "maxt_false_declare": ("maxt", "false_declare"), "split_false_declare": ("split", "false_declare"),
+         "naive_declare": ("naive", "declare"), "maxt_declare": ("maxt", "declare"), "split_declare": ("split", "declare")}
+Q_AVB = {"A_sig": "declare A better", "A_sig_wrong": "declare A better, true diff <= 0", "A_wins_reported": "reported A > reported B", "p_flip": "sign of reported diff wrong"}
+rows = []
+
+
+def add(g, col, **kw):
+    x = g[col].dropna().values.astype(float); w = len(x)
+    if w == 0: return
+    m = x.mean(); t = stats.t.ppf(0.975, w - 1) if w > 1 else np.nan; se = x.std(ddof=1) / np.sqrt(w) if w > 1 else np.nan
+    rows.append(dict(rate=m, rate_lo=m - t * se, rate_hi=m + t * se, worlds=w, n_draws=int(g.draws.iloc[0]), ci_kind="world-spread-t", arm="synthetic",
+                     truth="exact theta of the world", pool="synthetic-N30000", **kw))
+
+
+for (sc, comp, n, bud), g in d.groupby(["scenario", "comparison", "n", "budget"]):
+    sig = float(g.sigma_theta.iloc[0])
+    if comp == "tuned_vs_untuned":
+        for q, (prot, kind) in Q_TVU.items():
+            add(g, q, scenario=sc, sigma_theta=sig, comparison=comp, n=n, budget=bud, budget_ratio=np.nan, protocol=prot,
+                quantity="declare tuning helped" + (", true gain <= 0" if kind == "false_declare" else ""),
+                nominal=0.05 if kind == "false_declare" and sig == 0 else np.nan, mean_true_gain=g.mean_true_gain.mean(), mean_reported_gain=g.mean_report_gain.mean())
+    else:
+        a, b = (int(x) for x in bud.strip("()").split(","))
+        for q, lab in Q_AVB.items():
+            col = {"A_sig": "p_A_sig", "A_sig_wrong": "p_A_sig_wrong", "A_wins_reported": "p_A_wins_reported", "p_flip": "p_flip"}[q]
+            add(g, col, scenario=sc, sigma_theta=sig, comparison=comp, n=n, budget=bud, budget_ratio=a / b, protocol="reported z (naive)", quantity=lab,
+                nominal=0.05 if q in ("A_sig", "A_sig_wrong") and sig == 0 else np.nan, mean_true_gain=g.mean_true_diff.mean(), mean_reported_gain=g.mean_report_diff.mean())
+r = pd.DataFrame(rows); r.to_parquet(sys.argv[2], index=False); print(len(r), "rows")

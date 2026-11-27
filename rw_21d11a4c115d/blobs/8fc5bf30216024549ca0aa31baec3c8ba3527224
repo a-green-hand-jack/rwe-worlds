@@ -1,0 +1,17 @@
+"""Step 0b: first-commit time and commit id of each MTEB model directory (history of the pinned clone).
+Run: python3 mteb_first_commit.py <clone_dir> <commit> <out.json>"""
+import subprocess, sys, json
+clone, commit, out = sys.argv[1:4]
+p = subprocess.Popen(["git", "-C", clone, "log", "--diff-filter=A", "--name-only", "--format=C %H %ct", commit, "--", "results"],
+                     stdout=subprocess.PIPE, text=True)
+cur = None; first = {}
+for l in p.stdout:
+    l = l.rstrip("\n")
+    if l.startswith("C "):
+        _, h, t = l.split(); cur = (h, int(t)); continue
+    if not l: continue
+    q = l.split("/")
+    if len(q) >= 3 and q[0] == "results":
+        first[q[1]] = cur  # log is newest -> oldest, so the last write is the earliest
+json.dump(first, open(out, "w"))
+print(len(first), "models;", len({v[0] for v in first.values()}), "distinct first commits")

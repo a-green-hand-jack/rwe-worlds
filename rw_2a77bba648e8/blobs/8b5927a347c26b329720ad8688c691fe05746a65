@@ -1,0 +1,49 @@
+"""Counts of the cell populations behind the paper's numbers, each from the filter that defines it.
+Usage: populations.py results_dir out.csv"""
+import sys
+import pandas as pd
+
+R = sys.argv[1]
+c = pd.read_parquet(f"{R}/cells.parquet")
+r = pd.read_parquet(f"{R}/ratios.parquet")
+dc = pd.read_parquet(f"{R}/diag_cells.parquet")
+pb = pd.read_csv(f"{R}/bias_prediction.csv")
+SIG = 0.5
+fam = lambda s: s.str.split("_").str[0]
+AF = list("abcdef")
+ch = c[c.estimator == "chin"]
+rows = []
+
+
+def add(n, name, defn, runs=None):
+    rows.append(dict(number=n, name=name, definition=defn, runs=runs))
+
+
+# Table 1 (c4_regime_share): share values of the frozen grid, a-f, every run but the fine-s and p-grid runs, per noise level
+t1 = r[(r.estimator == "chin") & r.mechanism.isin(AF) & r.s.isin([0.25, 0.5, 0.75]) & ~r.run_id.str.startswith(("fine_", "pfine_")) & (r.sigma == SIG)]
+d = ch.drop_duplicates("cell_id").set_index("cell_id").design
+t1 = t1.assign(design=t1.cell_id.map(d))
+add(len(t1), "Table 1, all cells", "s in {0.25,0.5,0.75}, mechanisms a-f, one noise level, Bernoulli and cluster designs, no fine-s or p-grid runs", t1.run_id.nunique())
+add((t1.design == "bern").sum(), "Table 1, Bernoulli rows", "the same, Bernoulli designs only (includes edge-noise, no-baseline sanity and convex-mirror runs)", t1[t1.design == "bern"].run_id.nunique())
+# diagnostic cells (absolute R2 of log RMSE, Fig. 5)
+x = dc[(dc.s > 0) & dc.mechanism.isin(AF)]
+add(len(x), "diagnostic cells", "s > 0, mechanisms a-f, sigma = 0.5, both designs, edge-noise and sanity runs included, convex mirror and fine/p-grid runs excluded", x.run_id.nunique())
+# figure (coverage)
+k = ch[(ch.sigma == SIG) & ch.mechanism.isin(AF) & ~ch.run_id.str.startswith("pfine_") & (ch.design == "bern") & (ch.edge_noise_q == 0) & ~ch.run_id.str.startswith(("sanity_", "convex_"))]
+add(k.cell_id.nunique(), "coverage figure (Fig. 4)", "Bernoulli, true feature graph, mechanisms a-f, sigma = 0.5, fine-s runs included, no sanity, convex-mirror or p-grid runs", k.run_id.nunique())
+# rules
+q = r[(r.estimator == "chin") & (r.mechanism != "0") & (r.s > 0) & (r.sigma == SIG) & ~r.run_id.str.startswith("pfine_")]
+q = q.assign(design=q.cell_id.map(d))
+q = q[q.design == "bern"]
+add(len(q), "oracle rule", "every Bernoulli cell with s > 0 at sigma = 0.5 except the p-grid runs, mechanisms a-g (includes edge-noise, sanity, the 15 convex-mirror cells of (g))", q.run_id.nunique())
+qs = q.dropna(subset=["s_estimated"])
+add(len(qs), "s-hat rule", "the cells of the oracle rule that have an estimated share in the exported table (36 of them are edge-noise or sanity cells, 18 each; without them the rule is right in 91.95% of the remaining 1404 cells, against 91.8% of 1440)", qs.run_id.nunique())
+# bias
+b = pb[pb.exact & pb.mechanism.isin(AF)]
+b = b[~b.run_id.str.startswith(("pfine", "convex"))]
+add(len(b), "exact bias prediction (Table 2 absolute R2 of log|bias|)", "non-null cells a-f with s in {0.25,0.5,0.75} that have the exact population-OLS prediction (iid baseline, true graph, Bernoulli: families, real graphs, core, size runs and sanity runs)", b.run_id.nunique())
+# variance figure
+v = ch[(ch.design == "bern") & ch.mechanism.isin(AF) & ~ch.run_id.str.startswith("pfine_")]
+add(len(v), "variance figure (Fig. A2A)", "every Bernoulli cell with a mechanism a-f at all five noise multiples, tier G regression, no p-grid runs", v.run_id.nunique())
+pd.DataFrame(rows).to_csv(sys.argv[2], index=False)
+print(pd.DataFrame(rows)[["number", "name", "runs"]].to_string())

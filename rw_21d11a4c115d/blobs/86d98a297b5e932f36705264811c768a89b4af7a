@@ -1,0 +1,63 @@
+# Review of the idea (Brief, wiki of idea-repo, rev 2026-11-25 15:53) — round 1
+
+Scope: the idea only. The Outline does not exist yet; the plan will be reviewed when it does.
+Search note: I did not search for the already-published study of this question (forbidden by deliverable.md), so I cannot rule out overlap with it. The novelty comments below rest on the adjacent literature only.
+
+## What is strong
+1. The question is put as a design problem (which k, how to infer, how large k) with a measurable success criterion that matches the objective.
+2. A competing hypothesis is stated (random k nearly as good), so a null result is already a publishable finding.
+3. The protocol goes beyond random leave-one-model-out: family-held-out, time-forward, only cells the model really has.
+4. The theory has a falsifiable form: the closed-form k-curve against synthetic truth, then against real data where it is expected to fail.
+5. The baseline set is broad (selectors and predictors), and the oracle is labelled test-leaking.
+
+## Weak points and what would fix them (most serious first)
+
+### W1. Leakage in the "exact" risk and in selection (rigor)
+- The Gaussian-conditioning risk is exact only for known (mu, W, D). In practice W, D come from a fit to a history with M ~ a few hundred rows and heavy missingness. The synthetic check must therefore report two curves: risk with the true parameters, and risk with fitted parameters, so that estimation error is separated from model misspecification. "Exactly" holds only for the first.
+- In leave-one-model-out the held-out model must be removed before standardisation, EM, rank choice, noise estimates and greedy selection. If the fit sees the held-out row, the theory looks better than it is. Say so in the protocol; the analysis role should be able to show it in code.
+- With M small and N large, factor analysis EM is prone to Heywood cases (D -> 0) and unstable W. Fix: a floor or prior on D, and rank r chosen by held-out likelihood, never by in-sample fit. State how r is chosen.
+
+### W2. "Noise" is not measurement noise (interpretation)
+- In MTEB and other leaderboards a score is deterministic. D is idiosyncratic model-by-benchmark variation, not noise. So (a) "split-half/reliability" noise floors from the Brief do not exist for MTEB; (b) the error floor is a property of the benchmark pool, not of evaluation; (c) the target must be stated: the measured score, which includes idiosyncratic variation (add tr D_R to the risk), versus the latent score. Define this once and use it in the theory and the metrics.
+
+### W3. "Error ~ r_eff/k" and "hard floor for k < r" are over-stated
+- With a unit-variance prior on z the floor for k < r is soft, not hard; it is hard only as noise -> 0. The r_eff/k form needs roughly incoherent, equal-loading W. Real leaderboards usually have one dominant general factor plus weak ones, so the curve is a sum over factors sum_j 1/(1 + k*lambda_j/(N*sigma^2)), and its "knee" is not sharp. State the theory as this sum, derive the r_eff/k form as the special case, and test which regime the data are in.
+- H1 and "knee near r_eff" are not yet falsifiable. Define in advance: r_eff (e.g. participation ratio or the rank by held-out likelihood), "most of the achievable accuracy" (e.g. the fraction of the gap between column-mean and an all-(N-k) in-sample/oracle reference that is closed), and k* (smallest k within delta of that reference, with delta stated). Fix H4's "stated tolerance" now (for example the median relative gap between predicted and empirical risk), not after seeing results.
+- Submodularity: greedy A-optimality is not submodular in general, but has a submodularity-ratio guarantee (Bian et al. 2017, arXiv:1703.02100 — found by search, abstract only; Das–Kempe 2011 is the one already listed). Cite it, and compute the ratio gamma on the real matrices rather than only "checking".
+- Add one theory item that serves the competing hypothesis: when is random selection near-greedy? Leverage-score/CUR-type results give (1+eps) guarantees for sampled columns when leverage is spread out (coherence low). A statement of the form "random k matches greedy to within a factor c(k, coherence)" would turn H2 into a derived and testable prediction. Check the exact statement from the source before citing.
+- Remark (d) (non-adaptive under the model) holds only for known parameters and fixed D; with D depending on the score level (bounded scales) it fails. State the assumption.
+
+### W4. Evaluation design can make selector comparisons invalid or unpaired
+- A selector picks S from the history, but a held-out model may not have run S. Different models then have different feasible S and different target sets, so selectors are compared on different cells. The plan needs one fixed design: a dense pool P (benchmarks and models) with full coverage; S chosen in P; the target set is P \ S, identical for every selector, predictor and k. Report how P was built and how the models in P differ from the rest (dense pools of MTEB are the models that ran everything: bigger, newer, better). Do not claim results for the sparse history from the dense pool; the separate sparse-history study must use the same targets.
+- Selector x predictor is a grid. Compare selectors with the predictor fixed (the PPCA posterior and one simple predictor), and predictors with the selector fixed (random draws). Do not give each baseline its own default pairing; then differences cannot be attributed.
+- Unit of replication. Models in a family are not independent. Paired bootstrap and tests must resample families (clusters), not models, otherwise the intervals are too narrow, mainly for family-held-out. Report the number of families and the number of models per split next to every curve.
+- Random baseline: use the expected error over many draws (and its spread) rather than a single draw, and use the same draws for every predictor.
+- Use grouped K-fold (families as groups, ~10 folds) rather than true LOMO as the main design: it is much cheaper for EM refits, and it gives the family-held-out result directly; LOMO can stay as a secondary check on a subset.
+- Metrics:
+  * "rank agreement" must not be Spearman across benchmarks within one model: that ordering is set by benchmark difficulty and is trivially high. Use per-benchmark rank correlation across held-out models (does the prediction order the models correctly) and the pairwise-winner accuracy for model pairs.
+  * RMSE in raw points is dominated by high-variance benchmarks; also report standardised error and skill versus column mean per benchmark, averaged over benchmarks with the spread shown.
+  * Stratify error by model strength / time: shrinkage toward the mean biases predictions for the strongest models, exactly the new models an evaluator cares about. Report the signed bias, not only the RMSE.
+
+### W5. Definitions the data need before anything runs
+- MTEB: what is one benchmark (task, task x split x language, or the main_score of a task)? Metrics differ (nDCG@10, accuracy, V-measure, Spearman, AP) and multilingual tasks have many subsets. Which revision of each model is kept (the directories hold several)? Fix these once, in the data step, and report counts of models, tasks, density.
+- "Family" and "time" are not columns in the results. Family needs a rule (organisation + base model name, or a clustering on the names), checked on a sample; time needs a proxy (first commit date of the model's results in the repository history; the 0.6 GB clone is allowed) or release dates from model cards, and the proxy's limits must be stated. If neither can be built reliably, say that H3 is tested only with the proxy.
+- Duplicates: quantisations, merges and size variants may be near-identical rows. Report the share removed and results with and without them.
+
+### W6. Generality is thin outside MTEB (contribution)
+- The objective is about LLM benchmarks, the main data are embedding models, and the LLM sets in the Brief are tiny: Open LLM Leaderboard has 6 benchmarks (k <= 5, with thousands of near-duplicate fine-tunes), HELM Lite 91 x 10, LiveBench a few dozen models. "How large must k be" on N = 6 or 10 says very little. To make the LLM side a result and not a footnote: (i) use finer-grained LLM matrices where benchmarks are subtasks (the objective allows other public data: e.g. MMLU subjects, BigBench or lm-eval subtask tables, HELM scenarios with several metrics, LiveBench tasks, BigCodeBench subsets) — I have not checked which are available at what size, so this is for the idea role to verify; (ii) state per dataset what k range is meaningful (k <= N/2); (iii) say in the paper which conclusions hold across all datasets and which only on MTEB.
+- Synthetic matrices should be generated with known rank and noise, and also from the fitted real-data model (parametric bootstrap), to test whether the real-data departure from the theory is due to misspecification rather than to the finite sample.
+
+### W7. Novelty and positioning (can it be done before?)
+- The method is a known one: PPCA with missing data, Gaussian conditioning, greedy Bayesian A-optimal selection (sensor placement, cold-start item selection in recommenders). A reviewer will say "known tools on a new matrix". The contribution that survives is: (1) the protocol and the finding on how much family/time shift hurts, (2) the k-curve law with a verified regime of validity, (3) the honest comparison against random and simple predictors. Say this in the Brief and the paper's introduction; do not sell the selector as the contribution unless it beats random under shift by a clear margin.
+- The closest prior work on selection from model-by-benchmark matrices (metabench, Fluid Benchmarking, Observational Scaling Laws, Sloth) is already listed. Because the forbidden study cannot be searched, the related work should say only what the sources checked show, and the reproduction notes should record that no search for it was done.
+- Please complete the "(verify)" entries and the "and others" author lists from the sources before they reach the paper.
+
+## What would make it stronger, in order of effect
+1. Fix the dense-pool design, the paired grid and the family-clustered intervals (W4); they decide whether any selector claim is valid.
+2. Write the definitions of r_eff, k*, and the H1/H4 tolerances before running (W3).
+3. Separate true-parameter, fitted-parameter and real-data risk curves (W1); then the theory section is checkable.
+4. A coherence-based statement for when random is near-optimal (W3) turns the competing hypothesis into a result.
+5. At least one LLM matrix with enough benchmarks to give a k-curve (W6).
+6. Report extrapolation bias for strong/new models (W4).
+
+No change of direction is needed; these are tightenings. Reply in the issue with what you adopt or decline and why; I will review the revised Brief.

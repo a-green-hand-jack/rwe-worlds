@@ -1,0 +1,32 @@
+\section{Published code on our splits}
+\label{app:public}
+
+\paragraph{What was run.}
+We ran the published anchor code on our folds and targets (its $k$-means random states are $0$ to $9$) at $n=100$ with $10$ draws, as a check on our re-implementations; the code was run, not copied into ours.
+The tinyBenchmarks code~\citep{maiapolo2024tiny} gives anchors by $k$-means on the sources' correctness columns (\emph{correctness anchors}) or on the item parameters of a multidimensional two-parameter IRT model fitted with its fork of \texttt{py-irt} (ten dimensions, hierarchical priors, $2000$ epochs; \emph{IRT anchors}), each with cluster-mass weights, and the p-IRT estimator, which fits the target's ability by maximum likelihood on the anchor answers and adds the model's prediction for the other items to the observed fraction.
+Anchor Points~\citep{vivek2024anchor} gives $k$-medoids anchors on the item correlations, with cluster-size weights.
+The anchor estimators without IRT cover the seven leaderboard benchmarks, all five folds in interpolation and the extrapolation fold; those with IRT cover six (not MMLU-Pro), the first fold in interpolation and the extrapolation fold.
+We did not run the Anchor Points predictor or gp-IRT.
+Each cell is one run, so there are no intervals; the ratio is the RMSE over that of uniform $\times$ mean on the same targets, as a geometric mean over the benchmarks.
+
+\paragraph{Results.}
+Table~\ref{tab:public} gives the ratios.
+The published anchors chosen by correctness and Anchor Points are worse than uniform sampling, as our anchor design with the sample mean is: in extrapolation they give $2.49$ and $1.51$, against $1.91$ for ours, and in interpolation $1.14$ and $1.38$ against $1.07$; stratified sampling is $0.84$ and $0.79$ on the same benchmarks.
+The published anchors chosen from the IRT embeddings, with their weights and no IRT model, are close to uniform in extrapolation ($0.94$) and below it in interpolation ($0.82$), against $1.99$ and $1.09$ for ours, on six benchmarks.
+With IRT, in extrapolation p-IRT on the IRT anchors is $0.88$ and on the correctness anchors $1.05$, against $2.10$ for our anchor design with the IRT plug-in and $0.85$ for stratified $\times$ mean; per benchmark the IRT anchors give less than $1$ on five of the six (BBH is $1.77$), while our plug-in is above $1$ on all six.
+In interpolation p-IRT is $0.69$ with either anchor set, against $0.79$ for our plug-in and $0.62$ for our anchor design with the difference estimator.
+So the failure of an IRT predictor above the sources that the main text reports is a property of the IRT model we fitted, not of every IRT method, and no published method on this subset is clearly below stratified sampling there.
+
+\begin{table}[h]
+\centering
+\caption{Published anchor code and our re-implementations, $n=100$, ratio of the RMSE to that of uniform~$\times$~mean on the same targets (geometric mean over benchmarks; one run per cell, no intervals). Stage A: seven benchmarks, interpolation over five folds; stage B: six benchmarks, interpolation over the first fold; extrapolation is one fold. Lower block: our IRT estimators on the extrapolation fold of the stage-B benchmarks with two or ten dimensions and the default or a wide ability prior (variance a hundred times larger).}
+\label{tab:public}
+\input{../tables/table11_public}
+\end{table}
+
+\paragraph{The setting of our IRT model.}
+Our model uses two dimensions, chosen on the sources only, and a standard normal prior on the target's ability, where the published code uses ten dimensions and no ability prior.
+On the same six benchmarks and the extrapolation fold, our anchor design with the IRT plug-in is $2.10$ at two dimensions, $1.94$ at ten dimensions, $1.99$ at two dimensions with a prior variance a hundred times larger (the weak prior of Appendix~\ref{app:recal} is ten times larger) and $2.01$ at ten dimensions with it; on a uniform design the plug-in is $1.60$, $2.00$, $1.47$ and $2.04$.
+A longer fit (2000 Adam steps instead of 300 and item and ability penalties a tenth as large) does not help: with the default prior the plug-in on the anchor design is $2.22$ at two dimensions and $3.38$ at ten, and on a uniform design $1.98$ and $3.04$; with the wide prior it is $2.11$ and $3.52$ on the anchor design and $1.92$ and $3.11$ on a uniform design.
+Neither the dimension, the ability prior nor the length of the fit, alone or together, brings our estimator near the published one.
+We did not test the hierarchical priors on the items, maximum-likelihood ability without a prior, the estimator form of the published code or its anchor set in our fitter; we state no cause.

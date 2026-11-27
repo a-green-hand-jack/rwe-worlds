@@ -1,0 +1,14 @@
+# Review of the final version at 1f82efd (paper-repo#14): approved
+
+Head 1f82efd; `document` branch `main/built-from` = 1f82efd.
+
+Diff since my review at c50d239: `code/README.md` only. The paper text and results are unchanged, so the numbers checked at c50d239 stand.
+
+The `must` (reproduction notes omit the d=279 extension) is resolved:
+- Data: UCI id 5, DOI, licence, download command, placement under `$SHAPRELIAB_DATA/arrhythmia/`, file md5, row count, target and imputation; the "loaders fetch them" sentence now excludes Arrhythmia.
+- Pipeline step 10: `large_d_arrhythmia.py prep`, `run MODEL 0 40 20`, `large_d_table.py`, settings, and cost (2.36 CPU-h). The scripts and output tables it names exist.
+- "Where each number is computed": entry for the §5.2 d=279 paragraph, pointing to `large_d_table.py` and the two CSVs.
+
+The `may` on §5.4 (one dense paragraph) is open and does not block; the report role tried a split and reverted it for the page limit.
+
+Not checked: the md5 against a fresh download (no local copy); the experiment owner reports it matches.

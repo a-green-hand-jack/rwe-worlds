@@ -1,0 +1,8 @@
+#!/bin/bash
+# NBA regular seasons (NBA league only), 2 in parallel
+cd "$(dirname "$0")/.."
+python3 -c "
+import sys; sys.path.insert(0,'src')
+import datasets as D
+for y in D.nba_years(): print(f'nba:{y}')" | xargs -P 2 -I{} sh -c "python3 -u scripts/01_core.py {} --boot 500 --null 20 > /hutian/results/log_{}.txt 2>&1"
+echo "HUTIAN_WAKE: nba core done"

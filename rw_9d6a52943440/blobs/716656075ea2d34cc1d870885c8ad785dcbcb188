@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# Run every experiment and every analysis on one machine (no scheduler needed).
+#   scripts/run_all.sh [JOBS]      JOBS = number of single-CPU worker processes (default: number of CPUs)
+# Stages (skip a stage with SKIP="extra msrc ..."): main variants msrc 2pct extra inner50 kmstrong highR dsweep analyze
+# Each worker is one (benchmark, split) run of scripts/02_run.py; peak memory of a worker is < 6 GB.
+# Budget: ~4.7 CPU-hours for main+variants, see README for the others.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+JOBS=${1:-$(nproc)}
+SKIP=${SKIP:-}
+export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
+BENCHES="mmlu_pro bbh openllm_math gpqa musr arc_challenge ifeval legalbench commonsense gsm math med_qa mmlu"
+want() { [[ " $SKIP " != *" $1 "* ]]; }
+q=$(mktemp); trap 'rm -f "$q"' EXIT
+n2pct() { python3 -I -c "import sys; sys.path.insert(0,'src'); from bpred import data; print(round(0.02*data.get('$1')['Y'].shape[1]))"; }
+run() { echo "python3 -I -u scripts/02_run.py $* > /dev/null"; }
+for b in $BENCHES; do
+  n2=$(n2pct $b)
+  for s in interp lineage extrap extrap10 extrap50; do
+    [ "$b" = legalbench ] && [ "$s" = lineage ] && continue
+    case $s in
+      interp|lineage|extrap) want main     && run $b $s --draws 10 --d 2 --out results/raw >> "$q" ;;
+      *)                     want variants && run $b $s --draws 10 --d 2 --out results/raw >> "$q" ;;
+    esac
+    if want 2pct;  then run $b $s --draws 10 --d 2 --ngrid $n2 --out results/raw_2pct >> "$q"; fi
+    if want extra; then
+      run $b $s --draws 10 --d 2 --ngrid 100 --designs uniform,strat,pps,balanced --no-cat --extra --out results/raw_extra/n100 >> "$q"
+      run $b $s --draws 10 --d 2 --ngrid $n2 --designs uniform,strat,pps,balanced --no-cat --extra --out results/raw_extra/2pct >> "$q"
+    fi
+  done
+  if want msrc; then
+    for s in interp extrap; do for m in 10 30 100; do
+      run $b $s --draws 10 --d 2 --ngrid 100 --designs uniform,strat,pps,balanced --no-cat --msrc $m --tag _M$m --out results/raw_msrc >> "$q"
+    done; done
+  fi
+  python3 -I scripts/10_ceiling_centred.py results/raw results/ceiling_centred.csv 100
+  python3 -I scripts/11_extrap_bias.py results/raw/target_level.parquet results/extrap_bias.csv
+  if want inner50; then
+    run $b extrap --draws 10 --d 2 --ngrid 100 --designs uniform,strat,pps,balanced --no-cat --inner-frac 0.5 --tag _inner50 --out results/raw_inner50 >> "$q"
+  fi
+  if want kmstrong; then   # strong anchor k-means (7 cheaper benchmarks)
+    case $b in commonsense|gsm|math|med_qa|mmlu|arc_challenge|ifeval)
+      for s in interp extrap; do
+        echo "BPRED_KMEANS=strong python3 -I -u scripts/02_run.py $b $s --draws 10 --d 2 --ngrid 100 --designs anchor --no-cat --tag _kmstrong --out results/raw_kmstrong > /dev/null" >> "$q"
+      done;;
+    esac
+  fi
+  if want highR; then
+    for s in interp extrap; do
+      run $b $s --draws 10 --R 100 --d 2 --ngrid 100 --designs uniform,strat,pps,balanced --no-cat --tag _R100 --out results/raw_highR >> "$q"
+    done
+  fi
+  if want dsweep; then   # IRT-setting check against the public p-IRT (six benchmarks of its stage B)
+    case $b in arc_challenge|gpqa|ifeval|musr|openllm_math|bbh)
+      for s in interp extrap; do
+        echo "BPRED_IRTW_PREC=0.01 python3 -I -u scripts/02_run.py $b $s --draws 10 --d 10 --ngrid 100 --designs anchor,uniform --no-cat --extra --tag _d10 --out results/raw_dsweep > /dev/null" >> "$q"
+        echo "BPRED_IRTW_PREC=0.01 python3 -I -u scripts/02_run.py $b $s --draws 10 --d 2 --ngrid 100 --designs anchor,uniform --no-cat --extra --tag _d2w --out results/raw_dsweep > /dev/null" >> "$q"
+        echo "BPRED_IRTW_PREC=0.01 BPRED_IRT_STEPS=2000 BPRED_IRT_REG=0.1 python3 -I -u scripts/02_run.py $b $s --draws 10 --d 2 --ngrid 100 --designs anchor,uniform --no-cat --extra --tag _fit2 --out results/raw_dsweep > /dev/null" >> "$q"
+        echo "BPRED_IRTW_PREC=0.01 BPRED_IRT_STEPS=2000 BPRED_IRT_REG=0.1 python3 -I -u scripts/02_run.py $b $s --draws 10 --d 10 --ngrid 100 --designs anchor,uniform --no-cat --extra --tag _fit10 --out results/raw_dsweep > /dev/null" >> "$q"
+      done;;
+    esac
+  fi
+done
+# BENCHES lists the slowest benchmarks first so that they start early.
+grep -c . "$q" | xargs echo "jobs:"
+xargs -P "$JOBS" -I{} bash -c '{}' < "$q"
+if want analyze; then
+  python3 -I scripts/03_analyze.py                                    # results/*.csv from results/raw (includes target_level.parquet)
+  python3 -I scripts/04_msrc.py results/raw results/raw_msrc results
+  TWO_PCT=1 python3 -I scripts/03_analyze.py results/raw_2pct results/twopct
+  python3 -I scripts/05_bands.py results/raw/target_level.parquet results
+  python3 -I scripts/06_select.py results/raw/target_level.parquet results
+  python3 -I scripts/06_select.py results/raw_2pct/target_level.parquet results/twopct --n 0
+  if want inner50; then python3 -I scripts/03_analyze.py results/raw_inner50 results/inner50; python3 -I scripts/09_paired.py results/raw/target_level.parquet results/raw_inner50/target_level.parquet results/inner50/paired_vs_main.csv; fi
+  if want kmstrong; then python3 -I scripts/07_kmstrong.py results/raw results/raw_kmstrong results/kmstrong.csv; fi
+  if want highR; then
+    python3 -I scripts/03_analyze.py results/raw_highR results/highR
+    python3 -I scripts/14_bias_r100.py results/highR/per_bench.csv.gz results/per_bench.csv.gz results/highR_vs_main.csv results/raw_highR/target_level.parquet results/highR_target_bias.csv
+  fi
+  if want dsweep; then python3 -I scripts/15_dsweep.py results/raw_dsweep results/raw results/dsweep.csv; fi
+  if want extra; then
+    python3 -I scripts/03_analyze.py results/raw_extra/n100 results/extra_n100
+    TWO_PCT=1 python3 -I scripts/03_analyze.py results/raw_extra/2pct results/extra_2pct
+    python3 -I scripts/06_select.py results/raw/target_level.parquet results --extra results/raw_extra/n100/target_level.parquet --tag _extra
+    python3 -I scripts/06_select.py results/raw_2pct/target_level.parquet results/twopct --n 0 --extra results/raw_extra/2pct/target_level.parquet --tag _extra
+    python3 -I scripts/08_recal.py results/raw_extra/n100 results/recal_fallback_n100.csv
+    python3 -I scripts/08_recal.py results/raw_extra/2pct results/recal_fallback_2pct.csv
+  fi
+fi

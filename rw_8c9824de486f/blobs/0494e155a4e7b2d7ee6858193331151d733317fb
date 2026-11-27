@@ -1,0 +1,80 @@
+"""Per-fold state (stage A): standardisation, FA fits for all ranks on the training models, inner group-CV rank choice
+per reveal size, all-others floors and margins (PREREG sections F, G). Saved to pickle for the evaluation stage."""
+import os, sys, pickle, numpy as np, pandas as pd
+sys.path.insert(0, os.path.dirname(__file__))
+from common import *
+from fa import fit_fa, posterior_row
+
+def loo_predictions(fit, idx, y):
+    """leave-one-benchmark-out predictions (standardised) for every observed cell of one row, via a rank-1 downdate."""
+    V, mu, psi = fit["V"], fit["mu"], fit["psi"]; r = V.shape[1]
+    A = V[idx] / np.sqrt(psi[idx])[:, None]; e = (y - mu[idx]) / np.sqrt(psi[idx])
+    P = np.eye(r) + A.T @ A; C = np.linalg.inv(P); b = A.T @ e
+    Ca = A @ C                                   # n x r  (C a_j)
+    q = np.einsum("jr,jr->j", Ca, A)             # a_j' C a_j
+    bj = b[None] - A * e[:, None]
+    # exact Sherman-Morrison: P_j^{-1} bj = C bj + C a (a' C bj)/(1 - a'Ca)
+    Cb = bj @ C                                   # C symmetric
+    z = Cb + Ca * (np.einsum("jr,jr->j", A, Cb) / (1 - q))[:, None]
+    return mu[idx] + np.einsum("jr,jr->j", V[idx], z)
+
+def inner_scores(Ztr, groups_tr, ranks, k_list, rng, n_draws=2):
+    """inner group-CV squared error (standardised) for each (rank, reveal) where reveal in k_list or 'loo'.
+    Also returns per-task LOO squared errors (standardised) for floors, per rank."""
+    n = Ztr.shape[0]; fo = inner_group_folds(groups_tr)
+    mask = ~np.isnan(Ztr)
+    score = {(r, k): [] for r in ranks for k in k_list + ["loo"]}
+    loo_err = {r: [[] for _ in range(Ztr.shape[1])] for r in ranks}
+    for f in np.unique(fo):
+        tr = np.where(fo != f)[0]; va = np.where(fo == f)[0]
+        for r in ranks:
+            fit = fit_fa(Ztr[tr], r)
+            for m in va:
+                obs = np.where(mask[m])[0]
+                if len(obs) < 2: continue
+                yv = Ztr[m]
+                for k in k_list:
+                    for _ in range(n_draws):
+                        S = rng.choice(obs, min(k, len(obs) - 1), replace=False)
+                        T = np.setdiff1d(obs, S)
+                        z, _ = posterior_row(fit, S, yv[S])
+                        pred = fit["mu"][T] + fit["V"][T] @ z
+                        score[(r, k)].append(np.mean((pred - yv[T]) ** 2))
+                pr = loo_predictions(fit, obs, yv[obs]); er = (pr - yv[obs]) ** 2
+                score[(r, "loo")].append(er.mean())
+                for j, e in zip(obs, er): loo_err[r][j].append(e)
+    avg = {key: float(np.mean(v)) for key, v in score.items()}
+    return avg, loo_err
+
+def build_state(Y, mods, split_name, fold, train, test, seed=SEED, ranks=RANKS, k_list=K_GRID):
+    rng = np.random.default_rng(seed + 1000 * sum(map(ord, split_name)) + fold)
+    Ytr = Y[train]; mu, sd = standardise(Ytr)
+    Ztr = (Ytr - mu) / sd
+    groups_tr = mods.org.values[train]
+    avg, loo_err = inner_scores(Ztr, groups_tr, ranks, list(k_list), rng)
+    best_rank = {k: min(ranks, key=lambda r: avg[(r, k)]) for k in list(k_list) + ["loo"]}
+    fits = {r: fit_fa(Ztr, r) for r in sorted(set(best_rank.values()))}
+    # margins: gap_j on training models; floor_j from inner-CV LOO errors at the loo-selected rank (raw points)
+    rl = best_rank["loo"]
+    floor = np.array([np.sqrt(np.mean(e)) if len(e) else np.nan for e in loo_err[rl]]) * sd
+    gap = np.full(Y.shape[1], np.nan)
+    for j in range(Y.shape[1]):
+        v = np.sort(Ytr[~np.isnan(Ytr[:, j]), j])
+        if len(v) >= 3: gap[j] = np.median(np.diff(v))
+    delta = np.minimum(0.5 * gap, 0.25 * floor)
+    return dict(split=split_name, fold=fold, train=train, test=test, mu=mu, sd=sd, best_rank=best_rank, inner=avg,
+                fits=fits, floor=floor, gap=gap, delta=delta)
+
+if __name__ == "__main__":
+    # usage: python state.py <data_dir> <work_dir> <split> <fold>
+    data_dir, work, split, fold = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
+    Y, mods, tasks, et = load_matrix(data_dir)
+    if split == "S":
+        a, tr, te = strength_split(Y); sp = [(0, tr, te)]
+    else:
+        sp = make_splits(mods)[split]
+    f, tr, te = [s for s in sp if s[0] == fold][0]
+    st = build_state(Y, mods, split, fold, tr, te)
+    os.makedirs(os.path.join(work, "state"), exist_ok=True)
+    pickle.dump(st, open(os.path.join(work, "state", f"{split}_{fold}.pkl"), "wb"))
+    print(split, fold, "ranks", st["best_rank"])

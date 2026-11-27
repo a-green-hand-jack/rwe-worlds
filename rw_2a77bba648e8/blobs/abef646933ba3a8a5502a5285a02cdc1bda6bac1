@@ -1,0 +1,10 @@
+{
+ "script": "analysis/explain_cells.py",
+ "code_commit": "60979f1be1ae",
+ "seed": 20261125,
+ "n_draws": "3000 per run (synthetic graphs: 10 graph draws x 300 assignments; real graphs: 1 graph x 3000 assignments); bootstrap and coverage on a subset",
+ "date": "2026-11-26",
+ "description": "threshold mechanism (d) on the confirmatory block: spread of the treated-neighbour fraction, realised bias and RMSE ratio at s = 0.5",
+ "rows": 27,
+ "population": "confirmatory block, mechanism (d) only, s = 0.5, noise level 0.5, Bernoulli assignment, iid baseline, unperturbed graphs; one row per run = (family in SBM, HK, LN) x (target degree 5, 20, 80) x (p = 0.25, 0.5, 0.75): 27 rows, one run each; the exposure distribution is exact on the first three graph draws of each run, the bias and RMSE ratio are the run's own"
+}

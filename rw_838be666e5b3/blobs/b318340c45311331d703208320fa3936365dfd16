@@ -1,0 +1,17 @@
+# fig_clip
+
+**Claim carried:** C8: with the package's clip of the tuning removed, the PPI++ interval is shorter when the slope b is above 1; the size follows the formula for n large enough that the estimated tuning is stable.
+
+**Shows:** left: paired width ratio of PPI++ with the tuning unclipped to the package PPI++ (`ppi-python` 0.2.3, tuning clipped to [0, 1]) against the slope b of Y on f; markers = measured on the synthetic sweep (95% CI of the paired ratio), line = the exact formula for the population-optimal tuning (no estimation of it), colour = n; hollow diamonds = the real datasets, each at its reference n. Right: coverage of the package (filled) and unclipped (hollow) intervals, same sweep, Wilson 95% CIs, markers offset sideways by n; dashed = nominal.
+
+**How to read:** below 1 = the unclipped interval is shorter. Where the line and the markers part (small n, b near 1) the estimated tuning's noise matters and the unclipped interval is not shorter (at n = 30, b = 1 it is wider); at b <= 1 the clip is inactive in the population, so the formula gives 1, except b < 0 where it pins at 0. Coverage of the two intervals is read against the dashed line. The statement concerns one implementation, not the PPI++ method.
+
+**Computed on** (from the rows drawn):
+- n: 100, 1000, 30, 300, 3000
+- N: 10000, 1200, 300
+- Monte-Carlo repetitions per row: min 4000, max 8000
+- rows: 61
+
+**Placement:** natural size 5.63 in wide, 2.33 in tall; the smallest type is 7 pt at that size (column 3.25 in, text block 6.75 in). Intended for a `figure*`; include it at `width=5.63in` or up to the full width of its float, never narrower (scaling by s gives 7s pt).
+
+Synthetic cells drawn: 35 (sigma = 0.6, N = 10000); not drawn, in clip_sweep.csv: 26 cells (other sigma, other N at n = 300). Largest gap between the measured ratio and the formula in the cells drawn: 0.131 (n = 30, b = 2). Real sets drawn at their reference n (config headline_n); clip_real.csv has 57 rows over 9 datasets. Real sets with b above 1.1: census income b = 1.38, n = 500, ratio 0.985 [0.984, 0.985], coverage package 93.8% unclipped 93.5%; gene expr. b = 1.15, n = 500, ratio 0.977 [0.976, 0.977], coverage package 95.4% unclipped 95.6%.

@@ -1,0 +1,35 @@
+"""Unchanged-defaults check: every estimator of the original frozen-grid run must be reproduced bit for bit by the rerun with the extra
+`bz` functional:  python analysis/check_rerun.py ORIGINAL_DIR RERUN_DIR OUT.csv"""
+import glob
+import os
+import sys
+
+import numpy as np
+import pandas as pd
+
+sys.path.insert(0, os.path.dirname(__file__))
+import agg  # noqa: E402
+
+
+def main(orig, rerun, out):
+    rows = []
+    for f in sorted(glob.glob(os.path.join(rerun, "*.pkl"))):
+        g = os.path.join(orig, os.path.basename(f))
+        if not os.path.exists(g):
+            continue
+        a, b = agg.load(f), agg.load(g)
+        r = dict(run_id=os.path.basename(f)[:-4], extra_functionals=a["sig"].shape[1] - b["sig"].shape[1])
+        k = b["sig"].shape[1]
+        for key in ("sig", "nz", "wn2"):
+            r[key + "_equal"] = bool(np.array_equal(a[key][:, :k], b[key][:, :k], equal_nan=True))
+        for key in ("or_fit", "se_hc", "se_bt", "expo", "tau", "sd"):
+            r[key + "_equal"] = bool(np.array_equal(a[key], b[key], equal_nan=True))
+        rows.append(r)
+    df = pd.DataFrame(rows)
+    df.to_csv(out, index=False)
+    ok = df.drop(columns=["run_id", "extra_functionals"]).all(axis=None)
+    print(len(df), "runs compared; all arrays equal:", bool(ok))
+
+
+if __name__ == "__main__":
+    main(*sys.argv[1:4])

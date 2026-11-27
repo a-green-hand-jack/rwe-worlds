@@ -1,0 +1,24 @@
+"""Venue geometry: NeurIPS 2026 main track, from venue-repo#2 (VENUE.md sections 3 and 9).
+
+One column: \\linewidth = 5.5 in. Smallest text in a figure: 7 pt at printed size (venue's recommendation;
+the venue itself states no minimum inside figures). Table text >= 8 pt. Budget: <= 6 main figures, <= 3 main tables.
+Fonts: embedded TrueType (pdf.fonttype 42), no Type 3.
+Units: inches; type sizes in points.
+"""
+COLUMN_WIDTH_IN = 5.5    # width of one column as printed
+TEXT_WIDTH_IN = 5.5      # full text width as printed
+MIN_FONT_PT = 7.0        # smallest type size the venue accepts in figures/tables
+
+# Used only for drafts (never delivered): NeurIPS-like single column
+DRAFT = dict(COLUMN_WIDTH_IN=5.5, TEXT_WIDTH_IN=5.5, MIN_FONT_PT=7.0)
+
+
+def get(draft=False):
+    vals = dict(COLUMN_WIDTH_IN=COLUMN_WIDTH_IN, TEXT_WIDTH_IN=TEXT_WIDTH_IN, MIN_FONT_PT=MIN_FONT_PT)
+    if any(v is None for v in vals.values()):
+        if not draft:
+            raise SystemExit("figs/venue.py is unset: waiting for venue-repo; run with --draft for a non-delivered preview")
+        return dict(DRAFT)
+    return vals
+
+TABLE_MIN_PT = 8.0

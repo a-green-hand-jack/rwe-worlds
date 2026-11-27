@@ -1,0 +1,26 @@
+"""Collect the run files of several raw directories into one directory of symlinks, first directory wins on a repeated run id:
+python analysis/merge_raw.py OUTDIR RAWDIR [RAWDIR ...]
+(the `bz` reruns come first, so each frozen-grid run enters the tables once, with the estimated spillover share)"""
+import glob
+import os
+import sys
+
+
+def main(out, *dirs):
+    os.makedirs(out, exist_ok=True)
+    seen = {}
+    for d in dirs:
+        for f in sorted(glob.glob(os.path.join(d, "*.pkl"))):
+            name = os.path.basename(f)
+            if name in seen:
+                continue
+            seen[name] = f
+            dst = os.path.join(out, name)
+            if os.path.lexists(dst):
+                os.remove(dst)
+            os.symlink(os.path.abspath(f), dst)
+    print(len(seen), "runs in", out)
+
+
+if __name__ == "__main__":
+    main(*sys.argv[1:])

@@ -1,0 +1,101 @@
+"""Like-for-like comparison of search methods on the same conclusions, family and cost unit (claim C6, Table 5).
+For the pairs of the equal-budget random baseline (random/<unit>.eqbudget.parquet; same pairs) and each family:
+  residual   : fill the budget with the alterations of largest pair-local residual change (|u_t|, the per-unit change in the pair's own log-likelihood
+               residual), ignoring how strongly that pair moves the compared gap (no influence weighting); refit once
+  oneshot    : influence top-k at the original fit (AMIP / Koh-Liang comparator): fill by first-order effect, refit once
+  iterated   : iterated re-linearisation with refit (the study's search; core k*)
+  both       : iterated plus Frank-Wolfe (best of the two)
+For every method the smallest budget k whose refit reverses the pair (exponential then bisection from the first-order k), and the share of pairs
+reversed at 0.5 and 1.0 x k_best, k_best = the smallest k found by any method.  Also the first-order prediction: k_lin and the realised gap
+after the refit at ceil(k_lin) as a fraction of the original gap.
+usage: 12_methods.py UNIT [--npairs 40] -> $BT_RESULTS/search/methods_<unit>.parquet"""
+import argparse, os, sys
+import numpy as np, pandas as pd
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src")); sys.path.insert(0, os.path.dirname(__file__))
+import btlib as B, analysis as A
+from core01 import OUT, get
+
+
+def smallest_k(ok, k0, kcap):
+    """exponential then bisection search of the smallest budget with ok(k) (success assumed monotone near the answer); inf if none up to kcap"""
+    k, lo, hi = max(1, int(k0)), 0, None
+    while True:
+        k = int(min(k, kcap))
+        if ok(k):
+            hi = k
+            break
+        lo = k
+        if k >= kcap:
+            return np.inf
+        k = int(np.ceil(k * 1.5)) + 1
+    while hi - lo > 1:
+        mid = (lo + hi) // 2
+        if ok(mid):
+            hi = mid
+        else:
+            lo = mid
+    return hi
+
+
+def main():
+    ap = argparse.ArgumentParser(); ap.add_argument("unit"); ap.add_argument("--npairs", type=int, default=40)
+    a = ap.parse_args()
+    P = A.Prepared(get(a.unit)); g = P.g
+    eqf = f"{OUT}/random/{a.unit.replace(':', '_')}.eqbudget.parquet"
+    cr = pd.read_parquet(f"{OUT}/core/{a.unit.replace(':', '_')}.parquet")
+    if os.path.exists(eqf):
+        eq = pd.read_parquet(eqf)[["mode", "a", "b"]].drop_duplicates()
+    else:
+        eq = cr[cr.family.isin(["delete", "flip"])].rename(columns={"family": "mode"})[["mode", "a", "b", "z_fisher"]]
+        eq = eq[(eq.z_fisher >= 0.5)].sort_values("z_fisher").iloc[np.linspace(0, len(eq) - 1, 2 * a.npairs).astype(int)][["mode", "a", "b"]].drop_duplicates()
+    th, H = B.fit(g, P.cnt, P.theta, return_H=True)
+    out = []
+    for fam in ("delete", "flip"):
+        ty = B.Types(g, fam); cap = ty.capacity(P.cnt)
+        c = cr[cr.family == fam].set_index(["a", "b"])
+        for (_, r) in eq[eq["mode"] == fam].iterrows():
+            i, j = int(r.a), int(r.b)
+            if (i, j) not in c.index:
+                continue
+            d = B.make_d(P.M, i, j)
+            gap0 = d @ th
+            if gap0 <= 0:
+                continue
+            eff = B.effects(g, ty, th, H, d)
+            u = ty.dw - ty.dn * B.sigmoid(th[g.pa] - th[g.pb])[ty.pair]
+            resid = np.where(eff < 0, -np.abs(u), 0.0)
+
+            def fill_gap(score, k):
+                x, _ = B.fill(score, cap, int(k))
+                return B.gap_after(g, ty, P.cnt, x, th, d)[0] <= 0
+
+            klin = float(c.loc[(i, j), "k_lin"])
+            kc = float(c.loc[(i, j), "k_ver"])
+            if not np.isfinite(kc) or kc < 1:
+                continue
+            k0 = max(1, np.floor(klin)) if np.isfinite(klin) else max(1, kc // 2)
+            kcap = float(min(np.where(np.isfinite(cap), cap, 0)[eff < 0].sum(), 50 * max(kc, 1)))
+            k_res = smallest_k(lambda k: fill_gap(resid, k), k0, kcap)
+            k_one = smallest_k(lambda k: fill_gap(eff, k), k0, kcap)
+            k_it = kc
+            k_both = B.kstar(g, ty, P.cnt, d, th0=th, method="both")["k_ver"]
+            kbest = min(k_it, k_both, k_one, k_res)
+            row = dict(unit=a.unit, family=fam, a=i, b=j, z_fisher=float(c.loc[(i, j), "z_fisher"]), N=P.N, k_lin=klin, k_residual=k_res, k_oneshot=k_one,
+                       k_iterated=k_it, k_both=k_both, k_best=kbest)
+            for mult, tag in ((0.5, "half"), (1.0, "one")):
+                kk = max(1, int(round(mult * kbest)))
+                row[f"ok_residual_{tag}"] = bool(fill_gap(resid, kk)); row[f"ok_oneshot_{tag}"] = bool(fill_gap(eff, kk))
+                row[f"ok_iterated_{tag}"] = bool(B.iterlin(g, ty, P.cnt, th, d, kk)[0] <= 0)
+                row[f"ok_both_{tag}"] = bool(B.search(g, ty, P.cnt, th, d, kk, "both")[0] <= 0)
+            row["gap_frac_after_klin"] = np.nan
+            if np.isfinite(klin):
+                xl, _ = B.fill(eff, cap, int(np.ceil(klin)))
+                row["gap_frac_after_klin"] = float(B.gap_after(g, ty, P.cnt, xl, th, d)[0] / gap0)
+            out.append(row)
+        print(a.unit, fam, len(out), flush=True)
+    os.makedirs(f"{OUT}/search", exist_ok=True)
+    pd.DataFrame(out).to_parquet(f"{OUT}/search/methods_{a.unit.replace(':', '_')}.parquet")
+
+
+if __name__ == "__main__":
+    main()

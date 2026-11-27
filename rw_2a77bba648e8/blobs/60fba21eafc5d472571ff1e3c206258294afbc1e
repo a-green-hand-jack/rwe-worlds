@@ -1,0 +1,86 @@
+"""Appendix Fig A8 (C7): robustness of the Chin regression to a wrong graph and to the graph family.
+A: RMSE against the share q of true edges missing from the graph the regression sees (edge noise; the outcomes and the assignment keep the true graph);
+   rows = mechanism (a) linear and (e) multi-hop, columns = degree d; Chin (blue), DM (black), `or_known` = oracle form with the true parameters (orange).
+   Core SBM n~3000, p = 1/2, s = 1/2, sigma = 0.5. Source: claims/c7_edge_noise.csv.
+B: real graphs (thinned to the degree d) against synthetic ones: median over the three spillover shares s of the log RMSE ratio of Chin to DM, bar = min to max over those s (claims/c7_real_vs_synthetic.csv);
+   one panel per mechanism ((a) linear, (d) threshold, (e) multi-hop), x = graph, markers = target degree d. Below 0: regression better than DM.
+Usage: figA8_robust.py RESULTS_DIR OUT_DIR
+"""
+import argparse
+import pathlib
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+import common
+import style
+
+ap = argparse.ArgumentParser()
+ap.add_argument("data"); ap.add_argument("out")
+a = ap.parse_args()
+style.apply()
+_, meta = common.load(a.data, "cells")
+R = pathlib.Path(a.data) / "claims"
+e = pd.read_csv(R / "c7_edge_noise.csv"); rv = pd.read_csv(R / "c7_real_vs_synthetic.csv")
+fig = plt.figure(figsize=(style.TEXTWIDTH, 5.3))
+top, bot = fig.add_gridspec(2, 1, height_ratios=[2.1, 1.25], hspace=0.32)
+gs = top.subgridspec(2, 3, hspace=0.12, wspace=0.12)
+gB = bot.subgridspec(1, 3, wspace=0.12)
+EST = [("chin", "Chin regression", "#0072B2", "o"), ("dm", "difference in means", "k", "s"), ("or_known", "oracle form, true parameters", "#E69F00", "^")]
+MECH = [("a", "(a) linear"), ("e", "(e) multi-hop")]
+axA = None
+for i, (m, mt) in enumerate(MECH):
+    for j, dd in enumerate([5, 20, 80]):
+        ax = fig.add_subplot(gs[i, j], sharey=axA)
+        axA = axA or ax
+        for est, lab, col, mk in EST:
+            t = e[(e.mechanism == m) & (e.d_target == dd) & (e.estimator == est)].sort_values("edge_noise_q")
+            assert len(t) == 3
+            ax.errorbar(t.edge_noise_q, t.rmse, yerr=[t.rmse - t.rmse_mc_lo, t.rmse_mc_hi - t.rmse], color=col, marker=mk, ms=3.6, lw=1.0, capsize=1.5, elinewidth=0.7, label=lab)
+        ax.set_yscale("log"); ax.set_xticks([0, 0.1, 0.3]); ax.set_xticklabels(["0", "0.1", "0.3"]); ax.minorticks_off()
+        if i == 0:
+            ax.set_title(f"$d={dd}$", fontsize=style.MIN_PT, pad=3)
+        if i == 1:
+            ax.set_xlabel("edge-noise share $q$")
+        else:
+            ax.tick_params(labelbottom=False)
+        if j == 0:
+            ax.set_ylabel(f"{mt}\nRMSE")
+        else:
+            ax.tick_params(labelleft=False)
+        if i == 0 and j == 0:
+            ax.text(-0.35, 1.3, "A", transform=ax.transAxes, fontweight="bold")
+axA.set_yticks([0.1, 0.3, 1]); axA.set_yticklabels(["0.1", "0.3", "1"])
+h, l = axA.get_legend_handles_labels()
+fig.legend(h, l, frameon=False, loc="center", ncol=3, bbox_to_anchor=(0.5, 0.965), columnspacing=1.0, handletextpad=0.3)
+
+G = ["ER", "BA", "SBM", "WS", "Stanford3", "ego-Facebook"]
+GL = {"ego-Facebook": "ego-FB", "Stanford3": "Stan3"}
+DM = {5: ("o", "#0072B2"), 20: ("s", "#009E73"), 80: ("D", "#D55E00")}
+axB = None
+for j, (m, mt) in enumerate([("a", "(a) linear"), ("d", "(d) threshold"), ("e", "(e) multi-hop")]):
+    ax = fig.add_subplot(gB[0, j], sharey=axB)
+    axB = axB or ax
+    for k, dd in enumerate([5, 20, 80]):
+        for gi, g in enumerate(G):
+            r = rv[(rv.graph == g) & (rv.d_target == dd) & (rv.mechanism == m)]
+            assert len(r) == 1
+            r = r.iloc[0]; x = gi + (k - 1) * 0.22
+            mk, col = DM[dd]
+            ax.plot([x, x], [r.min_log_ratio, r.max_log_ratio], color=col, lw=0.9, zorder=2)
+            ax.plot(x, r.median_log_ratio, marker=mk, ms=3.4, color=col, ls="", zorder=3, label=f"$d={dd}$" if gi == 0 else None)
+    ax.axhline(0, color="k", lw=0.8, ls=":")
+    ax.set_xticks(range(len(G))); ax.set_xticklabels([GL.get(g, g) for g in G], rotation=45, ha="right", rotation_mode="anchor"); ax.tick_params(axis="x", length=2, pad=1.5)
+    ax.set_title(mt, fontsize=style.MIN_PT, pad=3); ax.grid(axis="x", visible=False)
+    if j == 0:
+        ax.set_ylabel("log RMSE ratio to DM")
+        ax.text(-0.35, 1.2, "B", transform=ax.transAxes, fontweight="bold")
+    else:
+        ax.tick_params(labelleft=False)
+h, l = axB.get_legend_handles_labels()
+fig.legend(h, l, frameon=False, loc="lower center", ncol=3, bbox_to_anchor=(0.5, -0.02), columnspacing=1.2, handletextpad=0.3)
+style.check_min_type(fig)
+o = common.out_dir(meta, a.out)
+style.save(fig, o / "figA8_robust.pdf", dpi=300)
+e.to_csv(o / "figA8_robust_A.csv", index=False); rv.to_csv(o / "figA8_robust_B.csv", index=False)

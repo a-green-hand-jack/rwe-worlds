@@ -1,0 +1,69 @@
+"""Loading result tables and writing outputs; shared by every figure/table script."""
+import json
+import pathlib
+import sys
+
+import pandas as pd
+
+MECH_CLASS = {"a": "linear", "b": "linear", "c": "saturating", "d": "threshold", "e": "multi-hop", "f": "interaction"}
+MECH_NAME = {"a": "(a) linear in fraction", "b": "(b) linear in count", "c": "(c) saturating",
+             "d": "(d) threshold", "e": "(e) multi-hop (diffusion)", "f": "(f) direct $\\times$ exposure"}
+MECH_MARK = {"a": "o", "b": "s", "f": "^", "c": "o", "e": "s", "d": "o"}   # marker within a mechanism class (Fig 3)
+MECH_COLOR = dict(zip("abcdef", ["#0072B2", "#56B4E9", "#009E73", "#D55E00", "#CC79A7", "#E69F00"]))  # one colour per mechanism
+MECH_MARK_U = dict(zip("abcdef", "osDvPX"))   # one marker per mechanism (figures that show all six together)
+MECH_LS = dict(zip("abcdef", ["-", "--", "-", "-", "--", ":"]))
+
+
+EST_NAME = {"dm": "DM", "hajek75": "HT/Hajek", "hajek100": "HT/Hajek q=1", "chin": "Chin", "quad": "+quad",
+            "spline": "+spline", "count": "+count", "hop2": "+2-hop", "inter": "+interaction",
+            "or_known": "Oracle", "or_fit": "Oracle (fitted)"}
+DESIGN_NAME = {"bern": "bernoulli", "cluster": "cluster"}
+
+
+def load(data_dir, name):
+    """Read `<name>.parquet|csv` and its `<name>.meta.json` from the analysis results
+    (`make_cells.py` of the analysis); estimator and design codes are mapped to display names, `mean_degree` is the
+    target degree of the run (`d_target`), the realised degree stays in `d`."""
+    d = pathlib.Path(data_dir)
+    df = pd.read_parquet(d / f"{name}.parquet") if (d / f"{name}.parquet").exists() else pd.read_csv(d / f"{name}.csv")
+    if "estimator" in df:
+        df["estimator"] = df["estimator"].replace(EST_NAME)
+    if "design" in df:
+        df["design"] = df["design"].replace(DESIGN_NAME)
+    if "d_target" in df and "mean_degree" not in df:
+        df["mean_degree"] = df["d_target"]
+    meta_path = d / f"{name}.meta.json"
+    meta = json.loads(meta_path.read_text()) if meta_path.exists() else {"fixture": True}
+    return df, meta
+
+
+CORE_RUN = r"core_SBM_n3000_d\d+_p[\d.]+$"   # run ids of the core family (SBM, n~3000, Bernoulli, iid baseline, true graph)
+
+
+def core(df, **kw):
+    """Rows of the core family (run_id `core_SBM_n3000_d*_p*`) matching kw (columns compared exactly, floats with isclose)."""
+    import numpy as np
+    m = df["run_id"].astype(str).str.match(CORE_RUN).to_numpy().copy()
+    for k, v in kw.items():
+        m &= np.isclose(df[k], v) if isinstance(v, float) else (df[k] == v).to_numpy()
+    return df[m]
+
+
+def out_dir(meta, root):
+    """Delivered outputs go to <root> only for real analysis results; a layout fixture never does."""
+    if meta.get("fixture", False):
+        p = pathlib.Path("/tmp/figtab_layout")
+        print("FIXTURE data: writing layout check to", p, file=sys.stderr)
+    else:
+        p = pathlib.Path(root)
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
+def coverage_population(cells, sigma=0.5):
+    """The cells behind every coverage number of the paper (Fig 9, Table A3): Chin regression, Bernoulli designs, mechanisms (a)-(f),
+    the true graph (no edge-noise, no-baseline sanity or convex-mirror runs), one `sigma`, HC0 coverage on all assignment draws."""
+    import numpy as np
+    k = cells[(cells.estimator == "Chin") & np.isclose(cells.sigma, sigma) & cells.coverage_hc.notna() & cells.mechanism.isin(list("abcdef"))]
+    k = k[(k.edge_noise_q == 0) & ~k.run_id.str.match(r"(sanity|convex|pfine)_")]
+    return k[k.design == "bernoulli"].copy()

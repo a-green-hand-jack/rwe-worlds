@@ -1,0 +1,18 @@
+#!/bin/sh
+# Copy the delivered parts (code/, README.md) of this repository into a clone of paper-repo's dev branch and push.
+# Usage: deliver.sh PAPER_CLONE "message"
+set -e
+SRC=$(cd "$(dirname "$0")" && pwd); DST=$1
+cd "$DST"; git fetch -q origin dev; git checkout -q dev; git rebase -q origin/dev
+mkdir -p code/results code/data
+rsync -a --delete --exclude __pycache__ "$SRC/src" "$SRC/analysis" "$SRC/experiments" code/
+cp "$SRC/requirements.txt" code/requirements.txt
+rsync -a "$SRC/data/matrix.npz" "$SRC/data/pool.pkl" "$SRC/data/pool_index.csv" "$SRC/data/pool_meta.json" code/data/
+# files named in results/.hold (one per line) are still being written by a running job: not delivered yet
+[ -d "$SRC/results" ] && rsync -a --exclude '*.tmp' --exclude '.hold' --exclude-from="$SRC/results/.hold" "$SRC/results/" code/results/
+cp "$SRC/README.md" README.md
+git add -A code README.md
+git commit -qm "$2
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>" || { echo "nothing to deliver"; exit 0; }
+git push -q origin HEAD:dev

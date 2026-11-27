@@ -1,0 +1,22 @@
+block,criterion,value,ci_lo,ci_hi,threshold,met,abs_r2,abs_r2_target,counted_in_verdict,abs_r2_lomo,abs_r2_lofo
+pre,"(1) Pooled held-out $R^2$ gain, combined score, leave one mechanism out",0.0336527442050282,-0.2848164802763854,0.3377709787934809,0.05,False,0.3191778974210915,log RMSE,,,
+pre,"(1$'$) same, leave one family out",-0.0094306169466422,-0.2665274683009301,0.2151086277832117,0.05,False,0.340737114740679,log RMSE,,,
+pre,(2) Mechanisms with positive gain (of 6),3.0,,,4.0,False,,,,,
+pre,(2) Lowest pooled gain after deleting any one mechanism,-0.0953255544687528,,,0.05,False,,,,,
+pre,"(3i) Part (i), variance: gain of $L$ over best degree benchmark, D$^*$ cells, leave one family out",0.1249401531842642,0.0690643392505054,0.3176281981670263,0.05,True,,,True,,
+pre,"(3ii) Part (ii), bias: corner distance $\times$ curvature, gain over $p(1-p)$",0.0077851139410467,-0.3267648243525258,0.2274750861849375,0.05,False,-0.1214657357412343,log|bias|,,,
+pre,"(3ii$'$) Part (ii), bias: spec disagreement $\bar S$, gain over $p(1-p)$",0.0437324943582706,-0.0091021677565725,0.0835964069258008,0.05,False,-0.2160447189497507,log|bias|,,,
+pre,(4) Within-cell Spearman excess of $S$ over the null simulation,0.0006997855531728,-0.0001497794419937,0.0026764741830464,0.0,False,,,,,
+pre,(4) Median excess of $S$ above that of the bootstrap SE,0.0011702352248358,,,0.0,True,,,,,
+exp,"Noise-adjusted $S_{\mathrm{adj}}$: combined, leave one mechanism out",0.1479045207718597,-0.0939971908934865,0.3752314066043511,0.05,False,0.433429673987923,log RMSE,,,
+exp,"Noise-adjusted $S_{\mathrm{adj}}$: part (ii), bias, gain over $p(1-p)$",0.2001782321261118,0.0997382646594447,0.2994138201719452,0.05,True,-0.0624488049555269,log|bias|,,,
+exp,"Noise-free $S_{\mathrm{sig}}$ (ceiling): part (ii), bias, gain over $p(1-p)$",0.0553027079304273,0.0008059841103103,0.098596869686351,0.05,True,,,,,
+conf,"$S_{\mathrm{adj}}$ with corner $\times$ curvature: gain over $p(1-p)$, bias",0.0987927601012502,-0.0592322247810939,0.1701091661293698,,False,0.1146744431511398,log|bias|,,,
+conf,Groups with positive gain (of 10),5.0,,,,False,,,,,
+ref,"Population-OLS prediction (needs the true response; ceiling, not a competitor)",,,,,,0.9874052064676644,log|bias|,,,
+ref,"Best degree benchmark, $p(1-p)$",,,,,,-0.2567438344965258,log|bias|,,,
+ref,Constant (mean of the training groups),,,,,,-0.2386028874603329,log|bias|,,,
+ref_rmse,"Best degree benchmark, $np(1-p)/d$",,,,,,,log RMSE,,0.2855251532160632,0.3501677316873213
+ref_rmse,Leverage $L$ only,,,,,,,log RMSE,,0.2533607889741137,0.2484999215145072
+ref_rmse,"Controls only ($\log n$, $\log\sigma^2$)",,,,,,,log RMSE,,0.0105770453066452,0.0727361794664716
+ref_rmse,Constant (mean of the training groups),,,,,,,log RMSE,,-0.0486007935819867,-0.0275540946295238

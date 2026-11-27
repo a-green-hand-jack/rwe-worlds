@@ -1,0 +1,12 @@
+"""E4 (real sets): N/n slice at n = 300: N in {n, 4n} (N = 10000 is the E3 cell at n=300 / the cap).
+usage: python exp4_Nratio.py PROCS"""
+import sys
+from common import *
+
+procs = int(sys.argv[1])
+cells = []
+for nm in ("galaxies", "census_income", "gene_expression"):
+    pop = load_pool(nm)
+    for N in (300, 1200):
+        cells.append(dict(id=f"{nm}_n300_N{N}", pop=pop, n=300, N=N, R=2000, cfg=T1_CFG))
+run_grid("exp4", cells, procs)

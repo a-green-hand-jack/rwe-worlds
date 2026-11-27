@@ -1,0 +1,19 @@
+"""Fig 2 (C1): predicted vs measured excess width over the floor, identity line."""
+import numpy as np
+import style, schema, captions, propdraw
+from common import nice
+import matplotlib.pyplot as plt
+
+style.apply()
+df, nr = schema.drop_not_run(schema.load("prop_check.csv"))
+for _a in (("prop_check.csv", "meas_excess_width", "meas_excess_width_lo", "meas_excess_width_hi"),):
+    schema.check_ci(df, *_a)
+fig, ax = plt.subplots(figsize=(style.COL_W, style.COL_W * 0.95))
+propdraw.draw(ax, df)
+ax.legend(loc="upper left", fontsize=style.FONT)
+style.save(fig, "fig_prop_check")
+captions.write("figures", "fig_prop_check", "C1: the excess width of PPI++ and of the calibrated estimators over the floor equals the closed-form prediction; the exactly affine case sits at zero.",
+    "predicted (x) against measured (y) excess width over the estimated floor, one point per cell and estimator (filled = synthetic cell, hollow centre = real dataset; estimators without a closed form are not drawn), with the Monte-Carlo CI of the measurement; dashed line = identity.",
+    "points on the dashed line within their CI mean the formula holds in that cell; points off it are cells where it does not.", df)
+if len(nr):
+    print("NOT RUN cells:", len(nr))

@@ -1,0 +1,113 @@
+"""Stage B on the common target set (PREREG Deviation 3; Brief rev. 4/5). Per held-out model and per C/T split (shared by all rules):
+S is chosen inside C and the model's run set; every rule/inference predicts the model's observed cells in T; floor = the same prediction
+with ALL of the model's observed C cells revealed (rank chosen by inner-CV LOO, as the all-others floor); eligibility: >= k observed
+cells in C and >= m_T = max(3, ceil(|T|/3)) observed cells in T; a model enters a k if eligible in >= min(20, 50% of the splits) splits.
+Output: one row per (model, k, rule, inf), means over the model's eligible splits (+ paired difference to S0 per split, averaged).
+usage: python 21_eval_ct.py <data_dir> <work_dir> <split> <fold> <out_dir> <rules> <tag> [n_splits] [k_cap]
+rules: comma list of S0,S1,S2,S4,S5,S6,S6T,S6c,S6s,S3,S7 and INF (INF = also P2,P3,P4,P6 on the S0 and S6 sets) ; S0 is always evaluated (pairing); P5 for all, P1 also for S0,S6; P0 once."""
+import os, sys, pickle, time, numpy as np, pandas as pd
+sys.path.insert(0, os.path.dirname(__file__))
+from common import *
+from fa import complete, predict_row, design_risk
+import select_rules as SR, infer_rules as IR, baselines as BL
+
+def main():
+    data_dir, work, split, fold, out, rules_s, tag = sys.argv[1:8]; fold = int(fold)
+    n_sp = int(sys.argv[8]) if len(sys.argv) > 8 else N_CT_SPLITS; k_cap = int(sys.argv[9]) if len(sys.argv) > 9 else 10 ** 6
+    rules = [r for r in rules_s.split(",") if r]
+    Y, mods, tasks, et = load_matrix(data_dir)
+    st = pickle.load(open(os.path.join(work, "state", f"{split}_{fold}.pkl"), "rb"))
+    if "Y" in st:   # scope sweeps (30_scope_ct.py): a transformed / coarsened matrix and its task labels replace the loaded ones
+        Y = st["Y"]; tasks = pd.DataFrame(dict(type=st["ttype"])); et = np.ones_like(Y)
+    train, test, mu, sd = st["train"], st["test"], st["mu"], st["sd"]
+    Z = (Y - mu) / sd; mask = ~np.isnan(Y); Ztr = Z[train]; N = Y.shape[1]
+    TT = make_ct_splits(tasks["type"].values)[:n_sp]
+    cover = mask[train].sum(0).astype(float)
+    cost = np.nanmedian(et[train], 0); cost = np.where(np.isnan(cost), np.nanmedian(cost), cost)
+    delta, floorj = st["delta"], st["floor"]
+    kgrid = [k for k in K_GRID if k <= k_cap]
+    r_of = {k: st["best_rank"][k] for k in kgrid}; r_loo = st["best_rank"]["loo"]
+    fits = st["fits"]; Xc = {r: complete(Ztr, fits[r]) for r in set(r_of.values())} if any(r in ("S4", "S5") for r in rules) else {}
+    b = pickle.load(open(os.path.join(work, "state", f"{split}_{fold}_b.pkl"), "rb")) if any(r in rules for r in ("S3", "S7", "INF")) else None
+    Ztr_m = ~np.isnan(Ztr)
+    thresh = min(20, 0.5 * n_sp)
+    rows = []; t0 = time.time()
+    for m in test:
+        obs = np.where(mask[m])[0]; z = Z[m]; rngm = np.random.default_rng(SEED * 53 + int(m))
+        per = {}   # (rule, inf, k) -> list of tuples per eligible split
+        def put(key, val): per.setdefault(key, []).append(val)
+        el = {k: [] for k in kgrid}
+        for s in range(n_sp):
+            T = TT[s]; obsT = obs[T[obs]]; obsC = obs[~T[obs]]
+            m_T = max(3, int(np.ceil(T.sum() / 3)))
+            if len(obsT) < m_T: continue
+            ks = [k for k in kgrid if len(obsC) >= k]
+            if not ks: continue
+            yT = z[obsT]; sdT = sd[obsT]
+            def err(pred): e = (pred[obsT] - yT) * sdT; return float(np.sqrt(np.mean(e ** 2))), float(np.mean(np.abs(e)))
+            def t1(fit, S): return float(np.mean(design_risk(fit, S)[obsT] * sdT ** 2))
+            fl = {r: err(predict_row(fits[r], obsC, z[obsC])) for r in set(r_of[k] for k in ks) | {r_loo}}
+            fl_t1 = t1(fits[r_loo], obsC)
+            dmean = float(np.mean(delta[obsT])); fjm = float(np.mean(floorj[obsT])); n_obsC = len(obsC)
+            Tidx = np.where(T)[0]
+            order = {}
+            # nested orderings, per rank where the rule depends on the fit
+            perm = rngm.permutation(obsC)
+            if "S1" in rules: order["S1"] = obsC[np.lexsort((obsC, -cover[obsC]))]
+            if "S2" in rules: order["S2"] = obsC[np.lexsort((obsC, -sd[obsC]))]
+            kmax_r = {}
+            for k in ks: kmax_r[r_of[k]] = max(kmax_r.get(r_of[k], 0), k)
+            for r, kk in kmax_r.items():
+                if "S6" in rules: order[("S6", r)] = SR.s6_greedy(fits[r], obsC, kk)
+                if "S6T" in rules: order[("S6T", r)] = SR.s6_greedy(fits[r], obsC, kk, target=Tidx)
+                if "S6c" in rules: order[("S6c", r)] = SR.s6_greedy(fits[r], obsC, kk, cost=cost)
+                if "S4" in rules: order[("S4", r)] = SR.s4_pivqr(Xc[r], obsC, kk)
+            path7 = SR.s7_interview(Ztr, Ztr_m, z, obsC, min(32, kgrid[-1])) if "S7" in rules else None
+            for k in ks:
+                r = r_of[k]; fit = fits[r]; el[k].append(s)
+                put(("floor", "P5", k), (fl[r_loo][0], fl[r_loo][1], fl[r][0], fl_t1, dmean, fjm, n_obsC, len(obsT)))
+                S0 = perm[:k]; e0 = err(IR.p5_fa(fit, S0, z[S0]))
+                put(("S0", "P5", k), (e0[0], e0[1], 0.0, t1(fit, S0), 0.0))
+                put(("S0", "P1", k), err(IR.p1_offset(N, z[S0])) + (0.0, np.nan, 0.0))
+                put(("S0", "P0", k), err(IR.p0_mean(N)) + (0.0, np.nan, 0.0))
+                if "INF" in rules:
+                    S6k = order[("S6", r)][:k] if "S6" in rules else None
+                    for rname, SS in (("S0", S0), ("S6", S6k)):
+                        if SS is None: continue
+                        y = z[SS]
+                        for pn, pred in (("P2", BL.p2_predict(b["p2"][b["best"][("P2", k)]], SS, y)), ("P3", BL.p3_predict(Ztr, Ztr_m, SS, y, b["best"][("P3", k)])),
+                                         ("P4", BL.p4_predict(b["p4"][b["best"][("P4", k)]], SS, y)), ("P6", BL.p6_predict(b["p6"], fits[b["r12"]], SS, y))):
+                            ee = err(pred); put((rname, pn, k), (ee[0], ee[1], e0[0] - ee[0], np.nan, np.nan))
+                for rule in rules:
+                    if rule in ("S0", "INF"): continue
+                    if rule == "S3" or rule == "S7":
+                        if k > 32: continue
+                        if rule == "S7": S = path7[:k]
+                        else:
+                            oc = set(obsC.tolist()); s3 = [int(j) for j in b["s3_order"] if j in oc][:k]
+                            if len(s3) < k:
+                                rest = np.array([j for j in obsC if j not in set(s3)]); s3 += [int(j) for j in SR.s1_popular(rest, k - len(s3), cover)]
+                            S = np.array(s3)
+                        S = np.asarray(S); ee = err(IR.p5_fa(fit, S, z[S])); put((rule, "P5", k), (ee[0], ee[1], e0[0] - ee[0], t1(fit, S), np.nan)); continue
+                    if rule in ("S1", "S2"): S = order[rule][:k]
+                    elif rule == "S5": S = SR.s5_cluster(Xc[r], obsC, k, rngm)
+                    elif rule == "S6s": S = SR.s6_swap(fit, obsC, k)
+                    else: S = order[(rule, r)][:k]
+                    e = err(IR.p5_fa(fit, S, z[S]))
+                    put((rule, "P5", k), (e[0], e[1], e0[0] - e[0], t1(fit, S), float(cost[S].sum())))
+                    if rule == "S6": put((rule, "P1", k), err(IR.p1_offset(N, z[S])) + (err(IR.p1_offset(N, z[S0]))[0] - err(IR.p1_offset(N, z[S]))[0], np.nan, float(cost[S].sum())))
+        for (rule, inf, k), v in per.items():
+            if len(el[k]) < thresh: continue
+            a = np.array(v, float)
+            if rule == "floor":
+                rows.append(dict(split=split, fold=fold, model=int(m), k=k, rule="floor", inf="P5", n_elig=len(a), rmse=a[:, 0].mean(), rmse_sd=a[:, 0].std(), mae=a[:, 1].mean(),
+                                 floor_k=a[:, 2].mean(), t1_floor_mse=a[:, 3].mean(), delta_mean=a[:, 4].mean(), floorj_mean=a[:, 5].mean(), n_obsC=a[:, 6].mean(), n_obsT=a[:, 7].mean(), rank=r_of[k]))
+            else:
+                rows.append(dict(split=split, fold=fold, model=int(m), k=k, rule=rule, inf=inf, n_elig=len(a), rmse=a[:, 0].mean(), rmse_sd=a[:, 0].std(), mae=a[:, 1].mean(),
+                                 gain_vs_S0=a[:, 2].mean(), t1_mse=a[:, 3].mean() if inf == "P5" else np.nan, cost_sel=a[:, 4].mean(), rank=r_of[k]))
+    df = pd.DataFrame(rows); os.makedirs(out, exist_ok=True)
+    df.to_parquet(os.path.join(out, f"{split}_{fold}_{tag}.parquet"))
+    print(split, fold, tag, len(df), round(time.time() - t0, 1), "s", flush=True)
+
+if __name__ == "__main__":
+    main()

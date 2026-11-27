@@ -1,0 +1,77 @@
+"""Table 3 (inference rules P0-P6 under S6) and its appendix companion for T and S, as LaTeX fragments.
+
+usage: python3 -m figtab.make_table3 RESULTS_DIR OUT_DIR     (repo root as cwd)
+Every number is read from RESULTS_DIR/table3_pipelines_ct.csv; none is typed here.
+Each split gets two tabulars: RMSE in points per rule, and the paired difference to P5 with its 90% group-bootstrap
+interval (positive = the rule is better than P5); an arrow marks a verdict at delta_floor (up: better by more than the
+margin, down: worse by more than the margin), no mark = matches or undecided.
+"""
+import sys, pathlib
+import pandas as pd
+from figtab import provenance
+
+res = pathlib.Path(sys.argv[1]); out = pathlib.Path(sys.argv[2]); out.mkdir(exist_ok=True)
+HEAD = "\\begingroup\\scriptsize\\setlength{\\tabcolsep}{3pt}\n"
+TAIL = "\\endgroup\n"
+d = pd.read_csv(res / "table3_pipelines_ct.csv")
+RULES = ["P0", "P1", "P2", "P3", "P4", "P5", "P6"]
+OTHERS = [r for r in RULES if r not in ("P0", "P5")]
+SEL = "S6"
+MARK = {"helps": "$^{\\uparrow}$", "hurts": "$^{\\downarrow}$"}
+def mark(v): return "\\makebox[0.5em][l]{" + MARK.get(v, "") + "}"
+NAMES = {"G": "G: group-held-out", "T": "T: temporal", "S": "S: strongest quarter"}
+
+
+def f(x, dp=2):
+    return "--" if pd.isna(x) else (f"{x:.{dp}f}".replace("-", "$-$"))
+
+
+def blocks(split):
+    s = d[d.split == split]
+    n = (int(s.n_models.iloc[0]), int(s.n_groups.iloc[0]))
+    assert s.n_models.nunique() == 1
+    s6 = s[s.selection == SEL]
+    ks = sorted(s6.k.unique())
+    # P0 (benchmark mean) does not depend on the run set: it is recorded under S0 only
+    p0 = s[(s.selection == "S0") & (s.inference == "P0")].set_index("k").rmse_raw
+    assert p0.nunique() == 1
+    rm = s6.pivot(index="k", columns="inference", values="rmse_raw")
+    rm["P0"] = p0
+    df = s6.pivot(index="k", columns="inference", values="diff_vs_P5")
+    lo = s6.pivot(index="k", columns="inference", values="diff_vs_P5_lo")
+    hi = s6.pivot(index="k", columns="inference", values="diff_vs_P5_hi")
+    vd = s6.pivot(index="k", columns="inference", values="verdict_vs_P5_floor")
+    fl = float(s6.delta_floor.iloc[0])
+    t1 = ["\\begin{tabular*}{\\linewidth}{@{\\extracolsep{\\fill}}r" + "r" * len(RULES) + "@{}}\\toprule\n",
+          " & \\multicolumn{7}{c}{RMSE on the target set (points), S6 selection; lowest in bold} \\\\\\cmidrule(l){2-8}\n",
+          "$k$ & " + " & ".join(RULES) + " \\\\\\midrule\n"]
+    for k in ks:
+        t1.append(f"{k} & " + " & ".join((f"\\textbf{{{f(rm.loc[k, r])}}}" if r == rm.loc[k, RULES].idxmin() else f(rm.loc[k, r])) for r in RULES) + " \\\\\n")
+    t1.append("\\bottomrule\\end{tabular*}\n")
+    t2 = ["\\begin{tabular*}{\\linewidth}{@{\\extracolsep{\\fill}}r" + "r" * len(OTHERS) + "@{}}\\toprule\n",
+          f" & \\multicolumn{{{len(OTHERS)}}}{{c}}{{RMSE(S6+P5) $-$ RMSE(S6+rule) [90\\% CI]; $\\uparrow$ better, $\\downarrow$ worse than P5 by more than {fl:.2f}}} \\\\\\cmidrule(l){{2-{1 + len(OTHERS)}}}\n",
+          "$k$ & " + " & ".join(OTHERS) + " \\\\\\midrule\n"]
+    for k in ks:
+        cells = [f"{f(df.loc[k, r])} [{f(lo.loc[k, r])}, {f(hi.loc[k, r])}]{mark(vd.loc[k, r])}" for r in OTHERS]
+        t2.append(f"{k} & " + " & ".join(cells) + " \\\\\n")
+    t2.append("\\bottomrule\\end{tabular*}\n")
+    return n, "".join(t1), "".join(t2), fl, s6.floor_raw.mean()
+
+
+# main table: G only
+n, a, b, fl, floor = blocks("G")
+(out / "tab3_pipelines.tex").write_text(HEAD + a + "\\medskip\n\n" + b + TAIL)
+
+# appendix: T and S
+L = [HEAD]
+for sp in ("T", "S"):
+    n, a, b, fl, floor = blocks(sp)
+    L.append(f"\\noindent {NAMES[sp]} ({n[0]} models, {n[1]} groups)\\smallskip\n\n" + a + "\\smallskip\n\n" + b + "\\bigskip\n\n")
+L.append(TAIL)
+(out / "tabA_pipelines_TS.tex").write_text("".join(L))
+
+for nm in ("tab3_pipelines.tex", "tabA_pipelines_TS.tex"):
+    provenance.write(out / nm, [res / "table3_pipelines_ct.csv"],
+                     {"script": "figtab/make_table3.py", "selection": SEL,
+                      "note": "20 of the 50 shared C/T splits, fixed k_max subset (per experiment-repo's delivery note); margin delta_floor"},
+                     root=res)

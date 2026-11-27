@@ -1,0 +1,6 @@
+results/*.parquet filter=lfs diff=lfs merge=lfs -text
+results/diagnostic.csv filter=lfs diff=lfs merge=lfs -text
+results/bias_prediction.csv filter=lfs diff=lfs merge=lfs -text
+results/tierA_cells.csv filter=lfs diff=lfs merge=lfs -text
+results/within_cell.csv filter=lfs diff=lfs merge=lfs -text
+results/variance_components.csv filter=lfs diff=lfs merge=lfs -text

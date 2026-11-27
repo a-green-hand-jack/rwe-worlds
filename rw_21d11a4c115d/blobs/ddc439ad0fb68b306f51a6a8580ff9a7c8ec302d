@@ -1,0 +1,20 @@
+import pymupdf,re,json
+S=json.load(open('raw/sample.json'));M=json.load(open('raw/measure2.json'))
+out=[]
+for i,s in enumerate(S):
+    d=pymupdf.open(f'pdf/{i:02d}.pdf')
+    HEAD=re.compile(r'^\s*(\d+\s*)?(References|REFERENCES|Bibliography)\s*$')
+    main=''
+    for k in range(len(d)):
+        t=d[k].get_text()
+        m=re.search(r'^\s*(\d+\s*)?(References|REFERENCES|Bibliography)\s*$',t,re.M)
+        if m and k>=2: main+=t[:m.start()];break
+        main+=t
+    heads=re.findall(r'^\s*(\d+(?:\.\d+)?)\s*\.?\s+([A-Z][A-Za-z][^\n]{2,60})$',main,re.M)
+    top=[f'{a} {b}' for a,b in heads if '.' not in a]
+    rel=[h for h in top if re.search(r'related|prior|background',h,re.I)]
+    lim=bool(re.search(r'^\s*(\d+(\.\d+)?\s*)?(Limitations?|Discussion|Limitations and)',main,re.M|re.I))
+    limh=[h for h in top if re.search(r'limitation|discussion',h,re.I)]
+    out.append(dict(i=i,top=top[:14],rel=rel,limh=limh))
+    print(i,s['title'][:45],'|',' ; '.join(top[:12]))
+json.dump(out,open('raw/structure.json','w'),indent=1)

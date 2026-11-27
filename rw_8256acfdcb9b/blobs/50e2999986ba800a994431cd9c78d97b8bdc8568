@@ -1,0 +1,89 @@
+"""Datasets: raw-attribute matrices (players = raw columns), categorical columns flagged.
+
+Every loader returns (X: float64 ndarray n x d with categorical attributes as integer codes,
+names, cat_idx: list of categorical column indices, y: 0/1 ndarray).
+Data directory is set by the SHAPRELIAB_DATA environment variable (default /hutian/data).
+"""
+import os
+import numpy as np
+import pandas as pd
+
+DATA_DIR = os.environ.get("SHAPRELIAB_DATA", "/hutian/data")
+
+
+def german():
+    cols = ["status", "duration", "credit_history", "purpose", "credit_amount", "savings", "employment",
+            "installment_rate", "personal_status", "other_debtors", "residence_since", "property", "age",
+            "other_installment", "housing", "existing_credits", "job", "num_liable", "telephone", "foreign_worker"]
+    cat = {"status", "credit_history", "purpose", "savings", "employment", "personal_status", "other_debtors",
+           "property", "other_installment", "housing", "job", "telephone", "foreign_worker"}
+    df = pd.read_csv(os.path.join(DATA_DIR, "german/german.data"), sep=" ", header=None, names=cols + ["y"])
+    y = (df.pop("y").values == 2).astype(int)  # 1 = bad credit risk
+    for c in cat:
+        df[c] = df[c].astype("category").cat.codes
+    return df.values.astype(float), cols, [cols.index(c) for c in sorted(cat, key=cols.index)], y
+
+
+def pima():
+    from sklearn.datasets import fetch_openml
+    x = fetch_openml(data_id=37, as_frame=True, data_home=os.path.join(DATA_DIR, "openml"))
+    X = x.data
+    y = (x.target.values == "tested_positive").astype(int)
+    return X.values.astype(float), list(X.columns), [], y
+
+
+def gmsc(n_max=None, seed=0):
+    from sklearn.datasets import fetch_openml
+    x = fetch_openml(data_id=46929, as_frame=True, data_home=os.path.join(DATA_DIR, "openml"))
+    X = x.data.copy()
+    y = (x.target.values == "Yes").astype(int)
+    # missing values (MonthlyIncome, NumberOfDependents): median imputation, documented in the paper
+    X = X.fillna(X.median())
+    X, y = X.values.astype(float), y
+    if n_max and len(y) > n_max:
+        idx = np.random.RandomState(seed).choice(len(y), n_max, replace=False)
+        X, y = X[idx], y[idx]
+    return X, list(x.data.columns), [], y
+
+
+def _acs(task, state="CA", year="2018", n_max=None, seed=0):
+    from folktables import ACSDataSource, ACSEmployment, ACSIncome
+    t = {"employment": ACSEmployment, "income": ACSIncome}[task]
+    ds = ACSDataSource(survey_year=year, horizon="1-Year", survey="person", root_dir=os.path.join(DATA_DIR, "acs"))
+    d = ds.get_data(states=[state], download=True)
+    X, y, _ = t.df_to_numpy(d)
+    y = y.astype(int)
+    if task == "income":
+        pass
+    names = list(t.features)
+    cat = [names.index(c) for c in {"employment": ["MAR", "RELP", "ESP", "CIT", "MIG", "MIL", "ANC", "RAC1P"],
+                                    "income": ["COW", "MAR", "OCCP", "POBP", "RELP", "RAC1P"]}[task]]
+    if n_max and len(y) > n_max:
+        idx = np.random.RandomState(seed).choice(len(y), n_max, replace=False)
+        X, y = X[idx], y[idx]
+    return X.astype(float), names, sorted(cat), y
+
+
+def acs_employment(**kw):
+    return _acs("employment", **kw)
+
+
+def acs_income(**kw):
+    return _acs("income", **kw)
+
+
+def arrhythmia():
+    """UCI Arrhythmia, 452 x 279; y = 1 for any arrhythmia class (2-16), 0 for normal (class 1).
+    Missing values ('?', in 5 attributes; attribute 13 is missing in 376 of 452 rows): median imputation."""
+    df = pd.read_csv(os.path.join(DATA_DIR, "arrhythmia/arrhythmia.data"), header=None, na_values="?")
+    y = (df.iloc[:, -1].values != 1).astype(int)
+    X = df.iloc[:, :-1]
+    X = X.fillna(X.median())
+    return X.values.astype(float), [f"a{i}" for i in range(X.shape[1])], [], y
+
+
+LOADERS = {"arrhythmia": arrhythmia, "german": german, "pima": pima, "gmsc": gmsc, "acs_employment": acs_employment, "acs_income": acs_income}
+
+
+def load(name):
+    return LOADERS[name]()

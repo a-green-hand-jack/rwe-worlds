@@ -1,0 +1,66 @@
+\section{Setting and the variance floor}
+\label{sec:setting}
+
+\paragraph{Setting.}
+There are $M=n+N$ records. Each has side information $Z$ and an outcome $Y$; $Y$ is observed only on a simple random subset of $n$ records (the labeled set), and the predictor $f$ is a fixed function of the features $X$. The target is $\theta=\E[Y]$. We use two information tiers: $Z=f(X)$ (\emph{T1}, the predictor output only) and $Z=(f(X),X)$ (\emph{T2}, predictor and features, when the data have features). Labels are missing completely at random (MCAR) with known propensity $n/M$; records are i.i.d.\ draws from a population.
+
+\paragraph{Pooled estimators.}
+For a fixed function $g$ of $Z$, write $h=Y-g(Z)$ and
+\begin{equation}
+  \hat\theta_g=\frac1M\sum_{i\le M} g(Z_i)+\frac1n\sum_{i\in\mathrm{lab}} h_i
+  =\bar Y_{\mathrm{all}}+\bigl(\bar h_{\mathrm{lab}}-\bar h_{\mathrm{all}}\bigr),
+  \label{eq:est}
+\end{equation}
+where the last form is an algebraic identity ($\bar Y_{\mathrm{all}}$ is the mean of the $M$ outcomes, mostly unobserved, and cancels). PPI is the special case $g=f$ with the first sum taken over the unlabeled records only; PPI++ takes $g=\lambda f$ with a data-driven scalar~$\lambda$, which \texttt{ppi-python} estimates and clips to $[0,1]$.
+
+\begin{proposition}[Variance, floor and exact excess]
+\label{prop:floor}
+Let $m(Z)=\E[Y\mid Z]$, $\sigma^2_{\mathrm{res}}=\E\Var(Y\mid Z)$ and $V_m=\Var\,m(Z)$. For fixed $g$ with finite second moment,
+\begin{align}
+  V(g)&=\Var(\hat\theta_g)=\frac{\Var(Y)}{M}+\Bigl(\frac1n-\frac1M\Bigr)\Var(Y-g),\label{eq:Vg}\\
+  V(g)&=\Vstar+\Bigl(\frac1n-\frac1M\Bigr)\Var\bigl(m(Z)-g(Z)\bigr),\label{eq:floor}\\
+  \Vstar&=\frac{\sigma^2_{\mathrm{res}}}{n}+\frac{V_m}{M}.
+\end{align}
+\end{proposition}
+
+Hence $\Vstar$, attained at $g=m$, is the smallest variance in the family~\eqref{eq:est}. It also is the variance of the efficient influence function for the mean under MCAR missingness with all $M$ covariate vectors observed (\cref{app:proofs}; general theory in \citealp{robins1994estimation,tsiatis2006semiparametric}), so that no regular estimator does better at the same $n,N,f$; the semi-supervised literature has used this principle for the mean \citep{zhang2019semi}. We use it as a yardstick, not as a contribution. Proofs are in \cref{app:proofs}.
+
+\paragraph{PPI++ is the best linear member.}
+Take PPI++ with the optimal weight, unclipped. With $g=\lambda f$ and unlabeled-only averaging, $V_{\mathrm{PPI}}(\lambda)=\Var(Y-\lambda f)/n+\lambda^2\Var(f)/N$, minimised at $\lambda^\star=\Cov(Y,f)/[\Var(f)(1+n/N)]$. Writing $\rho=\mathrm{corr}(Y,f)$,
+\begin{align}
+  V_{\mathrm{PPI{+}{+}}}&=\frac{\Var(Y)}{n}\Bigl(1-\frac{\rho^2}{1+n/N}\Bigr)\notag\\
+  &=\frac{\Var(Y)}{n}\Bigl(1-\rho^2\frac NM\Bigr).
+  \label{eq:ppipp}
+\end{align}
+This equals $V(g)$ for the best linear $g=a^\star+b^\star f$ in \eqref{eq:Vg}, and $\hat\theta_g$ with $g=b^\star f$ coincides with the PPI estimator with $\lambda=b^\star N/M$. So once $\lambda$ is tuned, pooling the labeled records into the average of $g$ gains nothing for linear $g$: the gain from pooling belongs to the step from $\lambda=1$ to tuned~$\lambda$. By \eqref{eq:floor},
+\begin{equation}
+  V_{\mathrm{PPI{+}{+}}}-\Vstar=\Bigl(\frac1n-\frac1M\Bigr)\Delta,\qquad
+  \Delta=\Var\bigl(m(f)-b^\star f\bigr),
+  \label{eq:gap}
+\end{equation}
+and with the correlation ratio $\eta^2=\Var\,m(Z)/\Var(Y)$ one has $\Vstar=\frac{\Var(Y)}n\bigl(1-\eta^2\frac NM\bigr)$, so that, at the same critical value, the floor-to-PPI++ width ratio is
+\begin{equation}
+  \sqrt{\Vstar/V_{\mathrm{PPI{+}{+}}}}=\sqrt{\frac{1-\eta^2 N/M}{1-\rho^2 N/M}}.
+  \label{eq:ratio}
+\end{equation}
+\begin{corollary}[No room]
+\label{cor:noroom}
+At tier T1, PPI++ attains the floor iff $\E[Y\mid f]$ is almost surely an affine function of $f$ ($\Delta=0$, $\eta^2=\rho^2$). At tier T2 the same holds with $E[Y\mid f,X]$ and the best linear function of $(f,X)$ in place of $b^\star f$.
+\end{corollary}
+\paragraph{The package's clip.}
+The optimal weight $\lambda^\star=b^\star N/M$ exceeds one when the slope $b^\star=\Cov(Y,f)/\Var(f)$ exceeds $M/N=1+n/N$, and \texttt{ppi-python} 0.2.3 clips its estimate to $[0,1]$, which pins $b$ at $c=\min(\max(b^\star,0),M/N)$. By \eqref{eq:floor}, with $g=a+cf$ and $m-a-cf=(m-a^\star-b^\star f)+(b^\star-c)f+\text{const}$, the variance of the clipped estimator exceeds $\Vstar$ by
+\begin{equation}
+  \Bigl(\frac1n-\frac1M\Bigr)\bigl[\Delta+(b^\star-c)^2\Var(f)\bigr],
+  \label{eq:clip}
+\end{equation}
+so the clip costs $(\frac1n-\frac1M)(b^\star-c)^2\Var(f)$ over unclipped PPI++, which is zero unless $b^\star>M/N$ or $b^\star<0$. This is a property of one implementation, not of the PPI++ method.
+
+So the answer to ``how much shorter?'' is $\Delta$ (or $\eta^2-\rho^2$): zero when $E[Y\mid f]$ is affine, larger the further it is from affine or the more $X$ adds beyond $f$.
+
+\paragraph{What learning the control variate costs, and break-even $n$.}
+$m$ is unknown and must be learned from the same $n$ labels. If $g$ is replaced by $\hat g$ fitted on $n_{\mathrm{train}}$ labels, $\Var(Y-\hat g)$ rises above $\sigma^2_{\mathrm{res}}+\Var(m-g_{\lim})$ by a learning cost of roughly $d_{\mathrm{eff}}\sigma^2_{\mathrm{res}}/n_{\mathrm{train}}$ for a parametric calibrator with $d_{\mathrm{eff}}$ effective degrees of freedom, with $n_{\mathrm{train}}=(K-1)n/K$ under $K$-fold cross-fitting. The gain $\Delta$ and the cost enter \eqref{eq:floor} with the same factor $(1/n-1/M)$, which cancels, so the learned control variate shortens the interval relative to PPI++ roughly when
+\begin{equation}
+  n> n^\star\approx\frac{K}{K-1}\,\frac{d_{\mathrm{eff}}\,\sigma^2_{\mathrm{res}}}{\Delta}
+  \label{eq:nstar}
+\end{equation}
+(for nonparametric calibrators the cost decays slower than $1/n$, \citealp{zhang2002risk}). Equation~\eqref{eq:nstar} is a heuristic from the learning-cost model, not proved; \cref{sec:results} compares it with the measured crossover.

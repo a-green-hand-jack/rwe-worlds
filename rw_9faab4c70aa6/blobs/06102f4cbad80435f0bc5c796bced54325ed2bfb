@@ -1,0 +1,15 @@
+# Sample of accepted NeurIPS main-track papers (how they are written)
+
+Hand-chosen for closeness to this study (test-set reuse, adaptive overfitting, benchmark and prompt evaluation). Counts were made on 2026-11-25 with PyMuPDF on the arXiv PDF (the NeurIPS proceedings PDF for Roelofs), so a count may differ from the camera-ready layout. "Main" = pages before the reference list (arXiv versions may include material the camera-ready moved to the appendix). Reference counts: Semantic Scholar `referenceCount`, except Roelofs (counted in the PDF's bracketed list). Venue confirmed by Semantic Scholar/DBLP records (venue "Neural Information Processing Systems").
+
+| Paper | NeurIPS year | Main pages (arXiv PDF) | Main-text figures | Main-text tables | References | Abstract words |
+|---|---|---|---|---|---|---|
+| Roelofs et al., A Meta-Analysis of Overfitting in Machine Learning (arXiv-less, proceedings PDF) | 2019 | 9 | 6 | 1 | 23 | 135 |
+| Mania et al., Model Similarity Mitigates Test Set Overuse (arXiv 1905.12580) | 2019 | 10 | 3 | 1 | 23 | 143 |
+| Dwork et al., Generalization in Adaptive Data Analysis and Holdout Reuse (arXiv 1506.02629, full version) | 2015 | 22 (theory, full version) | 4 | 0 | 36 | not extracted exactly |
+| Feldman, Frostig, Hardt, The advantages of multiple classes for reducing overfitting from test set reuse (arXiv 1905.10360) | 2019 | 20 (theory) | 4–5 | 0 | not retrieved | not extracted exactly |
+| Polo et al., Efficient multi-prompt evaluation of LLMs (arXiv 2405.17202) | 2024 | 10 | 6 | 0 | 54 | 181 |
+| Shi et al., Efficient Prompt Optimization Through the Lens of Best Arm Identification (arXiv 2402.09723) | 2024 | 15 (arXiv layout) | 3 | 4 | 91 | 181 |
+
+Reading: the empirical papers (Roelofs, Polo, Shi, Mania) have 3–6 figures and 0–4 tables in the main text, 23–91 references and 135–181-word abstracts. Dwork and Feldman are theory papers; their long arXiv versions are not a guide to the 9-page budget.
+Limits of this evidence: six papers, selected by topic; the arXiv versions were not checked against the proceedings; MMLU-Pro itself and the other starter-literature papers were not sampled (MMLU-Pro is Datasets & Benchmarks track, not main).

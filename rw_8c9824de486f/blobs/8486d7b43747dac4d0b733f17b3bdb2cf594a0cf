@@ -1,0 +1,46 @@
+"""Stage 1: flatten the pinned MTEB results tree into one long table of raw cells.
+
+No filtering and no model-quality statistic is computed here; every (model dir, revision dir, task file,
+split, hf_subset) entry with a main_score is kept, so that all selection rules in prereg/PREREG.md act on
+a table that can be audited.
+
+usage: python 01_extract.py <results_dir> <out_dir>
+"""
+import json, sys, glob, os
+import pandas as pd
+
+root, out = sys.argv[1], sys.argv[2]
+os.makedirs(out, exist_ok=True)
+rows, metas = [], []
+for mdir in sorted(os.listdir(root)):
+    if not os.path.isdir(os.path.join(root, mdir)):
+        continue
+    for rdir in sorted(os.listdir(os.path.join(root, mdir))):
+        p = os.path.join(root, mdir, rdir)
+        if not os.path.isdir(p):
+            continue
+        mp = os.path.join(p, "model_meta.json")
+        if os.path.exists(mp):
+            m = json.load(open(mp))
+            metas.append(dict(model_dir=mdir, rev_dir=rdir, meta_name=m.get("name"), release_date=m.get("release_date"),
+                              n_parameters=m.get("n_parameters"), embed_dim=m.get("embed_dim"), open_weights=m.get("open_weights"),
+                              n_languages=len(m.get("languages") or []), has_training_datasets=bool(m.get("training_datasets"))))
+        for f in sorted(os.listdir(p)):
+            if f == "model_meta.json" or not f.endswith(".json"):
+                continue
+            try:
+                d = json.load(open(os.path.join(p, f)))
+            except Exception as e:
+                print("BAD", p, f, e); continue
+            sc = d.get("scores") or {}
+            for split, ents in sc.items():
+                for e in ents:
+                    ms = e.get("main_score")
+                    rows.append(dict(model_dir=mdir, rev_dir=rdir, task=d.get("task_name", f[:-5]), file=f[:-5], split=split,
+                                     hf_subset=e.get("hf_subset"), languages="|".join(e.get("languages") or []),
+                                     main_score=ms, eval_time=d.get("evaluation_time"), mteb_version=d.get("mteb_version"),
+                                     dataset_revision=d.get("dataset_revision")))
+df = pd.DataFrame(rows)
+df.to_parquet(os.path.join(out, "cells_raw.parquet"))
+pd.DataFrame(metas).to_parquet(os.path.join(out, "model_meta.parquet"))
+print(df.shape, df.model_dir.nunique(), df.task.nunique(), len(metas))

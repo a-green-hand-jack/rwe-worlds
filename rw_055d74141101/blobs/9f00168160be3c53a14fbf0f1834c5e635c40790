@@ -1,0 +1,15 @@
+\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{llrrrrl}
+\toprule
+dataset (count) & design & $N$ & models & density & tie rate & cluster unit \\
+\midrule
+Arena-55k & crowd & 57\,477 & 64 & 0.63 & 0.31 & battle (prompt) \\
+Arena single-turn & crowd & 49\,938 & 64 & 0.63 & 0.31 & battle (prompt) \\
+Arena LLM judges (17) & llm\_judge & 49\,938 & 64 & 0.63 & 0.007--0.26 & battle (prompt) \\
+MT-Bench GPT-4 & llm\_judge & 2\,400 & 6 & 1 & 0.25 & question \\
+MT-Bench GPT-4 (matched) & llm\_judge & 1\,814 & 6 & 1 & 0.25 & question \\
+MT-Bench human & expert & 3\,355 & 6 & 1 & 0.23 & question \\
+NBA seasons (69) & sports & 192--1\,230 & 8--30 & 0.69--1 & 0 & game \\
+\bottomrule
+\end{tabular}

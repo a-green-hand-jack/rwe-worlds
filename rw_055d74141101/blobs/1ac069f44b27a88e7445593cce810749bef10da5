@@ -1,0 +1,104 @@
+"""Fig. 4: (A) Delta = mean log(Q_real/Q_null) per dataset and family with its interval, grouped by design, against the margin band;
+(B, if matched_contrasts.csv exists) difference of Delta between two labelings of the same battles/pairs.
+Designs with many members (NBA seasons, judges) are drawn as a compact block of rows."""
+import argparse, os, numpy as np, pandas as pd, matplotlib; matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from style import setup, fig_size, design_style, margin, short_name
+from common import load, write_prov
+
+ap = argparse.ArgumentParser(); ap.add_argument("--data", required=True); ap.add_argument("--out", required=True)
+a = ap.parse_args(); setup(); os.makedirs(a.out, exist_ok=True)
+import matplotlib as mpl
+mpl.rcParams.update({k: 7.0 for k in ("font.size", "axes.labelsize", "axes.titlesize", "xtick.labelsize", "ytick.labelsize", "legend.fontsize")})  # drawn at 4.73 in, included unscaled: 7 pt (venue floor 6 pt)
+prov = {"inputs": {}, "dropped": {}}
+df = load(a.data, "real_minus_null.csv", ["dataset", "design", "perturbation", "delta_logQ", "lo", "hi", "n_pairs"], prov)
+mc = None
+if os.path.exists(os.path.join(a.data, "matched_contrasts.csv")):
+    mc = load(a.data, "matched_contrasts.csv", ["contrast", "perturbation", "is_reference", "paired_diff", "paired_lo", "paired_hi"], prov)
+    mc = mc[(mc.is_reference == 0) & mc.paired_diff.notna()]               # one row per non-reference member and family
+    if mc.empty: mc = None
+d = margin(); BLOCK, COMPACT = 10, 6                      # blocks of at most this many datasets list each dataset; larger ones are compact
+order = ["crowd", "llm_judge", "expert", "sports"]
+designs = [x for x in order if x in set(df.design)] + sorted(set(df.design) - set(order))
+fam = {"delete": ("o", -0.17), "flip": ("s", 0.17)}
+ncol = 2 if mc is not None else 1
+w = 0.86 * fig_size("text")[0]               # the paper includes this figure at 0.86 of the text width: drawn at that width so type is not rescaled
+yrow, blocks, y0 = {}, [], 0.0
+for des in designs:
+    members = sorted(set(df[df.design == des].dataset)); n = len(members)
+    if n <= BLOCK:                                  # one row per dataset, with a header row for the design
+        y0 -= 1.0
+        for i, m in enumerate(members): yrow[m] = y0 - i
+        blocks.append((des, y0, y0 - (n - 1), n, True)); y0 -= n + 0.6
+    else:                                           # compact block: rows packed into COMPACT slots
+        y0 -= 1.0
+        for i, m in enumerate(members): yrow[m] = y0 - i * (COMPACT - 1) / (n - 1)
+        blocks.append((des, y0, y0 - (COMPACT - 1), n, False)); y0 -= COMPACT + 0.6
+yB = 0.0
+if mc is not None:                                  # panel B: one heading per reference, one row per member, 0.4 gap between references
+    refs = mc.contrast.str.split("_vs_").str[0]
+    yB = sum(1.0 + mc[refs == r].member.nunique() + 0.4 for r in set(refs))
+span = max(-y0 - 0.6, yB - 0.4) + 0.7                  # both panels share one row scale
+H = 1.0 + 0.15 * span
+if mc is not None:                                       # fixed inch geometry: labels left of each axes, clear of the other panel
+    fig = plt.figure(figsize=(w, H), layout="none")
+    ax0, wa, lb, wb = 0.98, 1.05, 1.5, 0.95
+    axA = fig.add_axes([ax0 / w, 0.8 / H, wa / w, (H - 1.0) / H]); axB = fig.add_axes([(ax0 + wa + 0.1 + lb) / w, 0.8 / H, wb / w, (H - 1.0) / H])
+    axes = [[axA, axB]]
+else:
+    fig, axes = plt.subplots(1, 1, figsize=(w, H), squeeze=False)
+ax = axes[0][0]; ax.set_ylim(0.4 - span, 0.4)
+ax.axvspan(-d, d, color="0.88", lw=0, zorder=0); ax.axvline(0, color="0.4", lw=0.6)
+many = lambda m: sum(1 for b in blocks if b[0] == df[df.dataset == m].design.iloc[0] and not b[4]) > 0
+for r in df.itertuples():
+    st = design_style(r.design); mk, off = fam.get(r.perturbation, ("o", 0))
+    if many(r.dataset): off *= 0.3
+    y = yrow[r.dataset] + off
+    ax.plot([r.lo, r.hi], [y, y], color=st["color"], lw=0.7, alpha=0.8, zorder=2)
+    ax.plot(r.delta_logQ, y, marker=mk, ms=3, color=st["color"], mfc=st["color"] if r.perturbation == "delete" else "white", mew=0.7, zorder=3)
+pc = os.path.join(a.data, "positive_control.csv")                    # the method's own offset: same-graph simulated data with no departure
+if os.path.exists(pc):
+    c0 = load(a.data, "positive_control.csv", ["graph", "departure", "perturbation", "delta_mean"], prov)
+    c0 = c0[(c0.departure == "none") & c0.graph.isin(yrow)]
+    for r in c0.itertuples():
+        off = fam[r.perturbation][1] * (0.3 if many(r.graph) else 1)
+        ax.plot(r.delta_mean, yrow[r.graph] + off, marker="|", ms=7, mew=1.0, color="k", ls="", zorder=4)
+    prov["no_departure_marks"] = int(len(c0))
+HEAD = {"crowd": "crowd votes", "llm_judge": "LLM judges", "expert": "expert", "sports": "NBA seasons"}
+tick_y, tick_l = [], []
+for des, ytop, ybot, n, listed in blocks:
+    st = design_style(des)
+    ax.annotate(HEAD.get(des, st["label"]) + ("" if listed else f" ({n})"), xy=(0.0, ytop + 0.95), xycoords=("axes fraction", "data"), ha="left", va="center",
+                color=st["color"], fontweight="bold")
+    if listed:
+        for m in sorted(set(df[df.design == des].dataset)): tick_y.append(yrow[m]); tick_l.append(short_name(m))
+ax.set_yticks(tick_y); ax.set_yticklabels(tick_l)
+ax.tick_params(axis="y", length=0); ax.spines["left"].set_visible(False)
+axlim = max(d * 1.15, np.nanmax(np.abs(df[["lo", "hi"]].to_numpy())) * 1.05); ax.set_xlim(-axlim, axlim)
+ax.set_xlabel("$\\Delta$ = mean log\n($Q$ real / $Q$ null)")
+ax.plot([], [], "ko", ms=3, label="deletion"); ax.plot([], [], "ks", ms=3, mfc="white", mew=0.7, label="outcome flip")
+if "no_departure_marks" in prov: ax.plot([], [], "k|", ms=7, mew=1.0, label="synthetic, no departure")
+fig.legend(*ax.get_legend_handles_labels(), loc="lower center", bbox_to_anchor=(0.5, 0.0), ncol=3, handletextpad=0.2)
+ax.set_title("(A)", loc="left", pad=2)
+prov["datasets_drawn"] = int(df.dataset.nunique())
+if mc is not None:
+    bx = axes[0][1]; mc = mc.reset_index(drop=True)
+    bx.axvspan(-d, d, color="0.88", lw=0, zorder=0); bx.axvline(0, color="0.4", lw=0.6)
+    yy, tl, ty = 0.0, [], []
+    mc["ref"] = mc.contrast.str.split("_vs_").str[0]
+    for ref, g in mc.groupby("ref", sort=False):
+        yy -= 1.0; st0 = design_style("crowd" if ref == "arena_crowd" else g.design.iloc[0])
+        bx.annotate("vs. " + {"arena_crowd": "Arena crowd votes"}.get(ref, short_name(ref)), xy=(1.0, yy + 0.95), xycoords=("axes fraction", "data"), ha="right", va="center", color=st0["color"], fontweight="bold")
+        for m, gm in g.groupby("member", sort=False):
+            st = design_style(gm.design.iloc[0])
+            for r in gm.itertuples():
+                mk, off = fam.get(r.perturbation, ("o", 0))
+                bx.plot([r.paired_lo, r.paired_hi], [yy + off * 0.5, yy + off * 0.5], color=st["color"], lw=0.7)
+                bx.plot(r.paired_diff, yy + off * 0.5, marker=mk, ms=3, color=st["color"], mfc=st["color"] if r.perturbation == "delete" else "white", mew=0.7)
+            tl.append(short_name(m).replace("MT-Bench ", "")); ty.append(yy); yy -= 1.0
+        yy -= 0.4
+    bx.set_yticks(ty); bx.set_yticklabels(tl); bx.set_ylim(0.4 - span, 0.4); bx.tick_params(axis="y", length=0); bx.spines["left"].set_visible(False)
+    xm = max(d * 1.15, np.nanmax(np.abs(mc[["paired_lo", "paired_hi"]].to_numpy())) * 1.1); bx.set_xlim(-xm, xm)
+    bx.set_xlabel("$\\Delta$(member) $-$\n$\\Delta$(reference)"); bx.set_title("(B)", loc="left", pad=2)
+    prov["matched_members_drawn"] = int(mc.member.nunique())
+fig.savefig(os.path.join(a.out, "fig4.pdf")); write_prov(a.out, "fig4", prov)

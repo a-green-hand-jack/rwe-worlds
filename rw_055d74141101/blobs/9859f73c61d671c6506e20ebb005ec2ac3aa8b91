@@ -1,0 +1,63 @@
+"""Synthetic BT check (all data here are SYNTHETIC): does k* scale as z*sqrt(N)?  Is Q = k* gmax / gap >= 1 and what is its level
+for a correctly specified BT model on dense and sparse graphs, with and without ties?  usage: 04_synthetic.py [--reps 3]"""
+import argparse, os, sys, time
+import numpy as np, pandas as pd
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src")); sys.path.insert(0, os.path.dirname(__file__))
+import btlib as B, analysis as A
+from core01 import OUT
+
+
+def make_instance(M, N, density, tie, rng, sigma=0.6):
+    th = np.sort(rng.normal(0, sigma, M))[::-1]
+    th -= th.mean()
+    allp = [(i, j) for i in range(M) for j in range(i + 1, M)]
+    keep = [p for p in allp if rng.random() < density]
+    # connected backbone: chain
+    keep = sorted(set(keep) | {(i, i + 1) for i in range(M - 1)})
+    pa = np.array([p[0] for p in keep]); pb = np.array([p[1] for p in keep])
+    wts = rng.dirichlet(np.full(len(keep), 2.0))  # heterogeneous pair frequencies
+    n = rng.multinomial(N, wts)
+    p = B.sigmoid(th[pa] - th[pb])
+    t = np.minimum(tie, 2 * np.minimum(p, 1 - p))
+    probs = np.clip(np.stack([p - t / 2, 1 - p - t / 2, t], 1), 0, None)
+    probs /= probs.sum(1, keepdims=True)
+    cnt = np.array([rng.multinomial(n[i], probs[i]) for i in range(len(keep))], dtype=float)
+    ci = np.repeat(pa, n); cj = np.repeat(pb, n)
+    g = B.Graph(M, pa, pb)
+    return g, cnt, th
+
+
+def main():
+    ap = argparse.ArgumentParser(); ap.add_argument("--reps", type=int, default=3); ap.add_argument("--seed", type=int, default=0)
+    a = ap.parse_args()
+    rows = []
+    t0 = time.time()
+    for rep in range(a.reps):
+        for M in (12, 30):
+            for N in (2000, 8000, 32000, 128000):
+                for density in (1.0, 0.25):
+                    for tie in (0.0, 0.3):
+                        rng = np.random.default_rng([a.seed, rep, M, N, int(density * 100), int(tie * 10)])
+                        g, cnt, th_true = make_instance(M, N, density, tie, rng)
+                        th, H = B.fit(g, cnt, return_H=True)
+                        Hinv = np.linalg.inv(H)
+                        order = np.argsort(-th)
+                        pairs = [(order[r], order[s]) for r in range(M) for s in range(r + 1, M)]
+                        sel = rng.choice(len(pairs), min(60, len(pairs)), replace=False)
+                        for fam in ("delete", "flip"):
+                            ty = B.Types(g, fam)
+                            for i in sel:
+                                x, y = pairs[i]
+                                d = B.make_d(M, x, y)
+                                r = B.kstar(g, ty, cnt, d, th)
+                                se = np.sqrt(d @ Hinv @ d)
+                                rows.append(dict(rep=rep, M=M, N=N, density=density, tie=tie, family=fam, gap=r["gap0"], se=se,
+                                                 z=r["gap0"] / se, k_ver=r["k_ver"], k_lin=r["k_lin"], gmax=r["gmax"],
+                                                 true_gap=th_true[x] - th_true[y], pairs=g.P))
+                        print(rep, M, N, density, tie, round(time.time() - t0), flush=True)
+    os.makedirs(f"{OUT}/synthetic", exist_ok=True)
+    pd.DataFrame(rows).to_parquet(f"{OUT}/synthetic/bt_check.parquet")
+
+
+if __name__ == "__main__":
+    main()

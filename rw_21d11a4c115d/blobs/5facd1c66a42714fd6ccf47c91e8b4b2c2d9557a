@@ -1,0 +1,12 @@
+{
+ "table": "table2_kstar",
+ "split": "grouped",
+ "selector": "greedyA",
+ "reference": "lobo",
+ "design": "fixed",
+ "inputs": {
+  "kstar.csv": "3657dab512a5",
+  "h1.csv": "aa5d4ddb71a2",
+  "gap.csv": "c8dddd8293e9"
+ }
+}

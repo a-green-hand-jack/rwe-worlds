@@ -1,0 +1,17 @@
+# What do source models buy? Design-based benchmark prediction from a few items
+
+Delivered paper (NeurIPS 2026 format) with its code, result tables and the scripts of every figure and table.
+
+| path | what |
+|---|---|
+| `paper/main.tex`, `paper/sections/`, `paper/appendix/`, `paper/references.bib` | the paper: abstract, introduction, related work, setting and method, experimental setup, results, discussion and limitations, appendix (extended related work, data audit, additional tables and figures, reproducibility) and the filled NeurIPS checklist (`sections/checklist.tex`); `paper/template/` is the venue template |
+| `code/` | the analysis code (`src/`, `scripts/`), the protocol, the aggregate result tables (`results/`) and the instructions: start with `code/README.md` (environment, data, commands, seeds, compute) and `code/REPRO_NOTES.md` (an accidental exposure to reserved material, disclosed) |
+| `figures/`, `tables/` | the figures and tables the paper includes, `figures/scripts/` the scripts that draw them from `code/results/`, `figures/README.md` the map from each output to its script and result file, `tables/captions.md` the captions and notes |
+
+## Reproduce
+
+1. Data and experiments: `code/README.md` (`bash code/scripts/00_download.sh`, then `bash code/scripts/run_all.sh 8`, about 4.7 CPU-hours for the main runs and the sensitivity splits; the aggregate results of the paper are already in `code/results/`).
+2. Figures and tables from `code/results/`: `sh figures/scripts/make_all.sh` from this directory (about 40 s; needs Python 3 with numpy, pandas and matplotlib).
+3. The PDF: `cd paper && latexmk -pdf main.tex` (TeX Live; `\input` paths point at `../figures` and `../tables`).
+
+Which script makes which table or figure is in `figures/README.md`; which analysis script writes which result file is in `code/README.md`.

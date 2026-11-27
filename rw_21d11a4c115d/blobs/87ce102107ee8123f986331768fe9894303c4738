@@ -1,0 +1,9 @@
+dataset,split,selector,predictor,level,reference,kstar,censored,grid_max,r_eff,participation_ratio,h1_outcome,kstar_ci_lo,kstar_ci_hi,share_censored_boot,k_plateau10,kstar_fa_only
+helm_mmlu,grouped,greedyA,headline,0.9,lobo,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,2.0,0.0,,1.0
+helm_mmlu,random,greedyA,headline,0.9,lobo,1.0,False,20,2,1.552639221318274,dominated by general factor,1.0,2.0,0.0,,1.0
+mteb_eng,grouped,greedyA,headline,0.9,lobo,9.0,False,30,4,2.081138644654182,above window,3.0,31.0,0.0295,,20.0
+mteb_eng,random,greedyA,headline,0.9,lobo,10.0,False,30,4,2.081138644654182,above window,3.0,20.0,0.009,,20.0
+mteb_eng,time,greedyA,headline,0.9,lobo,30.0,False,30,4,2.081138644654182,above window,5.0,31.0,0.3155,,
+mteb_multi,grouped,greedyA,headline,0.9,lobo,30.0,False,30,10,2.914375689604754,above window,8.0,31.0,0.265,,
+mteb_multi,random,greedyA,headline,0.9,lobo,30.0,False,30,10,2.914375689604754,above window,8.0,31.0,0.1835,,
+mteb_multi,time,greedyA,headline,0.9,lobo,15.0,False,30,10,2.914375689604754,knee near r_eff,7.0,31.0,0.033,,

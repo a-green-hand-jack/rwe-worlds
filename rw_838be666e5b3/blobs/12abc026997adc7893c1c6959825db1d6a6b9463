@@ -1,0 +1,65 @@
+"""E9: the lambda clip of ppi-python 0.2.3 (synthetic sweep over the slope b of Y on f, known truth).
+Population: f ~ N(0,1), Y = b f + sigma eps, truth E[Y] = 0, Var f = 1, Var(Y|f) = sigma^2 (E[Y|f] affine, so Delta = 0 and the
+whole difference between the package and the unclipped PPI++ is the clip). In the pooled parametrisation (M = n+N) PPI++ with
+tuning lambda is the control variate g = c f with c = lambda M/N; the package restricts lambda to [0,1], i.e. c to [0, M/N]; the
+optimal c is b (lambda* = b N/M). Arms on the same draws: `pkg` (package PPI++, clipped lambda-hat), `unclip` (same lambda-hat, no clip),
+`pkg_oracle` / `unclip_oracle` (lambda fixed at clip(b N/M, 0, 1) / b N/M: no estimation of lambda), `classical`.
+Stored per cell: est, se of every arm and the lambda-hat before the clip.
+usage: python exp9_clip.py B_INDEX     (B_INDEX selects one b of B_GRID; one job per b; resumable)"""
+import sys
+from common import *
+from pci import estimators as E
+
+B_GRID = [-0.5, 0.0, 0.8, 1.0, 1.2, 1.5, 2.0]
+SIGMA = 0.6
+N_MAIN = 10000
+
+
+def cells_for(b):
+    cs = []
+    for n in (30, 100, 300, 1000, 3000):
+        cs.append((n, N_MAIN, SIGMA, 4000 if n >= 300 else 8000))
+    for N in (300, 1200):                        # N/n = 1 and 4 at n = 300
+        cs.append((300, N, SIGMA, 4000))
+    if b in (1.2, 1.5, 2.0):                     # noise level (R^2 of the predictor): sigma in {0.3, 1.5}
+        for sg in (0.3, 1.5):
+            for n in (100, 1000):
+                cs.append((n, N_MAIN, sg, 4000))
+    return cs
+
+
+def run(b, n, N, sg, R):
+    cid = f"b{b}_s{sg}_n{n}_N{N}"
+    out = os.path.join(RESULTS, "exp9", cid + ".npz")
+    if os.path.exists(out):
+        return
+    seed = 20261126 + hash_id(cid) % 10**6
+    M = n + N
+    lam_or = b * N / M
+    arms = ("pkg", "unclip", "pkg_oracle", "unclip_oracle", "classical")
+    est = {a: np.empty(R) for a in arms}; se = {a: np.empty(R) for a in arms}
+    lam_hat = np.empty(R)
+    t0 = time.time()
+    for r in range(R):
+        rng = np.random.default_rng(np.random.SeedSequence([seed, r]))
+        f = rng.normal(size=M)
+        y = b * f[:n] + sg * rng.normal(size=n)
+        fl, fu = f[:n], f[n:]
+        est["pkg"][r], se["pkg"][r] = E.ppi_arm(y, fl, fu, None)
+        est["unclip"][r], se["unclip"][r], lam_hat[r] = E.ppi_arm_unclipped(y, fl, fu)
+        est["pkg_oracle"][r], se["pkg_oracle"][r] = E.ppi_arm(y, fl, fu, float(np.clip(lam_or, 0, 1)))
+        est["unclip_oracle"][r], se["unclip_oracle"][r] = E.ppi_arm(y, fl, fu, lam_or)
+        est["classical"][r], se["classical"][r] = E.classical_arm(y)
+    d = {f"{a}|est": est[a] for a in arms}
+    d.update({f"{a}|se": se[a] for a in arms})
+    d["lam_hat_unclipped"] = lam_hat
+    d["_meta"] = np.array(json.dumps(dict(id=cid, b=b, sigma=sg, n=n, N=N, R=R, seed=seed, truth=0.0, seconds=time.time() - t0)))
+    np.savez_compressed(out, **d)
+    print(f"[exp9] {cid} R={R} {time.time()-t0:.0f}s frac(lam_hat>1)={np.mean(lam_hat>1):.3f}", flush=True)
+
+
+if __name__ == "__main__":
+    b = B_GRID[int(sys.argv[1])]
+    os.makedirs(os.path.join(RESULTS, "exp9"), exist_ok=True)
+    for n, N, sg, R in cells_for(b):
+        run(b, n, N, sg, R)

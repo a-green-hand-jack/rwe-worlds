@@ -1,0 +1,4 @@
+__pycache__/
+figtab/__pycache__
+tables/tab_full_grid.tex
+tables/tab_not_run.tex

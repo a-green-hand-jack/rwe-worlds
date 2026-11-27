@@ -1,0 +1,125 @@
+"""Table 2 (C6): the acceptance rule specified before the runs, criterion by criterion: value, threshold, 95% group-resampling interval, met,
+and the absolute held-out R^2 of log|bias| of each part-(ii) predictor beside its gain. Rows outside the verdict (exploratory
+variants) are in their own block and labelled; the reference predictors (constant, population-OLS prediction, degree benchmark) close the table.
+Every number is read from `acceptance.csv`, `claims/c6_verdict.csv` and `bias_reference.csv` of the analysis results.
+Usage: t2_acceptance.py RESULTS_DIR OUT_DIR
+"""
+import argparse
+import pathlib
+
+import numpy as np
+import pandas as pd
+
+import common
+
+ap = argparse.ArgumentParser()
+ap.add_argument("data"); ap.add_argument("out")
+a = ap.parse_args()
+data = pathlib.Path(a.data)
+acc = pd.read_csv(data / "acceptance.csv")
+ver = pd.read_csv(data / "claims" / "c6_verdict.csv")
+ref = pd.read_csv(data / "bias_reference.csv").set_index("predictor").held_out_r2_log_abs_bias
+p7 = pd.read_csv(data / "p7" / "p7_confirmatory.csv")
+p7 = p7[p7.counted_in_verdict].iloc[0]
+ab = pd.read_csv(data / "diagnostic_absolute.csv")
+ab = ab[(ab.variant == "pre-registered") & (ab.group == "pooled")].set_index(["holdout", "predictor"]).held_out_r2
+ab_exp = pd.read_csv(data / "diagnostic_absolute.csv")
+ab_exp = ab_exp[(ab_exp.variant == "exploratory: noise-adjusted S") & (ab_exp.group == "pooled")].set_index(["holdout", "predictor"]).held_out_r2
+_, meta = common.load(a.data, "acceptance")
+o = common.out_dir(meta, a.out)
+
+
+def get(variant, crit):
+    r = acc[(acc.variant == variant) & acc.criterion.str.contains(crit, regex=False)]
+    assert len(r) == 1, (variant, crit, len(r))
+    return r.iloc[0]
+
+
+def n(x, nd=2):
+    return "$" + f"{x:.{nd}f}".replace("-", "-") + "$"
+
+
+def val(r, nd=3):
+    s = n(r.value, nd)
+    if np.isfinite(r.ci_lo):
+        s += f" [{n(r.ci_lo, nd)}, {n(r.ci_hi, nd)}]"
+    return s
+
+
+PRE, EXP = "pre-registered", "exploratory"
+TH = r"$\geq0.05$, CI\,$>0$"
+LOMO, LOFO = "leave-one-mechanism-out", "leave-one-family-out"
+SC = "combined score: "
+B2 = "part (ii) bias: held-out R2 of log|bias| for "
+rows = [  # (block, label, acceptance row, threshold text, absolute R2 of log|bias| (key into bias_reference) or None, decimals)
+    ("pre", "(1) Pooled held-out $R^2$ gain, combined score, leave one mechanism out", get(PRE, SC + "pooled held-out R2 gain over best benchmark, " + LOMO), TH, ab[("mechanism", "combined score")], 3),
+    ("pre", "(1$'$) same, leave one family out", get(PRE, SC + "pooled held-out R2 gain over best benchmark, " + LOFO), TH, ab[("family", "combined score")], 3),
+    ("pre", "(2) Mechanisms with positive gain (of 6)", get(PRE, SC + "held-out groups with positive gain (" + LOMO), r"$\geq4$", None, 0),
+    ("pre", "(2) Lowest pooled gain after deleting any one mechanism", get(PRE, SC + "lowest pooled gain after deleting any single group (" + LOMO), r"$\geq0.05$", None, 3),
+    ("pre", "(3i) Part (i), variance: gain of $L$ over best degree benchmark, D$^*$ cells, leave one family out",
+     get(PRE, "part (i) variance: held-out R2 gain of L over best degree benchmark, D*, cell misfit share"), TH, None, 3),
+    ("pre", "(3ii) Part (ii), bias: corner distance $\\times$ curvature, gain over $p(1-p)$", get(PRE, B2 + "corner x curvature minus"), TH, "corner x curvature", 3),
+    ("pre", "(3ii$'$) Part (ii), bias: spec disagreement $\\bar S$, gain over $p(1-p)$", get(PRE, B2 + "S_bar minus"), TH, "S_bar", 3),
+    ("pre", "(4) Within-cell Spearman excess of $S$ over the null simulation", get(PRE, "within-cell: median Spearman excess over null simulation, S (centred"), r"CI above 0", None, 4),
+    ("pre", "(4) Median excess of $S$ above that of the bootstrap SE", get(PRE, "within-cell: median excess of S exceeds that of the bootstrap SE"), r"$>0$", None, 4),
+    ("exp", "Noise-adjusted $S_{\\mathrm{adj}}$: combined, leave one mechanism out", get(EXP + ": noise-adjusted S", SC + "pooled held-out R2 gain over best benchmark, " + LOMO), TH, ab_exp[("mechanism", "combined score")], 3),
+    ("exp", "Noise-adjusted $S_{\\mathrm{adj}}$: part (ii), bias, gain over $p(1-p)$", get(EXP, B2 + "S_adj (exploratory) minus"), TH, "S_adj (exploratory)", 3),
+    ("exp", "Noise-free $S_{\\mathrm{sig}}$ (ceiling): part (ii), bias, gain over $p(1-p)$", get(EXP, B2 + "S_sig (noise-free ceiling) minus"), TH, None, 3),
+]
+overall = ver.overall_verdict.unique()
+assert len(overall) == 1
+overall = overall[0]
+# the verdict table must carry the same values as the acceptance table
+for k, sub in [("(1)", rows[0][2]), ("(3i)", rows[4][2]), ("(3ii)", rows[5][2])]:
+    v = ver[ver.criterion.str.startswith(k + " ")]
+    assert len(v) == 1 and abs(v.value.iloc[0] - sub.value) < 1e-9, k
+met_expected = [r[2].met for r in rows if r[0] == "pre"]
+
+t = [r"\begingroup\footnotesize\setlength{\tabcolsep}{2.5pt}", r"\begin{tabular}{@{}>{\raggedright\arraybackslash}p{4.2cm}lcccc@{}}", "\\toprule",
+     "Criterion & Threshold & Value [95\\% CI] & \\multicolumn{2}{c}{Absolute $R^2$ of} & Met \\\\",
+     "\\cmidrule(lr){4-5}", " & & & $\\log$ RMSE & $\\log|\\mathrm{bias}|$ & \\\\", "\\midrule",
+     "\\multicolumn{6}{@{}l}{\\emph{Rule specified before the runs}} \\\\"]
+out = []
+block = "pre"
+for b, lab, r, th, absk, nd in rows:
+    if b != block:
+        t.append("\\midrule")
+        t.append("\\multicolumn{6}{@{}l}{\\emph{Exploratory, outside the verdict}} \\\\")
+        block = b
+    absv = absk if isinstance(absk, float) else (ref[absk] if absk else None)
+    is_rmse = isinstance(absk, float)
+    cell_rmse = n(absv) if (absv is not None and is_rmse) else "--"
+    cell_bias = n(absv) if (absv is not None and not is_rmse) else "--"
+    t.append(f"{lab} & {th} & {val(r, nd)} & {cell_rmse} & {cell_bias} & {'yes' if r.met else 'no'} \\\\")
+    out.append(dict(block=b, criterion=lab, value=r.value, ci_lo=r.ci_lo, ci_hi=r.ci_hi, threshold=r.threshold, met=bool(r.met), abs_r2=absv if absv is not None else np.nan, abs_r2_target=("log RMSE" if isinstance(absk, float) else "log|bias|" if absk else ""),
+                    counted_in_verdict=r.counted if "counted" in r else np.nan))
+# confirmatory block (frozen coefficients, new seeds and graphs): outside the verdict, one row per criterion of its own rule
+t.append("\\midrule")
+t.append(f"\\multicolumn{{6}}{{@{{}}l}}{{\\emph{{Confirmatory block ({int(p7.cells)} new cells, coefficients frozen before the runs), outside the verdict}}}} \\\\")
+lab = "$S_{\\mathrm{adj}}$ with corner $\\times$ curvature: gain over $p(1-p)$, bias"
+t.append(f"{lab} & {TH} & {n(p7.gain, 3)} [{n(p7.gain_lo, 3)}, {n(p7.gain_hi, 3)}] & -- & {n(p7.r2_vs_confirmatory_mean, 3)} & {'yes' if p7.crit2_gain_ge_005_ci_gt_0 else 'no'} \\\\")
+out.append(dict(block="conf", criterion=lab, value=p7.gain, ci_lo=p7.gain_lo, ci_hi=p7.gain_hi, met=bool(p7.crit2_gain_ge_005_ci_gt_0), abs_r2=p7.r2_vs_confirmatory_mean, abs_r2_target="log|bias|"))
+lab = f"Groups with positive gain (of {int(p7.n_groups)})"
+t.append(f"{lab} & $\\geq{int(p7.groups_needed)}$ & ${int(p7.groups_with_positive_gain)}$ & -- & -- & {'yes' if p7.crit3_ge_two_thirds_of_groups else 'no'} \\\\")
+out.append(dict(block="conf", criterion=lab, value=p7.groups_with_positive_gain, met=bool(p7.crit3_ge_two_thirds_of_groups)))
+t.append("\\midrule")
+t.append("\\multicolumn{6}{@{}l}{\\emph{Reference predictors of $\\log|\\mathrm{bias}|$}} \\\\")
+for lab, k in [("Population-OLS prediction (needs the true response; ceiling, not a competitor)", "exact theory (not data-computable)"),
+               ("Best degree benchmark, $p(1-p)$", "p(1-p)"),
+               ("Constant (mean of the training groups)", "constant (held-out training mean)")]:
+    t.append(f"{lab} & & & & {n(ref[k])} & \\\\")
+    out.append(dict(block="ref", criterion=lab, abs_r2=ref[k], abs_r2_target="log|bias|"))
+t.append("\\midrule")
+t.append("\\multicolumn{6}{@{}l}{\\emph{Reference predictors of $\\log\\mathrm{RMSE}$ (leave one mechanism / family out)}} \\\\")
+for lab, k in [("Best degree benchmark, $np(1-p)/d$", "best degree benchmark (n p(1-p)/d)"), ("Leverage $L$ only", "variance only (L)"),
+               ("Controls only ($\\log n$, $\\log\\sigma^2$)", "controls only (log n, log sigma^2)"), ("Constant (mean of the training groups)", "constant only (training-group mean)")]:
+    m_, f_ = ab[("mechanism", k)], ab[("family", k)]
+    t.append(f"{lab} & & & {n(m_)} / {n(f_)} & & \\\\")
+    out.append(dict(block="ref_rmse", criterion=lab, abs_r2_lomo=m_, abs_r2_lofo=f_, abs_r2_target="log RMSE"))
+t.append("\\midrule")
+t.append(f"\\multicolumn{{6}}{{@{{}}l}}{{\\textbf{{Verdict: {overall}}} (all four criteria are required)}} \\\\")
+t += ["\\bottomrule", "\\end{tabular}", "\\endgroup"]
+(o / "t2_acceptance.tex").write_text("\n".join(t) + "\n")
+pd.DataFrame(out).to_csv(o / "t2_acceptance.csv", index=False)
+ver.to_csv(o / "t2_verdict_source.csv", index=False)
+print("rule specified before the runs, met:", met_expected, "verdict:", overall)

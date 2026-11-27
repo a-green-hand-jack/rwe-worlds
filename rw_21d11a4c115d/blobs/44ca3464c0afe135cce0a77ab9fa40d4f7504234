@@ -1,0 +1,47 @@
+"""Step 2b: graded-density subsets of the sparse MTEB model x task matrix (cells may be missing) -> data_out/sparse_<name>.npz.
+Sparse matrix: <parsed_dir>/mteb_sparse.parquet (535 models x 1256 tasks, density 0.122; build_mteb_matrix.py). 'eng' restricts to tasks whose languages are all English
+(the rule of make_pools.py before de-duplication); 'all' keeps every task.
+Subsets: <pool>_full  = every model with >=1 cell, tasks with >= MINCOV observed models (no further trimming);
+         <pool>_dNN   = greedy trimming (delete the model or task with the highest share of missing cells, rows on ties) until the density first reaches NN %.
+Family keys, release time and parameter counts as in build_datasets.py (same rules, same function).
+Run: python3 build_sparse_subsets.py <parsed_dir> <out_dir>"""
+import sys, re, json, numpy as np, pandas as pd
+d, out = sys.argv[1:3]
+MINCOV = 20
+DROP = re.compile(r"^(base|large|small|xs|s|m|l|xl|xxl|mini|tiny|micro|medium|nano|light|instruct|chat|turbo|long|en|unsupervised|"
+                  r"v\d+(\.\d+)*|\d+(\.\d+)?[bmk]?|\d+[bm]|r\d|cased|uncased|distil\w*|multilingual|mt|nlu|sts|all|supervised|mntp|\d+x\d+b)$")
+def mteb_family(model):   # identical to build_datasets.mteb_family
+    org, _, name = model.partition("__")
+    toks = [t for t in re.split(r"[-_. ]+", name.lower()) if t]
+    rest = [t for t in toks if not DROP.match(t)] or toks[:1]
+    return org.lower() + "|" + "-".join(rest[:2]), org.lower()
+W = pd.read_parquet(f"{d}/mteb_sparse.parquet"); mi = pd.read_parquet(f"{d}/mteb_models.parquet"); L = json.load(open(f"{d}/mteb_task_langs.json"))
+eng = [t for t, l in L.items() if l and all(x.startswith("eng") for x in l) and t in W.columns]
+def trim(B, targets):
+    r = np.ones(B.shape[0], bool); c = np.ones(B.shape[1], bool); got = {}
+    while True:
+        sub = B[np.ix_(r, c)]; dens = sub.mean(); M, N = sub.shape
+        for t in targets:
+            if t not in got and dens >= t: got[t] = (r.copy(), c.copy())
+        if len(got) == len(targets) or M < 30 or N < 20: return got
+        mr = 1 - sub.mean(1); mc = 1 - sub.mean(0); ri = mr.argmax(); ci = mc.argmax()
+        if mr[ri] >= mc[ci]: r[np.where(r)[0][ri]] = False
+        else: c[np.where(c)[0][ci]] = False
+rows = []
+def save(name, P):
+    ms = list(P.index); fam = [mteb_family(m) for m in ms]
+    rel = pd.Series(pd.to_datetime(mi.loc[ms, "release_date"]).dt.as_unit("s").astype("int64"))
+    np.savez_compressed(f"{out}/sparse_{name}.npz", X=P.values.astype(float), models=np.array(ms), tasks=np.array(P.columns), family=np.array([f[0] for f in fam]),
+                        family_org=np.array([f[1] for f in fam]), release_ts=rel.values, n_params=mi.loc[ms, "n_parameters"].values.astype(float))
+    ob = P.notna().values; per = ob.sum(1)
+    rows.append(dict(subset=name, n_models=P.shape[0], n_tasks=P.shape[1], density=ob.mean(), median_cells_per_model=float(np.median(per)),
+                     models_ge30_cells=int((per >= 30).sum()), median_models_per_task=float(np.median(ob.sum(0))), n_families=len(set(f[0] for f in fam)), n_orgs=len(set(f[1] for f in fam))))
+    print(rows[-1])
+for pool, cols in (("eng", eng), ("all", list(W.columns))):
+    S = W[cols]; S = S.loc[:, S.notna().sum() >= MINCOV]; S = S.loc[S.notna().sum(1) >= 1]
+    if pool == "eng": save("eng_full", S)
+    got = trim(S.notna().values, (0.3, 0.5, 0.7))
+    for t, (r, c) in got.items():
+        if pool == "all" and t == 0.7: continue
+        save(f"{pool}_d{int(t * 100)}", S.loc[r, c])
+pd.DataFrame(rows).to_csv(f"{out}/../sparse_subsets.csv", index=False)

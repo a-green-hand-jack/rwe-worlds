@@ -1,0 +1,47 @@
+"""Fig. 1: protocol schematic (no result data). usage: python3 figures/scripts/fig1_protocol.py OUT_PDF"""
+import sys
+import matplotlib.pyplot as plt
+from matplotlib.patches import FancyBboxPatch, FancyArrowPatch
+sys.path.insert(0, __file__.rsplit("/", 1)[0])
+import style
+
+style.apply()
+W, H = style.TEXT_WIDTH_IN, 1.6
+FS = 7.5
+fig, ax = plt.subplots(figsize=(W, H))
+fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
+ax.set_xlim(0, W); ax.set_ylim(0, H); ax.axis("off")
+
+
+def box(x, y, w, h, text, fc="#F2F2F2"):
+    ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.015,rounding_size=0.05",
+                                fc=fc, ec="black", lw=0.6))
+    ax.text(x + w / 2, y + h / 2, text, ha="center", va="center", fontsize=FS, linespacing=1.15)
+
+
+def arrow(x0, y0, x1, y1):
+    ax.add_patch(FancyArrowPatch((x0, y0), (x1, y1), arrowstyle="-|>", mutation_scale=7, lw=0.7, color="black"))
+
+
+bw, bh, by, gap = 1.2, 0.58, 0.98, 0.213
+xs = [0.03 + k * (bw + gap) for k in range(4)]
+box(xs[0], by, bw, bh, "source models\n$M$ models, $N$ items\n(0/1 results)")
+box(xs[1], by, bw, bh, "design\npicks $n$ items $S$\nfrom sources only")
+box(xs[2], by, bw, bh, "target model\nruns only $S$\n$\\Rightarrow$ $n$ answers")
+box(xs[3], by, bw, bh, "estimator\nfrom the answers\nand the sources")
+box(xs[3], 0.40, bw, 0.34, "true full score\nover all $N$ items", fc="#FFFFFF")
+for k in range(3):
+    arrow(xs[k] + bw + 0.02, by + bh / 2, xs[k + 1] - 0.02, by + bh / 2)
+xc = xs[3] + bw / 2
+arrow(xc, by - 0.02, xc, 0.76)
+ax.text(xc - 0.05, 0.87, "error", fontsize=FS, ha="right", va="center")
+ax.text(0.03, 0.74, "three target splits (which models play the target):", fontsize=FS, ha="left", va="center", fontweight="bold")
+rows = [("interpolation", "random held-out models (variant: own family removed)"),
+        ("extrapolation", "held-out models stronger than every source"),
+        ("lineage-held-out", "whole model lineages held out")]
+for k, (a, b) in enumerate(rows):
+    y = 0.53 - 0.17 * k
+    ax.text(0.10, y, a, fontsize=FS, ha="left", va="center", style="italic")
+    ax.text(1.20, y, b, fontsize=FS, ha="left", va="center")
+plt.rcParams["savefig.bbox"] = "standard"
+fig.savefig(sys.argv[1])

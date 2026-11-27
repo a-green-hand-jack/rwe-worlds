@@ -1,0 +1,32 @@
+import json,re,fitz,glob,statistics as S
+st=json.load(open('/hutian/ac/stats.json')); s2=json.load(open('/hutian/ac/s2.json'))
+rows=[]
+for s in st:
+    k=s['key']; d=s2.get(k)
+    ref=d['data'][0]['referenceCount'] if d and d.get('data') else s['nref']
+    if k=='2024_51173cf3': ref=None
+    mainp=s['refpage']-1+s['refpos_frac']
+    d_=fitz.open(f'/hutian/ac/pdf/{k}.pdf')
+    p0=d_[0].get_text(); 
+    am=re.search(r'Abstract\s*\n(.*?)\n\s*1\s+Introduction',p0,re.S|re.I)
+    ab=am.group(1) if am else ''
+    # intro text
+    full='\n'.join(p.get_text() for p in d_[:s['refpage']])
+    im=re.search(r'\n\s*1\s+Introduction\s*\n(.*?)\n\s*2\s+[A-Z]',full,re.S)
+    intro=im.group(1) if im else ''
+    hasnum=bool(re.search(r'\d',ab)); 
+    contrib=bool(re.search(r'contribution|we make the following|our main',intro,re.I))
+    bullets=len(re.findall(r'^\s*[•\-–·]\s',intro,re.M))
+    # sections count (top-level numbered)
+    secs=len(set(re.findall(r'^\s*(\d{1,2})\s+[A-Z][A-Za-z ,:\-]{2,50}$',full,re.M)))
+    lim=bool(re.search(r'^\s*\d?\.?\d*\s*Limitations?',full,re.M|re.I))
+    r=dict(k=k,mainp=round(mainp,2),figs=s['figs'],tabs=s['tabs'],ref=ref,abw=len(ab.split()) or None,introw=len(intro.split()) or None,contrib=contrib,bullets=bullets,ab_has_number=hasnum if ab else None,fig1_early=s['fig1_in_first2'],limitations=lim)
+    rows.append(r); print(r)
+def q(xs):
+    xs=[x for x in xs if x is not None]; xs.sort()
+    return dict(n=len(xs),min=xs[0],med=S.median(xs),max=xs[-1],mean=round(S.mean(xs),1))
+for f in ('mainp','figs','tabs','ref','abw','introw'):
+    print(f,q([r[f] for r in rows]))
+print('figs+tabs',q([r['figs']+r['tabs'] for r in rows]))
+print('fig1 early',sum(r['fig1_early'] for r in rows),'contrib',sum(r['contrib'] for r in rows),'abs num',sum(bool(r['ab_has_number']) for r in rows if r['ab_has_number'] is not None))
+json.dump(rows,open('/hutian/ac/summary.json','w'),indent=1)

@@ -1,0 +1,140 @@
+"""Interference mechanisms (a)-(f), calibrated so that the GATE tau = mean_i Y_i(1) - Y_i(0) = 1
+for every spillover share s. Y = a_i + treatment part; the treatment part is
+ (a) linear in the treated-neighbour fraction f:        (1-s) z + s f
+ (b) linear in the treated-neighbour count, degree-scaled: (1-s) z + s c/dbar
+ (c) saturating in f:                                    (1-s) z + s g(f), g=(1-exp(-KAPPA f))/(1-exp(-KAPPA))
+ (d) threshold (complex contagion):                      (1-s) z + s 1[f >= THETA]
+ (e) K-step peer-effect diffusion:                       (1-rho) sum_{k<=KSTEP} rho^k W^k z, rho = s
+ (f) direct x exposure interaction:                      (1-s) z + (s/2) f + (s/2) z f
+ (g) convex mirror of (c), extension runs only:          (1-s) z + s g_conv(f)
+ (h) sigmoid in f, confirmatory runs only:               (1-s) z + s g_sig(f), g_sig logistic in SIGK (f - 1/2), rescaled to g_sig(0)=0, g_sig(1)=1
+Spillover share s is the nominal share of tau that is not the own-treatment coefficient. The
+realised DM bias is measured in every cell (it equals s only under Bernoulli for a-e)."""
+import os
+
+import numpy as np
+
+KAPPA = 3.0
+THETA = 0.6
+KSTEP = 30
+SIGK = 6.0
+# GATE_MECHS / GATE_SHARES override the column set for the extension runs (fine s grid; convex mirror g). The frozen
+# main runs use the defaults.
+MECHS = list(os.environ.get("GATE_MECHS", "abcdef"))
+SHARES = [float(x) for x in os.environ.get("GATE_SHARES", "0.25,0.5,0.75").split(",")]
+# column order of every outcome matrix: the null (s=0, mechanism-free) then mech x share
+COLS = [("0", 0.0)] + [(m, s) for m in MECHS for s in SHARES]
+J = len(COLS)
+
+
+def g_sat(f, kappa=KAPPA):
+    return (1 - np.exp(-kappa * f)) / (1 - np.exp(-kappa))
+
+
+def g_conv(f, kappa=KAPPA):
+    """convex mirror of g_sat: 1 - g_sat(1 - f); (g): increasing returns to the treated fraction"""
+    return (np.exp(-kappa * (1 - f)) - np.exp(-kappa)) / (1 - np.exp(-kappa))
+
+
+def g_sig(f, k=SIGK):
+    """logistic in k (f - 1/2), rescaled so that g_sig(0) = 0 and g_sig(1) = 1 (mechanism (h))"""
+    lo, hi = 1 / (1 + np.exp(k / 2)), 1 / (1 + np.exp(-k / 2))
+    return (1 / (1 + np.exp(-k * (f - 0.5))) - lo) / (hi - lo)
+
+
+def thr(f, theta=THETA):
+    return (f >= theta - 1e-12).astype(float)
+
+
+class Exposure:
+    """exposure vectors of one assignment z on graph g: f (fraction), c (count), W^k z"""
+    def __init__(self, g, z, kmax=2):
+        self.z = z
+        Zk = [z]
+        for _ in range(kmax):
+            Zk.append(g.W @ Zk[-1])
+        self.Zk = Zk
+        self.f = Zk[1]
+        self.f2 = Zk[2] if kmax >= 2 else None
+        self.c = g.A @ z
+
+
+def corner(g, value, kmax=2):
+    z = np.full(g.n, float(value))
+    e = Exposure.__new__(Exposure)
+    e.z = z
+    e.Zk = [z] + [z.copy() for _ in range(kmax)]
+    e.f = z.copy()
+    e.f2 = z.copy()
+    e.c = g.deg * value
+    return e
+
+
+def diffusion(g, z, kstep=KSTEP):
+    out = [z]
+    for _ in range(kstep):
+        out.append(g.W @ out[-1])
+    return np.stack(out, 1)  # n x (kstep+1): W^k z
+
+
+def outcomes(g, z, E, D, base):
+    """noise-free outcomes, n x J. E: Exposure of z; D: diffusion stack W^k z (n x KSTEP+1)."""
+    n = g.n
+    Y = np.empty((n, J))
+    zz, f, c = E.z, E.f, E.c
+    cs = c / g.dbar
+    pw = {}
+    for j, (m, s) in enumerate(COLS):
+        if m == "0":
+            part = zz
+        elif m == "a":
+            part = (1 - s) * zz + s * f
+        elif m == "b":
+            part = (1 - s) * zz + s * cs
+        elif m == "c":
+            part = (1 - s) * zz + s * g_sat(f)
+        elif m == "d":
+            part = (1 - s) * zz + s * thr(f)
+        elif m == "e":
+            rho = s
+            if rho not in pw:
+                pw[rho] = rho ** np.arange(KSTEP + 1)
+            part = (1 - rho) * (D @ pw[rho])
+        elif m == "f":
+            part = (1 - s) * zz + 0.5 * s * f + 0.5 * s * zz * f
+        elif m == "g":
+            part = (1 - s) * zz + s * g_conv(f)
+        elif m == "h":
+            part = (1 - s) * zz + s * g_sig(f)
+        Y[:, j] = base + part
+    return Y
+
+
+def exact_tau(g):
+    """GATE per column, computed by evaluating each outcome function at z=1 and z=0"""
+    ones, zeros = np.ones(g.n), np.zeros(g.n)
+    E1, E0 = corner(g, 1), corner(g, 0)
+    D1, D0 = diffusion(g, ones), diffusion(g, zeros)
+    z0 = np.zeros(g.n)
+    Y1 = outcomes(g, ones, E1, D1, z0)
+    Y0 = outcomes(g, zeros, E0, D0, z0)
+    return (Y1 - Y0).mean(0)
+
+
+def make_base(g, kind, rng):
+    """unit baselines a_i (SD 1): iid | deg (degree-correlated) | comm (community-correlated) | none"""
+    n = g.n
+    eps = rng.standard_normal(n)
+    if kind == "none":
+        return np.zeros(n)
+    if kind == "iid":
+        return eps
+    if kind == "deg":
+        x = np.log(g.deg)
+        x = (x - x.mean()) / (x.std() + 1e-12)
+        return 0.8 * x + 0.6 * eps
+    if kind == "comm":
+        lab = g.blocks if g.blocks is not None else g.meta["louvain"]
+        ef = rng.standard_normal(lab.max() + 1)
+        return 0.8 * ef[lab] + 0.6 * eps
+    raise ValueError(kind)

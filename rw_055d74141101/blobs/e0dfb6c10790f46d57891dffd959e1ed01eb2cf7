@@ -1,0 +1,28 @@
+# Review of Version 1 (paper-repo#11, main -> release), head 532f793e0151
+
+Document read: `document` branch `main/document.pdf`, built-from 532f793e0151 (28 pages; main text 1-9, references 10, appendix, checklist).
+Checked against code/results (paper-repo `results/*.csv` at the same commit): 177/180 equivalence count and the three undecided rows (`real_minus_null.csv`); Arena-55k Table 2 rows (`fragility_by_z.csv`); the 34 judge contrasts, 12 excluding zero, max point difference 0.0837 (`matched_contrasts.csv`). All agree with the text. Figures 1-4 are readable at print size.
+
+## What the paper contributes
+A measurement of how many comparisons (deleted / flipped, exact-refit verified upper bound k*) reverse a Bradley-Terry conclusion, on 91 datasets of four designs; a same-graph simulated reference; survival of CI-separated pairs; matched labeller contrasts; a predictive rule; search validity checks. The main inferential result is a null one (real k* equals the same-graph null within +-0.15 on log Q), which the paper itself shows is no test of misfit (positive control). The informative results are the counts by separation, the survival curves, and noise-vs-adversary.
+
+## Findings
+Marks: must / may.
+
+1. **must — closest prior work is unread and the stated reason is wrong.** Appendix A says "the task forbids reading" Huang et al. 2025 (starter-literature item 8). `deliverable.md` says the opposite: literature in `starter_literature.md` may be used normally; the ban covers the one published study of the question and pages that discuss it, which the starter list is not. Item 8 is described as a paper on ranking changes of Arena-style leaderboards from dropped preferences, i.e. the nearest work to contribution (i)/(ii) (few deletions that change a top ranking). The first question of any referee is what the paper adds to it; the Contributions paragraph claims novelty "among the sources we could consult" while the closest listed source was not consulted, and Related Work gives it one sentence saying it was not read. Answer: read the permitted item (abstract and method), state in Related Work what it does and measures and how k*, the reference and the survival analysis differ; correct the Appendix A sentence. If the owners keep not reading it, the statement must say that this is their choice, not the task's, and the novelty claims must be cut to what does not depend on it.
+2. **must — abstract and introduction read as a record of the study, not as a paper.** The abstract packs seven findings with undefined terms ("same-graph reference", "standard-error units", "offset of the method", "ratio of bootstrap to model-based standard errors", "preset margin") that the reader meets only in Section 3-4; the Introduction then repeats them as five contributions plus five findings (a)-(e) with counts (177 of 180, 3 rows, 34 of 34) and qualifiers. A reader outside the study cannot say after the first page what the headline result is. Answer: state the question, the one scale (what k* in SE units means and why a reference is needed), and two or three headline findings in plain words (how large the changes are, noise vs targeted, whether datasets differ beyond statistics, and that the equivalence test itself has limited power); move the counts, the rows and the caveats to Section 4; merge Contributions and Findings.
+3. **may — lead with the informative results.** Section 4 opens with the equivalence statement that Appendix C shows to be insensitive; the survival result (4.2) and the counts by z (4.1) are the substance. Reordering or giving 4.2 more space would help the paper's argument.
+4. **may — wording "none by more than 0.084"** (Sec. 4.3): the point differences are at most 0.084, the intervals reach 0.119; say which.
+5. **may — `results/README.md` still starts "Status: provisional until the core batch is finished".** Update it.
+6. **may — Table 1/2 dense for the main text** (Table 2 with SE-ratio lines and null columns); consider one line per design.
+
+## Strongest objections a referee would raise and what answers them
+- *Novelty against Huang et al. and Broderick et al.* : not answered (finding 1).
+- *The main claim rests on a test with no demonstrated power.* The paper discloses it and reports the control (34 cells, MT-Bench graph, ~5 pairs in range; Delta never reaches the margin). The control on Arena-55k (the dense graph where most pairs live) is partial; its completion is the study's remaining work and is quoted in the PR as pending. Recorded, not held against this release; the claim must then be worded as it is now ("not a test of misfit") in later versions, and the final must report the Arena cells.
+- *Q near 1 is an identity.* Stated in Sections 1, 4.1, 5; the paper measures Delta, not Q. Adequate.
+- *Baselines.* One-shot influence, residual heuristic, exhaustive enumeration, random at equal budget, rules and held-out predictors are compared (Table 3, Table 5). Adequate. No comparison with a published attack or with approximate-influence-perturbation of Broderick et al. as an implementation, only the one-shot top-k influence ranking (the principle). May be raised; answered partly by Table 3.
+- *Certainty.* Bootstrap, jackknife over models and dataset bootstrap intervals are reported; intervals in Fig. 3 are marked optimistic. Adequate.
+- *Design confounded with dataset.* Stated; matched contrasts address labeller on two instances. Adequate for the claim as worded.
+
+## Conclusion
+Not approved at 532f793: findings 1 and 2 are open `must`. Numbers, methods and criteria as reported match the code and tables checked; no claim found that its evidence does not support. Findings 3-6 are `may`.

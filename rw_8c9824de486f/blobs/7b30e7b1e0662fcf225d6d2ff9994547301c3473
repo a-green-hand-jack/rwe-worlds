@@ -1,0 +1,14 @@
+"""Self-test of the style + checker on a figure of *style-test* data only (not delivered, not a result)."""
+import sys, numpy as np, matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from figtab import style, check_pdf
+style.apply()
+fig, ax = plt.subplots(figsize=style.fig_size())
+x = np.arange(1, 9)
+ax.plot(x, 1 / x, color=style.COLORS["designed"], label="style test")
+ax.set_xlabel("k"); ax.set_ylabel("error"); ax.legend()
+fig.savefig(sys.argv[1])
+w, h, m = check_pdf.check(sys.argv[1])
+assert m >= style.VENUE["min_pt"] - 0.05, m
+print("ok", w, h, m)

@@ -1,0 +1,49 @@
+"""Fig. 4: ratio the source-only variance formula predicts vs the ratio observed, one point per benchmark x split.
+usage: python3 figures/scripts/fig4_ceiling.py CODE_DIR OUT_PDF
+Sources: results/ceiling.csv (q_* = fraction of the Bernoulli variance of the unsampled items explained by the predictor,
+uniform design, n = 100), results/per_bench.csv (observed ratio of common.OURS at n = 100).
+Predicted ratio = sqrt(1 - q): the RMSE ratio a difference estimator reaches if its residual variance is (1-q) times
+that of the constant predictor (finite-population factor identical in both). Left: q of the source-only predictor
+(source item means, no target answers); right: q of the 2D IRT predictor that uses the target's n answers."""
+import sys
+import matplotlib.pyplot as plt
+import numpy as np
+sys.path.insert(0, __file__.rsplit("/", 1)[0])
+import style, common
+
+style.apply()
+R = common.Results(sys.argv[1])
+ce = R.csv("ceiling.csv"); pb = R.csv("per_bench.csv")
+ce = ce[ce.n == 100]
+ob = pb[(pb.method == common.OURS) & (pb.n == 100)][["bench", "split", "ratio", "thin", "N"]]
+d = ce.merge(ob, on=["bench", "split"])
+MK = {"interp": "o", "extrap": "s", "lineage": "^", "extrap10": "d", "extrap50": "v"}
+LAB = dict(common.SPLIT_LABEL, extrap10="extrap., top 10%", extrap50="extrap., top 50%", lineage="lineage-held-out")
+SPL = ["interp", "extrap", "lineage", "extrap10", "extrap50"]
+W, H = 0.9 * style.TEXT_WIDTH_IN, 2.9   # placed at 0.9 of the text width, 1:1
+fig, axs = plt.subplots(1, 2, figsize=(W, H), sharey=True)
+col = style.CLASS_STYLE["design-based"]["color"]
+for ax, (q, ttl) in zip(axs, [("q_p", "source item means"), ("q_irt", "2D IRT on target's $n$ answers")]):
+    xs = np.sqrt(np.clip(1 - d[q], 0, None))
+    for sp in SPL:
+        s = d.split == sp
+        for thin in (False, True):
+            t = s & (d.thin == thin)
+            if not t.any():
+                continue
+            c = col if sp in ("interp", "extrap", "lineage") else "#D55E00"
+            ax.scatter(xs[t], d.ratio[t], marker=MK[sp], s=14, lw=0.8, facecolors="none" if thin else c,
+                       edgecolors="0.55" if thin else c, label=None if thin else LAB[sp])
+    lo, hi = max(0.0, 0.9 * float(min(xs.min(), d.ratio.min()))), max(1.05, float(max(xs.max(), d.ratio.max())) * 1.05)
+    ax.plot([lo, hi], [lo, hi], color="0.5", lw=0.6)
+    ax.text(0.78 * hi, 0.78 * hi, "observed = prediction", rotation=45, rotation_mode="anchor", ha="center", va="bottom", fontsize=style.MIN_FONT_PT, color="0.4")
+    ax.axhline(1, color="0.7", lw=0.5, ls=":"); ax.axvline(1, color="0.7", lw=0.5, ls=":")
+    ax.set_xlim(lo, hi); ax.set_ylim(lo, hi); ax.set_aspect("equal")
+    ax.set_title(ttl, loc="left"); ax.set_xlabel("SRS-residual prediction, √(1 − q)")
+axs[0].set_ylabel("observed RMSE ratio, " + common.label(common.OURS).replace("×", r"$\times$"))
+h, l = axs[0].get_legend_handles_labels()
+seen = dict(zip(l, h))
+seen["thin benchmark (hollow)"] = plt.Line2D([], [], marker="o", ls="", mfc="none", mec="0.55", mew=0.8, ms=4)
+fig.subplots_adjust(left=0.095, right=0.985, top=0.77, bottom=0.17, wspace=0.12)
+fig.legend(seen.values(), seen.keys(), loc="upper center", bbox_to_anchor=(0.5, 1.0), ncol=3, columnspacing=1.2, handletextpad=0.1, borderaxespad=0.1)
+plt.rcParams["savefig.bbox"] = "standard"; fig.savefig(sys.argv[2])

@@ -1,0 +1,15 @@
+\section{Discussion and Limitations}\label{sec:discussion}
+
+In the datasets studied, the number of comparisons that carries a Bradley--Terry conclusion is what the model of the dataset's own graph predicts, to within the margin, wherever there are enough pairs to decide; a confidence interval says little about this number, since separated pairs lose their separation after a small targeted change that random noise of the same size does not approach. The first-order identity behind the scale makes agreement partly expected.
+
+\paragraph{What the data cannot say.}
+Design is confounded with dataset: the crowd, expert, model-judge and sports data differ in models, prompts, graph and size as well as in who labels. The two matched contrasts (same battles, same questions, different labeller) isolate the labeller on those instances only, and neither supports a general statement about crowds versus experts. The expert instance is small (six models, 80 questions) and its uncertainty wide.
+
+\paragraph{Where the measurement applies.}
+The real datasets cover a narrow part of the space of graph density, tie rate and size: the six-model sets are complete graphs, Arena is a dense graph with many models, and tie rates run from none (basketball) to about a third (Arena crowd votes). How fragility depends on density, ties and $N$ is therefore read from the synthetic grid, where the truth is known, and from variation inside a dataset; the real data carry only the claims about whether they sit inside or outside their own same-graph reference.
+
+\paragraph{Scope of the estimator and the threat model.}
+We study the Bradley--Terry maximum-likelihood leaderboard on pair-aggregated counts with ties as half a win. Other estimators, regularisation and judge pipelines are untested. Flips are the effect of labelling error or of an adversary who can change labels; inserting votes of one's choice would cost less than the flips we count and is outside the study. $k^{*}$ is an upper bound found by search, not a proven minimum: where an exact optimum can be computed we compare the search with it (\S\ref{sec:experiments}); at Arena scale only the verified bound exists.
+
+\paragraph{Practice and impact.}
+A leaderboard can report, beside the confidence interval, the number of comparisons that carry a published conclusion in standard-error units, the same number for a Bradley--Terry dataset of the same graph, the share of separated pairs that survive a stated budget, and the ratio of the bootstrap to the model-based standard error, which the count does not replace (Appendix~\ref{app:control}). The same numbers could inform someone who wants to manipulate a ranking; we study no attack on a platform and see this as an audit.

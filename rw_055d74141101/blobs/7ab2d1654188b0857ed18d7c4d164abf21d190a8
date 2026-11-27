@@ -1,0 +1,9 @@
+#!/bin/bash
+# positive control (14_positive_control.py): usage run_control.sh GRAPH MECH  (sizes and replicates as in PREANALYSIS.md rev 3)
+cd "$(dirname "$0")"
+G=$1; M=$2
+case $M in
+  none) S="0";; overdisp|position) S="0.25 0.5 1.0 2.0";; cyclic|pairdev) S="0.1 0.2 0.4 0.8";;
+esac
+if [ "$G" = arena55k ]; then R=5; else R=20; fi
+python3 14_positive_control.py $G $M $S --reps $R

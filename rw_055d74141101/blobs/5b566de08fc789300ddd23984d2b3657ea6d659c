@@ -1,0 +1,310 @@
+"""Second table builder: datasets.csv (Table 1), matched_contrasts.csv (Fig. 4), survival_curves.csv (Fig. 3), search_quality.csv.
+Reads $BT_RESULTS (core, matched, random, ci, search, scaling) and whatever exists; run after 06_tables.py.  usage: 10_tables_more.py"""
+import glob, hashlib, os, sys
+import numpy as np, pandas as pd
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src")); sys.path.insert(0, os.path.dirname(__file__))
+from core01 import OUT
+import importlib
+T6 = importlib.import_module("06_tables")
+REPO = T6.REPO
+EQ = 0.15
+
+VERSION = {
+    "arena": ("HF lmarena-ai/arena-human-preference-55k @ 18c2983", "arena55k/train.csv", "battle (prompt)"),
+    "mtbench": ("HF lmsys/mt_bench_human_judgments @ f7d2896", "mtbench/human.parquet", "question"),
+    "judge": ("HF potsawee/chatbot-arena-llm-judges @ 638a7e3 (+ arena-55k @ 18c2983)", "potsawee/train.single-turn.json", "battle (prompt)"),
+    "nba": ("GitHub fivethirtyeight/data @ 4c1ff5e nba-elo/nbaallelo.csv", "nba/nbaallelo.csv", "game"),
+}
+DATA = os.environ.get("BT_DATA", "/hutian/data")
+
+
+def sha(path):
+    h = hashlib.sha256()
+    with open(os.path.join(DATA, path), "rb") as f:
+        for b in iter(lambda: f.read(1 << 20), b""):
+            h.update(b)
+    return h.hexdigest()
+
+
+def datasets_table():
+    ds = pd.read_csv(f"{REPO}/datasets_computed.csv")
+    shas = {}
+    out = []
+    for _, r in ds.iterrows():
+        k = "judge" if r.dataset.startswith("arena_judge") else ("arena" if r.dataset.startswith("arena") else ("mtbench" if r.dataset.startswith("mtbench") else "nba"))
+        ver, f, cu = VERSION[k]
+        shas.setdefault(f, sha(f))
+        row = r.to_dict(); row.update(cluster_unit=cu, version=ver, sha256=shas[f], synthetic=0)
+        out.append(row)
+    pd.DataFrame(out).to_csv(f"{REPO}/datasets.csv", index=False, float_format="%.6g")
+
+
+def matched_table():
+    rows = []
+    for contrast in ("arena", "mtbench"):
+        fs = sorted(glob.glob(f"{OUT}/matched/{contrast}.shard*.parquet"))
+        if not fs:
+            continue
+        m = pd.concat([pd.read_parquet(f) for f in fs], ignore_index=True)
+        ref = "arena_single" if contrast == "arena" else "mtbench_human"
+        cu = "battle" if contrast == "arena" else "question"
+        per = m.groupby(["family", "unit", "rep"]).agg(delta=("logQ_excess", "mean"), n=("logQ_excess", lambda v: v.notna().sum()), N=("N", "first")).reset_index()
+        for fam, f in per.groupby("family"):
+            piv = f.pivot(index="rep", columns="unit", values="delta")
+            for u in piv.columns:
+                pt = piv.loc[-1, u]
+                boot = piv.loc[piv.index >= 0, u].dropna()
+                row = dict(contrast=f"{contrast}_{'crowd' if contrast == 'arena' else 'human'}_vs_{u.replace('judge:', 'judge_')}", member=u.replace("judge:", ""),
+                           dQ_real_minus_null=pt, lo=np.percentile(boot, 2.5), hi=np.percentile(boot, 97.5), cluster_unit=cu, perturbation=fam,
+                           dataset=T6.dataset_id(u), design="crowd" if u == "arena_single" else ("expert" if u == "mtbench_human" else "llm_judge"),
+                           synthetic=0, N=f[f.unit == u].N.iloc[0], n_pairs=int(f[(f.unit == u) & (f.rep == -1)].n.iloc[0]), n_boot=len(boot), is_reference=int(u == ref))
+                if u != ref:
+                    dd = (piv[ref] - piv[u])
+                    row.update(paired_diff=dd.loc[-1], paired_lo=np.nanpercentile(dd[dd.index >= 0], 2.5), paired_hi=np.nanpercentile(dd[dd.index >= 0], 97.5))
+                    lo, hi = row["paired_lo"], row["paired_hi"]
+                    row["equivalence"] = "equivalent" if (lo > -EQ and hi < EQ) else ("differs" if (lo > EQ or hi < -EQ) else "inconclusive")
+                rows.append(row)
+    if rows:
+        pd.DataFrame(rows).to_csv(f"{REPO}/matched_contrasts.csv", index=False, float_format="%.6g")
+
+
+SE_GRID = np.round(np.geomspace(0.25, 16, 25), 4)
+# every row carries the budget in all four units (count and fractions: median over the pairs of the row for the SE axis);
+# `axis` says which unit the grid is regular in
+SQRTN_GRID = np.round(np.geomspace(0.05, 20, 25), 4)   # budget = b * sqrt(N) alterations
+FRAC_GRID = np.round(np.geomspace(0.0005, 0.3, 25), 5)  # budget = fraction of the N comparisons
+
+
+def wilson(x, n, z=1.96):
+    if n == 0:
+        return np.nan, np.nan
+    p = x / n; d = 1 + z * z / n
+    c = (p + z * z / (2 * n)) / d; h = z * np.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d
+    return c - h, c + h
+
+
+def p_interp(fgrid, p, f):
+    """P_flip of random alteration at fraction f, linear in log f over the simulated grid; outside the grid the nearest
+    grid value (an upper bound below the grid, a lower bound above it)"""
+    return float(np.interp(np.log(f), np.log(fgrid), p))
+
+
+def design_of(unit):
+    return "crowd" if unit.startswith("arena") else ("expert" if unit == "mtbench_human" else ("llm_judge" if unit.startswith(("judge", "mtbench_gpt4")) else "sports"))
+
+
+def survival_table():
+    rows = []
+    for fn in sorted(glob.glob(f"{OUT}/core/*.parquet")):
+        if fn.endswith(".null.parquet") or fn.endswith(".models.parquet"):
+            continue
+        r = pd.read_parquet(fn); unit = r.unit.iloc[0]
+        stem = os.path.basename(fn)[:-len(".parquet")]  # file names replace ':' by '_' (judge_X, nba_1990)
+        cif = f"{OUT}/ci/{stem}.pairs.parquet"
+        if not os.path.exists(cif):
+            continue
+        ci = pd.read_parquet(cif)[["a", "b", "sep_published", "sep_gap"]]
+        r = r.merge(ci, on=["a", "b"], how="inner")
+        r["F"] = r.k_ver * r.gmax / r.se_boot
+        r = r[r.k_ver > 0]
+        rf_ = f"{OUT}/random/{stem}.parquet"
+        rnd = pd.read_parquet(rf_) if os.path.exists(rf_) else None
+        N = int(r.N.iloc[0]); ds = T6.dataset_id(unit); design = design_of(unit)
+        for fam in ("delete", "flip"):
+            rf = r[r.family == fam].reset_index(drop=True)
+            for sepdef, col in (("published", "sep_published"), ("gap", "sep_gap")):
+                for subset, sel in (("separated", rf[col]), ("separated_top10", rf[col] & (rf.ra < 10) & (rf.rb < 10)),
+                                    ("separated_z1_8", rf[col] & rf.z_fisher.between(T6.ZLO, T6.ZHI))):
+                    d = rf[sel].reset_index(drop=True)
+                    if len(d) == 0:
+                        continue
+                    key = {(int(a), int(b)): i for i, (a, b) in enumerate(zip(d.a, d.b))}
+                    rr = rnd[rnd["mode"] == fam] if rnd is not None else None
+                    groups = [] if rr is None else [(key[(int(a), int(b))], g.sort_values("f")) for (a, b), g in rr.groupby(["a", "b"]) if (int(a), int(b)) in key]
+                    for axis, grid in (("se", SE_GRID), ("sqrtN", SQRTN_GRID), ("frac", FRAC_GRID)):
+                        for b in grid:
+                            if axis == "se":
+                                surv = (d.F > b).to_numpy(); kb = (b * d.se_boot / d.gmax).to_numpy()
+                            elif axis == "sqrtN":
+                                surv = (d.k_ver > b * np.sqrt(N)).to_numpy(); kb = np.full(len(d), b * np.sqrt(N))
+                            else:
+                                surv = (d.k_ver > b * N).to_numpy(); kb = np.full(len(d), b * N)
+                            lo, hi = wilson(surv.sum(), len(d))
+                            base = dict(dataset=ds, unit=unit, design=design, synthetic=0, N=N, perturbation=fam, sep_def=sepdef, subset=subset, axis=axis,
+                                        b_count=float(np.median(kb)), b_sqrtN=float(np.median(kb)) / np.sqrt(N), b_frac=float(np.median(kb)) / N,
+                                        b_se=b if axis == "se" else float(np.median(kb * (d.gmax / d.se_boot).to_numpy())),
+                                        cost_unit="comparison", n_boot=int(r.boot.iloc[0]), ci_method="Wilson, pairs treated as independent")
+                            rows.append(dict(base, curve="adversarial", frac_surviving=surv.mean(), lo=lo, hi=hi, n_pairs=len(d)))
+                            if groups:
+                                ps = np.array([p_interp(g.f.to_numpy(), g.p_flip.to_numpy(), max(kb[i], 1) / N) for i, g in groups])
+                                m = 1 - ps.mean(); lo2, hi2 = wilson(round(m * len(ps)), len(ps))
+                                rows.append(dict(base, curve="random_" + fam, frac_surviving=m, lo=lo2, hi=hi2, n_pairs=len(ps)))
+    if rows:
+        t = pd.DataFrame(rows)
+        # the delivered table (Fig. 3) keeps the published separation, the separated subset and the two drawn axes (small enough for the repository);
+        # every sep_def x subset x axis combination goes to $BT_RESULTS/tables_full
+        keep = (t.sep_def == "published") & (t.subset == "separated") & t.axis.isin(["frac", "se"])
+        t[keep].to_csv(f"{REPO}/survival_curves.csv", index=False, float_format="%.5g")
+        os.makedirs(f"{OUT}/tables_full", exist_ok=True)
+        t.to_csv(f"{OUT}/tables_full/survival_curves_full.csv", index=False, float_format="%.6g")
+
+
+def boot_median(v, rg, B=300):
+    v = np.asarray(v, float); v = v[np.isfinite(v)]
+    if len(v) < 5:
+        return np.nan, np.nan, np.nan
+    b = [np.median(rg.choice(v, len(v))) for _ in range(B)]
+    return np.median(v), np.percentile(b, 2.5), np.percentile(b, 97.5)
+
+
+def scaling_table():
+    """fragility_vs_N.csv : equal-N subsampling (05_scaling.py): median over pairs with z_fisher in the declared range (at that subsample size)
+    of k*/n and of Q = k* g_max / gap (= F/z with the model-based SE) per subsample size, interval by bootstrap over pairs"""
+    rows = []; rg = np.random.default_rng(0)
+    for fn in sorted(glob.glob(f"{OUT}/scaling/*.parquet")):
+        d = pd.read_parquet(fn)
+        unit = d.unit.iloc[0]
+        d = d[(d.k_ver > 0) & d.z_fisher.between(T6.ZLO, T6.ZHI)]
+        for (fam, frac), g in d.groupby(["family", "frac"]):
+            n = int(g.N.iloc[0])
+            for stat, v in (("kN", g.k_ver / g.N), ("F_over_z", g.k_ver * g.gmax / g.gap)):
+                m, lo, hi = boot_median(v, rg)
+                rows.append(dict(dataset=T6.dataset_id(unit), design=design_of(unit), synthetic=0, perturbation=fam, n_sub=n, frac=frac, stat=stat, value=m, lo=lo, hi=hi,
+                                 n_rep=int(g.rep.nunique()), n_pairs=len(g), N_full=int(round(n / frac)), z_range="[1,8] on model-based z at the subsample", subsample="random comparisons without replacement"))
+    if rows:
+        pd.DataFrame(rows).to_csv(f"{REPO}/fragility_vs_N.csv", index=False, float_format="%.6g")
+
+
+def delta_by(real):
+    """Delta (mean over pairs with z_fisher in the declared range of log Q - log Q_null) and median Q per dataset x family, bootstrap over pairs"""
+    rg = np.random.default_rng(0); out = {}
+    for (ds, fam), x in real.groupby(["dataset", "family"]):
+        x = x[x.z_fisher.between(T6.ZLO, T6.ZHI) & np.isfinite(x.Q) & np.isfinite(x.Q_null) & (x.k_ver > 0)]
+        if len(x) < 5:
+            continue
+        v = np.log(x.Q.values) - np.log(x.Q_null.values)
+        bs = [rg.choice(v, len(v)).mean() for _ in range(300)]
+        out[(ds, fam)] = (v.mean(), np.percentile(bs, 2.5), np.percentile(bs, 97.5), len(v), x.Q.median(), x.z_fisher.median())
+    return out
+
+
+def sensitivity_table():
+    """sensitivity.csv: (a) tie handling (ties dropped instead of half-win) and MT-Bench turn 1 / turn 2: Delta vs the baseline run of the same data;
+    (b) cost 2 for a full-win flip: bounds on cost-weighted k* from the re-priced search solution."""
+    rows = []
+    if glob.glob(f"{OUT}/sens/*.null.parquet"):
+        sreal, snull, _ = T6.load_core("sens")
+        sreal = T6.attach_null(sreal, T6.null_curves(snull))
+        breal, bnull, _ = T6.load_core("core")
+        breal = T6.attach_null(breal, T6.null_curves(bnull))
+        base = delta_by(breal); var = delta_by(sreal)
+        for (ds, fam), (m, lo, hi, n, qm, zm) in var.items():
+            baseunit, var = ds.split("@")
+            chk = "ties_dropped" if var == "noties" else "mtbench_turn" + var[1]
+            b = base.get((T6.dataset_id(baseunit), fam))
+            rows.append(dict(check=chk, dataset=ds, design=design_of(baseunit), synthetic=0, perturbation=fam, statistic="delta_logQ_real_minus_null", value=m, lo=lo, hi=hi,
+                             baseline_value=b[0] if b else np.nan, baseline_lo=b[1] if b else np.nan, baseline_hi=b[2] if b else np.nan, n_pairs=n, median_Q=qm,
+                             baseline_median_Q=b[4] if b else np.nan))
+    rg = np.random.default_rng(0)
+    for fn in sorted(glob.glob(f"{OUT}/sens/cost2_*.parquet")):
+        d = pd.read_parquet(fn); unit = d.unit.iloc[0]
+        for col, lab in (("cost2_upper", "re-priced unit-cost solution"), ("cost2_search", "search with costs, min with re-priced")):
+            if col not in d:
+                continue
+            m, lo, hi = boot_median((d[col] / d.k).to_numpy(), rg)
+            rows.append(dict(check="flip_cost2_win_to_loss", dataset=T6.dataset_id(unit), design=design_of(unit), synthetic=0, perturbation="flip",
+                             statistic=f"median cost-2 k*/k* ({lab}; verified upper bound, lower bound is 1" + ("; no ties in this unit, every flip costs 2, so 2 by construction)" if design_of(unit) == "sports" else ")"), value=m, lo=lo, hi=hi, baseline_value=1.0, n_pairs=len(d)))
+    if rows:
+        pd.DataFrame(rows).to_csv(f"{REPO}/sensitivity.csv", index=False, float_format="%.6g")
+
+
+def search_quality_table():
+    """search_quality.csv (Table 5 and Fig. 5): rows = scope x family x method.
+    Methods on the same conclusions, family and cost unit: random (equal budget; share reversed at 0.5, 1, 2 x k_best), residual, oneshot
+    (influence top-k, refit once), iterated (the study's search), both (iterated + Frank-Wolfe), first_order (k_lin: prediction, no refit);
+    anchors: exact (exhaustive minimum on tiny problems), lp_candidate (LP-relaxation lower-bound candidate), planted (known solution),
+    restarts (independent stronger search at 0.85-0.99 k*).  k_ratio_to_best = median over conclusions of k_method / k_best (k_best = smallest
+    k found by any method on that conclusion); flipped_at_half_k / flipped_at_k = share of conclusions reversed at 0.5 / 1.0 x k_best."""
+    rg = np.random.default_rng(0)
+    rows = []
+    cols = ["scope", "design", "perturbation", "method", "k_ratio_to_best", "k_ratio_lo", "k_ratio_hi", "flipped_at_half_k", "flipped_at_k", "flipped_at_2k",
+            "share_unreachable", "n_conclusions", "note"]
+
+    def row(scope, design, fam, method, v=None, half=np.nan, one=np.nan, two=np.nan, unreach=np.nan, n=0, note=""):
+        m, lo, hi = boot_median(v, rg) if v is not None and len(v) >= 5 else (np.nan, np.nan, np.nan)
+        rows.append(dict(zip(cols, [scope, design, fam, method, m, lo, hi, half, one, two, unreach, n, note])))
+
+    allm, eqs = [], {}
+    for fn in sorted(glob.glob(f"{OUT}/search/methods_*.parquet")):
+        m = pd.read_parquet(fn); m["scope"] = T6.dataset_id(m.unit.iloc[0]); m["design"] = design_of(m.unit.iloc[0]); allm.append(m)
+        eqf = f"{OUT}/random/{m.unit.iloc[0].replace(':', '_')}.eqbudget.parquet"
+        if os.path.exists(eqf):
+            e = pd.read_parquet(eqf)
+            # same conclusions as the deterministic methods
+            keys = set(zip(m.family, m.a, m.b))
+            eqs[m.scope.iloc[0]] = e[[(f, a_, b_) in keys for f, a_, b_ in zip(e["mode"], e.a, e.b)]]
+    pools = [(m.scope.iloc[0], m) for m in allm] + ([("all_datasets", pd.concat(allm, ignore_index=True))] if allm else [])
+    eqall = pd.concat(list(eqs.values()), ignore_index=True) if eqs else None
+    for scope, m in pools:
+        for fam in ("delete", "flip"):
+            x = m[m.family == fam]
+            if len(x) == 0:
+                continue
+            des = x.design.iloc[0] if scope != "all_datasets" else "all"
+            e = eqall if scope == "all_datasets" else eqs.get(scope)
+            if e is not None and len(e[e["mode"] == fam]):
+                ee = e[e["mode"] == fam]
+                sh = {mu: ee[ee.mult == mu].p_flip_random.mean() for mu in (0.5, 1.0, 2.0)}
+                row(scope, des, fam, "random", half=sh[0.5], one=sh[1.0], two=sh[2.0], n=int((ee.mult == 1.0).sum()),
+                    note="uniform random alteration of 0.5, 1, 2 x k* (k* of the iterated search; k_best may be a little smaller), mean reversal probability over conclusions, 300 draws each; no k ratio (rarely reversed)")
+            for meth, kc in (("residual", "k_residual"), ("oneshot", "k_oneshot"), ("iterated", "k_iterated"), ("both", "k_both")):
+                r = (x[kc] / x.k_best).replace([np.inf], np.nan)
+                row(scope, des, fam, meth, r.dropna().to_numpy(), x[f"ok_{meth}_half"].mean(), x[f"ok_{meth}_one"].mean(), unreach=float(np.mean(~np.isfinite(x[kc]))), n=len(x))
+            r = (x.k_lin / x.k_best)
+            row(scope, des, fam, "first_order", r[np.isfinite(r)].to_numpy(), unreach=float(np.mean(~np.isfinite(x.k_lin))), n=len(x),
+                note=f"k_lin / k_best; median realised gap fraction after refit at ceil(k_lin) = {x.gap_frac_after_klin.median():.3g} (0 = exactly reversed, <0 overshoot)")
+    tf = f"{OUT}/search/tiny_exact.parquet"
+    if os.path.exists(tf):
+        t = pd.read_parquet(tf)
+        for fam, x in list(t.groupby("family")) + [("both", t)]:
+            for meth, kc in (("iterated", "k_iterlin"), ("frank_wolfe", "k_fw")):
+                row("tiny_exact_mtbench_subproblems", "expert", fam, f"{meth}_vs_exact", (x[kc] / x.k_exact).to_numpy(), one=float((x[kc] == x.k_exact).mean()), n=len(x),
+                    note="k_found / k_exact (exhaustive minimum); flipped_at_k column = share where the search found the exact minimum")
+            row("tiny_exact_mtbench_subproblems", "expert", fam, "lp_candidate_vs_exact", (np.ceil(x.lp_relax - 1e-6) / x.k_exact).to_numpy(), n=len(x),
+                note="ceil(LP relaxation) / k_exact (multi-start local minimisation: a lower-bound candidate, not certified)")
+    lf = f"{OUT}/search/lp_sandwich.parquet"
+    if os.path.exists(lf):
+        l = pd.read_parquet(lf); l = l[np.isfinite(l.k_iterlin) & (l.k_iterlin > 0)]
+        l["scope"] = l.label.str.replace(r"\d+$", "", regex=True).str.replace(r"_$", "", regex=True)
+        for (sc, fam), x in l.groupby(["scope", "family"]):
+            ok = x.lp_relax.notna() & np.isfinite(x.lp_relax)
+            r = x.loc[ok, "lp_relax"] / np.minimum(x.loc[ok, "k_iterlin"], x.loc[ok, "k_fw"])
+            row(f"lp_sandwich_{sc}", design_of("mtbench_human" if sc.startswith("mtbench_human") else "mtbench_gpt4" if sc.startswith("mtbench_gpt4") else "nba:2005" if sc.startswith("nba") else "arena55k"),
+                fam, "lp_candidate_over_upper", r.to_numpy(), n=len(r),
+                note=(f"LP relaxation value / verified upper bound (continuous, no rounding); shares of conclusions: within 1% of the upper bound {np.mean(np.abs(r - 1) <= 0.01):.3g}, "
+                      f"candidate below it by more than 1% {np.mean(r < 0.99):.3g}, candidate above the verified upper bound by more than 1% (local solver failed, candidate invalid) {np.mean(r > 1.01):.3g}"))
+    sf = f"{OUT}/search/scale_arena55k.parquet"
+    if os.path.exists(sf):
+        sc_ = pd.read_parquet(sf)
+        for fam, x in sc_[sc_.kind == "improve"].groupby("family"):
+            row("search_at_scale_arena55k", "crowd", fam, "restarts_vs_standard", x.ratio.to_numpy(), one=float((x.ratio < 1).mean()), n=len(x),
+                note="k found by Frank-Wolfe + 200 randomised restarts at budgets 0.85-0.99 k* / k_std; flipped_at_k column = share of conclusions where a smaller k was found")
+        for fam, x in sc_[sc_.kind == "planted"].groupby("family"):
+            row("search_at_scale_arena55k", "crowd", fam, "planted_vs_known", x.ratio.to_numpy(), one=float((x.ratio <= 1).mean()), n=len(x),
+                note="k_found / k_path on planted instances (k_path = size of the known undo path); flipped_at_k column = share with k_found <= k_path")
+    if rows:
+        pd.DataFrame(rows).to_csv(f"{REPO}/search_quality.csv", index=False, float_format="%.6g")
+
+
+def main():
+    os.makedirs(REPO, exist_ok=True)
+    datasets_table()
+    matched_table()
+    survival_table()
+    scaling_table()
+    sensitivity_table()
+    search_quality_table()
+
+
+if __name__ == "__main__":
+    main()

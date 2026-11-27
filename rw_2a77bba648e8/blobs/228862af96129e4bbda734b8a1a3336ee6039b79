@@ -1,0 +1,32 @@
+# Review of version 1 (paper-repo#10, main -> release, head bd09cfb82dd5)
+
+Document read: `document` branch, `main/document.pdf`, built-from `bd09cfb82dd570ebabdf669c3f241f74ea3b581b` (24 pages: 9 main, references, appendix, checklist). Checked against `results/`, `tables/`, `figures/*.csv`, `code/analysis/claims.py` at that commit.
+
+## Conclusion
+Not approved: request changes. The study is sound in design and the paper is candid, and most numbers I traced match their files (82% of 1283 cells; 91.8% of 1440 rule cells; 73.6% of 1800 coverage cells and its bins; regime shares; cluster BA/(d) 0.68->0.24 bias; leverage exponents). Four `must` findings hold it back; none needs new experiments.
+
+## Findings
+**M1 (must, paper + analysis).** Sec. 5.5 gives absolute held-out R2 of log|bias| "on the 1283 cells": S-bar -0.162, noise-adjusted S -0.005, corner x curvature -0.198, best degree benchmark -0.205. The delivered `results/bias_reference.csv` (1215 cells) and Table 2 in the same PDF give -0.217, -0.064, -0.103, -0.257, and I found no file in `main` or `dev` holding the text's values. The population (1283 prediction cells vs 1215 with exact prediction) is also mixed in one sentence. Answer: report the numbers of the delivered file, or deliver the file that produces the text's numbers and make Table 2 agree; name the population once.
+
+**M2 (must, paper).** The abstract and Sec. 5.1 say "log RMSE falls with n ... slope -0.50, +0.55 in 1+d", over "42 cells of the n, d and p slices". `claims.py::c1_exponents` fits log **SD** on the plain SBM, Bernoulli, for the no-interference column and mechanism (a) at s = 0.5 only (the cells where the specification is correct). Neither the metric nor the restriction is stated where the slopes are given; the abstract reads as if the slopes held across the six mechanisms (for the biased mechanisms RMSE would not scale like this). Answer: say "SD", the cells, and "where the linear specification is correct" in abstract, Sec. 5.1 and Fig. 6.
+
+**M3 (must, analysis + presentation, REPRODUCE.md co-owners).** The objective requires saying which script produces each figure and table. `REPRODUCE.md` section 9 and `figures/CAPTIONS.md` use internal numbers that differ from the paper's (CAPTIONS "Figure 1" = regime map = paper Fig. 2; "Figure 3" = bias/SD = paper Fig. 1; "Figure 5" = tiers = paper Fig. 3; "Figure 7" = diagnostic = paper Fig. 5; "Figure 9" = coverage = paper Fig. 4; "Figure 6" = cluster = paper Fig. 9; `t1_mechanisms` = paper Tables 3 and 4, `t3_regime` = Table 1, `t2_acceptance` = Table 2). A reader cannot go from a paper figure to its script. Answer: add the paper number to each row of the section 9 table and to CAPTIONS (or rename the files).
+
+**M4 (must, paper).** The first page does not read as a paper for an outside reader. The abstract is 19 lines with about fifteen numbers and the unit "grid cells" is never defined there; "none of the data-computable scores we tried" and "exposure range" are unexplained; the parenthesis "(our reading, not a separate test)" sits in the middle of the argument. Study-process vocabulary ("pre-registered", "freeze", "post-freeze extension", "tie cells", "D*") is used in the main text without definition. The venue record asks for an abstract that states the problem, the finding and the scope. Answer: an abstract with the question, the two-part answer, the regime finding and the two negative results in plain terms and at most a handful of numbers; define "cell" and the freeze once in Sec. 4.
+
+**M5 (may, paper).** "Pre-registered" (abstract-adjacent text, Sec. 4, 5.5, Table 2): nothing was registered outside the repository. Say "specified before the runs (repository commit X)".
+
+**M6 (may now, must for `final` unless run or shown infeasible; analysis).** Graph neural networks (two of the starter references) and cluster Horvitz-Thompson are cited and not run. A GNN or message-passing regression is another flexible learner the claim "flexible learners do not beat the regression" is about, and cluster HT is the standard baseline for the cluster designs; both are implementation, not blockers.
+
+**M7 (may, presentation).** Fig. 3: oracle-form marker for (d) sits on the axis floor without a note; legend says h = 0.75, the text q. Fig. 1 legend is small and crowded; Fig. 5 A/B are hard to read at print size. Related work could add the partial-interference and exposure-regression lines (Hudgens-Halloran, Toulis-Kao, Forastiere et al., Johari et al.) that a reviewer would expect named.
+
+## Strongest objections a reviewer would raise, and what answers each
+1. *Novelty.* The extrapolation view is Chin 2019 and the bias formula is the population OLS limit, so "a formula that knows the mechanism matches the bias in 82% of cells" verifies algebra, it does not predict. The paper says so honestly. What answers it: the contribution is the quantified variance/bias split, the regime map and the two failed tools; the confirmatory P6/P7 tests (analysis addenda 4-5, cubic curvature, in progress in `experiment-repo`) are the part that would turn "bias is set by the response at the corners" from interpretation into a tested claim. Recorded as pending in this `release`; it becomes a `must` for `final` if the abstract still states that claim without a test.
+2. *Main claim untested.* The abstract's thesis (bias unidentified from data inside the exposure range) is labelled "our reading, not a separate test". Answered by the same P6/P7 work; not yet.
+3. *Mechanisms chosen by the authors; shares of "grid cells".* Disclosed (Sec. 1, 5.2, 6). Shares depend on the grid; the break-even share s* and the paired intervals are the transferable results. Acceptable.
+4. *Certainty.* d exponent rests on three degrees and cells share graphs; stated. Intervals are Monte Carlo only; stated.
+5. *Baselines.* See M6.
+6. *Readability.* See M4.
+
+## Not a finding
+`dev` already carries refreshed results (87% of 1257 cells, fine-p grid, absolute R2 of log RMSE); the version's text predates them, as PR #10 says. Remaining work the study is still doing is not held against this release.

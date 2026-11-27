@@ -1,0 +1,21 @@
+# tab_main
+
+**Claim carried:** C2/C4: width and coverage of every arm per dataset, and the headline arm's paired width ratio to both PPI++ baselines with its pre-fixed class and the floor in two units.
+
+**Shows:** one row per dataset at its headline n; first block: cell = mean width in each dataset's own units (empirical coverage %), dagger = misses the win rule; second block: paired width ratio with 95% CI of PPI++ with the unclipped tuning (the calibrated spline arm is in tab_headline_full), and of the selected interval to the package PPI++ (`ppi-python` 0.2.3, clips the estimated tuning to [0, 1]), to the unclipped PPI++ and to the strongest valid baseline of the two, each with its class under the margin fixed before the runs (none = CI inside [0.98, 1.02]; gain = CI upper bound below 0.95 and valid; small = otherwise; classes from headline.csv, checked against the ratio in cells.csv); floor/PPI++ = estimated within-class floor as the ratio of the standard deviations (asympt.) and in measured-width units (meas.), neither a bound. Two stacked blocks in one table*, centred; use with \footnotesize. Strongest valid baseline (Outline rev. 9): in each cell the narrower of the package PPI++ (P) and the unclipped PPI++ (U) among those whose coverage passes the rule; a double dagger means neither passes and the narrower of the two is used (3 of 9 cells: alphafold, census income, forest). The narrower of the two regardless of validity (`ratio_vs_best_ppipp`) gives the same class in all 9 cells. The columns Ratio, with X (T2 cells only) are ratios to the package PPI++ with its class; a double dagger there marks the T2 cells in which neither baseline passes the coverage rule (2 of 4: alphafold, census income); against the strongest valid baseline their ratios are alphafold 1.004, census educ. 1.009, census health 1.004, census income 1.009, all classed no gain.
+
+**How to read:** ratio below 1 with CI below 1 = shorter than PPI++; coverage is read next to width so a short interval that under-covers is visible.
+
+**Computed on** (from the rows drawn):
+- datasets/scenarios: alphafold, ballots, census_education, census_healthcare, census_income, forest, galaxies, gene_expression, plankton
+- n: 200, 500
+- N: 1000, 10000, 5000, 8000
+- tier: T1, T2
+- methods: calib_spline, labels_z, ppi, ppipp, ppipp_unclip, select, select_x
+- constructions: wald
+- sampling: labeled_only_resample, with_replacement
+- base seeds: 20282720.0, 20427675.0, 20553373.0, 20925496.0, 20934733.0, 21033679.0, 21198254.0, 21243444.0, 21252651.0
+- code commits: 146848fb9a8459fac152ed67ffd429c934ecc49c, 5e11b915d25abfdb3dc37480525a5cacb80b16f3, 6f99f30de39c59b831bb041e788a7237805185d3, a9410fce44393d31c3b463367f1f030ae77538a4, ad7837e0dc29e00931d59f3d15e2d3bd85546126, f7cde9586b0286b709e013b3a70a4e33d56cceb1
+- n (and N) per dataset: alphafold n=500 (N=8000); ballots n=500 (N=5000); census_education n=500 (N=10000); census_healthcare n=500 (N=10000); census_income n=500 (N=10000); forest n=200 (N=1000); galaxies n=500 (N=10000); gene_expression n=500 (N=10000); plankton n=500 (N=10000)
+- Monte-Carlo repetitions per row: min 2000, max 5000
+- rows: 58

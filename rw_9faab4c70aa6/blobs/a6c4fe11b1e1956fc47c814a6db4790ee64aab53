@@ -1,0 +1,185 @@
+"""Core of the select-then-report analysis: worlds (item x configuration 0/1 matrices), searchers,
+reporting protocols, gap predictors.  Pure numpy; every function takes an explicit numpy Generator.
+
+Conventions: Y is an (N, K) uint8 matrix of item-level correctness for N items and K configurations.
+A *search set* S is a set of n item indices; the *report* of a procedure is a number computed from Y[S];
+the *truth* of a selected configuration c is its accuracy on fresh items (see world.truth).
+"""
+import numpy as np
+from math import sqrt
+
+# --------------------------------------------------------------------------- worlds
+class World:
+    """Y: (N,K) matrix.  theta: (K,) true accuracies if known (synthetic); otherwise truth is the accuracy on the
+    pool items *not in S* (S is a uniformly random subset of an iid sample of the benchmark, so the rest is a
+    fresh iid sample given S; unbiased for theta(c_hat)).  `ids` (N,) are pool item ids: rows of a pool
+    bootstrap replicate repeat an id, and truth excludes every row whose id occurs in S (a resampled copy of a
+    search item is not a fresh item)."""
+    def __init__(self, Y, theta=None, ids=None, factors=None):
+        self.Y = Y; self.N, self.K = Y.shape
+        self.theta = theta
+        self.ids = np.arange(self.N) if ids is None else np.asarray(ids)
+        self.factors = factors                               # (K, F) level indices per config, or None
+
+    def draw_S(self, n, rng):
+        return rng.choice(self.N, n, replace=False)
+
+    def _fresh(self, S):
+        return ~np.isin(self.ids, self.ids[S])
+
+    def truth(self, S, c):
+        """accuracy of config c on fresh items given S."""
+        if self.theta is not None: return self.theta[c]
+        m = self._fresh(S)
+        return self.Y[m, c].mean()
+
+    def truth_vec(self, S):
+        if self.theta is not None: return self.theta
+        m = self._fresh(S)
+        return self.Y[m].mean(0)
+
+    def fresh_se(self, S, c):
+        m = self._fresh(S); p = self.Y[m, c].mean()
+        return float(np.sqrt(max(p * (1 - p), 1e-4) / m.sum()))
+
+# --------------------------------------------------------------------------- synthetic generator
+def gen_synthetic(N, K, rng, base=0.35, sigma_theta=0.02, tau=1.0, rank=3, phi=0.5, groups=None, N_pop=None, grid=None):
+    """Latent-factor IRT generator.  logit p_ik = mu + d_i + b_k + sum_r lam_ir f_kr.
+    d_i ~ N(0,tau^2) item difficulty; b_k config quality (additive over `groups` blocks if given);
+    f_kr ~ N(0, phi^2) item x config interaction (rank `rank`); mu tuned so mean accuracy = base,
+    b scaled so SD_k of theta_k (accuracy scale) = sigma_theta.  theta_k = E_i p_ik computed on a
+    large population sample so it is the truth for fresh items."""
+    factors = None
+    if grid is not None:     # factorial configuration space: additive level effects per factor (like the real space)
+        K = int(np.prod(grid)); factors = np.stack(np.unravel_index(np.arange(K), grid), 1)
+        groups = [(g, int(np.prod(grid[i + 1:]))) for i, g in enumerate(grid)]
+    npop = N_pop or 20 * N
+    d = rng.normal(0, tau, npop); lam = rng.normal(0, 1, (npop, rank))
+    f = rng.normal(0, phi, (K, rank))
+    if groups is None: b0 = rng.normal(0, 1, K)
+    else:
+        b0 = sum(rng.normal(0, 1, g)[(np.arange(K) // s) % g] for g, s in groups)
+    inter = lam @ f.T                                    # (npop,K)
+    sub = slice(0, 4000)                                 # bisection on a subsample, final theta on all npop
+    def theta_of(mu, scale, sl=sub):
+        z = mu + d[sl, None] + scale * b0[None, :] + inter[sl]
+        return (1 / (1 + np.exp(-z))).mean(0)
+    # solve scale so SD(theta)=sigma_theta (bisection) at mean accuracy base
+    def solve_mu(scale):
+        lo, hi = -10, 10
+        for _ in range(30):
+            mid = (lo + hi) / 2
+            if theta_of(mid, scale).mean() < base: lo = mid
+            else: hi = mid
+        return (lo + hi) / 2
+    lo, hi = 0.0, 3.0
+    for _ in range(18):
+        sc = (lo + hi) / 2; mu = solve_mu(sc); sd = theta_of(mu, sc).std()
+        if sd < sigma_theta: lo = sc
+        else: hi = sc
+    sc = (lo + hi) / 2; mu = solve_mu(sc)
+    P = 1 / (1 + np.exp(-(mu + d[:, None] + sc * b0[None, :] + inter)))
+    theta = P.mean(0)   # truth for fresh items = mean over the full population sample
+    Y = (rng.random((N, K)) < P[:N]).astype(np.uint8)    # first N population items are the pool
+    return World(Y, theta=theta, factors=factors)
+
+# --------------------------------------------------------------------------- searchers
+# every searcher: (world, S, cand, rng, **opts) -> (selected config c_hat, n_evals (config x item cells), info)
+def score(world, S, cands):
+    return world.Y[S][:, cands].mean(0)
+
+def search_random(world, S, cand, rng, B=None, **kw):
+    """random search: evaluate B configs drawn without replacement from cand on all of S; best by S-score
+    (ties broken at random).  B=None = exhaustive (grid)."""
+    c = cand if B is None or B >= len(cand) else rng.choice(cand, B, replace=False)
+    s = score(world, S, c)
+    best = np.flatnonzero(s == s.max()); j = rng.choice(best)
+    return c[j], len(c) * len(S), {"evaluated": c}
+
+def search_hillclimb(world, S, cand, rng, max_evals=None, **kw):
+    """coordinate ascent over factor levels (adaptive, full-S evaluations).  Start from a random config of
+    `cand`, repeatedly sweep the factors in random order setting each to its best level given the others;
+    stop when a full sweep leaves the config unchanged or max_evals distinct configs were evaluated."""
+    F = world.factors; candset = set(cand.tolist())
+    lut = {tuple(F[c]): c for c in cand}
+    cache = {}
+    def ev(c):
+        if c not in cache: cache[c] = world.Y[S, c].mean()
+        return cache[c]
+    cur = int(rng.choice(cand)); ev(cur); changed = True
+    while changed:
+        changed = False
+        for f in rng.permutation(F.shape[1]):
+            levels = np.unique(F[cand, f]); best, bs = cur, ev(cur)
+            for lv in rng.permutation(levels):
+                t = list(F[cur]); t[f] = lv; c = lut.get(tuple(t))
+                if c is None or c == cur: continue
+                if max_evals and len(cache) >= max_evals and c not in cache: continue
+                sc = ev(c)
+                if sc > bs: best, bs = c, sc
+            if best != cur: cur, changed = best, True
+    ks = np.array(list(cache)); s = np.array([cache[k] for k in ks])
+    top = ks[s == s.max()]; sel = int(rng.choice(top))
+    return sel, len(cache) * len(S), {"evaluated": ks}
+
+def search_sh(world, S, cand, rng, eta=2, f0=0.0, **kw):
+    """successive halving over nested item subsets: all candidates scored on the first n_r items of a random
+    ordering of S, the best 1/eta survive, n_r doubles each round, last round uses all of S.  Returns the
+    config best in the final round; cells = sum over rounds of survivors x n_r.  f0 = minimum fraction of S used in any
+    round (f0=0: classical; larger f0 spends more evaluations on the early rounds, used to match a budget)."""
+    order = rng.permutation(S); n = len(S)
+    R = int(np.ceil(np.log(len(cand)) / np.log(eta))) if len(cand) > 1 else 1
+    surv = np.array(cand); cells = 0; hist = []
+    for r in range(R):
+        nr = max(2, int(round(n * max(f0, eta ** -(R - 1 - r))))) if r < R - 1 else n
+        s = world.Y[order[:nr]][:, surv].mean(0); cells += len(surv) * nr
+        hist.append((surv.copy(), nr))
+        if r == R - 1 or len(surv) == 1: break
+        keep = max(1, int(np.ceil(len(surv) / eta)))
+        idx = np.argsort(-(s + 1e-9 * rng.random(len(s))))[:keep]; surv = surv[idx]
+    s = world.Y[S][:, surv].mean(0)
+    best = np.flatnonzero(s == s.max()); j = rng.choice(best)
+    return surv[j], cells, {"evaluated": surv, "rounds": hist, "order": order}
+
+SEARCHERS = {"random": search_random, "hillclimb": search_hillclimb, "sh": search_sh}
+
+# --------------------------------------------------------------------------- gap predictors
+def kappa_max(Ys, rng, B=300, sd_scale=None):
+    """E[max_k Z_k] for Z ~ N(0, Sigma_hat/n) by multiplier bootstrap from the item-level matrix Ys (n,K):
+    the expected optimism of the best-of-K *if all configurations had equal true accuracy*.  Also returns
+    the mean per-config sd (sigma_bar/sqrt n) and kappa = E max / (sigma_bar/sqrt n)."""
+    n, K = Ys.shape
+    X = Ys - Ys.mean(0)
+    xi = rng.standard_normal((B, n))
+    Z = xi @ X / n                                       # (B,K)
+    em = Z.max(1).mean()
+    sb = np.sqrt((X ** 2).mean(0)).mean() / np.sqrt(n)
+    return em, em / sb, sb
+
+def predictor_gap(Ys, rng, B=300):
+    """Search-log predictor of the optimism of the best-of-K configuration: E max_k Z_k (equal-theta upper end)."""
+    return kappa_max(Ys, rng, B)[0]
+
+def keff(kappa, K):
+    """Number of independent configurations with the same expected maximum (Gaussian order statistic), by
+    inverting E max of K iid N(0,1) = kappa (table lookup)."""
+    grid = np.arange(1, 4097)
+    from scipy.special import ndtri
+    # Blom approx of E max of m iid N(0,1)
+    em = ndtri((grid - 0.375) / (grid + 0.25)); em[0] = 0.0
+    return float(np.interp(kappa, em, grid))
+
+
+def predictor_refined(Ys, rng, B=300):
+    """Search-log predictor of the optimism of the selected configuration that uses the observed spread of the scores:
+    empirical-Bayes shrink the S-scores to means m_k (variance of true accuracy estimated as spread minus noise),
+    then parametric bootstrap: s*_k = m_k + Z*_k with Z* ~ N(0, Sigma_hat/n) (multiplier bootstrap of the item-level
+    matrix), select k* = argmax s*, optimism = Z*_{k*}.  Returns (mean optimism, sigma_theta_hat)."""
+    n, K = Ys.shape
+    s = Ys.mean(0); X = Ys - s
+    se2 = (X ** 2).mean(0) / n
+    var_th = max(0.0, s.var() - se2.mean()); lam = var_th / (var_th + se2)
+    m = s.mean() + lam * (s - s.mean())
+    xi = rng.standard_normal((B, n)); Z = xi @ X / n
+    k = np.argmax(m[None, :] + Z, 1)
+    return float(Z[np.arange(B), k].mean()), float(np.sqrt(var_th))

@@ -1,0 +1,73 @@
+"""SE ratio: how much wider (or narrower) the resampling SE of a model gap is than the model-based (Fisher) SE, per data set, real vs same-graph null.
+For pairs with z_fisher in [1,8]: ratio_cluster = se_boot(cluster bootstrap, as in the core runs, B in the core table) / se_fisher, ratio_cmp = se_boot(comparison bootstrap) / se_fisher.
+Null: NREP parametric-bootstrap data sets on the same graph (independent comparisons), comparison bootstrap B=200 on each; ratio_cmp only.
+usage: 13_se_ratio.py UNIT [--nrep 4] [--boot 200]   |   13_se_ratio.py --summary   (writes results/se_ratio.csv from $BT_RESULTS/se_ratio/*.csv and the core tables)"""
+import argparse, glob, os, sys
+import numpy as np, pandas as pd
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src")); sys.path.insert(0, os.path.dirname(__file__))
+import btlib as B, analysis as A
+from core01 import OUT, get
+import importlib
+T6 = importlib.import_module("06_tables")
+ZLO, ZHI = T6.ZLO, T6.ZHI
+
+
+def pair_ratio(theta, Hinv, tb, lo=ZLO, hi=ZHI):
+    """per pair (a above b, theta_a > theta_b) with z_fisher in [lo, hi]: z_fisher and se_boot / se_fisher"""
+    M = len(theta)
+    a, b = np.triu_indices(M, 1)
+    sw = theta[a] < theta[b]
+    a, b = np.where(sw, b, a), np.where(sw, a, b)
+    vf = Hinv[a, a] + Hinv[b, b] - 2 * Hinv[a, b]
+    C = np.cov(tb, rowvar=False)
+    vb = C[a, a] + C[b, b] - 2 * C[a, b]
+    z = (theta[a] - theta[b]) / np.sqrt(vf)
+    ok = (z >= lo) & (z <= hi)
+    return z[ok], np.sqrt(vb[ok] / vf[ok])
+
+
+def run(unit, nrep, boot):
+    P = A.Prepared(get(unit))
+    out = []
+    for rep in range(nrep):
+        cn = A.simulate_null(P, np.random.default_rng([0, 13, rep]))
+        th, H = B.fit(P.g, cn, theta0=P.theta, return_H=True)
+        rng = np.random.default_rng([0, 14, rep])
+        tb = np.array([B.fit(P.g, rng.multinomial(P.N, (cn / P.N).ravel()).reshape(P.g.P, 3).astype(float), theta0=th) for _ in range(boot)])
+        z, r = pair_ratio(th, np.linalg.inv(H), tb)
+        out.append(dict(unit=unit, rep=rep, n_pairs=len(r), ratio_cmp_med=np.median(r) if len(r) else np.nan, ratio_cmp_q25=np.percentile(r, 25) if len(r) else np.nan,
+                        ratio_cmp_q75=np.percentile(r, 75) if len(r) else np.nan, boot=boot))
+    os.makedirs(f"{OUT}/se_ratio", exist_ok=True)
+    pd.DataFrame(out).to_csv(f"{OUT}/se_ratio/{unit.replace(':', '_')}.csv", index=False)
+
+
+def summary():
+    rows = []
+    for fn in sorted(glob.glob(f"{OUT}/core/*.parquet")):
+        if fn.endswith(".null.parquet") or fn.endswith(".models.parquet"):
+            continue
+        r = pd.read_parquet(fn)
+        r = r[(r.family == "delete") & (r.z_fisher >= ZLO) & (r.z_fisher <= ZHI)]
+        u = r.unit.iloc[0] if len(r) else os.path.basename(fn)[:-8]
+        nf = f"{OUT}/se_ratio/{os.path.basename(fn)[:-8]}.csv"
+        nl = pd.read_csv(nf) if os.path.exists(nf) else None
+        full = pd.read_parquet(fn, columns=["unit", "design", "N", "ncl", "tie_rate", "boot"]).iloc[0]
+        rc, rm = r.se_boot / r.se_fisher, r.se_boot_cmp / r.se_fisher
+        rows.append(dict(dataset=T6.dataset_id(full.unit), design=T6.DESIGN[full.design], N=full.N, n_clusters=full.ncl, tie_rate=full.tie_rate, n_pairs=len(r),
+                         real_ratio_cluster_med=rc.median(), real_ratio_cluster_q25=rc.quantile(.25), real_ratio_cluster_q75=rc.quantile(.75),
+                         real_ratio_cmp_med=rm.median(), real_ratio_cmp_q25=rm.quantile(.25), real_ratio_cmp_q75=rm.quantile(.75),
+                         null_ratio_cmp_med=nl.ratio_cmp_med.mean() if nl is not None else np.nan, null_n_rep=len(nl) if nl is not None else 0,
+                         null_ratio_cmp_rep_sd=nl.ratio_cmp_med.std(ddof=1) if nl is not None and len(nl) > 1 else np.nan,
+                         design_effect_cluster=(rc.median() / rm.median()) ** 2 if len(r) else np.nan, n_boot_real=full.boot))
+    o = pd.DataFrame(rows)
+    o["real_over_null_cmp"] = o.real_ratio_cmp_med / o.null_ratio_cmp_med
+    o.to_csv(f"{T6.REPO}/se_ratio.csv", index=False, float_format="%.5g")
+    print(o.groupby("design")[["real_ratio_cluster_med", "real_ratio_cmp_med", "null_ratio_cmp_med", "design_effect_cluster", "real_over_null_cmp"]].describe().T.to_string())
+
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser()
+    ap.add_argument("unit", nargs="?"); ap.add_argument("--nrep", type=int, default=4); ap.add_argument("--boot", type=int, default=200)
+    ap.add_argument("--summary", action="store_true")
+    a = ap.parse_args()
+    summary() if a.summary else run(a.unit, a.nrep, a.boot)

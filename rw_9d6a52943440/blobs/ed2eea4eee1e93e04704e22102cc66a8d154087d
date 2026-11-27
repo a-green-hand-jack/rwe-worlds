@@ -1,0 +1,37 @@
+"""Fig. 6 (appendix): RMSE ratio to uniform sampling vs the number of source models M, n = 100.
+usage: python3 figures/scripts/fig6_msrc.py CODE_DIR OUT_PDF
+Source: results/msrc.csv (geometric mean over non-thin benchmarks, 95% family-bootstrap interval; M = 0 in the file means all
+sources, drawn as 'all'). A benchmark with fewer than M source models uses all of them. The methods are those of Fig. 2 that
+are defined for shared-subset designs (anchor selection and info-top were not run for this block)."""
+import sys
+import matplotlib.pyplot as plt
+import numpy as np
+sys.path.insert(0, __file__.rsplit("/", 1)[0])
+import style, common
+
+style.apply()
+R = common.Results(sys.argv[1])
+ms = R.csv("msrc.csv")
+ms["x"] = ms.M.map({10: 0, 30: 1, 100: 2, 0: 3})
+shown = [(m, c) for m, c in R.shown(ms.method.unique()) if m != common.BASE]
+fig, axs = plt.subplots(1, 2, figsize=(style.TEXT_WIDTH_IN, 3.4), sharey=True)
+for ax, sp in zip(axs, ["interp", "extrap"]):
+    d = ms[ms.split == sp]
+    for m, c in shown:
+        g = d[d.method == m].sort_values("x")
+        if g.empty:
+            continue
+        st = style.CLASS_STYLE[c]
+        ax.fill_between(g.x, g.ci_lo, g.ci_hi, color=st["color"], alpha=0.15, lw=0)
+        ax.plot(g.x, g.geomean_ratio, color=st["color"], marker=st["marker"], ls=st["ls"], label=common.label(m))
+    ax.axhline(1, color="0.5", lw=0.6)
+    ax.set_yscale("log"); ax.set_xlim(-0.3, 3.3)
+    ax.set_xticks(range(4)); ax.set_xticklabels(["10", "30", "100", "all"])
+    ax.set_xlabel("number of source models, $M$")
+    ax.set_title(f"{common.SPLIT_LABEL[sp]} ({int(d.n_bench.max())} benchmarks)", loc="left")
+    ax.set_yticks([0.6, 0.8, 1, 1.5, 2, 3]); ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%g")); ax.yaxis.set_minor_formatter(plt.NullFormatter())
+axs[0].set_ylabel("RMSE / RMSE of uniform")
+h, l = axs[0].get_legend_handles_labels()
+fig.subplots_adjust(left=0.1, right=0.99, top=0.93, bottom=0.34, wspace=0.05)
+fig.legend(h, l, loc="lower center", ncol=3, bbox_to_anchor=(0.5, 0.0), handlelength=2.4)
+fig.savefig(sys.argv[2])

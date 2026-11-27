@@ -1,0 +1,10 @@
+# venue/ — NeurIPS 2026 main-track template (official, unedited)
+
+Files copied unchanged from the world's venue library (`ht-role venue neurips --template`):
+- `neurips_2026.sty` — style file. Do not edit style parameters (margins, fonts, spacing); the default mode is anonymous with line numbers; `final` is camera-ready only.
+- `neurips_2026.tex` — the venue's example paper (instructions and skeleton).
+- `checklist.tex` — the mandatory 16-item paper checklist; goes in the same PDF after the references and appendix, does not count toward the 9 pages. A missing checklist is a desk reject.
+
+Requirements, sources and the budget for figures/tables: `venue.md` in `world/venue-repo`.
+Key numbers: 9 content pages including figures and tables; text block 5.5 x 9 in, one column; US Letter; Times 10/11 pt; Type 1 or embedded fonts only (matplotlib `pdf.fonttype=42`).
+Build: `paper/` builds with `cd paper && latexmk ...`, so make `../venue/` visible (e.g. `TEXINPUTS` in a `latexmkrc`, or `\usepackage{../venue/neurips_2026}`); that choice is `paper-repo`'s.

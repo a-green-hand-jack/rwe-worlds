@@ -1,0 +1,11 @@
+{
+ "figure": "fig6_certificate",
+ "width_in": 5.5,
+ "height_in": 2.5,
+ "inputs": {
+  "results/tables/certificate_bins.csv": "637e65347de28f3e8e078fb859aace86397b388a11371cdd2f36cdd63bfdc936",
+  "results/tables/certificate_paired_diff.csv": "752ff596852331d4ee03a34233a2bf8839e54d5e3347bfd8ba41a7c4e67bb433"
+ },
+ "note": "top-3 outcome, kernel_paired streams; (a) count-weighted pooling of certificate_bins over datasets x models x budget ladder (model != 'all'), held-out instances; (b) certificate_paired_diff rows with model='all', m='all' (pooled over the four models and the ladder), instance-bootstrap CI as supplied; useful margin 0.01; the run-twice competitor spends 51 evaluations more than the certificate",
+ "scope": "Intervals resample instances of one trained model per dataset x model (one seed, B=50 random background rows); variance from retraining and from the background is not in them (floors b and c measure those separately)."
+}

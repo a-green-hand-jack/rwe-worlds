@@ -1,0 +1,50 @@
+# How accepted NeurIPS papers in this audience are written
+
+Measured from 14 NeurIPS main-track papers (2024: 6, 2025: 8; 15 chosen, one excluded for an anomalous PDF) on evaluation of language models and label-efficient / prediction-powered evaluation. Method, sample and limits: `profile/README.md`, `profile/sample.json`. These are **camera-ready** versions: 10 content pages, one more than the 9 of a submission (`venue.md`). Counts are measurements of that sample, a purposive one, not a rule of the venue.
+
+## Per-paper counts (main text only; references and appendix excluded)
+
+| # | Paper (short) | Fig. | Tab. | Abstract (words) | Intro (words, approx.) | References |
+|---|---|---|---|---|---|---|
+| 1 | Efficient multi-prompt evaluation of LLMs (2024) | 6 | 0 | 181 | n/a (figure inside intro) | 54 |
+| 2 | Adaptive Labeling for Efficient OOD Model Evaluation (2024) | 6 | 1 | 164 | 1088 | 40 |
+| 3 | Efficient Lifelong Model Evaluation in an Era of Rapid Progress (2024) | 5 | 0 | n/a | 676 | 110 |
+| 4 | Elo Uncovered (2024) | 5 | 1 | 167 | 718 | 58 |
+| 5 | Stratified Prediction-Powered Inference for Hybrid Evaluation of LMs (2024) | 2 | 0 | 177 | 744 | 37 |
+| 6 | Prediction-Powered Ranking of LLMs (2024) | 4 | 0 | 244 | 1291 | 67 |
+| 7 | Signal and Noise: Reducing Uncertainty in LM Evaluation (2025) | 6 | 1 | 258 | 858 | 70 |
+| 8 | Sloth: scaling laws for LLM skills to predict multi-benchmark performance (2025) | 7 | 0 | 204 | 1045 | 44 |
+| 9 | Handling Missing Responses under Cluster Dependence, LM evaluation (2025) | 2 | 0 | 133 | 766 | 60 |
+| 10 | Robust Sampling for Active Statistical Inference (2025) | 7 | 0 | 170 | 803 | 52 |
+| 11 | Prediction-Powered Semi-Supervised Learning with Online Power Tuning (2025) | 5 | 0 | 144 | 548 | 41 |
+| 12 | Adaptive Prediction-Powered AutoEval (2025) | 4 | 1 | 204 | 1489 | 54 |
+| 13 | Predicting the Performance of Black-box LMs with Follow-up Queries (2025) | 5 | 4 | 192 | 708 | 65 |
+| 14 | Scaling Up Active Testing to LLMs (2025) | 9 | 0 | 138 | 715 | 41 |
+
+Abstract and introduction word counts come from text extraction and are accurate to a few tens of words (one abstract and one introduction could not be extracted cleanly and are left out of the summaries).
+
+## Summary
+
+| Quantity | Median | Range | Note |
+|---|---|---|---|
+| Figures in main text | 5 | 2–9 | a multi-panel figure counts once |
+| Tables in main text | 0 (mean 0.6) | 0–4 | 5 of 14 papers have any table |
+| Figures + tables | 6 (middle half 5–7) | 2–9 | |
+| Abstract | 177 words | 133–258 | one paragraph |
+| Introduction | ≈770 words | ≈550–1490 | about 1–2 pages at 10 pt on a 5.5 in text block |
+| References | 54 | 37–110 | |
+
+## How they are written (abstracts and the start of the introductions of three read, the structure of all measured by script)
+
+- **Abstract.** One paragraph, no section label beyond "Abstract". Order: the cost or difficulty that motivates the work (evaluation is expensive / labels are scarce / benchmarks are unreliable) → what the paper does, in a sentence or two → the headline finding stated as a finding, often with a size (an error reduction, "N benchmarks, M models") → what it is good for or its scope. Several state the amount of data used (e.g. "30 benchmarks and 375 open-weight models").
+- **Introduction.** About five to seven paragraphs: why the problem matters now → what existing practice does and where it falls short, with citations → what this paper does ("In this work we …") → the result in one or two sentences. Contributions are mostly stated in prose: the word "contribution" appears in the introduction of 9 of 14, and bulleted lists were found in only two (1 and 3 items). A first figure that carries the idea or the headline result is on page 1 or 2 in at least 9 of 14 (the position could not be read reliably for the others).
+- **Sections.** Introduction → (related work, either a short main-text section or folded into the introduction with the long version in the appendix) → setup/method → experiments → discussion with limitations → conclusion. The word "limitations" appears in the main text of 8 of 14 (a paragraph or a "Conclusion and Limitations" / "Discussion and Limitations" heading); the checklist asks for it.
+- **Prior work.** Typically 40–70 references (median 54); the closest line of work is cited densely in the introduction and compared against in the experiments, with the baselines named.
+- **Evidence.** The headline claim is carried by one or two main figures (error versus budget curves with intervals are the common form); per-dataset detail, further ablations and all long tables are in the appendix, which is unrestricted and is "optional reading" for reviewers (`venue.md`).
+
+## Budget for this paper (derived from the sample and the venue's 9 pages)
+
+- **Main text:** nine pages one column, figures and tables included. Take **6 main-text items (figures + tables) as the target and 7 as the ceiling**; the sample's median is 6 with a camera-ready page more. Each item is a full-width (5.5 in) or two half-width (≈2.7 in) panel group; at ≈0.25–0.35 page each the items take about two pages, leaving about seven for text.
+- **The outline's ten items** (Fig. 1–6, Table 1–4) do not all fit: the sample suggests Fig. 1 (schematic, can be small), Table 2 + Fig. 2 (C1), Fig. 3 (C2), Fig. 5 (C4) and Fig. 4 (C3) in the main text, Fig. 6/Table 4 (C5) as one compact item or in the appendix if space is short; Tables 1 and 3 and all per-benchmark tables to the appendix. The story decides; this is the venue's budget for it.
+- **Appendix:** no limit, placed after the references and before the checklist; the sample's appendices (pages after the references, estimated from file length) run roughly 12–35 pages. Material critical to a claim must not be only there (`venue.md`).
+- **Abstract** target 150–230 words, one paragraph (the kit: one paragraph; the submission form: at most 5000 characters). **Introduction** target 700–1000 words with the headline result stated in it. **References** target 45–70 entries, at least the whole starter and positioning list the idea cites.

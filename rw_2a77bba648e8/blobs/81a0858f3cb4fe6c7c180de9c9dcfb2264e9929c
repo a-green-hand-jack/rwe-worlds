@@ -1,0 +1,68 @@
+"""Appendix Fig A2 (C1): the variance of the Chin regression against the leverage prediction sigma^2 L / n.
+A: noise component of the realised variance (SD^2 x var_noise_share of the exported decomposition) against sigma_abs^2 L / n, one point per Bernoulli cell with a (a)-(f) mechanism,
+   colour and marker by noise multiple sigma, identity line; grey: the total realised variance SD^2 of the same cells (it exceeds the noise part when the baseline varies across assignments).
+B: fitted exponents of log SD on log n, log(1+d), log p(1-p) with 95% intervals (claims/c1_exponents.csv; plain SBM, Bernoulli, mechanism (a) at s = 1/2 and the null column, 42 cells per sigma), predicted value marked.
+Usage: figA2_variance.py RESULTS_DIR OUT_DIR
+"""
+import argparse
+import pathlib
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+import common
+import style
+
+ap = argparse.ArgumentParser()
+ap.add_argument("data"); ap.add_argument("out")
+a = ap.parse_args()
+style.apply()
+cells, meta = common.load(a.data, "cells")
+ex = pd.read_csv(pathlib.Path(a.data) / "claims" / "c1_exponents.csv")
+k = cells[~cells.run_id.str.startswith("pfine_") & (cells.estimator == "Chin") & (cells.tier == "G") & (cells.design == "bernoulli") & cells.mechanism.isin(list("abcdef"))].copy()
+k["pred"] = k.sigma_abs ** 2 * k.L / k.n
+k["real"] = k.sd ** 2
+k["noise_var"] = k.real * k.var_noise_share
+SIG = [0.25, 0.5, 1.0, 2.0, 4.0]
+COL = dict(zip(SIG, ["#0072B2", "#56B4E9", "#009E73", "#E69F00", "#D55E00"]))
+MK = dict(zip(SIG, "osD^v"))
+
+fig, axs = plt.subplots(1, 2, figsize=(style.TEXTWIDTH, 2.6), gridspec_kw=dict(width_ratios=[1.15, 1], wspace=0.5))
+ax, bx = axs
+ax.scatter(k.pred, k.real, s=3, color="0.75", marker="o", lw=0, rasterized=True, zorder=1)
+for sg in SIG:
+    t = k[np.isclose(k.sigma, sg)]
+    ax.scatter(t.pred, t.noise_var, s=4, color=COL[sg], marker=MK[sg], alpha=0.35, lw=0, rasterized=True, label=f"{sg:g}")
+lo, hi = k.pred.min() * 0.7, k.real.max() * 1.6
+ax.plot([lo, hi], [lo, hi], color="k", lw=0.8)
+ax.set_xscale("log"); ax.set_yscale("log"); ax.set_xlim(lo, hi); ax.set_ylim(lo, hi); ax.minorticks_off()
+ax.set_xlabel("$\\sigma^2 L / n$"); ax.set_ylabel("variance of $\\hat\\tau$ (noise part)")
+lg = ax.legend(title="noise multiple $\\sigma$", frameon=False, loc="lower right", markerscale=2.2, handletextpad=0.1, borderaxespad=0.1, labelspacing=0.2, title_fontsize=style.MIN_PT)
+for h in lg.legend_handles:
+    h.set_alpha(1)
+ax.text(0.03, 0.86, "grey: total variance", transform=ax.transAxes, color="0.45", fontsize=style.MIN_PT)
+ax.text(-0.2, 1.04, "A", transform=ax.transAxes, fontweight="bold")
+
+TERM = [("log n", "$\\log n$ ($-\\frac{1}{2}$)"), ("log(1+d)", "$\\log(1+d)$ ($+\\frac{1}{2}$)"), ("log p(1-p)", "$\\log p(1-p)$ ($-\\frac{1}{2}$)")]
+rows = []
+for i, (tm, lab) in enumerate(TERM):
+    for j, sg in enumerate([0.25, 0.5, 1.0]):
+        r = ex[(ex.term == tm) & np.isclose(ex.sigma, sg)]
+        assert len(r) == 1, (tm, sg)
+        r = r.iloc[0]; y = i + (j - 1) * 0.22
+        bx.plot([r.ci_lo, r.ci_hi], [y, y], color=COL[sg], lw=1.0)
+        bx.plot(r.estimate, y, marker=MK[sg], ms=3.6, color=COL[sg], ls="")
+        rows.append(dict(term=tm, sigma=sg, estimate=r.estimate, ci_lo=r.ci_lo, ci_hi=r.ci_hi, predicted=r.predicted, n_cells=r.n_cells))
+    bx.plot([r.predicted] * 2, [i - 0.42, i + 0.42], color="k", lw=1.0, ls=":")
+bx.set_yticks(range(len(TERM))); bx.set_yticklabels([l for _, l in TERM]); bx.invert_yaxis(); bx.grid(axis="y", visible=False)
+bx.set_xlabel("fitted exponent of SD"); bx.set_xlim(-0.6, 0.65)
+bx.text(-0.62, 1.04, "B", transform=bx.transAxes, fontweight="bold")
+from matplotlib.lines import Line2D
+h = [Line2D([], [], color=COL[s], marker=MK[s], ms=3.6, lw=1.0) for s in [0.25, 0.5, 1.0]] + [Line2D([], [], color="k", ls=":", lw=1.0)]
+bx.legend(h, ["$\\sigma=0.25$", "0.5", "1", "predicted"], frameon=False, loc="lower center", bbox_to_anchor=(0.45, -0.52), ncol=4, columnspacing=0.8, handletextpad=0.3, handlelength=1.4)
+style.check_min_type(fig)
+o = common.out_dir(meta, a.out)
+style.save(fig, o / "figA2_variance.pdf", dpi=300)
+k[["run_id", "graph", "mechanism", "s", "sigma", "sigma_abs", "n", "L", "sd", "pred", "real", "var_noise_share", "noise_var"]].to_csv(o / "figA2_variance_A.csv", index=False)
+pd.DataFrame(rows).to_csv(o / "figA2_variance_B.csv", index=False)

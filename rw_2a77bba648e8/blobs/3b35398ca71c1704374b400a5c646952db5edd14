@@ -1,0 +1,8 @@
+# versions used for every run (Python 3.11.2, CPU only); installed in the world's research-packages image
+numpy==2.4.6
+scipy==1.17.1
+pandas==3.0.6
+pyarrow==26.0.0
+scikit-learn==1.9.1
+networkx==3.6.1
+matplotlib==3.11.2

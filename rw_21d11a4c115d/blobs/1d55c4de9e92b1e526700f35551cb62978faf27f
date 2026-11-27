@@ -1,0 +1,36 @@
+item,what,value
+helm_lite,models,91.0
+helm_lite,benchmarks,10.0
+helm_lite,ambiguous_models_excluded,0.0
+helm_capabilities,models,61.0
+helm_capabilities,benchmarks,5.0
+helm_capabilities,ambiguous_models_excluded,0.0
+open_llm,models,4496.0
+open_llm,benchmarks,6.0
+open_llm,ambiguous_models_excluded,146.0
+livebench,models,195.0
+livebench,benchmarks,3.0
+livebench,ambiguous_models_excluded,61.0
+helm_lite & open_llm,models_in_both,25.0
+helm_lite & livebench,models_in_both,23.0
+helm_capabilities & helm_lite,models_in_both,16.0
+helm_capabilities & open_llm,models_in_both,4.0
+helm_capabilities & livebench,models_in_both,12.0
+livebench & open_llm,models_in_both,19.0
+union,models_in_>=2_sources,72.0
+union,benchmarks_total,24.0
+union,models_covering_>=12_benchmarks,51.0
+union,models_covering_>=20_benchmarks,4.0
+union,density,0.5723379629629629
+union,max_benchmarks_covered_by_one_model,24.0
+complete_block helm_lite+helm_capabilities,models_complete_on_15_benchmarks,16.0
+complete_block helm_lite+open_llm,models_complete_on_16_benchmarks,25.0
+complete_block helm_lite+livebench,models_complete_on_13_benchmarks,23.0
+complete_block helm_capabilities+open_llm,models_complete_on_11_benchmarks,4.0
+complete_block helm_capabilities+livebench,models_complete_on_8_benchmarks,11.0
+complete_block open_llm+livebench,models_complete_on_9_benchmarks,18.0
+complete_block helm_lite+helm_capabilities+open_llm,models_complete_on_21_benchmarks,4.0
+complete_block helm_lite+helm_capabilities+livebench,models_complete_on_18_benchmarks,7.0
+complete_block helm_lite+open_llm+livebench,models_complete_on_19_benchmarks,3.0
+complete_block helm_capabilities+open_llm+livebench,models_complete_on_14_benchmarks,1.0
+complete_block helm_lite+helm_capabilities+open_llm+livebench,models_complete_on_24_benchmarks,1.0

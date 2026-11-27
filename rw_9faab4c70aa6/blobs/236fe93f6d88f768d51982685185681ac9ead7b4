@@ -1,0 +1,13 @@
+#!/bin/sh
+# usage: figures/src/build.sh RESULTS_DIR   (RESULTS_DIR = code/results of paper-repo); run from the repo root that holds figures/ and tables/
+set -e
+R=$1; S=$(dirname "$0"); O=$S/..; T=$S/../../tables
+python3 -I $S/fig1.py $R $O/fig1.pdf
+python3 -I $S/fig2.py $R $O/fig2.pdf
+python3 -I $S/fig3.py $R $O/fig3.pdf
+python3 -I $S/fig4.py $R $O/fig4.pdf
+python3 -I $S/fig5.py $R $O/fig5.pdf
+python3 -I $S/fig6.py $R $O/fig6.pdf
+python3 -I $T/src/tab1.py $R $T/tab1.tex
+python3 -I $T/src/tab2.py $R $T/tab2.tex
+python3 -I $T/src/tab3.py $R $T/tab3.tex

@@ -1,0 +1,106 @@
+"""Sensitivity of the validity rule (paper-repo request, experiment-repo#11). No new runs: reads results/cells.csv and headline.csv.
+
+Strict rule (the one the delivered tables use): an interval is valid if the Wilson upper limit of its coverage is >= 0.95
+and, for arms other than PPI++, its coverage is not below PPI++'s beyond Monte-Carlo error (paired test).
+Loose rule: the Wilson test is replaced by a point-estimate threshold, coverage >= LOOSE (default 0.94); the paired test is kept.
+The loose rule is applied to the arm, to both PPI++ baselines (strongest-valid-baseline choice) and to the regime map.
+Writes results/validity_sensitivity.csv (one row per T1/T2 headline cell, both rules) and prints the counts.
+usage: python validity_sensitivity.py [LOOSE]
+"""
+import os
+import sys
+import numpy as np
+import pandas as pd
+from build_results import classify, R_DIR, NOMINAL
+
+LOOSE = float(sys.argv[1]) if len(sys.argv) > 1 else 0.94
+
+
+def strict(cov_hi):
+    return cov_hi >= NOMINAL
+
+
+def loose(cov):
+    return cov >= LOOSE
+
+
+def main():
+    h = pd.read_csv(os.path.join(R_DIR, "headline.csv"))
+    c = pd.read_csv(os.path.join(R_DIR, "cells.csv"))
+    c = c[(c.group == "reference_grid") & (c.construction.isin(["wald"]) | c.construction.isna())]
+    cov = {}
+    for (ds, n, N), g in c.groupby(["dataset", "n", "N"]):
+        cov[(ds, n, N)] = {m: x.iloc[0] for m, x in g.groupby("method")}
+    rows = []
+    for _, r in h.iterrows():
+        g = cov[(r.dataset, r.n, r.N)]
+        pp, uc = g["ppipp"], g.get("ppipp_unclip")
+        arm_l = int(loose(r.coverage) and r.valid_vs_ppipp == 1)
+        cand = {"package": (r.ratio, r.ratio_lo, r.ratio_hi, bool(loose(pp.coverage)))}
+        if uc is not None and np.isfinite(r.ratio_vs_unclip):
+            cand["unclipped"] = (r.ratio_vs_unclip, r.ratio_unclip_lo, r.ratio_unclip_hi, bool(loose(uc.coverage)))
+        pool = {k: v for k, v in cand.items() if v[3]} or cand
+        k = max(pool, key=lambda k: pool[k][0])
+        rows.append(dict(
+            dataset=r.dataset, n=r.n, N=r.N, tier=r.tier, is_reference_n=r.is_reference_n, coverage_arm=r.coverage,
+            coverage_package=pp.coverage, coverage_unclipped=uc.coverage if uc is not None else np.nan,
+            arm_valid_strict=r.valid, arm_valid_loose=arm_l,
+            class_vs_package_strict=r.classification, class_vs_package_loose=classify(r.ratio_lo, r.ratio_hi, arm_l),
+            baseline_strict=r.baseline_used, baseline_valid_strict=r.baseline_valid,
+            baseline_loose=k, baseline_valid_loose=int(cand[k][3]),
+            ratio_baseline_strict=r.ratio_vs_valid_baseline, ratio_baseline_loose=cand[k][0],
+            class_vs_baseline_strict=r.classification_vs_valid_baseline,
+            class_vs_baseline_loose=classify(cand[k][1], cand[k][2], arm_l)))
+    d = pd.DataFrame(rows)
+    d.to_csv(os.path.join(R_DIR, "validity_sensitivity.csv"), index=False)
+
+    t1 = d[d.tier == "T1"]
+    print(f"loose rule: coverage >= {LOOSE} (paired test kept)")
+    for lab, x in (("T1 reference-n cells (9)", t1[t1.is_reference_n == 1]), ("T1 all dataset-n cells (%d)" % len(t1), t1),
+                   ("T2 reference-n cells", d[(d.tier == "T2") & (d.is_reference_n == 1)])):
+        print("\n==", lab)
+        for col in ("class_vs_package", "class_vs_baseline"):
+            print(col, "strict", x[col + "_strict"].value_counts().to_dict(), "| loose", x[col + "_loose"].value_counts().to_dict())
+        print("arm invalid: strict", int((x.arm_valid_strict == 0).sum()), "loose", int((x.arm_valid_loose == 0).sum()))
+        print("baseline neither valid: strict", int((x.baseline_valid_strict == 0).sum()), "loose", int((x.baseline_valid_loose == 0).sum()))
+        print("baseline changes", int((x.baseline_strict != x.baseline_loose).sum()),
+              "| class vs package changes", int((x.class_vs_package_strict != x.class_vs_package_loose).sum()),
+              "| class vs baseline changes", int((x.class_vs_baseline_strict != x.class_vs_baseline_loose).sum()))
+        print("ratio vs baseline strict [%.4f, %.4f] loose [%.4f, %.4f]" % (
+            x.ratio_baseline_strict.min(), x.ratio_baseline_strict.max(), x.ratio_baseline_loose.min(), x.ratio_baseline_loose.max()))
+    ref = t1[t1.is_reference_n == 1]
+    ch = ref[(ref.baseline_strict != ref.baseline_loose) | (ref.class_vs_baseline_strict != ref.class_vs_baseline_loose)
+             | (ref.class_vs_package_strict != ref.class_vs_package_loose) | (ref.baseline_valid_strict != ref.baseline_valid_loose)]
+    print("\nreference cells that differ in anything:\n", ch.filter(regex="dataset|coverage|baseline|class").to_string())
+
+    # regime map (113 cells): arm 'invalid' / 'all fail' against valid, as in figures/generate/fig6_regime.py
+    cc = pd.read_csv(os.path.join(R_DIR, "cells.csv"))
+    cc = cc[cc.exp.isin(["E3", "E7"]) & (cc.tier == "T1") & (cc.construction == "wald") & cc.get("reps", 1).notna()]
+    key = ["dataset", "pop_name", "n", "group"]
+    pp = cc[cc.method == "ppipp"].set_index(key)
+    g = cc[(cc.method == "select") & cc.group.isin(["reference_grid", "stress_monotone_transform", "selected_labeling", "shift", "rare"])].copy()
+
+    def out(r, loose_):
+        p = pp.loc[(r.dataset, r.pop_name, r.n, r.group)]
+        av = (r.coverage >= LOOSE and r.valid_vs_ppipp == 1) if loose_ else r.valid == 1
+        pv = (p.coverage >= LOOSE) if loose_ else p.valid == 1
+        if not av:
+            return "all fail" if not pv else "invalid"
+        if r.ratio_hi < 0.95:
+            return "gain"
+        if r.ratio_lo > 1.02:
+            return "worse"
+        if r.ratio_lo >= 0.98 and r.ratio_hi <= 1.02:
+            return "no gain"
+        return "undecided"
+    g["strict"] = g.apply(out, axis=1, loose_=False)
+    g["loose"] = g.apply(out, axis=1, loose_=True)
+    print(f"\nregime map, {len(g)} cells")
+    print("strict", g.strict.value_counts().to_dict())
+    print("loose ", g.loose.value_counts().to_dict())
+    print("cells whose outcome changes:", int((g.strict != g.loose).sum()))
+    print(pd.crosstab(g.strict, g.loose))
+
+
+if __name__ == "__main__":
+    main()

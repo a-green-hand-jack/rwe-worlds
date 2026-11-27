@@ -1,0 +1,35 @@
+"""Compare the public-code baselines of 12_public_baselines.py with our re-implementations on the same folds and targets.
+
+usage: python3 -I scripts/13_public_compare.py results/raw_public results/raw results/public_baselines.csv
+
+For every (bench, split, stage) present in results/raw_public, over exactly the folds that were run there: pooled RMSE over the targets of those folds (each method's
+squared error is averaged over its draws first, as in 03_analyze.py), as a ratio to `uniform|mean` of results/raw on the same targets. Rows: the public methods
+(tb-anchor-correct, ap-weighted, tb-anchor-irt, tb-pirt-correct, tb-pirt-irt) and our `anchor|mean`, `anchor|irt-plugin`, `anchor|diff-irt`, `strat|mean`.
+Summary printed: geometric mean of the ratio over the benchmarks, per split and method (benchmarks present for that method).
+"""
+import sys, glob, pickle, pathlib, numpy as np, pandas as pd
+pubd, rawd, out = sys.argv[1:4]
+OURS = ["uniform|mean", "strat|mean", "anchor|mean", "anchor|irt-plugin", "anchor|diff-irt"]
+rows = []
+for f in sorted(glob.glob(f"{pubd}/*.pkl")):
+    d = pickle.load(open(f, "rb")); a = d["args"]; stage = "B" if a["irt"] else "A"
+    folds = {r["fold"]: r for r in d["records"]}
+    o = pickle.load(open(f"{rawd}/{a['bench']}__{a['split']}.pkl", "rb"))
+    ours = {r["fold"]: r for r in o["records"] if r["n"] == a["n"]}
+    se = {}
+    for fi, r in folds.items():
+        assert np.array_equal(r["tgt"], ours[fi]["tgt"])
+        t = r["true"]
+        for k, v in r["preds"].items():
+            se.setdefault(k, []).append(((v - t[None]) ** 2).mean(0))
+        for k in OURS:
+            se.setdefault(k, []).append(((ours[fi]["preds"][k] - t[None]) ** 2).mean(0))
+    rm = {k: float(np.sqrt(np.concatenate(v).mean())) for k, v in se.items()}
+    for k, v in rm.items():
+        rows.append(dict(bench=a["bench"], split=a["split"], stage=stage, folds=len(folds), n=a["n"], method=k, rmse=v, ratio_uniform_mean=v / rm["uniform|mean"],
+                         source="public" if k in folds[0]["preds"] else "ours", n_targets=int(sum(len(x) for x in se[k])), draws=int(a["draws"] if k in folds[0]["preds"] else 0)))
+r = pd.DataFrame(rows); r.to_csv(out, index=False)
+gm = lambda x: float(np.exp(np.log(x).mean()))
+for (st, sp), g in r[r.method != "uniform|mean"].groupby(["stage", "split"]):
+    print(f"stage {st} {sp}:")
+    print(g.groupby("method").ratio_uniform_mean.agg(["count", gm]).round(3).to_string())

@@ -1,0 +1,10 @@
+import pymupdf,re,glob
+for f in sorted(glob.glob('/hutian/work/corpus/*.pdf')):
+    d=pymupdf.open(f); full='\n'.join(p.get_text() for p in d)
+    m=re.search(r'^\s*(references|bibliography)\s*$',full,re.I|re.M)
+    r=full[m.end():]
+    # cut at appendix start if present
+    a=re.search(r'^\s*(appendix|supplementary)[^\n]{0,40}$|^\s*A\s+[A-Z][a-z]+ [^\n]{0,50}$',r,re.M)
+    rr=r[:a.start()] if a and a.start()>500 else r
+    nums=[int(x) for x in re.findall(r'^\s*\[(\d+)\]',rr,re.M)]
+    print(f.split('/')[-1], 'numeric max',max(nums) if nums else None, 'n',len(nums), 'refwords',len(rr.split()), 'year-lines', len(re.findall(r'\((?:19|20)\d\d[a-z]?\)\.|\b(?:19|20)\d\d[a-z]?\.\s',rr)))

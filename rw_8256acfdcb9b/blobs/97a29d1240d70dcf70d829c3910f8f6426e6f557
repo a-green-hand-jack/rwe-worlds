@@ -1,0 +1,10 @@
+{
+ "figure": "fig3_margin",
+ "width_in": 4.4,
+ "height_in": 3.72,
+ "inputs": {
+  "results/tables/margin_strata.csv": "318c0d2de7c45805710c8d584d4706976eaabc19205e031f9bec8c6f123c2bf0"
+ },
+ "note": "shap_kernel l1_reg=False, k=3; quartiles of the exact margin g_3 within each dataset x model (margin_strata.csv from analysis); budget = shap default 2d+2048 for d>=16 (German, ACS Employment), largest sampled budget for d<=10 where the default enumerates all coalitions (deterministic, so those panels are not default-budget evidence); n instances per quartile in the csv (10-25: the intervals are wide); the tolerance-aware share is 1 almost everywhere because P_c^eps is satisfied vacuously inside a flat group (grey bars), so the strict share is the informative one; the CI is over instances of one trained model per cell",
+ "scope": "Intervals resample instances of one trained model per dataset x model (one seed, B=50 random background rows); variance from retraining and from the background is not in them (floors b and c measure those separately)."
+}

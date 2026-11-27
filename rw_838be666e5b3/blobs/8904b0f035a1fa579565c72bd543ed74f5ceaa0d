@@ -1,0 +1,63 @@
+"""Read analysis's result files and refuse to draw from malformed ones.
+
+No column is filled in silently: a missing required column or an empty file is an error.
+"""
+import os
+import sys
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+RESULTS = Path(os.environ.get("RESULTS_DIR", Path(__file__).resolve().parent.parent / "results_in"))
+
+REQUIRED = {
+    "cells.csv": ["exp", "dataset", "n", "N", "tier", "method", "construction", "reps", "truth",
+                  "coverage", "cov_lo", "cov_hi", "width_mean", "width_se",
+                  "ratio_vs_ppipp", "ratio_lo", "ratio_hi", "bias", "valid", "sampling"],
+    "prop_check.csv": ["dataset", "n", "N", "estimator", "pred_excess_width", "meas_excess_width",
+                       "meas_excess_width_lo", "meas_excess_width_hi", "pred_width_floor", "group", "delta", "sigma2_res", "reps"],
+    "breakeven.csv": ["dataset", "calibrator", "n", "N", "ratio_vs_ppipp", "ratio_lo", "ratio_hi",
+                      "pred_nstar", "pred_nstar_lo", "pred_nstar_hi", "meas_nstar"],
+    "headline.csv": ["dataset", "n", "tier", "headline_arm", "ratio", "ratio_lo", "ratio_hi", "coverage", "valid", "classification",
+                     "floor_ratio", "floor_ratio_measured", "ratio_vs_unclip", "ratio_unclip_lo", "ratio_unclip_hi", "classification_vs_unclip",
+                     "ratio_vs_best_ppipp", "classification_vs_best", "baseline_used", "baseline_valid", "ratio_vs_valid_baseline",
+                     "ratio_valid_lo", "ratio_valid_hi", "classification_vs_valid_baseline"],
+    "decomp.csv": ["dataset", "shift_sd", "n", "N", "reps", "arm", "coverage", "cov_lo", "cov_hi", "mean_se", "sd_est", "se_over_sd",
+                   "ratio_vs_ppipp", "sd_ratio_vs_ppipp"],
+    "clip_sweep.csv": ["sigma", "n", "N", "reps", "b", "width_ratio_unclip_over_pkg", "ratio_lo", "ratio_hi", "pred_width_ratio_unclip_over_pkg",
+                       "frac_lamhat_gt1", "coverage_pkg", "cov_lo_pkg", "cov_hi_pkg", "coverage_unclip", "cov_lo_unclip", "cov_hi_unclip"],
+    "clip_real.csv": ["dataset", "exp", "n", "N", "reps", "b", "width_ratio_unclip_over_pkg", "ratio_lo", "ratio_hi", "pred_width_ratio_unclip_over_pkg",
+                      "frac_lamhat_gt1", "coverage_pkg", "cov_lo_pkg", "cov_hi_pkg", "coverage_unclip", "cov_lo_unclip", "cov_hi_unclip"],
+    "diagnostic.csv": ["dataset", "n", "calibrator", "headroom_hat", "headroom_hat_lo", "headroom_hat_hi",
+                       "pred_gain", "realised_gain", "gain_lo", "gain_hi"],
+}
+
+
+def load(name):
+    p = RESULTS / name
+    if not p.exists():
+        sys.exit(f"MISSING INPUT {p}: nothing is drawn without it (request: experiment-repo#2)")
+    df = pd.read_csv(p, na_values=["NA"])
+    miss = [c for c in REQUIRED[name] if c not in df.columns]
+    if miss:
+        sys.exit(f"{p}: missing columns {miss}")
+    if df.empty:
+        sys.exit(f"{p}: no rows")
+    return df
+
+
+def drop_not_run(df):
+    """Rows with reps == 0 are listed cells that were not run; return (run, not_run).
+    A missing reps with a ratio present is a model-based prediction row (the estimated floor), kept."""
+    if "reps" in df.columns:
+        pred = df["reps"].isna() & df.get("ratio_vs_ppipp", pd.Series(np.nan, index=df.index)).notna()
+        return df[(df["reps"] > 0) | pred].copy(), df[df["reps"] <= 0].copy()
+    return df, df.iloc[0:0]
+
+
+def check_ci(df, name, est, lo, hi, tol=1e-9):
+    """Every point estimate must lie inside its own interval; otherwise the file is inconsistent."""
+    bad = df[(df[est] < df[lo] - tol) | (df[est] > df[hi] + tol)]
+    if len(bad):
+        sys.exit(f"{name}: {len(bad)} rows where {est} is outside [{lo},{hi}], e.g.\n{bad.head(3).to_string()}")

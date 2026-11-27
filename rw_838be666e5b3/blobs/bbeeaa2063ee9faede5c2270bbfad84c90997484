@@ -1,0 +1,17 @@
+"""E3b: scale-misspecified predictor stress test. The supplied Yhat is replaced by a monotone transform
+(logit of the predicted probability; log of the predicted income), so that E[Y|f] is no longer
+near-affine. This is a constructed condition, labelled as such in the paper; it is not a different predictor.
+usage: python exp3b_stress.py PROCS"""
+import sys
+from common import *
+
+procs = int(sys.argv[1])
+SETS = [("galaxies", "logit", 10000), ("alphafold", "logit", 8000), ("census_healthcare", "logit", 10000),
+        ("forest", "logit", 1000), ("census_income", "log", 10000)]
+cells = []
+for nm, tr, N in SETS:
+    pop = load_pool(nm, transform=tr)
+    ns = [30, 100, 200, 300, 500] if nm == "forest" else [30, 100, 300, 500, 1000, 3000]
+    for n in ns:
+        cells.append(dict(id=f"{pop.name}_n{n}_N{N}", pop=pop, n=n, N=N, R=2000, cfg=T1_CFG))
+run_grid("exp3b", cells, procs)

@@ -1,0 +1,34 @@
+"""Application of the T1 arms to the native ballots split (n = 1027 labeled records, N = 78 150 unlabeled): one
+analysis of the real data, no truth (Y is not observed on the unlabeled split), so no coverage claim.
+Cross-fitting folds depend on a seed: the 20 fold seeds are reported as the mean and range of the estimate/width.
+Writes results/ballots_native.csv."""
+from common import *
+import pandas as pd
+from pci.runner import suite_calibrators
+from pci import estimators as E
+
+d = np.load(os.path.join(DATA_DIR, "ballots.npz"))
+y, fl, fu = d["Y"].astype(float), d["Yhat"].astype(float), d["Yhat_unlabeled"].astype(float)
+n, N = len(y), len(fu)
+rows = []
+res = {}
+for seed in range(20):
+    rng = np.random.default_rng(seed)
+    out, store = E.run_arms_T1(y, fl, fu, suite_calibrators(T1_CFG), 5, rng)
+    out["select_T1"] = E.select_g(store, ["linear", "spline", "isotonic"], rule="1se")
+    for a, v in out.items():
+        res.setdefault(a, []).append((v["est"], v["se"]))
+name = {"classical": "labels_z", "ppi": "ppi", "ppi++": "ppipp", "pool_linear": "pooled_linear", "pool_spline": "calib_spline",
+        "pool_isotonic": "calib_iso", "pool_bins": "strat_ppi", "ppi++_on_iso": "ppipp_on_iso",
+        "ppi++_on_spline": "ppipp_on_spline", "select_T1": "select"}
+ref = np.mean([2 * E.Z975 * s for _, s in res["ppi++"]])
+for a, m in name.items():
+    e = np.array([v[0] for v in res[a]])
+    w = np.array([2 * E.Z975 * v[1] for v in res[a]])
+    rows.append(dict(dataset="ballots_native", n=n, N=N, method=m, construction="wald", fold_seeds=20,
+                     estimate_mean=e.mean(), estimate_min=e.min(), estimate_max=e.max(),
+                     lo_mean=(e - w / 2).mean(), hi_mean=(e + w / 2).mean(),
+                     width_mean=w.mean(), width_min=w.min(), width_max=w.max(), ratio_vs_ppipp=w.mean() / ref))
+df = pd.DataFrame(rows)
+df.to_csv(os.path.join(RESULTS, "ballots_native.csv"), index=False)
+print(df.round(5).to_string())

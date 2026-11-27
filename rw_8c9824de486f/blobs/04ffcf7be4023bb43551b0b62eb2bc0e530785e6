@@ -1,0 +1,28 @@
+{
+  "analysis_commit": "66252a8",
+  "figure": "figtab/tab2b_olb.tex",
+  "floor_misfit": "(noise_pred + noise_misfit)/noise_pred from ct_decomposition.csv, bounds from noise_misfit_lo90/hi90; k-independent",
+  "inputs": [
+    {
+      "path": "results/olb/ct_curves.csv",
+      "sha256": "4f786829138d22ad1b2baba4a64d7db565a8a354601706b56437ca8ead27eadb"
+    },
+    {
+      "path": "results/olb/ct_contrast.csv",
+      "sha256": "c2594c13ae312bc2dbc4ac0bef41fd96f4e08ebbf027fd09bb5fff323f249313"
+    },
+    {
+      "path": "results/olb/ct_kstar.csv",
+      "sha256": "121366464ef53a9b79dc8df131456b499b0cd6768f3f5f4ef8b26f9e24b28fb9"
+    },
+    {
+      "path": "results/olb/ct_decomposition.csv",
+      "sha256": "8e3dc1a3c1c1efbcd7ffd0eb98ab6943373290a3adcd1c802929a38e46c9d52f"
+    }
+  ],
+  "margin": "delta_floor = 0.25 x floor_j (the gap-based delta prints ~0 here)",
+  "matrix": "Open LLM Leaderboard v2 per-subtask matrix, N = 39, |T| = 12, k grid 1,2,3,5,8,13",
+  "script": "figtab/make_table_olb.py",
+  "splits": "50 shared C/T splits; G = 10 group (family-stem) folds, S = strongest quarter; no T split",
+  "subset": "fixed"
+}

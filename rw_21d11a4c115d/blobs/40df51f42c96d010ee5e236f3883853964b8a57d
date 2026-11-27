@@ -1,0 +1,139 @@
+"""Sparse-matrix variant of the protocol (cells of the training matrix and of every new model's row may be missing).
+Per outer fold (whole families held out): standardise each column on the training models that observed it; fit the factor model by masked EM
+(rank by inner 5-fold held-out marginal likelihood of the observed cells of the held-out rows, one-SE rule); build the pairwise-covariance and masked
+Soft-Impute predictors from the training cells only.  For every held-out model i with enough observed cells: targets T_i = a random 30 % of its OBSERVED cells,
+candidate set C_i = the rest of its observed cells (the benchmarks it was actually run on), selectors choose S_i inside C_i, predictors map x_S to x_T.
+Reference ('lobo analogue'): the targets predicted from ALL of C_i.  All errors are on the standardised scale of the training columns."""
+import numpy as np, collections
+from .fa import D_FLOOR, condition
+from .protocol import grouped_folds
+from .select_predict import sel_greedy_A
+
+def _outer(W, D):
+    N, r = W.shape; return (W[:, :, None] * W[:, None, :] / D[:, None, None]).reshape(N, r * r)
+
+def fit_fa_masked(Y, mask, r, n_iter=150, tol=1e-4, d_floor=D_FLOOR):
+    """Factor analysis by EM with missing cells. Y (M,N) standardised (values at ~mask ignored), mask True = observed. Returns W (N,r), D (N,)."""
+    M, N = Y.shape; m = mask.astype(float); Yf = np.where(mask, Y, 0.0)
+    cnt = np.maximum(m.T @ m, 1.0); S = (Yf.T @ Yf) / cnt; S = (S + S.T) / 2
+    ev, U = np.linalg.eigh(S); idx = np.argsort(ev)[::-1][:r]; sig2 = max(np.sort(ev)[::-1][r:].mean() if r < N else 1e-3, 1e-3)
+    W = U[:, idx] * np.sqrt(np.maximum(ev[idx] - sig2, 1e-3)); D = np.maximum(np.diag(S) - (W ** 2).sum(1), d_floor)
+    nj = np.maximum(m.sum(0), 1.0); I = np.eye(r); prev = None
+    for it in range(n_iter):
+        A = I + (m @ _outer(W, D)).reshape(M, r, r); G = np.linalg.inv(A)
+        u = (m * Yf / D) @ W; ez = np.einsum('irk,ik->ir', G, u)
+        EG = (np.einsum('ir,is->irs', ez, ez) + G).reshape(M, r * r)
+        Aj = (m.T @ EG).reshape(N, r, r) + 1e-6 * I; bj = (m * Yf).T @ ez
+        Wn = np.linalg.solve(Aj, bj[:, :, None])[:, :, 0]
+        res = (m * (Yf - ez @ Wn.T) ** 2).sum(0); mG = (m.T @ G.reshape(M, r * r)).reshape(N, r, r)
+        Dn = np.maximum((res + np.einsum('jk,jkl,jl->j', Wn, mG, Wn)) / nj, d_floor)
+        dW = np.abs(Wn - W).max(); W, D = Wn, Dn
+        if dW < tol: break
+    return W, D
+
+def loglik_masked(Y, mask, W, D):
+    """Per-row marginal log-likelihood of the observed cells under N(0, WW'+D) restricted to them (Woodbury, batched)."""
+    M, N = Y.shape; r = W.shape[1]; m = mask.astype(float); Yf = np.where(mask, Y, 0.0)
+    A = np.eye(r) + (m @ _outer(W, D)).reshape(M, r, r); sign, ld = np.linalg.slogdet(A)
+    u = (m * Yf / D) @ W; q = (m * Yf ** 2 / D).sum(1) - np.einsum('ir,irs,is->i', u, np.linalg.inv(A), u)
+    return -0.5 * (m.sum(1) * np.log(2 * np.pi) + (m * np.log(D)).sum(1) + ld + q)
+
+def choose_rank_masked(Y, mask, ranks, n_inner=5, seed=0):
+    M = Y.shape[0]; perm = np.random.default_rng(seed).permutation(M); folds = np.array_split(perm, n_inner); score = {}
+    for r in ranks:
+        ll = []
+        for f in folds:
+            tr = np.setdiff1d(np.arange(M), f); W, D = fit_fa_masked(Y[tr], mask[tr], r, n_iter=100)
+            ll.append(loglik_masked(Y[f], mask[f], W, D))
+        ll = np.concatenate(ll); score[r] = (float(ll.mean()), float(ll.std(ddof=1) / np.sqrt(len(ll))))
+    best = max(score, key=lambda r: score[r][0]); thr = score[best][0] - score[best][1]
+    return min(r for r in ranks if score[r][0] >= thr), score, best
+
+def pairwise_cov(Y, mask, min_pair=5):
+    m = mask.astype(float); Yf = np.where(mask, Y, 0.0); cnt = m.T @ m
+    S = np.where(cnt >= min_pair, (Yf.T @ Yf) / np.maximum(cnt, 1.0), 0.0); S = (S + S.T) / 2; np.fill_diagonal(S, np.maximum(np.diag(S), 1e-3))
+    ev, U = np.linalg.eigh(S); ev = np.maximum(ev, 1e-3); return (U * ev) @ U.T
+
+def cond_row(Sg, xo, O, T):
+    """E[x_T | x_O] for one row, zero mean."""
+    return condition(Sg, list(O), list(T), xo[None, :])[0]
+
+def choose_shrink(Y, mask, seed=0, grid=(0.02, 0.05, 0.1, 0.2, 0.4), frac_rows=0.2):
+    """Shrinkage of the pairwise covariance toward I, chosen on the TRAINING matrix: 20 % of rows held out, 30 % of their observed cells hidden and predicted
+    from the others, covariance built from the remaining rows."""
+    M = Y.shape[0]; rng = np.random.default_rng(seed); rows = rng.choice(M, max(int(frac_rows * M), 10), replace=False); rest = np.setdiff1d(np.arange(M), rows)
+    R = pairwise_cov(Y[rest], mask[rest]); N = Y.shape[1]; err = {a: [] for a in grid}
+    for i in rows:
+        o = np.where(mask[i])[0]
+        if len(o) < 10: continue
+        p = rng.permutation(o); nt = max(int(round(0.3 * len(o))), 1); T, C = p[:nt], p[nt:]
+        for a in grid:
+            Sg = (1 - a) * R + a * np.eye(N); err[a].append(((cond_row(Sg, Y[i, C], C, T) - Y[i, T]) ** 2).mean())
+    a = min(grid, key=lambda a: np.mean(err[a])); return a, {k: float(np.mean(v)) for k, v in err.items()}
+
+def softimpute_operator(Y, mask, seed=0, cs=(0.001, 0.003, 0.01, 0.03, 0.1, 0.3), reps=2, n_iter=30):
+    """Soft-Impute on the observed training cells; shrinkage chosen by 10 % of observed cells held out (reps repeats); returns P = V diag((s-lam)+/s) V' of
+    the completed training matrix (for fold-in), and the chosen c = lam / sigma_1."""
+    rng = np.random.default_rng(seed); Yf = np.where(mask, Y, 0.0)
+    def fit(obs, lam, nit):
+        Z = np.zeros_like(Yf)
+        for _ in range(nit):
+            U, s, Vt = np.linalg.svd(np.where(obs, Yf, Z), full_matrices=False); Z = (U * np.maximum(s - lam, 0)) @ Vt
+        return Z
+    s1 = np.linalg.svd(Yf, compute_uv=False)[0]; best = (np.inf, None)
+    for c in cs:
+        e = []
+        for _ in range(reps):
+            hold = mask & (rng.random(mask.shape) < 0.1); Z = fit(mask & ~hold, c * s1, n_iter); e.append(((Z - Y)[hold] ** 2).mean())
+        if np.mean(e) < best[0]: best = (np.mean(e), c)
+    Z = fit(mask, best[1] * s1, n_iter); U, s, Vt = np.linalg.svd(np.where(mask, Yf, Z), full_matrices=False)
+    sh = np.maximum(s - best[1] * s1, 0) / np.maximum(s, 1e-12); return (Vt.T * sh) @ Vt, best[1]
+
+PREDS = ('colmean', 'fa', 'pw', 'softimpute')
+
+def run_sparse(X, groups, k_grid, n_draws=30, n_part=3, n_folds=10, seed=0, min_cells=30, min_train_obs=10, frac_T=0.3, ranks=(1, 2, 3, 4, 5, 6, 8, 10, 12), verbose=True):
+    """X (M,N) with NaN = missing. Returns per-model error arrays (NaN for models not evaluated) and fold info."""
+    M, N = X.shape; obs = ~np.isnan(X); kmax = max(k_grid); idx = grouped_folds(groups, n_folds, seed)
+    keys = lambda sel, k: [(sel, p, k) for p in PREDS]
+    err = {}; refs = {n: np.full(M, np.nan) for n in ('colmean', 'lobo_fa', 'lobo_pw')}; info = []; n_cells = obs.sum(1)
+    def put(key, i, v):
+        if key not in err: err[key] = np.full(M, np.nan)
+        err[key][i] = v
+    for fi, te_all in enumerate(idx):
+        tr = np.setdiff1d(np.arange(M), te_all); te = [i for i in te_all if n_cells[i] >= min_cells]
+        ok = obs[tr].sum(0) >= min_train_obs; cols = np.where(ok)[0]; Xc = X[:, cols]; ob = obs[:, cols]
+        mu = np.array([Xc[tr][ob[tr][:, j], j].mean() for j in range(len(cols))]); sd = np.array([Xc[tr][ob[tr][:, j], j].std() for j in range(len(cols))]); sd = np.maximum(sd, 1e-3)
+        Z = (Xc - mu) / sd; Ytr = np.where(ob[tr], Z[tr], 0.0); mtr = ob[tr]
+        r, score, rbest = choose_rank_masked(Ytr, mtr, [q for q in ranks if q <= len(cols) // 3], seed=seed + fi)
+        W, D = fit_fa_masked(Ytr, mtr, r, n_iter=300); Sfa = W @ W.T + np.diag(D)
+        Rpw = pairwise_cov(Ytr, mtr); a, ascore = choose_shrink(Ytr, mtr, seed=seed + fi); Spw = (1 - a) * Rpw + a * np.eye(len(cols))
+        P, csi = softimpute_operator(Ytr, mtr, seed=seed + fi)
+        info.append(dict(fold=fi, n_train=len(tr), n_test=len(te), n_cols=len(cols), r_eff=r, r_argmax=rbest, rank_scores=score, pw_alpha=a, softimpute_c=csi, train_density=float(mtr.mean())))
+        for i in te:
+            o = np.where(ob[i])[0]; nT = int(round(frac_T * len(o))); acc = collections.defaultdict(list)
+            for p in range(n_part):
+                rng = np.random.default_rng([seed, fi, i, p]); perm = rng.permutation(o); T = np.sort(perm[:nT]); C = np.sort(perm[nT:])
+                y = Z[i]; yT = y[T]; km = min(kmax, len(C)); ks = [k for k in k_grid if k <= km]
+                acc['colmean_ref'].append((yT ** 2).mean())
+                acc['lobo_fa'].append(((cond_row(Sfa, y[C], C, T) - yT) ** 2).mean()); acc['lobo_pw'].append(((cond_row(Spw, y[C], C, T) - yT) ** 2).mean())
+                idxs = np.concatenate([C, T]); pos_C = list(range(len(C))); pos_T = list(range(len(C), len(C) + len(T)))
+                Sg = greedy = None
+                Sel = sel_greedy_A(dict(W=W[idxs], D=D[idxs], C=pos_C, T=pos_T), km)
+                Sel = [int(C[j]) for j in Sel]            # sel_greedy_A returns positions in the (C,T) block, all < len(C)
+                Kinv = np.linalg.inv(np.eye(len(T)) - P[np.ix_(T, T)]); PTS = P[T]
+                def predict(S):
+                    S = list(S); xS = y[S][None, :]
+                    return {'colmean': 0.0 * yT, 'fa': condition(Sfa, S, list(T), xS)[0], 'pw': condition(Spw, S, list(T), xS)[0], 'softimpute': Kinv @ (PTS[:, S] @ y[S])}
+                for k in ks:
+                    pr = predict(Sel[:k])
+                    for n_, v in pr.items(): acc[('greedyA', n_, k)].append(((v - yT) ** 2).mean())
+                    sums = collections.defaultdict(float)
+                    for _ in range(n_draws):
+                        for n_, v in predict(rng.choice(C, k, replace=False)).items(): sums[n_] += ((v - yT) ** 2).mean()
+                    for n_ in PREDS: acc[('random', n_, k)].append(sums[n_] / n_draws)
+            for key, v in acc.items():
+                if key == 'colmean_ref': refs['colmean'][i] = np.mean(v)
+                elif key in ('lobo_fa', 'lobo_pw'): refs[key][i] = np.mean(v)
+                else: put(key, i, np.mean(v))
+        if verbose: print('fold', fi, 'test', len(te), 'r', r, 'alpha', a, 'c_si', csi, flush=True)
+    return dict(err=err, refs=refs, info=info, folds=[(np.setdiff1d(np.arange(M), f), f) for f in idx], n_cells=n_cells)

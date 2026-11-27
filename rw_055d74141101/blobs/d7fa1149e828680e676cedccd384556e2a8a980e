@@ -1,0 +1,296 @@
+{
+ "inputs": {
+  "survival_curves.csv": {
+   "sha256": "4a6944e76a2d851851fd5847bd3a979a739030a1c3ca451c2a9f9e97e85ffd18",
+   "rows": 17600,
+   "dataset": [
+    "arena55k",
+    "arena_judge_Athene-70B",
+    "arena_judge_Hermes-3-Llama-3.1-70B",
+    "arena_judge_Meta-Llama-3-70B-Instruct",
+    "arena_judge_Meta-Llama-3-8B",
+    "arena_judge_Meta-Llama-3-8B-Instruct",
+    "arena_judge_Mistral-7B-Instruct-v0.1",
+    "arena_judge_Mistral-7B-Instruct-v0.2",
+    "arena_judge_Mistral-7B-OpenOrca",
+    "arena_judge_Mixtral-8x7B-Instruct-v0.1",
+    "arena_judge_OpenHermes-2-Mistral-7B",
+    "arena_judge_OpenHermes-2.5-Mistral-7B",
+    "arena_judge_Qwen2-72B-Instruct",
+    "arena_judge_StableBeluga-7B",
+    "arena_judge_Starling-LM-7B-alpha",
+    "arena_judge_dolphin-2.1-mistral-7b",
+    "arena_judge_dolphin-2.5-mixtral-8x7b",
+    "arena_judge_zephyr-7b-beta",
+    "arena_single",
+    "mtbench_gpt4",
+    "mtbench_human",
+    "nba_1947",
+    "nba_1948",
+    "nba_1949",
+    "nba_1950",
+    "nba_1951",
+    "nba_1952",
+    "nba_1953",
+    "nba_1954",
+    "nba_1955",
+    "nba_1958",
+    "nba_1959",
+    "nba_1960",
+    "nba_1961",
+    "nba_1962",
+    "nba_1963",
+    "nba_1964",
+    "nba_1965",
+    "nba_1966",
+    "nba_1967",
+    "nba_1968",
+    "nba_1969",
+    "nba_1970",
+    "nba_1971",
+    "nba_1972",
+    "nba_1973",
+    "nba_1974",
+    "nba_1975",
+    "nba_1976",
+    "nba_1977",
+    "nba_1978",
+    "nba_1979",
+    "nba_1980",
+    "nba_1981",
+    "nba_1982",
+    "nba_1983",
+    "nba_1984",
+    "nba_1985",
+    "nba_1986",
+    "nba_1987",
+    "nba_1988",
+    "nba_1989",
+    "nba_1990",
+    "nba_1991",
+    "nba_1992",
+    "nba_1993",
+    "nba_1994",
+    "nba_1995",
+    "nba_1996",
+    "nba_1997",
+    "nba_1998",
+    "nba_1999",
+    "nba_2000",
+    "nba_2001",
+    "nba_2002",
+    "nba_2003",
+    "nba_2004",
+    "nba_2005",
+    "nba_2006",
+    "nba_2007",
+    "nba_2008",
+    "nba_2009",
+    "nba_2010",
+    "nba_2011",
+    "nba_2012",
+    "nba_2013",
+    "nba_2014",
+    "nba_2015"
+   ],
+   "design": [
+    "crowd",
+    "expert",
+    "llm_judge",
+    "sports"
+   ],
+   "perturbation": [
+    "delete",
+    "flip"
+   ],
+   "cost_unit": [
+    "comparison"
+   ],
+   "n_boot": [
+    "500"
+   ],
+   "synthetic": [
+    "0"
+   ],
+   "N_range": [
+    192,
+    57477
+   ]
+  }
+ },
+ "dropped": {},
+ "family": "delete",
+ "sep_def": "published",
+ "subset": "separated",
+ "datasets": [
+  "arena55k",
+  "arena_judge_Athene-70B",
+  "arena_judge_Hermes-3-Llama-3.1-70B",
+  "arena_judge_Meta-Llama-3-70B-Instruct",
+  "arena_judge_Meta-Llama-3-8B",
+  "arena_judge_Meta-Llama-3-8B-Instruct",
+  "arena_judge_Mistral-7B-Instruct-v0.1",
+  "arena_judge_Mistral-7B-Instruct-v0.2",
+  "arena_judge_Mistral-7B-OpenOrca",
+  "arena_judge_Mixtral-8x7B-Instruct-v0.1",
+  "arena_judge_OpenHermes-2-Mistral-7B",
+  "arena_judge_OpenHermes-2.5-Mistral-7B",
+  "arena_judge_Qwen2-72B-Instruct",
+  "arena_judge_StableBeluga-7B",
+  "arena_judge_Starling-LM-7B-alpha",
+  "arena_judge_dolphin-2.1-mistral-7b",
+  "arena_judge_dolphin-2.5-mixtral-8x7b",
+  "arena_judge_zephyr-7b-beta",
+  "arena_single",
+  "mtbench_gpt4",
+  "mtbench_human",
+  "nba_1947",
+  "nba_1948",
+  "nba_1949",
+  "nba_1950",
+  "nba_1951",
+  "nba_1952",
+  "nba_1953",
+  "nba_1954",
+  "nba_1955",
+  "nba_1958",
+  "nba_1959",
+  "nba_1960",
+  "nba_1961",
+  "nba_1962",
+  "nba_1963",
+  "nba_1964",
+  "nba_1965",
+  "nba_1966",
+  "nba_1967",
+  "nba_1968",
+  "nba_1969",
+  "nba_1970",
+  "nba_1971",
+  "nba_1972",
+  "nba_1973",
+  "nba_1974",
+  "nba_1975",
+  "nba_1976",
+  "nba_1977",
+  "nba_1978",
+  "nba_1979",
+  "nba_1980",
+  "nba_1981",
+  "nba_1982",
+  "nba_1983",
+  "nba_1984",
+  "nba_1985",
+  "nba_1986",
+  "nba_1987",
+  "nba_1988",
+  "nba_1989",
+  "nba_1990",
+  "nba_1991",
+  "nba_1992",
+  "nba_1993",
+  "nba_1994",
+  "nba_1995",
+  "nba_1996",
+  "nba_1997",
+  "nba_1998",
+  "nba_1999",
+  "nba_2000",
+  "nba_2001",
+  "nba_2002",
+  "nba_2003",
+  "nba_2004",
+  "nba_2005",
+  "nba_2006",
+  "nba_2007",
+  "nba_2008",
+  "nba_2009",
+  "nba_2010",
+  "nba_2011",
+  "nba_2012",
+  "nba_2013",
+  "nba_2014",
+  "nba_2015"
+ ],
+ "n_datasets_drawn": 88,
+ "n_datasets_by_design": {
+  "crowd": 2,
+  "expert": 1,
+  "llm_judge": 18,
+  "sports": 67
+ },
+ "curve_summary": "per design: median over its data sets at each grid point; band = interquartile range across the design's data sets if it has >= 10 data sets, else min-max range (no band for one data set)",
+ "band_by_design": {
+  "crowd": "min-max range",
+  "expert": "none",
+  "llm_judge": "IQR",
+  "sports": "IQR"
+ },
+ "interval_method": "none drawn: the per-pair Wilson intervals of the file are not shown; the band is spread across data sets",
+ "grid_points": {
+  "frac/crowd/adversarial": [
+   25,
+   2
+  ],
+  "frac/crowd/random_delete": [
+   25,
+   2
+  ],
+  "frac/llm_judge/adversarial": [
+   25,
+   18
+  ],
+  "frac/llm_judge/random_delete": [
+   25,
+   18
+  ],
+  "frac/expert/adversarial": [
+   25,
+   1
+  ],
+  "frac/expert/random_delete": [
+   25,
+   1
+  ],
+  "frac/sports/adversarial": [
+   25,
+   67
+  ],
+  "frac/sports/random_delete": [
+   25,
+   67
+  ],
+  "se/crowd/adversarial": [
+   25,
+   2
+  ],
+  "se/crowd/random_delete": [
+   25,
+   2
+  ],
+  "se/llm_judge/adversarial": [
+   25,
+   18
+  ],
+  "se/llm_judge/random_delete": [
+   25,
+   18
+  ],
+  "se/expert/adversarial": [
+   25,
+   1
+  ],
+  "se/expert/random_delete": [
+   25,
+   1
+  ],
+  "se/sports/adversarial": [
+   25,
+   67
+  ],
+  "se/sports/random_delete": [
+   25,
+   67
+  ]
+ }
+}

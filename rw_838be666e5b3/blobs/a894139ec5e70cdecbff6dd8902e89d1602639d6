@@ -1,0 +1,112 @@
+"""Summaries of stored cells: coverage (Wilson CI), widths, paired ratios, variance checks."""
+import glob, os
+import numpy as np
+import pandas as pd
+from scipy import stats
+
+from . import estimators as E
+from .runner import load_cell
+
+
+def wilson(k, n, z=1.96):
+    p = k / n
+    d = 1 + z * z / n
+    c = (p + z * z / (2 * n)) / d
+    h = z * np.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d
+    return c - h, c + h
+
+
+def intervals(d, n, construction="z", binary=False, M=None):
+    """lo, hi arrays for one arm under one construction. 'z' (Wald-z), 't' (t_{n-1} quantile),
+    'wilson' (Wilson with effective n, binary only), '*_trunc' (clipped to [0,1], binary only)."""
+    est, se = d["est"], d["se"]
+    if construction.startswith("z"):
+        lo, hi = est - E.Z975 * se, est + E.Z975 * se
+    elif construction.startswith("t"):
+        q = stats.t.ppf(0.975, n - 1)
+        lo, hi = est - q * se, est + q * se
+    elif construction.startswith("wilson"):
+        lh = np.array([E.wilson_eff(e, s, M) for e, s in zip(est, se)])
+        lo, hi = lh[:, 0], lh[:, 1]
+    elif construction.startswith("boot"):
+        lo, hi = d["lo"], d["hi"]
+    else:
+        raise ValueError(construction)
+    if construction.endswith("_trunc"):
+        lo, hi = np.clip(lo, 0, 1), np.clip(hi, 0, 1)
+    return lo, hi
+
+
+def classical_binary(y_mean, n, kind):
+    """Labels-only binary intervals from the sample mean over reps (est = mean, n labels)."""
+    k = np.round(y_mean * n).astype(int)
+    if kind == "cp":
+        lh = np.array([E.clopper_pearson(int(a), n) for a in k])
+        return lh[:, 0], lh[:, 1]
+    if kind == "wilson":
+        lh = np.array([wilson(a, n) for a in k])
+        return lh[:, 0], lh[:, 1]
+
+
+def cell_table(arms, meta, constructions=("z",), ref="ppi++", binary=False, arm_list=None, B=200):
+    """One row per (arm, construction). Coverage counts non-finite or zero-width intervals as misses
+    (they are reported in `frac_degenerate`); widths and the paired ratio to `ref` use the replicates in
+    which both intervals are finite and of positive width. ratio_ppi = mean width / mean width of `ref`
+    (same replicates), with a paired-bootstrap standard error."""
+    n, N, truth = meta["n"], meta["N"], meta["truth"]
+    M = n + N
+    rng = np.random.default_rng(0)
+    rows = []
+    wref = {}
+    for c in constructions:
+        lo, hi = intervals(arms[ref], n, c, binary, M)
+        wref[c] = hi - lo
+    for a, d in arms.items():
+        if arm_list is not None and a not in arm_list:
+            continue
+        if "est" not in d:
+            continue
+        cons = ("boot",) if a.startswith("boot_") else constructions
+        for c in cons:
+            with np.errstate(all="ignore"):
+                lo, hi = intervals(d, n, c, binary, M)
+            w = hi - lo
+            cov = (lo <= truth) & (truth <= hi)
+            k, R = int(cov.sum()), len(cov)
+            wl, wh = wilson(k, R)
+            cc = c if c in wref else "z"
+            ok = np.isfinite(w) & (w > 0) & np.isfinite(wref[cc]) & (wref[cc] > 0)
+            wo, wr_ = w[ok], wref[cc][ok]
+            if ok.sum() > 5:
+                idx = rng.integers(0, len(wo), size=(B, len(wo)))
+                rb = wo[idx].mean(1) / wr_[idx].mean(1)
+                ratio, rse = wo.mean() / wr_.mean(), rb.std(ddof=1)
+            else:
+                ratio = rse = np.nan
+            ee = d["est"]
+            fin = np.isfinite(ee)
+            rows.append(dict(pop=meta["pop"], n=n, N=N, R=R, arm=a, cons=c, cov=k / R, cov_lo=wl, cov_hi=wh,
+                             width=wo.mean() if len(wo) else np.nan, ratio_ppi=ratio, ratio_ppi_se=rse,
+                             frac_degenerate=1 - ok.mean(),
+                             bias=float(np.mean(ee[fin] - truth)) if fin.any() else np.nan,
+                             var_est=float(np.var(ee[fin], ddof=1)) if fin.sum() > 2 else np.nan,
+                             mean_se2=float(np.nanmean(d["se"] ** 2))))
+    return pd.DataFrame(rows)
+
+
+def load_dir(pattern):
+    out = []
+    for p in sorted(glob.glob(pattern)):
+        arms, meta = load_cell(p)
+        out.append((p, arms, meta))
+    return out
+
+
+def paired_var_ratio(arms, a, ref="ppi++", B=500, seed=0):
+    """Var(est_a)/Var(est_ref) with a bootstrap CI over replicates (paired)."""
+    ea, er = arms[a]["est"], arms[ref]["est"]
+    R = len(ea)
+    rng = np.random.default_rng(seed)
+    idx = rng.integers(0, R, size=(B, R))
+    vr = ea[idx].var(1, ddof=1) / er[idx].var(1, ddof=1)
+    return ea.var(ddof=1) / er.var(ddof=1), np.quantile(vr, 0.025), np.quantile(vr, 0.975)

@@ -1,0 +1,86 @@
+"""Table 10 (appendix): target-recalibrated estimators and the weak-prior check, n = 100.
+usage: python3 figures/scripts/table10_recal.py CODE_DIR OUT_FILE
+Reads results/primary_suite_extra.csv (suite all), results/selected_extra.csv (class "target-recalibrated") and
+results/recal_fallback_n100.csv. Entry = geometric mean over the non-thin benchmarks of the RMSE ratio to uniform x mean
+(or to stratified x mean in block 2) with the 95% family-bootstrap interval. Columns: extrapolation, top-10% and top-50% extrapolation,
+interpolation, lineage-held-out. Block 3 (weak prior) and the recalibrated estimators were added after the first results.
+The fall-back row is the share of (draw, target) pairs for which the recalibrated regression was replaced by the sample mean,
+pooled over targets and non-thin benchmarks: minimum to maximum over the four designs.
+"""
+import sys
+import numpy as np
+import pandas as pd
+sys.path.insert(0, __file__.rsplit("/", 1)[0])
+import common
+
+R = common.Results(sys.argv[1]); out = sys.argv[2]
+SP = ["extrap", "extrap10", "extrap50", "interp", "lineage"]
+HEAD = ["extrapolation", r"\shortstack{extrap.,\\top 10\%}", r"\shortstack{extrap.,\\top 50\%}", "interpolation", r"\shortstack{lineage-\\held-out}"]
+ps = R.csv("primary_suite_extra.csv"); ps = ps[(ps.n == 100) & (ps.suite == "all")]
+sel = R.csv("selected_extra.csv"); sel = sel[(sel.cls == "target-recalibrated") & (sel.suite == "all")]
+fb = R.csv("recal_fallback_n100.csv"); tg = R.csv("targets.csv")
+
+
+SHORT = {"stratified": "strat.", "recal. reg. (s + IRT)": "recal. (s+IRT)", "recal. reg. (s)": "recal. (s)", "IRT model, weak prior": "IRT model, weak",
+         "IRT plug-in, weak prior": "IRT plug-in, weak"}
+
+
+def tex(s):
+    for a, b in SHORT.items():
+        s = s.replace(a, b)
+    return s.replace("×", r"$\times$").replace("&", r"\&").replace("_", r"\_")
+
+
+def cell(r):
+    return f"{r.geomean_ratio:.2f} [{r.ci_lo:.2f}, {r.ci_hi:.2f}]"
+
+
+def row(m, base, name=None):
+    cells = []
+    for sp in SP:
+        g = ps[(ps.method == m) & (ps.split == sp) & (ps.baseline == base)]
+        cells.append(cell(g.iloc[0]) if len(g) else "--")
+    return " & ".join([tex(name or common.label(m))] + cells) + r" \\"
+
+
+def sel_row(held, base, name):
+    cells = []
+    for sp in SP:
+        g = sel[(sel.split == sp) & (sel.held_out == held) & (sel.baseline == base)]
+        cells.append(f"{g.iloc[0].ratio:.2f} [{g.iloc[0].ci_lo:.2f}, {g.iloc[0].ci_hi:.2f}]" if len(g) else "--")
+    return " & ".join([name] + cells) + r" \\"
+
+
+def head(t):
+    return rf"\multicolumn{{6}}{{l}}{{\emph{{{t}}}}} \\"
+
+
+U, S = "uniform|mean", "strat|mean"
+GRID = ["strat|mean", "balanced|mean", "uniform|recal-sirt", "strat|recal-sirt", "balanced|recal-sirt", "balanced|recal-s",
+        "balanced|diffnaive-irt"]
+L = [r"\begin{tabular}{lccccc}", r"\toprule", "Method (design $\\times$ estimator) & " + " & ".join(HEAD) + r" \\", r"\midrule",
+     head(r"Against uniform $\times$ mean")]
+L += [row(m, U) for m in GRID[:6]]
+L.append(sel_row("ALL", U, r"recal. class, LOBO"))
+L.append(sel_row("POSTHOC", U, r"recal. class, post hoc$^{\dagger}$"))
+L.append(row("balanced|diffnaive-irt", U, "balanced × diff. IRT (naive)"))
+L += [r"\midrule", head(r"Against stratified $\times$ mean")]
+L += [row(m, S) for m in ["uniform|recal-sirt", "strat|recal-sirt", "balanced|mean", "balanced|recal-s"]] + [row("balanced|diffnaive-irt", S, "balanced × diff. IRT (naive)")]
+L.append(sel_row("ALL", S, r"recal. class, LOBO"))
+L += [r"\midrule", head(r"Weak-prior check (after the fact), uniform design, against uniform $\times$ mean")]
+for a, b in [("uniform|irt-model", "uniform|irtw-model"), ("uniform|irt-plugin", "uniform|irtw-plugin")]:
+    L += [row(a, U), row(b, U)]
+L.append(r"\midrule")
+nb = []
+for sp in SP:
+    g = ps[(ps.method == "balanced|recal-s") & (ps.split == sp) & (ps.baseline == U)]
+    nb.append(str(int(g.n_bench.iloc[0])))
+L.append(" & ".join(["Benchmarks"] + nb) + r" \\")
+cells = []
+fb = fb.merge(tg[["bench", "split", "thin"]], on=["bench", "split"]); fb = fb[~fb.thin].assign(w=lambda d: d.rate * d.k_targets)
+for sp in SP:
+    r = fb[fb.split == sp].groupby("design").apply(lambda x: x.w.sum() / x.k_targets.sum() * 100, include_groups=False)
+    cells.append("$<$0.1" if r.max() < 0.05 else f"{r.min():.1f}--{r.max():.1f}")
+L.append(" & ".join(["Fall-back rate, \\%"] + cells) + r" \\")
+L += [r"\bottomrule", r"\end{tabular}"]
+open(out, "w").write("\\begingroup\\scriptsize\\setlength{\\tabcolsep}{2pt}\n" + "\n".join(L) + "\n\\endgroup\n")

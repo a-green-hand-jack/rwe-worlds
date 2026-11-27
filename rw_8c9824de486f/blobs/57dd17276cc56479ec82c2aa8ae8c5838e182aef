@@ -1,0 +1,17 @@
+"""Combined misspecification rung (PREREG Deviation 4h): the diagnostics of 28_diagnostics.py on `synth.COMBINED`, placed with the unchanged rule against the real matrix and the
+single rungs already in <ladder_dir>/ladder_diagnostics.csv. usage: python 36_combined_rung.py <ladder_dir> [n_seeds]  -> ladder_combined.csv, ladder_combined_placement.json"""
+import os, sys, json, importlib.util, numpy as np, pandas as pd
+here = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, here)
+spec = importlib.util.spec_from_file_location("diagnostics28", os.path.join(here, "28_diagnostics.py")); dg = importlib.util.module_from_spec(spec); spec.loader.exec_module(dg)
+from synth import COMBINED
+out = sys.argv[1]; n_seeds = int(sys.argv[2]) if len(sys.argv) > 2 else 20
+base = pd.read_csv(os.path.join(out, "ladder_diagnostics.csv"))
+rows = [dict(source="synthetic", rung=COMBINED, seed=s, **dg.synthetic(COMBINED, "separated", s, r_true=6, r_fit=6)) for s in range(n_seeds)]
+comb = pd.DataFrame(rows); comb.to_csv(os.path.join(out, "ladder_combined.csv"), index=False)
+D = ["calib", "calib_med", "kurt", "rescorr", "het", "link"]; rv = base[base.source == "real"].iloc[0]; ok = {}
+for d in D:
+    lo, hi = np.nanpercentile(comb[d], 5), np.nanpercentile(comb[d], 95); w = 0.1 * (hi - lo)
+    ok[d] = dict(real=float(rv[d]), lo=float(lo), hi=float(hi), median=float(comb[d].median()), inside=bool(lo - w <= rv[d] <= hi + w))
+res = dict(rung=COMBINED, n_seeds=n_seeds, consistent=all(v["inside"] for v in ok.values()), reproduces=all(v["inside"] for v in ok.values()), diagnostics=ok)
+json.dump(res, open(os.path.join(out, "ladder_combined_placement.json"), "w"), indent=1)
+print(json.dumps(res, indent=1))

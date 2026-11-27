@@ -1,0 +1,31 @@
+"""Why does the ridge predictor extrapolate better than the logistic ones? Bias of model-based estimators against the target's distance above the sources.
+
+usage: python3 -I scripts/11_extrap_bias.py results/raw/target_level.parquet results/extrap_bias.csv [split=extrap] [n=100]
+
+For each non-thin benchmark, design and model-based estimator in the extrapolation split: the targets are the top 25 % of models, so gap = true_score - min(true_score)
+over the targets of the benchmark measures how far above the sources a target lies (0 = just above the best source, up to the best model). Columns: slope =
+least-squares slope of the signed (draw-mean) bias on gap, pooled over benchmarks after dividing both by the benchmark's standard deviation of true_score over targets
+(a slope of -1: the estimate falls one target-sd short per target-sd of gap); bias_top = mean bias of the top quarter of targets by gap, in units of that sd;
+share_bias2 = bias^2 / (bias^2 + draw variance) pooled.
+"""
+import sys, numpy as np, pandas as pd
+f, out = sys.argv[1], sys.argv[2]; sp = sys.argv[3] if len(sys.argv) > 3 else "extrap"; n = int(sys.argv[4]) if len(sys.argv) > 4 else 100
+d = pd.read_parquet(f); d = d[(d.split == sp) & (d.n == n)]
+tg = pd.read_csv("results/targets.csv"); thin = set(tg[(tg.split == sp) & tg.thin].bench)
+d = d[~d.bench.isin(thin)]
+d = d[d.estimator.str.endswith(("-model", "-plugin")) | (d.estimator == "mean")]
+d = d[d.design.isin(["uniform", "balanced", "strat"])]
+t = d.drop_duplicates(["bench", "target_model"])[["bench", "target_model", "true_score"]]
+t = t.assign(sd=t.groupby("bench").true_score.transform("std"), gap=t.true_score - t.groupby("bench").true_score.transform("min"))
+t["gap"] = t.gap / t.sd
+d = d.merge(t[["bench", "target_model", "sd", "gap"]], on=["bench", "target_model"])
+d["b"] = d.bias / d.sd
+rows = []
+for (de, es), g in d.groupby(["design", "estimator"]):
+    a = g.groupby(["bench", "target_model"]).agg(b=("b", "mean"), gap=("gap", "first"), bias2=("bias", lambda x: float((x ** 2).mean())), dv=("draw_var", "mean"))
+    X = np.c_[np.ones(len(a)), a.gap]; beta = np.linalg.lstsq(X, a.b.values, rcond=None)[0]
+    top = a.gap >= a.gap.groupby(level=0).transform(lambda x: x.quantile(0.75))
+    rows.append(dict(split=sp, n=n, design=de, estimator=es, slope=beta[1], intercept=beta[0], bias_top=a.b[top].mean(),
+                     share_bias2=a.bias2.sum() / (a.bias2.sum() + a.dv.sum()), n_targets=len(a)))
+r = pd.DataFrame(rows); r.to_csv(out, index=False)
+print(r[r.estimator.isin(["mean", "irt-model", "knn30-model", "ridge0.1-model", "irt-plugin", "ridge0.1-plugin"]) | r.estimator.str.startswith(("ridge", "knn", "irt"))].round(3).to_string(index=False))

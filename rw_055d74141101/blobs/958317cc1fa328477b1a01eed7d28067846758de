@@ -1,0 +1,36 @@
+"""results/positive_control.csv from the replicates of 14_positive_control.py ($BT_RESULTS/control/*.parquet); all rows SYNTHETIC.
+A cell is written by 14_positive_control.py only when all its replicates have run, so every row is a finished cell; cells not yet run are absent.
+Per graph x departure x size x perturbation: Delta(log Q) averaged over replicates, share of replicates whose own interval lies inside / beyond +-0.15,
+the interval of the replicate mean (+-1.96 sd/sqrt(R) over replicates; `pooled_*`) and, per the rule of PREANALYSIS rev 3, `detected` = that interval lies beyond +-0.15."""
+import glob, os, sys
+import numpy as np, pandas as pd
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src")); sys.path.insert(0, os.path.dirname(__file__))
+from core01 import OUT
+import importlib
+T6 = importlib.import_module("06_tables")
+MARGIN = 0.15
+PLANNED = {"arena55k": 5, "mtbench_human": 20}  # replicates run per cell (run_control.sh); a replicate with fewer than 5 pairs at z_fisher in [1,8] gives no Delta and is not counted in n_replicates
+
+
+def main():
+    d = pd.concat([pd.read_parquet(f) for f in sorted(glob.glob(f"{OUT}/control/*.parquet"))], ignore_index=True)
+    rows = []
+    for (g, m, s, fam), x in d.groupby(["graph", "mech", "size", "perturbation"]):
+        R = x.rep.nunique()
+        mean, sd = x.delta.mean(), x.delta.std(ddof=1) if len(x) > 1 else np.nan
+        plo, phi = mean - 1.96 * sd / np.sqrt(len(x)), mean + 1.96 * sd / np.sqrt(len(x))
+        rows.append(dict(graph=g, departure=m, size=s, perturbation=fam, synthetic=1, n_replicates=R, replicates_run=PLANNED[g], N=x.N.iloc[0], n_pairs_mean=x.n_pairs.mean(),
+                         delta_mean=mean, delta_sd_replicates=sd, se_jackknife_mean=x.se_jk.mean(), pooled_lo=plo, pooled_hi=phi,
+                         share_rep_inside=((x.lo > -MARGIN) & (x.hi < MARGIN)).mean(), share_rep_beyond=((x.lo > MARGIN) | (x.hi < -MARGIN)).mean(),
+                         detected=bool((plo > MARGIN) or (phi < -MARGIN)), Q_real_med=x.Q_real_med.mean(), Q_null_med=x.Q_null_med.mean(),
+                         se_ratio_cluster_med=x.se_ratio_cluster_med.mean(), se_ratio_cmp_med=x.se_ratio_cmp_med.mean(),
+                         design_effect_cluster=(x.se_ratio_cluster_med / x.se_ratio_cmp_med).mean() ** 2, n_boot=x.n_boot.iloc[0], n_null=x.n_null.iloc[0]))
+    o = pd.DataFrame(rows)
+    o.to_csv(f"{T6.REPO}/positive_control.csv", index=False, float_format="%.5g")
+    pd.set_option("display.width", 250)
+    print(o[["graph", "departure", "size", "perturbation", "n_replicates", "delta_mean", "delta_sd_replicates", "pooled_lo", "pooled_hi", "share_rep_beyond", "detected",
+             "se_ratio_cluster_med", "se_ratio_cmp_med", "design_effect_cluster"]].to_string())
+
+
+if __name__ == "__main__":
+    main()

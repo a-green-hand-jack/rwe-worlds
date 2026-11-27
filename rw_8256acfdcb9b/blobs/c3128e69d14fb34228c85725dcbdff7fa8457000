@@ -1,0 +1,67 @@
+"""Appendix figure (background sensitivity of the headline, Outline A2 'background'): German Credit and ACS Employment, default Kernel SHAP
+(shap KernelExplainer, l1_reg=False) at the reference budget (German 2088, ACS Employment 2080 model evaluations as m), RF / GBM / MLP.
+Backgrounds compared with the B=50 random rows of the headline: B=20 and B=200 random rows, and 50 k-means medoids. Each background has its own exact reference.
+(a) how much the exact phi itself changes: share of instances whose exact top-3 set equals the one under B=50 (instance-level CP interval)
+(b) paired difference (background minus B=50) in the mean over instances of P_c (the share of the R runs with a correct top-3 set; each run
+    scored against the exact phi of its own background), on the same instances: filled = strict P_c, open = P_c^eps (eps = 0.05).
+Reads: background_reference_shift, background_paired_diff, cells. Usage: python figA_background.py DATA_DIR OUT_PREFIX
+"""
+import argparse
+import numpy as np, pandas as pd, matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
+import figstyle as fs
+
+ap = argparse.ArgumentParser(); ap.add_argument("data"); ap.add_argument("out")
+ap.add_argument("--datasets", nargs="+", default=["german", "acs_employment"]); ap.add_argument("--l1", default="False")
+a = ap.parse_args()
+fs.setup()
+rs, p1 = fs.load(a.data, "background_reference_shift"); pdf, p2 = fs.load(a.data, "background_paired_diff"); cells, p3 = fs.load(a.data, "cells")
+fs.require(rs, ["dataset", "model", "background", "n_instances", "share_top3_same", "ci_lo", "ci_hi"], "background_reference_shift")
+fs.require(pdf, ["dataset", "model", "background", "l1_reg", "budget_m", "kind", "eps", "n_instances", "diff", "ci_lo", "ci_hi"], "background_paired_diff")
+BG = [("B20", "$B$=20"), ("B200", "$B$=200"), ("kmeans50", "k-means 50")]
+MODELS = [m for m in fs.MODELS if m != "lr"]
+ref = fs.ref_budget(cells, "shap_kernel", a.l1)
+fig, ax = plt.subplots(2, len(a.datasets), figsize=(fs.WIDTH_IN, 3.6), squeeze=False)
+rows = []
+for c, ds in enumerate(a.datasets):
+    b0 = int(ref[ref.dataset == ds].budget_m.iloc[0])
+    for mi, m in enumerate(MODELS):
+        st = fs.MODEL_STYLE[m]; off = (mi - 1) * 0.22
+        for bi, (bg, _) in enumerate(BG):
+            x = bi + off
+            q = rs[(rs.dataset == ds) & (rs.model == m) & (rs.background == bg)]
+            if len(q):
+                q = q.iloc[0]
+                ax[0, c].plot([x, x], [q.ci_lo, q.ci_hi], color=st["color"], lw=0.9)
+                ax[0, c].plot(x, q.share_top3_same, color=st["color"], marker=st["marker"], ls="none", ms=3.5)
+                rows.append(dict(dataset=ds, model=m, panel="exact_top3_same_as_B50", background=bg, n_instances=q.n_instances, value=q.share_top3_same, ci_lo=q.ci_lo, ci_hi=q.ci_hi))
+            for eps, filled, dx in ((0.0, True, -0.045), (0.05, False, 0.045)):
+                q = pdf[(pdf.dataset == ds) & (pdf.model == m) & (pdf.background == bg) & (pdf.l1_reg == a.l1) & (pdf.budget_m == b0) & (pdf.kind == "topk3") & np.isclose(pdf.eps, eps)]
+                if q.empty: continue
+                q = q.iloc[0]
+                ax[1, c].plot([x + dx, x + dx], [q.ci_lo, q.ci_hi], color=st["color"], lw=0.9)
+                ax[1, c].plot(x + dx, q["diff"], color=st["color"], marker=st["marker"], ls="none", ms=3.5, mfc=st["color"] if filled else "white")
+                rows.append(dict(dataset=ds, model=m, panel="paired_diff_pc", background=bg, eps=eps, budget_m=b0, n_instances=q.n_instances, value=q["diff"], ci_lo=q.ci_lo, ci_hi=q.ci_hi))
+    ax[1, c].axhline(0, color="0.3", lw=0.6)
+    ax[0, c].set_ylim(-0.03, 1.03); ax[1, c].set_ylim(-0.25, 0.25)
+    for r in (0, 1):
+        ax[r, c].set_xticks(range(len(BG))); ax[r, c].set_xlim(-0.55, len(BG) - 0.45)
+        ax[r, c].set_xticklabels([l for _, l in BG] if r == 1 else [])
+    ax[0, c].set_title(fs.DATASET_TITLE[ds], fontsize=fs.LABEL_PT)
+ax[0, 0].set_ylabel("exact top-3 set\nsame as under $B$=50"); ax[1, 0].set_ylabel("paired diff. in mean $P_c$\n(bg $-$ $B$=50)")
+ax[1, 0].set_xlabel("background of the value function"); ax[1, 1].set_xlabel("background of the value function")
+for r, t_ in enumerate("ab"): ax[r, 0].text(-0.02, 1.02, f"({t_})", transform=ax[r, 0].transAxes, fontsize=fs.LABEL_PT, ha="right", va="bottom")
+h = [Line2D([], [], color=fs.MODEL_STYLE[m]["color"], marker=fs.MODEL_STYLE[m]["marker"], ls="none", ms=3.5) for m in MODELS]
+l = [fs.MODEL_STYLE[m]["label"] for m in MODELS]
+h += [Line2D([], [], color="0.3", marker="o", ls="none", ms=3.5), Line2D([], [], color="0.3", marker="o", mfc="white", ls="none", ms=3.5)]
+l += ["(b) strict $P_c$", "(b) $P_c^\\epsilon$"]
+fig.legend(h, l, loc="upper center", ncol=5, frameon=False, columnspacing=1.0, bbox_to_anchor=(0.5, 1.0))
+fig.tight_layout(pad=0.4, h_pad=0.8, w_pad=0.8, rect=(0, 0, 1, 0.93))
+R_ = pd.DataFrame(rows)
+eps_zero = bool((R_[(R_.panel == "paired_diff_pc") & (R_.eps == 0.05)][["value", "ci_lo", "ci_hi"]].abs().max() == 0).all())
+n = pd.DataFrame(rows).groupby(["dataset", "model"]).n_instances.agg(["min", "max"])
+fs.save(fig, a.out, pd.DataFrame(rows), [p1, p2, p3],
+        note=f"estimator=shap_kernel; l1_reg={a.l1}; reference budget { {d_: int(ref[ref.dataset == d_].budget_m.iloc[0]) for d_ in a.datasets} }; only the instances listed in n_instances per point "
+             f"(subsets of the 40 German and 60 ACS Employment instances: German n={int(n.loc['german','min'].min())}-{int(n.loc['german','max'].max())}, ACS Employment n={int(n.loc['acs_employment','min'].min())}-{int(n.loc['acs_employment','max'].max())}); "
+             "(a) exact phi under each background vs under B=50 (one pair of value functions per instance, not the K-draw floor b of Fig 5); "
+             "(b) mean over instances of the per-instance share of runs correct (not the share of instances with P_c >= 0.9), B=50 rows restricted to the same instances; " + ("the P_c^eps differences (open) are exactly 0 in every drawn cell; " if eps_zero else "") + "each background has its own exact reference")

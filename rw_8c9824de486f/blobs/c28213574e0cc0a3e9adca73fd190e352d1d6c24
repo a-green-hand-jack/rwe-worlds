@@ -1,0 +1,13 @@
+"""Write the sidecar record of where a figure's numbers came from."""
+import hashlib, json, os, pathlib
+
+
+def sha256(p):
+    return hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest()
+
+
+def write(fig_path, inputs, meta, root=None):
+    """inputs: list of result files read; meta: dict(data scope, split, n_groups, analysis_commit, ...)."""
+    rec = {"figure": str(fig_path),
+           "inputs": [{"path": "results/" + (str(pathlib.Path(i).relative_to(root)) if root else pathlib.Path(i).name), "sha256": sha256(i)} for i in inputs], "analysis_commit": os.environ.get("ANALYSIS_COMMIT", "unrecorded"), **meta}
+    pathlib.Path(str(fig_path) + ".json").write_text(json.dumps(rec, indent=2, sort_keys=True))

@@ -1,0 +1,19 @@
+"""Step 1b: English MTEB dense pool (rule: English-only tasks, de-duplicated variants, N = largest number of top-coverage tasks
+such that >= 120 models have all of them). Run: python3 make_pools.py <parsed_dir>"""
+import sys, json, re, pandas as pd
+d = sys.argv[1]
+L = json.load(open(f"{d}/mteb_task_langs.json")); W = pd.read_parquet(f"{d}/mteb_sparse.parquet")
+eng = [t for t, l in L.items() if l and all(x.startswith("eng") for x in l) and t in W.columns]
+canon = lambda t: re.sub(r"(HardNegatives|\.v\d)$", "", t)
+e = [t for t in eng if not (t.startswith("CQADupstack") and t != "CQADupstackRetrieval")]       # D1: CQADupstack sub-forums
+keep = [t for t in e if not (canon(t) != t and (canon(t) in e or canon(t) + "Retrieval" in e))]   # D2: hard-negative/.vN variants of an original in pool
+cov = W[keep].notna().sum().sort_values(ascending=False)
+best = None
+for N in range(20, 140):
+    ts = list(cov.index[:N]); M = int(W[ts].notna().all(axis=1).sum())
+    if M >= 120: best = (N, M)
+N, M = best; ts = list(cov.index[:N])
+P = W.loc[W[ts].notna().all(axis=1), ts]
+print("English dense pool: models", P.shape[0], "tasks", P.shape[1], "(candidate English tasks %d -> %d after dedup)" % (len(eng), len(keep)))
+P.to_parquet(f"{d}/mteb_eng_pool.parquet")
+json.dump(dict(n_english_tasks=len(eng), n_after_dedup=len(keep), N=N, M=M, rule="largest N with >=120 complete models"), open(f"{d}/mteb_eng_rules.json", "w"))

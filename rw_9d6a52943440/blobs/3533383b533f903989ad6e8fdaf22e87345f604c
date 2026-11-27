@@ -1,0 +1,24 @@
+#!/bin/sh
+# Rebuild every figure and table of the paper from the result files.
+# usage: figures/scripts/make_all.sh [CODE_DIR]     (CODE_DIR holds results/; default: ../../code relative to this script)
+# writes figures/*.pdf and tables/*.tex next to this script's parent directories (the root of the delivered paper).
+# Needs python3 with numpy, pandas, matplotlib (about one minute). Fonts are embedded (Type 42).
+set -e
+HERE=$(cd "$(dirname "$0")" && pwd); ROOT=$(cd "$HERE/../.." && pwd)
+E=${1:-$ROOT/code}
+F=$ROOT/figures; T=$ROOT/tables; mkdir -p "$F" "$T"
+S=$HERE
+python3 -I $S/fig1_protocol.py "$F/fig1_protocol.pdf"
+python3 -I $S/fig2_ratio_vs_n.py "$E" "$F/fig2_ratio_vs_n.pdf"
+python3 -I $S/fig3_bias_by_score.py "$E" "$F/fig3_bias_by_score.pdf"
+python3 -I $S/fig5_ablation.py "$E" "$F/fig5_ablation.pdf" interp,extrap
+python3 -I $S/fig5_ablation.py "$E" "$F/fig5_ablation_all_splits.pdf" interp,extrap,lineage
+python3 -I $S/fig4_ceiling.py "$E" "$F/fig4_ceiling.pdf"
+python3 -I $S/fig6_msrc.py "$E" "$F/fig6_msrc.pdf"
+python3 -I $S/fig7_ordering.py "$E" "$F/fig7_ordering.pdf" interp,extrap
+python3 -I $S/fig7_ordering.py "$E" "$F/fig7_ordering_all_splits.pdf" interp,extrap,lineage
+python3 -I $S/table2_audit.py "$E" "$T/table2_audit.tex"
+python3 -I $S/table8_robust.py "$E" "$T/table8_robust.tex"
+python3 -I $S/table10_recal.py "$E" "$T/table10_recal.tex"
+python3 -I $S/table11_public.py "$E" "$T/table11_public.tex"
+python3 -I $S/tables_results.py "$E" "$T"

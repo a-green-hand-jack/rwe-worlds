@@ -1,0 +1,65 @@
+"""Cell construction for the MTEB matrix, as fixed in prereg/PREREG.md (rules R1-R6).
+build_cells(raw, meta, task_meta) -> long table (model, task, score_pts) with one revision per model."""
+import re, numpy as np, pandas as pd
+
+SPLIT_PRIORITY = ["test", "test.full", "validation", "validation.full", "dev", "devtest", "default"]  # 'train' never used
+
+def norm_org(org):
+    o = re.sub(r"[^a-z0-9]", "", org.lower())
+    return ORG_ALIAS.get(o, o)
+
+# spelling-level aliases only (same organisation written differently); fixed before any result
+ORG_ALIAS = {"bytedanceseed": "bytedance", "baai": "baai", "jinaai": "jinaai", "sbert": "sentencetransformers"}
+
+def model_key(model_dir):
+    return model_dir
+
+def pick_revisions(raw, meta, text_tasks):
+    """R1: one revision directory per model directory: the one with most distinct text-task files;
+    ties -> latest release_date in its model_meta, then lexicographically smallest directory name."""
+    t = raw[raw.task.isin(text_tasks)]
+    cnt = t.groupby(["model_dir", "rev_dir"]).file.nunique().rename("n_files").reset_index()
+    cnt = cnt.merge(meta[["model_dir", "rev_dir", "release_date"]], on=["model_dir", "rev_dir"], how="left")
+    cnt["rd"] = cnt.release_date.fillna("")
+    cnt = cnt.sort_values(["model_dir", "n_files", "rd", "rev_dir"], ascending=[True, False, False, True])
+    return cnt.groupby("model_dir").head(1)[["model_dir", "rev_dir", "n_files"]]
+
+def build_cells(raw, meta, task_meta, log=None):
+    log = log if log is not None else {}
+    tm = task_meta.set_index("task")
+    # R2 text-only tasks (modality exactly {text}); tasks unknown to the mteb metadata are dropped
+    text_tasks = set(tm.index[tm.modalities == "text"])
+    log["raw_models"] = raw.model_dir.nunique(); log["raw_tasks"] = raw.task.nunique()
+    log["text_tasks"] = len(text_tasks & set(raw.task))
+    rev = pick_revisions(raw, meta, text_tasks)
+    r = raw.merge(rev[["model_dir", "rev_dir"]], on=["model_dir", "rev_dir"])
+    r = r[r.task.isin(text_tasks) & r.main_score.notna()].copy()
+    log["models_after_revision_pick"] = r.model_dir.nunique()
+    # R3 split: first split in SPLIT_PRIORITY that is in the task's declared eval_splits and present for the model
+    decl = {t: set(tm.at[t, "eval_splits"].split("|")) for t in text_tasks}
+    r = r[r.split.isin(SPLIT_PRIORITY)]
+    r = r[[s in decl[t] for s, t in zip(r.split, r.task)]]
+    pr = {s: i for i, s in enumerate(SPLIT_PRIORITY)}
+    r["pr"] = r.split.map(pr)
+    best = r.groupby(["model_dir", "task"]).pr.transform("min")
+    r = r[r.pr == best]
+    log["cells_after_split"] = r.groupby(["model_dir", "task"]).ngroups
+    # R4 task version: dataset_revision must equal the task's modal dataset_revision (over models)
+    dr = r.drop_duplicates(["model_dir", "task", "dataset_revision"])
+    modal_dr = dr.groupby("task").dataset_revision.agg(lambda s: s.value_counts().index[0])
+    n_before = r.groupby(["model_dir", "task"]).ngroups
+    r = r[r.dataset_revision == r.task.map(modal_dr)]
+    log["cells_after_dataset_revision"] = r.groupby(["model_dir", "task"]).ngroups
+    # R5 subsets: canonical subset set of a task = its modal subset set over models; a cell is kept iff the
+    # model reports a superset of it, and the score is the mean of main_score over the canonical subsets
+    ss = r.groupby(["model_dir", "task"]).hf_subset.agg(lambda s: frozenset(s))
+    modal_ss = ss.groupby("task").agg(lambda s: s.value_counts().index[0])
+    keep = {k for k, v in ss.items() if v >= modal_ss[k[1]]}
+    r["_k"] = list(zip(r.model_dir, r.task))
+    r = r[r._k.isin(keep)]
+    r = r[[h in modal_ss[t] for h, t in zip(r.hf_subset, r.task)]]
+    log["cells_after_subsets"] = r.groupby(["model_dir", "task"]).ngroups
+    cells = r.groupby(["model_dir", "task"]).agg(score=("main_score", "mean"), split=("split", "first"),
+                                                 n_sub=("hf_subset", "nunique"), eval_time=("eval_time", "mean")).reset_index()
+    cells["score"] *= 100.0   # raw points on a 0-100 scale
+    return cells, log

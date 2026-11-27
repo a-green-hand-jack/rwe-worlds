@@ -1,0 +1,57 @@
+"""Fig. 6: positive control of the reference test (SYNTHETIC data). Data are simulated from the Bradley-Terry model fitted to a real graph with one known departure
+added; top row: Delta(log Q) as computed for the real data, with the equivalence margin; bottom row: the SE ratio (cluster-bootstrap over model-based SE) of the
+same simulated data. One column per departure type, x = size of the departure. Claim: Delta stays inside the margin where the SE ratio rises (overdispersion)."""
+import os, numpy as np, matplotlib; matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from style import setup, fig_size, design_style, margin
+from common import args, load, write_prov
+
+a = args("fig6"); setup(); os.makedirs(a.out, exist_ok=True)
+for k in ("font.size", "axes.labelsize", "axes.titlesize", "xtick.labelsize", "ytick.labelsize", "legend.fontsize"):
+    plt.rcParams[k] = 7.0
+prov = {"inputs": {}}
+df = load(a.data, "positive_control.csv", ["graph", "departure", "size", "perturbation", "delta_mean", "pooled_lo", "pooled_hi", "se_ratio_cluster_med", "replicates_run", "n_replicates"], prov)
+M = margin()
+COLS = [("overdisp", "overdispersion"), ("position", "position bias"), ("cyclic", "cyclic component"), ("pairdev", "pair-specific")]
+GRAPHS = [("mtbench_human", "expert", "MT-Bench human graph"), ("arena55k", "crowd", "Arena-55k graph")]
+w, _ = fig_size("text")
+fig, axes = plt.subplots(2, 4, figsize=(w, 2.85), sharey="row")
+dx = {("mtbench_human", "delete"): -0.14, ("mtbench_human", "flip"): -0.05, ("arena55k", "delete"): 0.05, ("arena55k", "flip"): 0.14}
+drawn = 0
+for j, (dep, title) in enumerate(COLS):
+    sizes = sorted(set(df[df.departure == dep]["size"]) | {0.0})
+    pos = {v: i for i, v in enumerate(sizes)}     # equal spacing: the sizes form a doubling grid
+    for g, des, _lab in GRAPHS:
+        st = design_style(des)
+        sub = df[(df.graph == g) & (df.departure.isin([dep, "none"]))]
+        smax = sub["size"].max()
+        for fam in ("delete", "flip"):
+            s = sub[sub.perturbation == fam].sort_values("size")
+            if s.empty: continue
+            x = np.array([pos[v] for v in s["size"]]) + dx[(g, fam)]
+            ax = axes[0, j]
+            ax.errorbar(x, s.delta_mean, yerr=[s.delta_mean - s.pooled_lo, s.pooled_hi - s.delta_mean], fmt="none", ecolor=st["color"], elinewidth=0.8, capsize=0)
+            ax.plot(x, s.delta_mean, ls="", marker="o" if fam == "delete" else "s", ms=3.2, color=st["color"], mfc=st["color"] if fam == "delete" else "white", mew=0.8)
+            drawn += len(s)
+        s = sub[sub.perturbation == "delete"].sort_values("size")
+        x = np.array([pos[v] for v in s["size"]])
+        axes[1, j].plot(x, s.se_ratio_cluster_med, marker=st["marker"], ms=3.5, color=st["color"], lw=1.0)
+    ax = axes[0, j]
+    ax.axhspan(-M, M, color="0.88", zorder=0, lw=0); ax.axhline(0, color="0.4", lw=0.5, zorder=0)
+    ax.set_title(title)
+    axes[1, j].axhline(1, color="0.4", lw=0.5, zorder=0)
+    for ax in axes[:, j]:
+        ax.set_xticks(range(len(sizes))); ax.set_xticklabels([f"{t:g}" for t in sizes]); ax.set_xlim(-0.45, len(sizes) - 0.55)
+axes[0, 0].set_ylim(-0.2, 0.2)
+axes[0, 0].set_ylabel("$\\Delta$ = mean log\n($Q$ real / $Q$ null)")
+axes[1, 0].set_ylabel("SE ratio\n(cluster / model)")
+for ax in axes[0, 1:]: ax.tick_params(labelleft=False)
+for ax in axes[1, 1:]: ax.tick_params(labelleft=False)
+fig.supxlabel("size of the departure (standard deviation of the log-odds term; 0 = no departure)", fontsize=7)
+from matplotlib.lines import Line2D
+hs = [Line2D([], [], ls="", marker="o", color="k", ms=3.2, label="deletion"), Line2D([], [], ls="", marker="s", color="k", mfc="white", ms=3.2, mew=0.8, label="outcome flip")]
+hs += [Line2D([], [], ls="-", marker=design_style(d)["marker"], color=design_style(d)["color"], ms=3.5, lw=1.0, label=lab) for _, d, lab in GRAPHS]
+hs += [plt.Rectangle((0, 0), 1, 1, fc="0.88", label=r"$\pm$%g margin" % M)]
+fig.legend(handles=hs, loc="outside upper center", ncol=5, handletextpad=0.3, columnspacing=1.0)
+fig.savefig(os.path.join(a.out, "fig6.pdf"))
+write_prov(a.out, "fig6", {**prov, "points_delta": drawn, "synthetic": True, "graphs": [g for g, _, _ in GRAPHS], "cells": int(len(df))})

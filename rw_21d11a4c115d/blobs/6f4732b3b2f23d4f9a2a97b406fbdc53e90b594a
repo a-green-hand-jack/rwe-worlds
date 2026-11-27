@@ -1,0 +1,31 @@
+"""Fig. A3 (appendix, claim C5): the closed-form gap to random of greedy A against coherence (a) and against the sampled
+submodularity heuristic 1-exp(-gamma-hat) (b), one point per fitted model (real: grouped-fold training fit; synthetic: controlled coherence), k = 3."""
+import argparse, os
+import numpy as np, pandas as pd
+import style, venue
+import matplotlib.pyplot as plt
+
+p = argparse.ArgumentParser()
+p.add_argument("--results", required=True); p.add_argument("--out", default="out"); p.add_argument("--draft", action="store_true")
+p.add_argument("--k", type=int, default=3)
+a = p.parse_args()
+v = venue.get(a.draft)
+size = style.setup(v["TEXT_WIDTH_IN"], v["MIN_FONT_PT"], aspect=0.40)
+f = os.path.join(a.results, "coherence.csv"); c = pd.read_csv(f); c = c[c.k == a.k]
+REAL = ["mteb_eng", "mteb_multi", "helm_mmlu"]
+SYN = {"synthetic_spiky0": 0, "synthetic_spiky1": 1, "synthetic_spiky2": 2, "synthetic_spiky3": 3}
+fig, axs = plt.subplots(1, 2, figsize=size)
+mk = ["o", "s", "^", "D"]
+for ax, (xc, xl) in zip(axs, (("coherence", "coherence $\\mu$"), ("greedy_bound_heuristic", "heuristic $1-\\exp(-\\hat\\gamma)$"))):
+    for ds in REAL:
+        d = c[c.dataset == ds]; ax.scatter(d[xc], 100 * d.gap_random_greedy, s=9, color=style.DATASET_COLORS[ds], alpha=0.8, lw=0, label=style.DATASET_SHORT[ds])
+    for ds, i in SYN.items():
+        d = c[c.dataset == ds]; ax.scatter(d[xc], 100 * d.gap_random_greedy, s=14, marker=mk[i], facecolor="white", edgecolor="0.25", lw=0.7, label=f"synthetic, level {i}")
+    ax.set_xlabel(xl); ax.set_ylabel("gap to random (%)")
+axs[0].set_title("(a) against coherence", loc="left"); axs[1].set_title("(b) against the heuristic", loc="left")
+lo, hi = c.greedy_bound_heuristic.min(), c.greedy_bound_heuristic.max()
+axs[1].plot([0, 1], [0, 100], color="0.5", ls="--", lw=0.8, label="gap = heuristic"); axs[1].set_xlim(lo - 0.05, 1.0 if hi > 0.9 else hi + 0.05)
+h, l = axs[0].get_legend_handles_labels(); h2, l2 = axs[1].get_legend_handles_labels()
+fig.legend(h + h2[-1:], l + l2[-1:], loc="outside lower center", ncol=4, columnspacing=1.0, handletextpad=0.3)
+print(style.save(fig, "figA3_coherence", a.out, dict(claim="C5", inputs={f: style.sha(f)}, k=a.k, n_points=int(len(c)),
+                                                     note="gamma-hat is a sampled minimum, an upper bound on the true submodularity ratio; (b) is a heuristic, not a guarantee", draft=a.draft)))

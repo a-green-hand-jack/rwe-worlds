@@ -1,0 +1,23 @@
+import pymupdf,re,json,statistics as st
+S=json.load(open('raw/sample.json'))
+rows=[]
+for i,s in enumerate(S):
+    d=pymupdf.open(f'pdf/{i:02d}.pdf')
+    first=d[0].get_text()+d[1].get_text()
+    ma=re.search(r'Abstract\s*(.*?)(?:\n\s*1\s*\.?\s*Introduction|\n\s*1\s*\n\s*Introduction|Introduction\s*\n)',first,re.S)
+    a=' '.join(ma.group(1).split()) if ma else ''
+    # intro
+    main=''
+    for k in range(len(d)):
+        t=d[k].get_text(); m=re.search(r'^\s*(\d+\s*)?(References|REFERENCES)\s*$',t,re.M)
+        if m and k>=2: main+=t[:m.start()];break
+        main+=t
+    mi=re.search(r'\n\s*1\s*\.?\s*(?:\n\s*)?Introduction[^\n]*\n(.*?)\n\s*2\s*\.?\s*(?:\n\s*)?[A-Z][a-z]',main,re.S)
+    intro=mi.group(1) if mi else ''
+    contrib=bool(re.search(r'(our|main|key|the following) contributions?|we make the following|contributions? (are|of this)',intro,re.I))
+    bullets=len(re.findall(r'^\s*[•∙·▪-]\s',intro,re.M))
+    digit_abs=bool(re.search(r'\d',a))
+    pct=bool(re.search(r'\d\s*%|\d+(\.\d+)?x\b|\d+×',a))
+    rows.append(dict(i=i,abs_len=len(a.split()),abs_has_digit=digit_abs,abs_has_pct=pct,intro_contrib=contrib,intro_bullets=bullets,first=a[:150],last=a[-160:]))
+json.dump(rows,open('raw/abstracts.json','w'),indent=1)
+for r in rows: print(r['i'],r['abs_len'],r['abs_has_digit'],r['abs_has_pct'],r['intro_contrib'],r['intro_bullets'],'|',r['last'][-120:])

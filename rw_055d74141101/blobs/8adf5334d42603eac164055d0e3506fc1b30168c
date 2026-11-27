@@ -1,0 +1,36 @@
+quantity,perturbation,value,n,setting,synthetic
+pair_rows_total,both,11520,11520,"all synthetic pair rows (M in {12,30}, N 2e3..1.28e5, density {1,.25}, tie {0,.3}, 3 reps)",1
+intercept,delete,-0.97594,3354,"OLS of log k* on log z, log N, log density (theory: z 1, N 0.5)",1
+exponent_log_z,delete,1.1164,3354,"OLS of log k* on log z, log N, log density (theory: z 1, N 0.5)",1
+exponent_log_N,delete,0.44443,3354,"OLS of log k* on log z, log N, log density (theory: z 1, N 0.5)",1
+exponent_log_density,delete,0.062241,3354,"OLS of log k* on log z, log N, log density (theory: z 1, N 0.5)",1
+residual_sd_log_k,delete,0.24789,3354,same regression,1
+mean_log_Q,delete,-0.029821,3354,all configurations,1
+mean_log_Q,delete,-0.11124,878,"density 0.25, tie rate 0",1
+mean_log_Q,delete,-0.026187,849,"density 0.25, tie rate 0.3",1
+mean_log_Q,delete,-0.037498,797,"density 1, tie rate 0",1
+mean_log_Q,delete,0.059961,830,"density 1, tie rate 0.3",1
+instance_sd_mean_log_Q_mean_over_configs,delete,0.026225,32,sd over the replicate instances of an instance's mean log Q,1
+instance_sd_mean_log_Q_max_over_configs,delete,0.061503,32,,1
+k_lin_over_k_ver_median,delete,1.2559,3354,first-order estimate over verified upper bound,1
+intercept,flip,-1.4667,3354,"OLS of log k* on log z, log N, log density (theory: z 1, N 0.5)",1
+exponent_log_z,flip,1.1364,3354,"OLS of log k* on log z, log N, log density (theory: z 1, N 0.5)",1
+exponent_log_N,flip,0.42745,3354,"OLS of log k* on log z, log N, log density (theory: z 1, N 0.5)",1
+exponent_log_density,flip,0.030292,3354,"OLS of log k* on log z, log N, log density (theory: z 1, N 0.5)",1
+residual_sd_log_k,flip,0.21729,3354,same regression,1
+mean_log_Q,flip,0.20881,3354,all configurations,1
+mean_log_Q,flip,0.095257,878,"density 0.25, tie rate 0",1
+mean_log_Q,flip,0.10879,849,"density 0.25, tie rate 0.3",1
+mean_log_Q,flip,0.29361,797,"density 1, tie rate 0",1
+mean_log_Q,flip,0.34983,830,"density 1, tie rate 0.3",1
+instance_sd_mean_log_Q_mean_over_configs,flip,0.022598,32,sd over the replicate instances of an instance's mean log Q,1
+instance_sd_mean_log_Q_max_over_configs,flip,0.071161,32,,1
+k_lin_over_k_ver_median,flip,0.96942,3354,first-order estimate over verified upper bound,1
+pflip_rmse_conditional_formula,delete,0.0099131,945,"random deletion, measured P_flip minus formula; formula Phi(-z sqrt((1-f)/f)) or Phi(-z sqrt(1-f))",1
+pflip_bias_conditional_formula,delete,0.00089128,945,measured minus formula,1
+pflip_rmse_brief_formula,delete,0.070187,945,"random deletion, measured P_flip minus formula; formula Phi(-z sqrt((1-f)/f)) or Phi(-z sqrt(1-f))",1
+pflip_bias_brief_formula,delete,-0.036248,945,measured minus formula,1
+pflip_draws_per_cell,delete,400,945,"cells = (N, density, f, pair)",1
+tiny_exact_match_iterated,both,53,53,"problems (M=3,4; N=30-70) where the method equals the exhaustive minimum",1
+tiny_exact_match_frank_wolfe,both,53,53,"problems (M=3,4; N=30-70) where the method equals the exhaustive minimum",1
+tiny_exact_match_ceil_lp_relaxation,both,53,53,"problems (M=3,4; N=30-70) where the method equals the exhaustive minimum",1

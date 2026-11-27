@@ -1,0 +1,153 @@
+"""Aggregation of the Tier-G/O run files into per-cell metrics.
+A 'series' = one (run, outcome column j, noise level m, estimator): an array err[G, R] of
+(tau_hat - tau)/tau over graph draws x assignment draws."""
+import os
+import pickle
+import sys
+
+import numpy as np
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+from gate import mech, sim  # noqa: E402
+from gate.sim import EI, ENAMES, NOISE_M  # noqa: E402
+
+LINEAR = ["dm", "hajek75", "hajek100", "chin", "quad", "spline", "count", "hop2", "inter", "or_known"]
+ALL_EST = LINEAR + ["or_fit"]
+MLEVELS = [0.25, 0.5, 1.0, 2.0, 4.0]    # 2 and 4 extend the Brief levels {.25,.5,1} (noise-dominated regime)
+BRIEF_M = [0.25, 0.5, 1.0]
+TIER = {"dm": "G", "hajek75": "G", "hajek100": "G", "chin": "G", "quad": "G", "spline": "G", "count": "G",
+        "hop2": "G", "inter": "G", "or_known": "O", "or_fit": "O"}
+
+
+def load(path):
+    with open(path, "rb") as fh:
+        return pickle.load(fh)
+
+
+class Run:
+    def __init__(self, path):
+        o = load(path)
+        self.o = o
+        self.cfg = o["cfg"]
+        self.id = self.cfg["id"]
+        self.G, self.R = self.cfg["G"], self.cfg["R"]
+        self.cols = [tuple(c) for c in o.get("cols", mech.COLS)]    # (mechanism, share) per column; extension runs differ
+        self.tau = o["tau"]            # G x J
+        self.sd = o["sd"]              # G x J
+
+    def err(self, est, j, m):
+        """(G,R) array of normalised errors for estimator est, column j, noise level m"""
+        o, G, R = self.o, self.G, self.R
+        if est == "or_fit":
+            if m != NOISE_M:
+                return None
+            x = o["or_fit"][:, j].astype(np.float64)
+        else:
+            e = EI[est]
+            sig = o["sig"][:, e, j].astype(np.float64)
+            nz = o["nz"][:, e, j].astype(np.float64)
+            sd = np.repeat(self.sd[:, j], R)
+            x = sig + m * sd * nz
+        x = x.reshape(G, R)
+        tau = self.tau[:, j][:, None]
+        return (x - tau) / tau
+
+    def s_hat(self, j, m):
+        """estimated spillover share 1 - mean(beta_z)/mean(tau_hat) of the chin regression, per graph draw (G,); NaN if the run
+        predates the `bz` functional. Ratio of means over the R assignments (a per-draw ratio explodes when tau_hat ~ 0)."""
+        o, R = self.o, self.R
+        if o["sig"].shape[1] <= EI["bz"]:
+            return np.full(self.G, np.nan)
+        sd = np.repeat(self.sd[:, j], R)
+        bz = (o["sig"][:, EI["bz"], j] + m * sd * o["nz"][:, EI["bz"], j]).reshape(self.G, R).mean(1)
+        tc = (o["sig"][:, EI["chin"], j] + m * sd * o["nz"][:, EI["chin"], j]).reshape(self.G, R).mean(1)
+        return 1 - bz / tc
+
+    def var_components(self, est, j, m, sl=slice(None)):
+        """exact decomposition per graph draw (arrays of length G) of the variance over assignments of the normalised error:
+        base  = (w'a)/tau_j        (a: unit baselines; = signal of the null column minus 1, the null having tau = 1 and w'z = 1)
+        misfit = w'(T_j - z)/tau_j - bias   (the part of the signal that is not the baseline: where the specification is wrong)
+        noise = outcome noise; cross = total - base - misfit - noise (covariances; MC noise of order 1/sqrt(R)).
+        sl: slice of the R assignment draws per graph to use (default all)"""
+        o, G, R = self.o, self.G, self.R
+        e = EI[est]
+        tj = self.tau[:, j][:, None]
+        sig_j = o["sig"][:, e, j].astype(np.float64).reshape(G, R)
+        sig_0 = o["sig"][:, e, 0].astype(np.float64).reshape(G, R)
+        nz = (m * np.repeat(self.sd[:, j], R) * o["nz"][:, e, j].astype(np.float64)).reshape(G, R)
+        base = ((sig_0 - 1.0) / tj)[:, sl]
+        mis = ((sig_j - sig_0) / tj)[:, sl]
+        noise = (nz / tj)[:, sl]
+        tot = base + mis + noise
+        vt = tot.var(1, ddof=1)
+        vb, vm, vn = base.var(1, ddof=1), mis.var(1, ddof=1), noise.var(1, ddof=1)
+        return dict(vt=vt, vb=vb, vm=vm, vn=vn, vx=vt - vb - vm - vn)
+
+    def cond_noise_var(self, est, j, m):
+        """exact E over noise of the conditional noise variance (m sd_j)^2 ||w||^2, per draw (G,R)"""
+        e = EI[est]
+        sd = np.repeat(self.sd[:, j], self.R)
+        return ((m * sd) ** 2 * self.o["wn2"][:, e, j].astype(np.float64)).reshape(self.G, self.R)
+
+
+def _gstats(x):
+    """per-graph sufficient statistics of a (G,R) array with NaN (undefined) entries"""
+    ok = ~np.isnan(x)
+    n = ok.sum(1)
+    x0 = np.where(ok, x, 0.0)
+    return n, x0.sum(1), (x0 ** 2).sum(1)
+
+
+def metrics(x, B=1000, seed=0):
+    """bias, sd, rmse with 95% CIs; graph-draw bootstrap if G>=2, delta method if G=1"""
+    n, s1, s2 = _gstats(x)
+    ntot = n.sum()
+    if ntot == 0:
+        return None
+    bias = s1.sum() / ntot
+    mse = s2.sum() / ntot
+    sd = np.sqrt(max(mse - bias ** 2, 0))
+    out = dict(n_draws=int(ntot), defined=float(ntot / x.size), bias=bias, sd=sd, rmse=np.sqrt(mse))
+    G = x.shape[0]
+    if G >= 2:
+        rng = np.random.default_rng(seed)
+        idx = rng.integers(0, G, (B, G))
+        nb, b1, b2 = n[idx].sum(1), s1[idx].sum(1), s2[idx].sum(1)
+        bb = b1 / nb
+        mm = b2 / nb
+        for k, v in (("bias", bb), ("rmse", np.sqrt(mm)), ("sd", np.sqrt(np.maximum(mm - bb ** 2, 0)))):
+            out[k + "_lo"], out[k + "_hi"] = np.percentile(v, [2.5, 97.5])
+    else:
+        xv = x[~np.isnan(x)]
+        se_b = xv.std(ddof=1) / np.sqrt(len(xv))
+        se_mse = (xv ** 2).std(ddof=1) / np.sqrt(len(xv))
+        out["bias_lo"], out["bias_hi"] = bias - 1.96 * se_b, bias + 1.96 * se_b
+        lo = max(mse - 1.96 * se_mse, 0)
+        out["rmse_lo"], out["rmse_hi"] = np.sqrt(lo), np.sqrt(mse + 1.96 * se_mse)
+        out["sd_lo"], out["sd_hi"] = out["rmse_lo"] * 0 + np.nan, np.nan  # sd interval only with graph draws
+    return out
+
+
+def log_ratio(xe, xd, B=1000, seed=0):
+    """log(RMSE_e / RMSE_dm) with a paired CI (same graph draws; delta method if G=1). NaN draws
+    of either estimator are dropped from both (paired)."""
+    ok = ~(np.isnan(xe) | np.isnan(xd))
+    if ok.sum() == 0:
+        return None
+    e2, d2 = np.where(ok, xe ** 2, 0.0), np.where(ok, xd ** 2, 0.0)
+    n = ok.sum(1)
+    G = xe.shape[0]
+    est = 0.5 * np.log(e2.sum() / d2.sum())
+    if G >= 2:
+        rng = np.random.default_rng(seed)
+        idx = rng.integers(0, G, (B, G))
+        v = 0.5 * np.log(e2.sum(1)[idx].sum(1) / d2.sum(1)[idx].sum(1))
+        lo, hi = np.percentile(v, [2.5, 97.5])
+    else:
+        a, b = e2[ok], d2[ok]
+        nn = len(a)
+        ma, mb = a.mean(), b.mean()
+        va = a.var(ddof=1) / ma ** 2 + b.var(ddof=1) / mb ** 2 - 2 * np.cov(a, b)[0, 1] / (ma * mb)
+        se = 0.5 * np.sqrt(max(va, 0) / nn)
+        lo, hi = est - 1.96 * se, est + 1.96 * se
+    return est, lo, hi

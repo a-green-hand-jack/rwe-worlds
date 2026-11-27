@@ -1,0 +1,138 @@
+"""Monte-Carlo runner: repeated sampling of (labeled, unlabeled) from a population, all arms on
+the same sample, per-replicate (est, se) stored. Intervals are formed in analysis.py."""
+import os, time, json
+import numpy as np
+from multiprocessing import get_context
+
+from . import calibrators as C
+from . import estimators as E
+
+_POP = None
+_CFG = None
+
+
+def suite_calibrators(cfg):
+    cal = {}
+    if "linear" in cfg["cals"]: cal["linear"] = C.make_linear()
+    if "spline" in cfg["cals"]: cal["spline"] = C.make_spline(cfg.get("n_knots", 5))
+    if "isotonic" in cfg["cals"]: cal["isotonic"] = C.make_isotonic()
+    if "bins" in cfg["cals"]: cal["bins"] = C.make_bins(cfg.get("n_bins", 5))
+    return cal
+
+
+def one_rep(pop, n, N, rng, cfg):
+    s = pop.draw(rng, n, N)
+    y, fl, fu = s["y"], s["fl"], s["fu"]
+    K = cfg.get("K", 5)
+    res = {}
+    if cfg.get("T1", True):
+        out, store = E.run_arms_T1(y, fl, fu, suite_calibrators(cfg), K, rng, extra_ppi=cfg.get("extra_ppi", True))
+        res.update(out)
+        sg = [c for c in cfg.get("safe_among", ["linear", "spline", "isotonic"]) if c in store]
+        if len(sg) > 1:
+            res["select_T1"] = E.select_g(store, sg, rule="1se")
+            res["selectmin_T1"] = E.select_g(store, sg, rule="min")
+        if cfg.get("boot"):
+            for c in cfg["boot"]:
+                r = store[c]
+                lo, hi = E.boot_t_pooled(y, r["g_lab"], r["g_unl"], rng, B=cfg.get("B", 399))
+                res["boot_" + c] = dict(est=r["est"], se=r["se"], lo=lo, hi=hi)
+    if cfg.get("oracle") and getattr(pop, "m", None) is not None:
+        # known-g pooled estimators: variance = Var(Y)/M + (1/n-1/M) Var(Y-g) exactly (checks the formula)
+        for nm, gfun in (("oracle_m", pop.m),):
+            e, se = E.pooled_fixed_g(y, gfun(fl, s["Xl"]), gfun(fu, s["Xu"]))
+            res[nm] = dict(est=e, se=se)
+        a_, b_ = pop.lin_coef()
+        e, se = E.pooled_fixed_g(y, a_ + b_ * fl, a_ + b_ * fu)
+        res["oracle_lin"] = dict(est=e, se=se)
+    if cfg.get("T2") and s["Xl"] is not None:
+        Zl = np.column_stack([fl, s["Xl"]])
+        Zu = np.column_stack([fu, s["Xu"]])
+        folds = np.arange(n) % K
+        rng.shuffle(folds)
+        lx = E.crossfit_pooled(y, Zl, Zu, C.make_linear(), K=K, folds=folds)
+        res["pool_linX"] = dict(est=lx["est"], se=lx["se"], se_pf=lx["se_pf"], vh=lx["vh"])
+        # vector PPI++ with Yhat := fitted-linear-in-(f,X), tuned lambda (package), cross-fitted
+        res["ppi++_on_linX"] = dict(zip(("est", "se"), E.ppi_arm(y, lx["g_lab"], lx["g_unl"], None)))
+        st2 = {"linX": lx}
+        sa = E.crossfit_pooled(y, Zl, Zu, C.make_spline_add(cfg.get("n_knots", 5)), K=K, folds=folds)
+        st2["splineX"] = sa
+        res["pool_splineX"] = dict(est=sa["est"], se=sa["se"], se_pf=sa["se_pf"], vh=sa["vh"])
+        if cfg.get("gbm", True):
+            gb = E.crossfit_pooled(y, Zl, Zu, C.make_gbm(cfg.get("gbm_iter", 100), cfg.get("gbm_leaf", 8)),
+                                   K=K, folds=folds)
+            res["pool_gbmX"] = dict(est=gb["est"], se=gb["se"], se_pf=gb["se_pf"], vh=gb["vh"])
+            st2["gbmX"] = gb
+        res["select_T2"] = E.select_g(st2, list(st2), base="linX", rule="1se")
+        res["selectmin_T2"] = E.select_g(st2, list(st2), base="linX", rule="min")
+    return res
+
+
+def _init(pop, cfg):
+    global _POP, _CFG
+    _POP, _CFG = pop, cfg
+
+
+def _work(args):
+    seed, n, N, reps = args
+    out = []
+    for r in reps:
+        rng = np.random.default_rng(np.random.SeedSequence([seed, int(r)]))
+        res = one_rep(_POP, n, N, rng, _CFG)
+        out.append(res)
+    return out
+
+
+def _code_version():
+    import subprocess
+    here = os.path.dirname(os.path.abspath(__file__))
+    try:
+        h = subprocess.run(["git", "-C", here, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+        d = subprocess.run(["git", "-C", here, "status", "--porcelain", "--", "src", "experiments"],
+                           capture_output=True, text=True).stdout.strip()
+        return h + ("+dirty" if d else "")
+    except Exception:
+        return "unknown"
+
+
+def run_cell(pop, n, N, R, seed, cfg, procs=1):
+    t0 = time.time()
+    reps = np.arange(R)
+    if procs > 1:
+        chunks = [(seed, n, N, c) for c in np.array_split(reps, procs * 4)]
+        with get_context("fork").Pool(procs, initializer=_init, initargs=(pop, cfg)) as p:
+            parts = p.map(_work, chunks)
+        recs = [r for part in parts for r in part]
+    else:
+        _init(pop, cfg)
+        recs = _work((seed, n, N, reps))
+    arms = {}
+    for a in recs[0]:
+        keys = [k for k in recs[0][a] if k != "pick"]
+        arms[a] = {k: np.array([r[a][k] for r in recs], float) for k in keys}
+        if "pick" in recs[0][a]:
+            arms[a]["pick"] = np.array([r[a]["pick"] for r in recs])
+    meta = dict(pop=pop.name, n=n, N=N, R=R, seed=seed, truth=float(pop.truth), cfg=cfg,
+                seconds=time.time() - t0, code=_code_version())
+    return arms, meta
+
+
+def save_cell(path, arms, meta):
+    flat = {}
+    for a, d in arms.items():
+        for k, v in d.items():
+            flat[f"{a}|{k}"] = v
+    flat["_meta"] = np.array(json.dumps(meta))
+    np.savez_compressed(path, **flat)
+
+
+def load_cell(path):
+    z = np.load(path, allow_pickle=False)
+    meta = json.loads(str(z["_meta"]))
+    arms = {}
+    for k in z.files:
+        if k == "_meta":
+            continue
+        a, f = k.split("|")
+        arms.setdefault(a, {})[f] = z[k]
+    return arms, meta

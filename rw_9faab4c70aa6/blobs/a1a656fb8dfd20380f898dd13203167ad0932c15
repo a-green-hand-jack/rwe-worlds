@@ -1,0 +1,85 @@
+"""Fig 3 (C4): decisions drawn from reported scores.
+(a) synthetic exact null (all 128 configurations equally accurate): rate of 'tuning helped' vs the default configuration, by rule and evaluated budget B.
+(b) real pool: rate of declaring 'tuning helped' in draws where the tuned configuration is NOT better than the default on the items outside S
+    (quantity 'declare tuning helped, true gain <= 0'), B = 100; window = 74 near-equal configurations (a near-null), all = 128 configurations.
+(c) two independent searches A, B with budget ratio 5:1 or 1:1: fraction of draws in which the reported score favours A; synthetic exact null and real window.
+usage: python figures/src/fig3.py RESULTS_DIR OUT.pdf"""
+import sys
+import matplotlib.pyplot as plt
+sys.path.insert(0, __file__.rsplit("/", 1)[0])
+import figstyle as fs
+
+RULE = {"naive": (fs.C["reported"], "o"), "maxt": (fs.C["bound"], "s"), "split": (fs.C["fresh"], "^")}
+NS = [60, 120, 240]
+
+
+def xaxis(ax):
+    ax.set_xscale("log"); ax.set_xticks(NS); ax.set_xticklabels([str(x) for x in NS]); ax.minorticks_off(); ax.set_xlim(52, 270)
+
+
+def lab_at(ax, y, txt, col):
+    ax.text(1.03, y, txt, transform=ax.get_yaxis_transform(), color=col, fontsize=7, va="center", ha="left", clip_on=False)
+
+
+def main(rd, out):
+    s = fs.load(rd, "decision_rates_synthetic"); s = s[s.sigma_theta == 0.0]
+    r = fs.load(rd, "decision_rates_real")
+    w = r[r.scenario == "window"]
+    print("Fig 3 data: (a,c) synthetic exact null sigma_theta = 0 |", int(s.worlds.min()), "worlds x", int(s.n_draws.min()), "draws,", s.ci_kind.iloc[0],
+          "| (b,c) real", r.pool.iloc[0], "| n_draws (point) =", int(r.n_draws.min()), "| replicates n_draws_boot =", int(r.n_draws_boot.min()), "(R = 40 pools: coarse),", r.ci_kind.iloc[0],
+          "| window: K =", int(w.window_k.iloc[0]), "configurations, pool-accuracy range", round(float(w.window_acc_range.iloc[0]), 3), "(all:", round(float(r[r.scenario == 'all'].window_acc_range.iloc[0]), 3), ")",
+          "| rows with ci_mc_limited drawn here:", int(r[(r.comparison == "tuned_vs_untuned") & (r.budget == "100") & (r.quantity == "declare tuning helped, true gain <= 0")].ci_mc_limited.sum()),
+          "(tuned-vs-untuned),", int(w[(w.comparison == "A_vs_B_ownS") & (w.quantity == "reported A > reported B")].ci_mc_limited.sum()), "(A vs B, reported A > B)")
+    print("  real mean true gain of tuned over default, n = 120, B = 100: all %.4f, window %.4f" % tuple(
+        r[(r.comparison == "tuned_vs_untuned") & (r.budget == "100") & (r.n == 120) & (r.protocol == "naive") & (r.quantity == "declare tuning helped") & (r.scenario == sc)].mean_true_gain.iloc[0] for sc in ("all", "window")))
+    fs.apply(); c = fs.C
+    W, H = fs.VENUE["text_width_in"], fs.VENUE["max_height_in"]
+    fig = plt.figure(figsize=(W, H))
+    a = fig.add_axes([0.075, 0.20, 0.25, 0.64]); b = fig.add_axes([0.375, 0.20, 0.25, 0.64]); cc = fig.add_axes([0.725, 0.20, 0.265, 0.64])
+    # (a)
+    t = s[(s.comparison == "tuned_vs_untuned") & (s.quantity == "declare tuning helped")]
+    for rule, (col, mk) in RULE.items():
+        for B, ls, fill in (("100", "-", True), ("20", ":", False)):
+            g = t[(t.protocol == rule) & (t.budget == B)].sort_values("n")
+            fs.errbar(a, g.n, g.rate, g.rate_lo, g.rate_hi, color=col, ls=ls, marker=mk, ms=3.6, mfc=col if fill else "white")
+    a.axhline(0.05, color=c["ink"], lw=0.7, ls="--")
+    xaxis(a); a.set_ylim(0, 1.0); a.set_xlabel("search-set size $n$"); a.set_ylabel("false-positive rate")
+    h = [plt.Line2D([], [], color=c["ink"], ls="-", marker="o", ms=3.6, label="$B$=100"),
+         plt.Line2D([], [], color=c["ink"], ls=":", marker="o", ms=3.6, mfc="white", label="$B$=20")]
+    leg = a.legend(handles=h, frameon=False, loc="upper left", fontsize=7, handlelength=1.6, handletextpad=0.4, borderaxespad=0.0, labelspacing=0.2)
+    a.add_artist(leg)
+    hr = [plt.Line2D([], [], color=col, marker=mk, ms=3.6, label=lab) for (lab, (col, mk)) in (("naive", RULE["naive"]), ("held-out", RULE["split"]), ("max-$t$", RULE["maxt"]))]
+    hr.append(plt.Line2D([], [], color=c["ink"], ls="--", lw=0.7, label="nominal"))
+    a.legend(handles=hr, frameon=False, loc="upper right", fontsize=7, handlelength=1.6, handletextpad=0.4, borderaxespad=0.0, labelspacing=0.2)
+    fs.panel_label(a, "(a) synthetic null")
+    # (b)
+    t = r[(r.comparison == "tuned_vs_untuned") & (r.budget == "100") & (r.quantity == "declare tuning helped, true gain <= 0")]
+    for rule, (col, mk) in RULE.items():
+        for sc, ls, fill in (("window", "-", True), ("all", ":", False)):
+            g = t[(t.protocol == rule) & (t.scenario == sc)].sort_values("n")
+            fs.errbar(b, g.n, g.rate, g.rate_lo, g.rate_hi, color=col, ls=ls, marker=mk, ms=3.6, mfc=col if fill else "white")
+    b.axhline(0.05, color=c["ink"], lw=0.7, ls="--")
+    xaxis(b); b.set_ylim(0, 1.0); b.set_xlabel("search-set size $n$"); plt.setp(b.get_yticklabels(), visible=False)
+    h = [plt.Line2D([], [], color=c["ink"], ls="-", marker="o", ms=3.6, label="window (74)"),
+         plt.Line2D([], [], color=c["ink"], ls=":", marker="o", ms=3.6, mfc="white", label="all (128)")]
+    b.legend(handles=h, frameon=False, loc="upper left", fontsize=7, handlelength=1.6, handletextpad=0.4, borderaxespad=0.0, labelspacing=0.2)
+    fs.panel_label(b, "(b) real, all draws, $B$=100")
+    # (c)
+    for src, ls, fill, kw in ((s, "-", True, dict(quantity="reported A > reported B")), (w, "--", False, dict(quantity="reported A > reported B"))):
+        v = src[(src.comparison == "A_vs_B_ownS") & (src.quantity == kw["quantity"])]
+        for bud, col, mk in (("(100, 20)", c["reported"], "o"), ("(20, 20)", c["ink"], "s")):
+            g = v[v.budget == bud].sort_values("n")
+            fs.errbar(cc, g.n, g.rate, g.rate_lo, g.rate_hi, color=col, ls=ls, marker=mk, ms=3.6, mfc=col if fill else "white")
+    cc.axhline(0.5, color=c["noise"], lw=0.8, ls="--")
+    xaxis(cc); cc.set_ylim(0.3, 0.92); cc.set_xlabel("search-set size $n$"); cc.set_ylabel("reported $A>B$")
+    cc.yaxis.set_label_position("left")
+    cc.text(0.03, 0.03, "chance", transform=cc.transAxes, fontsize=7, color="#555555", ha="left", va="bottom")
+    h = [plt.Line2D([], [], color=c["reported"], marker="o", ms=3.6, label="5:1"), plt.Line2D([], [], color=c["ink"], marker="s", ms=3.6, label="1:1"),
+         plt.Line2D([], [], color=c["ink"], ls="-", label="synthetic"), plt.Line2D([], [], color=c["ink"], ls="--", label="real window")]
+    cc.legend(handles=h, frameon=False, loc="upper left", fontsize=7, handlelength=1.6, handletextpad=0.4, borderaxespad=0.0, labelspacing=0.15, ncol=2, columnspacing=0.8)
+    fs.panel_label(cc, "(c) $A$ vs $B$")
+    fig.savefig(out, bbox_inches=None, pad_inches=0)
+
+
+if __name__ == "__main__":
+    main(*sys.argv[1:3])

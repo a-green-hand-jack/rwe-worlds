@@ -1,0 +1,80 @@
+# Code and reproduction notes
+
+Study: how much shorter can a prediction-powered confidence interval for E[Y] be when the labeled set, the unlabeled set
+and the predictor are fixed? (Delivered under `code/` and `results/` of the paper repository; the same files are in
+`experiment-repo`.) Result files: `results/README.md` (what each was computed on) and `results/METHODS.md` (definitions of
+every method id, interval construction and column).
+
+## Layout
+```
+src/pci/          library: calibrators.py (g(Z) fits), estimators.py (pooled cross-fitted estimator, PPI/PPI++ via ppi-python,
+                  intervals, 1-SE selection), pops.py (real pools, synthetic generators with known truth, floor statistics,
+                  shift / non-MCAR / rare-event populations), runner.py (Monte-Carlo driver, resumable cells), analysis.py, paths.py
+experiments/      one script per experiment (E1..E7), floors*.py, nstar_ci.py, ballots_native.py, get_data.py
+analysis/         build_results.py (all delivered tables), finite_pop_check.py (disjoint-draw cells vs finite-population prediction), planned.py (planned vs stored cells), sync_delivery.sh
+results/          aggregated CSV/JSON/MD (delivered); results/exp*/ raw per-replicate cells (*.npz, not in git; release asset)
+```
+`results/` is found automatically (`$PCI_RESULTS`, else `<root>/results`, else `<root>/../results`); data in `$PCI_DATA`
+(default `/hutian/work/data`).
+
+## Environment
+Python 3.11.2; numpy 2.4.6, scipy 1.17.1, pandas 3.0.6, scikit-learn 1.9.1, **ppi-python 0.2.3** (PPI / PPI++ baselines), gdown 6.5.2
+(see `requirements.txt`). CPU only. All worker processes are single-threaded (`OMP_NUM_THREADS=1`, set in `experiments/common.py`).
+
+## Data
+Nine example sets of `ppi-python==0.2.3` (loader `ppi_py.datasets.load_dataset`, anonymous Google Drive download via `gdown`):
+`python experiments/get_data.py` downloads whatever is missing into `$PCI_DATA` and writes `results/data_sha256.txt`
+(SHA-256 and array shapes of the files used). Nothing else is downloaded; no model is trained (the supplied `Yhat` is the fixed predictor).
+
+## Seeds
+Cell seed = 20261126 + crc32(cell id) mod 10^6 (`experiments/common.py`); replicate r uses `numpy.random.SeedSequence([seed, r])`,
+so a cell is reproducible and independent of the number of processes. Bootstrap indices in `analysis/build_results.py` use fixed seeds (0, 1).
+Every stored cell records its seed, its replicate count and the code version (git SHA, `+dirty` if the working tree differed) in its meta data.
+The estimator code (`src/pci/{calibrators,estimators,pops,runner,analysis}.py`) is unchanged since commit 931cb22, which fixed the arms; later commits add
+scripts, `paths.py` and analysis only (`git diff 931cb22 HEAD -- src experiments`).
+
+## Run commands (one job = one script; every script resumes: finished cells are skipped)
+```
+cd experiments
+python get_data.py
+python floors.py ; python floors_stress.py ; python floors_rare.py ; python floors_strong.py       # population floors  -> results/floors.json
+python nstar_ci.py                                                       # predicted n* with pool bootstrap -> results/nstar_ci.json
+python exp1_synth.py A 1 ; python exp1_synth.py B 1 ; python exp1_synth.py C 1          # E1
+python exp2_equiv.py                                                     # E2 (writes results/exp2_equiv.csv)
+for s in galaxies forest alphafold gene_expression census_income census_healthcare census_education plankton ballots
+  do python exp3_real.py $s 1 ; done                                     # E3 reference grid
+python exp3_real.py galaxies 1 disjoint   # (also gene_expression, census_income)   E3 disjoint-draw check
+python exp3b_stress.py 1 ; python exp3c_K10.py 1                         # E3 stress test (transformed predictor), K = 10
+python exp_unclipped.py ; python gene_decomp.py ../results/gene_decomp/gene_expression_shift0.npz 3000 gene_expression 0   # (run after E3 and E4) unclipped-PPI++ arm on the E3/E4 draws; source of the gene_expression gap (also: forest, galaxies, census_income, shift 0.34)
+python exp9_clip.py 0 ... python exp9_clip.py 6                        # E9: lambda-clip sweep over b (one job per b; results/exp9)
+python exp3_T2ref.py 1                                                   # E3 reference cells with the T2 arms (n = 500; census sets, alphafold)
+python exp4_Nratio.py 1                                                  # E4 N/n slice
+for s in synth_rare forest ballots galaxies alphafold census_healthcare plankton ; do python exp5_constructions.py $s 1 ; done   # E5
+python exp6_T2.py real 1 ; python exp6_T2.py synth 1                     # E6
+python exp7_fail.py shift 1 ; python exp7_fail.py select 1 ; python exp7_fail.py rare 1   # E7
+python ballots_native.py                                                 # native ballots application (no truth)
+cd ..; python analysis/planned.py; python analysis/build_results.py all  # all delivered CSV files
+```
+The second argument (`1`) is the number of worker processes; the experiments were run as independent single-CPU jobs.
+
+## Which script produces which file
+| delivered file | written by | from |
+|---|---|---|
+| `results/cells.csv`, `prop_check.csv`, `breakeven.csv`, `diagnostic.csv`, `ladder.csv`, `se_variants.csv`, `run_times.csv` | `analysis/build_results.py` | `results/exp*/*.npz`, `floors.json`, `nstar_ci.json`, `planned_cells.csv` |
+| `results/planned_cells.csv` | `analysis/planned.py` | the experiment scripts |
+| `results/floors.json` | `experiments/floors.py`, `floors_stress.py`, `floors_rare.py` | pools / synthetic generators |
+| `results/nstar_ci.json` | `experiments/nstar_ci.py` | pools |
+| `results/exp2_equiv.csv` | `experiments/exp2_equiv.py` | pools, `ppi-python` |
+| `results/ballots_native.csv` | `experiments/ballots_native.py` | native ballots split |
+| `results/data_sha256.txt` | `experiments/get_data.py` | downloaded data |
+
+Experiment → question: E1 `exp1_synth.py` (closed-form excess of PPI++ over the floor, learning cost, N/n; synthetic, known truth);
+E2 `exp2_equiv.py` (PPI++ ≡ pooled linear estimator); E3 `exp3_real.py` / `exp3b_stress.py` / `exp3c_K10.py` (headroom ladder on the nine sets, stress test,
+disjoint-draw and K = 10 robustness); E9 `exp9_clip.py` (the lambda clip of `ppi-python`: package vs unclipped PPI++ against the exact variance formula); E4 `exp1_synth.py` (n-sweep, break-even) with `exp3*` grids and `exp4_Nratio.py` (N/n slice); E5 `exp5_constructions.py`
+(interval constructions, binary Y); E6 `exp6_T2.py` (side information X); E7 `exp7_fail.py` (plankton shift, non-MCAR labeling, rare events).
+Figure and table scripts live in the figtab repository and read the files above.
+
+## Measured compute
+Per-cell wall-clock seconds are in `results/run_times.csv` (single CPU each, on a shared, oversubscribed host: the numbers are upper bounds).
+The task's pre-run estimate was < 8 CPU-hours; the measured total is stated in `results/README.md`.
+analysis/validity_sensitivity.py: re-reads results/cells.csv and headline.csv, applies a coverage >= 0.94 validity rule (threshold as argument) and writes results/validity_sensitivity.csv; see results/METHODS.md.

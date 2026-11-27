@@ -1,0 +1,26 @@
+"""R1 stage 2: certificate_raw.parquet -> certificate.parquet, certificate_summary.csv, certificate_bins.csv, certificate_paired_diff.csv,
+certificate_budget_rule.csv, certificate_coverage.csv. usage: r1_summary.py [OUT_DIR]"""
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+import pandas as pd
+from shapreliab import r1
+
+out = sys.argv[1] if len(sys.argv) > 1 else "results/tables"
+raw = pd.read_parquet(os.path.join(out, "certificate_raw.parquet"))
+cal = r1.calibrated(raw)
+summ, diffs, bins = r1.summarize(cal)
+rule = r1.budget_rule(cal)
+cov = r1.coverage(raw)
+w = cal.pivot_table(index=["dataset", "model", "split", "instance_id", "m", "run"], columns="method", values=["prob", "y"], aggfunc="first")
+w.columns = [f"{a}_{b}" for a, b in w.columns]
+w = w.reset_index().rename(columns={"prob_certificate": "score_certificate", "prob_run_twice": "score_run_twice", "y_certificate": "correct_certificate_run",
+                                    "y_run_twice": "correct_run_twice_first_run", "y_run_twice_avg": "correct_run_twice_mean_of_two", "prob_run_twice_avg": "score_run_twice_avg"})
+w["unstable_outcome"] = 1 - w["correct_certificate_run"]
+w["evals_total"] = [r1.evals_cert(m) for m in w["m"]]
+w.drop(columns=["score_run_twice_avg"]).to_parquet(os.path.join(out, "certificate.parquet"), index=False)
+summ.to_csv(os.path.join(out, "certificate_summary.csv"), index=False)
+bins.to_csv(os.path.join(out, "certificate_bins.csv"), index=False)
+diffs.to_csv(os.path.join(out, "certificate_paired_diff.csv"), index=False)
+rule.to_csv(os.path.join(out, "certificate_budget_rule.csv"), index=False)
+cov.to_csv(os.path.join(out, "certificate_coverage.csv"), index=False)
+print(summ.shape, diffs.shape, bins.shape, rule.shape, cov.shape)

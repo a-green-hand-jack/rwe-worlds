@@ -1,0 +1,60 @@
+"""Appendix A2: background sensitivity tables from the runs of background_sens.py (stored in <WORK>/<dataset>__<SPEC>_s0).
+usage: background_tables.py [OUT_DIR]
+Writes OUT_DIR/background_sensitivity.csv (same columns as sensitivity.csv plus `background`, `compared_with`: the B=50 rows are those of the main grid
+restricted to the instances the other background has, so n and instances match), background_paired_diff.csv (per-instance P_c difference
+background minus B=50, same instances) and background_reference_shift.csv (how much the exact phi itself moves with the background)."""
+import sys, os, glob, re
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+import numpy as np, pandas as pd
+from shapreliab import pipeline as P, tables as T, derive as D, metrics as M
+
+out = sys.argv[1] if len(sys.argv) > 1 else "results/tables"
+il = pd.read_parquet(os.path.join(out, "instance_level.parquet"))
+sens, paired, shift = [], [], []
+for ds in ("german", "acs_employment"):
+    for spec in ("B20", "B200", "kmeans50"):
+        for kind in P.KINDS:
+            files = sorted(f for f in glob.glob(os.path.join(P.cell_dir(f"{ds}__{spec}", 0), f"inst_{kind}_*.npz")) if not f.endswith(".tmp.npz"))
+            if not files:
+                continue
+            ids = [int(re.search(r"_(\d+)\.npz$", f).group(1)) for f in files]
+            bg = pd.DataFrame([r for i in ids for r in T.instance_rows(f"{ds}__{spec}", kind, i)]).assign(dataset=ds)
+            main = il[(il.dataset == ds) & (il.model == kind) & il.instance_id.isin(ids) & il.estimator.eq("shap_kernel") & il.l1_reg.isin(["False", "auto"])
+                      & il.budget_m.isin(bg.budget_m.unique())].copy()
+            main["_k"] = main.l1_reg.astype(str)
+            for tag, frame in (("B50", main), (spec, bg)):
+                s = D.sensitivity(frame.sort_values("instance_id"))
+                s.insert(2, "background", tag)
+                s.insert(3, "compared_with", spec)
+                sens.append(s)
+            key = ["l1_reg", "budget_m", "kind"]
+            a = main.set_index(key + ["instance_id"]).sort_index()
+            b = bg.set_index(key + ["instance_id"]).sort_index()
+            for kk, ga in a.groupby(level=key):
+                if kk not in b.index.droplevel("instance_id"):
+                    continue
+                gb = b.loc[kk]
+                ga = ga.droplevel(key)
+                common = ga.index.intersection(gb.index)
+                if kk[2] == "sign" or len(common) < 2:
+                    continue
+                for e in (0.0, 0.05):
+                    d_ = (D.pc(gb.loc[common].reset_index(), e) - D.pc(ga.loc[common].reset_index(), e))
+                    lo, hi = D.boot_mean_ci(d_)
+                    paired.append(dict(dataset=ds, model=kind, background=spec, l1_reg=kk[0], budget_m=kk[1], kind=kk[2], eps=e, n_instances=len(common),
+                                       diff=float(d_.mean()), ci_lo=lo, ci_hi=hi, paired_sd=float(d_.std(ddof=1)) if len(d_) > 1 else np.nan))
+            # the reference itself: exact phi under the background vs under B=50
+            cmp_ = []
+            for i, f in zip(ids, files):
+                p0 = np.load(os.path.join(P.cell_dir(ds, 0), f"inst_{kind}_{i:04d}.npz"))["phi"]
+                p1 = np.load(f)["phi"]
+                cmp_.append((M.topk_set(p0, 3) == M.topk_set(p1, 3), np.corrcoef(p0, p1)[0, 1], np.linalg.norm(p0 - p1) / np.linalg.norm(p0),
+                             M.margin(p0, 3), M.margin(p1, 3)))
+            c = np.array(cmp_, float)
+            lo, hi = D.boot_mean_ci(c[:, 0])
+            shift.append(dict(dataset=ds, model=kind, background=spec, n_instances=len(ids), share_top3_same=c[:, 0].mean(), ci_lo=lo, ci_hi=hi,
+                              mean_pearson_phi=c[:, 1].mean(), mean_rel_l2_between=c[:, 2].mean(), mean_margin_b50=c[:, 3].mean(), mean_margin_bg=c[:, 4].mean()))
+            print(ds, kind, spec, len(ids), flush=True)
+pd.concat(sens).to_csv(os.path.join(out, "background_sensitivity.csv"), index=False)
+pd.DataFrame(paired).to_csv(os.path.join(out, "background_paired_diff.csv"), index=False)
+pd.DataFrame(shift).to_csv(os.path.join(out, "background_reference_shift.csv"), index=False)

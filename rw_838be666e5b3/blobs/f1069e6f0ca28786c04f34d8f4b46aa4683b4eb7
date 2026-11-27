@@ -1,0 +1,22 @@
+"""Downloads the nine ppi-python example sets (ppi-python==0.2.3 loader, Google Drive via gdown, anonymous) into
+$PCI_DATA (default /hutian/work/data) and writes the SHA-256 and array shapes to results/data_sha256.txt.
+usage: python get_data.py"""
+import os, hashlib
+import numpy as np
+from common import RESULTS
+from pci.pops import DATA_DIR
+from ppi_py.datasets import load_dataset
+
+NAMES = ["galaxies", "forest", "alphafold", "gene_expression", "census_income", "census_healthcare",
+         "census_education", "plankton", "ballots"]
+os.makedirs(DATA_DIR, exist_ok=True)
+lines = []
+for nm in NAMES:
+    path = os.path.join(DATA_DIR, nm + ".npz")
+    if not os.path.exists(path):
+        load_dataset(DATA_DIR + "/", nm)
+    sha = hashlib.sha256(open(path, "rb").read()).hexdigest()
+    d = np.load(path)
+    lines.append(f"{nm}\t{sha}\t" + ",".join(f"{k}{tuple(d[k].shape)}" for k in d.files))
+    print(lines[-1])
+open(os.path.join(RESULTS, "data_sha256.txt"), "w").write("\n".join(lines) + "\n")

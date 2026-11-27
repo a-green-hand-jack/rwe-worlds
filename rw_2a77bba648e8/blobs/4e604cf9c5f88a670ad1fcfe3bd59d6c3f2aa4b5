@@ -1,0 +1,227 @@
+# Analysis plan (written before the main runs; revisions are appended at the end, never silently)
+
+Source: study brief rev. 4 (predictions P1–P5, acceptance rule), paper outline rev. 1 (claims C0–C7),
+the research objective. Everything below is code in this repository (`src/gate`, `scripts/`).
+
+## 1. Harness
+* **Estimand**: GATE τ = mean_i Y_i(1) − mean_i Y_i(0), evaluated by running each outcome function at z=1 and z=0
+  (`mech.exact_tau`; equals 1 up to 1.3e-4 for mechanism (e), whose K=30-step truncation is part of the DGP).
+  Errors are (τ̂ − τ)/τ with τ = 1.
+* **Graphs**: SBM (blocks of ≈100 nodes, 30 % of edge mass between blocks), ER, Barabási–Albert (m = d/2),
+  Watts–Strogatz (β = 0.1), n = 3000 unless stated; socfb-Stanford3 and SNAP ego-Facebook (sha256 verified against
+  `data.md`), giant component only. On real graphs degree is varied by independent edge thinning (target mean degree
+  5/20/80; ego-Facebook has 43.7, so "80" means the full graph there); clustering coefficient, maximum degree and n of every
+  realised graph are stored (`gmeta`) and reported with every degree effect.
+* **Mechanisms** (all calibrated to τ = 1; spillover share s ∈ {0.25, 0.5, 0.75}, plus the s = 0 null, one column):
+  (a) (1−s)z + s f; (b) (1−s)z + s c/d̄ (count, degree scaled); (c) (1−s)z + s g(f), g saturating with κ = 3;
+  (d) (1−s)z + s·1[f ≥ 0.6]; (e) (1−ρ)Σ_{k≤30} ρ^k W^k z with ρ = s; (f) (1−s)z + (s/2)f + (s/2)zf.
+  f = treated-neighbour fraction, c = count. Outcome = a_i + this part (+ noise).
+* **Baselines a_i** (SD 1): iid (default), degree-correlated (0.8 standardised log-degree + 0.6 iid), community-correlated
+  (0.8 block effect + 0.6 iid), none (sanity only).
+* **Noise**: ε iid N(0,1) scaled by σ = m·SD(noise-free outcome of that column), m ∈ {0.25, 0.5, 1} (SD from 30 pilot
+  assignments per graph draw; tabulated per mechanism × s in `calibration.csv`).
+* **Replicate structure**: graph draws (G = 10 synthetic; 1 for fixed real graphs) × assignment draws (R = 300; 3000
+  on real graphs) × one noise draw per assignment (common to all columns/estimators). Every Tier-G estimator is a linear
+  functional τ̂ = w'y given the assignment, so the signal part w'y₀ and the noise part w'ε are stored separately and recombined
+  at any m; the exact conditional noise variance (mσ_j)²·‖w‖² is stored too (‖w‖² = L/n for the regression estimators).
+  This gives the variance split Var(τ̂) = E[σ²‖w‖²] (noise) + Var(w'y₀) (assignment/graph) exactly.
+* **Designs**: Bernoulli(p), p ∈ {0.1, 0.25, 0.5, 0.75, 0.9}; graph-cluster randomisation: cluster-level Bernoulli(p=½),
+  clusters from Louvain on the *observed* graph at resolution γ ∈ {0.3, 1, 3} (one rule on every graph: the same three
+  resolutions, reported, not tuned per graph) or planted SBM blocks (oracle).
+* **Edge noise**: outcomes on the true graph, all features/designs/exposure probabilities on a graph with q ∈ {0.1, 0.3}
+  of true edges removed (each node keeps ≥ 1 edge).
+
+## 2. Estimators run in this stage (Tier G, O)
+Tier G (generic information, graph known, no mechanism parameter): `dm`; `hajek75` and `hajek100` (Hájek exposure-mapping
+estimators with exposure "z=1 and ≥ q of neighbours treated" vs "z=0 and ≥ q control", q = 0.75 / 1; exposure
+probabilities exact for Bernoulli, 1000-draw Monte Carlo for cluster designs; undefined (NaN) when an exposure group is
+empty — the defined-rate is reported); `chin` (own z + f, the reporting specification); ladder `quad` (+f²), `spline` (linear
+spline in f, knots at observed quartiles of f), `count` (+c/d̄), `hop2` (+2-hop fraction f₂), `inter` (+z·f).
+Tier O: `or_known` = correct functional form with the true parameter (κ, θ, ρ=s known; (a) = `chin`, (f) = `inter`), and
+`or_fit` = the same form with the single shape parameter profiled by least squares on a grid (κ∈{.5..8}, θ∈{.1..9}, ρ∈{0..0.85}),
+evaluated at m = 0.5 only (it is not linear in y). Uncertainty of `chin`/`dm`: HC0 sandwich SE and
+unit bootstrap (B = 100; cluster bootstrap under cluster designs) at m = 0.5 on the first 30 assignments of each graph draw (300 on real graphs).
+Not in this stage (separate runs, subset of cells, fewer draws, listed in §7): Tier A.
+
+## 3. Predictions the data are held to, derived before running
+Regular-degree, tree-like, Bernoulli(p), linear OLS on (z, f) — z ⟂ f, so τ̂_pop = Cov(y,z)/Var z + Cov(y,f)/Var f.
+* P1 (variance): Var(τ̂ | z) = σ²_resid L/n with L = n‖w‖² ≈ (1+d)/(p(1−p)); the noise part is exact by construction, so the test is
+  (i) realised L vs the formula, (ii) the assignment part Var(w'y₀) (fixed a_i and model misfit), (iii) the departure
+  realised Var/(σ²L/n) by graph family/design. Fit log RMSE on log n, log d, log p(1−p) where noise dominates.
+* P2 (bias, population value of the linear fit, spillover bias = β_f − (g(1)−g(0))):
+  (a) 0. (b) s(HM(d)/AM(d) − 1), HM/AM the harmonic/arithmetic mean degree ratio (degree-heterogeneity only).
+  (c),(d) s·[Cov(h(f),f)/Var(f) − 1] with f_i ~ Bin(d_i,p)/d_i, computed exactly per node from the realised degree sequence
+  (`analysis/predict_bias.py`): ≈ −½h''(1−2p) − (1/6)h'''[(1−p)³+p³] for smooth h, independent of d to leading order and with
+  O(1/d) corrections; for the threshold h = 1[f ≥ θ] the slope is s·(density of f at θ)·… — it **does depend on d**: for θ=0.6 > p
+  the fit sees a steep slope when the support (width ∝ d^{-½}) straddles θ (overshoot, positive bias), and tends to −s (no
+  slope, whole jump missed) as d→∞. This corrects the Outline's "bias independent of d" for thresholds; it holds for smooth responses.
+  (e) ≈ −ρ² (the mass of terms k ≥ 2 of the diffusion that (z,f) cannot see), smaller with clustering (common neighbours). (f) −s(1−2p)/2.
+  Flexible/other estimators: trees extrapolate flat (Tier A), polynomials (quad/spline) do not remove the bias for (d).
+* P3 (p): variance ∝ 1/(p(1−p)); bias minimiser: p=½ for (a),(b),(e) is flat in p, for (f) at ½, for (c) shifted below ½ if
+  g''<0, g'''>0 (κ=3) — compare the exact prediction in P2.
+* P4 (design): see §4, C5.
+
+## 4. Cell list (a cell = run × mechanism column × m × estimator; everything is Tier G/O unless stated)
+| block | runs | claims |
+|---|---|---|
+| R1 core | SBM n=3000, d∈{5,20,80} × p∈{0.1,0.25,0.5,0.75,0.9}, Bernoulli, iid baseline, **all** 6 mech × s∈{0,.25,.5,.75} × m∈{.25,.5,1} | C0–C4 |
+| R2 | SBM n∈{1000,10000}, d∈{5,20,80}, p=0.5 (n=3000 from R1) | C1 |
+| R3 | ER, BA, WS, n=3000, d∈{5,20,80}, p∈{.25,.5,.75} | C1, C2, C4 |
+| R4 | baselines degree-/community-correlated: SBM (deg, comm), BA/ER (deg), d∈{5,20,80}, p=.5 | C1 |
+| R6 | Stanford3, ego-Facebook, d∈{5,20,80(full)}, p∈{.25,.5,.75} | C7 |
+| R7 | cluster designs: SBM d∈{5,20,80} × {γ=0.3,1,3, truth}; ER, BA d=20 × γ∈{0.3,1,3}; p=½ | C5 |
+| R8 | edge noise q∈{.1,.3}, SBM d∈{5,20,80}, p=.5 | C7 |
+| R9 | sanity: baseline none, σ=0 | C0 |
+The exact list is `scripts/grid.py` (104 runs). Compared with the Brief: all mechanisms get the full s grid and p grid (the Brief
+restricted s and p slices to mechanisms (a),(c)); σ levels are free for linear estimators; ≥ 3000 assignment draws per run.
+Anything outside this list is exploratory and labelled.
+
+## 5. Metrics
+Bias, SD, RMSE of (τ̂−τ)/τ; RMSE ratio to DM (paired draws; CI by paired two-level bootstrap: graph draws, then assignments within graph, same indices
+for both estimators); sign-error rate P(τ̂ < 0); 95 % CI coverage and mean width (normal CI with HC0 / bootstrap SE);
+measured DM bias per cell. Uncertainty of every cell metric: two-level bootstrap over graph draws and assignments (assignments only on fixed real graphs; 2000 resamples).
+Pooled statements across cells (R², regime boundaries) resample at the mechanism / graph-family level (§6).
+
+## 6. Diagnostic test (P5, C6) and the acceptance rule — copied from the Brief, fixed
+Quantities per replicate, from stored data: leverage L = n‖w_chin‖²; S = RMS deviation of the other ladder specifications
+(quad, spline, count, hop2) from `chin`, recomputed at each noise level m from sig + m·sd·nz; S′ = SD among the others only;
+raw corner distances 1−mean f and mean f, and distance outside the support 1−max f, min f; curvature ĝ'' = 2·(quad f² coefficient).
+* Part (i), variance: across cells and graph draws, R² of log realised variance on log L (+ log n, log σ²), against benchmarks;
+  departure ratio realised/(σ²L/n).
+* Part (ii), bias: |realised bias| per cell vs S̄ (computed on a random half of the draws, bias on the other half) and corner distance × estimated curvature.
+* Within-cell test (S and bootstrap SE only): Spearman of S with |centred error|, minus the same statistic from a **null simulation**
+  (outcomes generated from the reporting specification itself, correct spec, noise only); if the mechanical part is large S is replaced by S′.
+* Combined score: leave-one-mechanism-out and leave-one-graph-family-out R² of log-RMSE of the combined score vs each benchmark: mean degree,
+  p(1−p), n·p(1−p)/d, the bootstrap SE, Han–Ugander-style CV loss (Tier A subset; benchmark compared only on those cells and said so).
+* Acceptance (fixed): **Supported** if (1) pooled held-out R² gain over the best benchmark ≥ 0.05 with group-level bootstrap CI excluding 0,
+  (2) gain positive in ≥ 4 of 6 held-out mechanisms and survives deleting any single group, (3) part (i) beats its benchmarks on realised variance and part (ii) on |realised bias|,
+  (4) the within-cell excess over the null simulation has median CI above 0 and above that of the bootstrap SE. **Inconclusive** if the point gain ≥ 0.05 but the group-level CI includes 0.
+  Otherwise **not supported** and the reason is analysed.
+* "Regression beats DM below a spillover threshold": stated with the oracle s (known) and with ŝ = estimated spillover share = (τ̂_chin − β̂_z)/τ̂_chin from the same regression.
+  The regime map's flip contour is estimated from the (s, mechanism) grid by interpolating log RMSE-ratio over s.
+
+## 7. Known departures from the Brief (settled in the brief)
+* Causal message passing (Shirani & Bayati 2024) is defined for sequential/panel outcomes; the experiment here has one outcome per unit, so it cannot be run as published — settled by dropping the method (see REPRODUCE.md).
+* Tier A (selection by cross-validation with graph-cluster folds + corner loss; lasso/ridge/forest/boosting; optional GNN) runs on a subset of ≈30 cells, ≈100 draws, in a separate stage (`src/gate/tierA.py`), after the Tier-G results are in. Adaptive-threshold HT (Thiyageswaran et al.) is run only if the published rule is available and specifiable.
+* Louvain γ rule: three fixed resolutions on every graph; there is no tuned rule.
+* Noise draws: one per assignment (not nested), the conditional noise variance being known exactly; graph-draw and assignment-draw variation are nested.
+
+## Revision log
+* rev. 0 (this file, before any main run).
+* rev. 1 (written while the main runs were still computing; 55 of 104 Tier-G runs existed, and I had looked at a 13-run, mostly p = 0.5 subset
+  to debug `analysis/make_diag.py`; no verdict was read from it).
+  - Definitions fixed in code for the diagnostic (all in `analysis/make_diag.py`): the reporting specification is `chin`; S = per-draw RMS deviation of
+    quad, spline, count, hop2 from chin (`inter` is excluded because it is a different functional family, not a refinement of the exposure map);
+    S′ = SD among those four. Corner × curvature C = |mean ĝ''| · mean[(dist_t² + dist_c²)/2] with ĝ'' = 2·(coefficient of f² in `quad`),
+    dist_t = 1 − mean f, dist_c = mean f. The half-split is a random half of all (graph, assignment) draws of the cell.
+  - Variance part (i): the unit is (run, graph draw, column, noise level, specification in {chin, count, hop2, inter}); target log of the variance of the
+    normalised error over the R assignments of that graph draw; predictors log L_spec (+ log n, log σ² as controls); every benchmark gets the same controls
+    plus its own feature(s). Held out leave-one-family-out. D = rows from BA, Stanford3, ego-Facebook, degree/community-correlated-baseline runs, cluster
+    designs, and every ladder row other than chin; the rest is the tie set.
+  - Combined score: log RMSE of the chin estimator per (run, column, m = 0.5) cell with s > 0; predicted = ½ log(V̂ + B̂²), V̂ from the part-(i) log-linear
+    model on log L and B̂ = NNLS on (S̄, C) fitted to |bias| of the other random half, both fitted on the training groups. Benchmarks: OLS of log RMSE on
+    log n, log σ² and one of log d, log p(1−p), log[n p(1−p)/d]. The bootstrap-SE and Han–Ugander-CV benchmarks are compared only on the cells that have
+    them (runs with B > 0 for the bootstrap SE; the Tier A subset for the CV loss) and said so.
+  - **Added after seeing the partial look, labelled exploratory**: the pre-registered S at σ = 0.5 was nearly the same in every cell (≈ 0.27–0.30 in the
+    SBM core cell) whatever the bias, i.e. it is dominated by the outcome-noise spread of the higher-leverage ladder specifications. Two variants are
+    therefore reported next to it and never in place of it: S_adj (S² minus the null-simulation expectation of its noise part, the null being column 0 of
+    the same run — correct specification, same graph, design and noise — scaled by the ratio of the noise variances) and S_sig (S from the signal part only,
+    σ = 0: the ceiling of what specification disagreement could carry). Acceptance is judged on the pre-registered rows only.
+  - Bias prediction (`analysis/predict_bias.py`): exact for (a), (b), (e) on the realised graph (population OLS from traces of M and W), exact Binomial mixture
+    for (c), (d), closed form for (f); compared to the realised bias of `chin`.
+  - Departure: the SBM implemented is the plain equal-block SBM (block size 100), not degree-corrected; degree heterogeneity comes from BA, Stanford3 and
+    ego-Facebook only. Part (i) D-set evidence therefore rests on those three families plus the baseline-correlated and cluster runs.
+  - rev. 1 addendum (answers to the outline and plan reviews; written before the full-grid diagnostic was computed):
+    * Added runs (`scripts/grid.py ext_runs`; modes `runX`, `runF`, `runG`, `runZ`): X = degree-corrected SBM (`dc_*`, `dcbase_*`), weak-mixing SBM
+      (mix 0.6) and real-graph (ego-Facebook, Stanford3) cluster designs at Louvain γ ∈ {0.3, 1, 3}; F = fine spillover-share grid s ∈ {0.1..0.9} at d ∈ {5,20,80},
+      p = 0.5 (environment `GATE_SHARES`); G = convex mirror (g) of (c) (environment `GATE_MECHS=cg`; exploratory); Z = low-baseline runs (`base_sd` = 0.25).
+      The frozen rev-0 list is unchanged and its pickles were produced by the code at commit e398a77 (the later edits do not alter default outputs; checked by
+      re-running a small configuration, see README).
+    * Part (i) criterion (3) is judged on D* = D rows with misfit share vm/vt ≥ 0.2 (misfit = w'(T_j − z) − bias, exact from the stored signal parts of column j
+      and of the null column 0); the all-D row and the tie row are reported and labelled "algebraic check on baseline + noise, not counted". D* with fewer than
+      2 families or fewer than 50 rows is reported "too thin" (→ inconclusive). The departure ratio realised/(σ_eff² L/n), σ_eff² = base_sd² + (m·sd)², is
+      reported on D*.
+    * Part (ii) gets the exact-theory prediction as a reference (not data-computable, not part of the acceptance rule): `bias_reference.csv`.
+    * HC0 coverage on all draws; bootstrap (B = 100) on the first Rb per graph, labelled.
+  - rev. 1 addendum 2 (degenerate cluster designs; found by running, before any cluster result was analysed):
+    * Louvain at γ = 0.3 returns K = 1 cluster (SBM d5/d80, ER, BA) or K = 2 (SBM d20) on graph draw 0 (K measured with the run's own seed; BA/ER at γ = 0.5 and
+      0.7 also give K = 1). Graph-cluster randomisation needs K ≥ 4 clusters (`sim.MIN_CLUSTERS`): K = 1 has no valid assignment (the rejection loop never ends),
+      K = 2 gives only 2 distinct assignments and a singular feature matrix (this was the `LinAlgError: Singular matrix` that ended three Tier-G shards).
+      Such a run is skipped, never replaced by another γ, and recorded as `<id>.degenerate.json` (K, graph draw); the γ = 0.3 level is therefore reported as
+      "Louvain collapses to ≤ 2 clusters: no cluster design exists" for every family tried, and the cluster dimension of the study rests on γ ∈ {1, 3} and the
+      planted partition (`truth`). Louvain K at γ = 1 is 8–15 for ER/BA (few distinct assignments), 24–30 for SBM: stated with the results.
+    * `boot_se` falls back to the minimum-norm solution if a bootstrap resample is rank-deficient (no run so far triggered it with K ≥ 4).
+  - rev. 1 addendum 3 (D* defined by design, answer to the plan review; written before the full-grid diagnostic was computed):
+    * D* is no longer selected on the realised share of the rows it is tested on. For every cell (run, column, m, specification) the R assignments of each
+      graph draw are split into a fixed selecting half (first R/2) and a testing half (last R/2). The selecting half gives the cell's misfit share
+      `sel_share` = mean over graph draws of Var(misfit) / mean of Var(total); D* = D cells with `sel_share` ≥ 0.2. Every quantity tested in part (i)
+      (log realised variance, variance components, L, departure ratio) is computed from the testing half only.
+    * Reported beside D*: "D minus D*" (D cells with `sel_share` < 0.2, contrast set) and the all-D and tie sets, all labelled "not counted"
+      (`counted` column of `acceptance.csv`); only the D* row enters the verdict of criterion (3). D* with < 2 families or < 50 rows → "too thin", inconclusive.
+    * The low-baseline runs are added by design for this purpose (disclosed: added after a partial look at a 13-run debug subset).
+    * Part (i) tests use R/2 draws per graph draw (150 on synthetic grids, 1500 on real graphs): lower precision per variance, same statistical design.
+  - rev. 1 addendum 4 (operational definitions for the extrapolation-sensitivity interval P6 and the confirmatory test P7, Brief rev. 8; written before any
+    confirmatory run was started, and before the rerun arrays `dn2`, `s2hat`, `mhat` were read):
+    * New stored arrays (`src/gate/sim.py`; no random numbers are used, so every earlier array is unchanged, checked bit for bit by `analysis/check_rerun.py`):
+      `dn2[row, k] = ||w_e − w_chin||²` for e in (quad, spline, count, hop2); `s2hat[row, j]` = RSS/(n − 3) of the `chin` fit of column j at noise level 0.5;
+      `mhat[row, j]` = largest second derivative of the fitted piecewise-linear spline (`spline` specification, knots at the exposure quartiles) over the
+      observed support [min f, max f]: at every knot the absolute slope change divided by the mean length of the two adjacent pieces (the support ends count
+      as the outer points); 0 if there is no knot. `scripts/grid.py runD` reruns every run that enters the diagnostic analysis (frozen grid without the
+      sanity runs, extensions X and Z) with unchanged seeds and settings.
+    * **P6.** Interval for the `chin` estimator at noise level 0.5, Bernoulli designs only (HC0 is not valid under cluster designs), columns with s > 0, every
+      draw of the cell: τ̂ ± (1.96·SE_HC0 + κ·B), κ ∈ {1, 2, 4} (fixed in the Brief). B₁ = max − min of τ̂ over (chin, quad, spline, count, hop2) in the same
+      draw; B₂ = ½·mhat·((1 − p)² + p²), p the design's treatment probability. Coverage is the share of draws with |τ̂ − τ| ≤ half-width (outcome units; τ = 1
+      for the (a)–(d), (f), (g) columns by calibration, 1 − ρ³¹ for (e)); width is 2 × half-width, reported in units of τ. Cell → mechanism summary is the mean over
+      cells with the number of cells and the range. References: HC0 alone (κ = 0) on the same draws; DM with the pairs bootstrap (B = 100) on the draws that have it
+      (first Rb per graph draw), coverage and width on those draws. For (d) the cells are split by whether the threshold lies inside the observed support:
+      "outside" if in more than half of the draws max f < θ or min f ≥ θ. Data: the rerun cells (frozen grid, X and Z; exploratory-after-results) and, as a replication
+      with new seeds, the confirmatory runs of P7. Verdicts follow the Brief: prediction (1) holds if mean coverage over the smooth-mechanism cells (a), (b), (c), (e), (f)
+      is ≥ 0.90 at some κ ≤ 2 for B₂, per mechanism; prediction (2) holds if (d) with the threshold outside the support stays below 0.90 at every κ; both are reported per
+      mechanism and for B₁ as well. Not part of the P5 verdict.
+    * **P7.** Noise part of S_adj from a parametric-bootstrap null on the reporting fit: all four compared specifications are nested in `chin`, so outcomes redrawn
+      from the fitted `chin` model with i.i.d. N(0, σ̂²) noise give signal disagreement 0 and E[S*²] = σ̂²·mean_e ||w_e − w_chin||² /τ_j² (analytic limit of infinitely
+      many redraws; no redraw is simulated). For a cell, with h1 the same random half of the draws as in `make_diag.part2_cells`:
+      Sadj_pb = sqrt(max(mean_h1[S²] − mean_h1[s2hat·mean_e dn2_e]/τ_j², 0)). S itself is as frozen (errors normalised by the true τ_j).
+      Frozen predictor of log(|bias| + 0.01): OLS on [1, log n, log(Sadj_pb + 0.01), log(C + 0.01)] fitted once on the original cells (all rerun cells with s > 0 at noise
+      level 0.5: frozen grid, X and Z, mechanisms (a)–(f)), and never refitted; the three degree benchmarks (log d, log p(1 − p), log[n p(1 − p)/d], each with 1 and
+      log n) are fitted on the same cells and applied unchanged. Confirmatory cells: runs `conf_*` (`runC`, `runH`; seed 20261126; SBM n = 3000, d ∈ {5, 20, 80},
+      p ∈ {0.25, 0.5, 0.75} with (a)–(g), and p ∈ {0.1, 0.9} for (g) only; Holme–Kim (m = d/2, triad probability 0.5) and log-normal configuration model
+      (log-scale SD 1, degrees clipped to [1, sqrt(n d)]) at the same d and p with (a)–(g)); cells with s > 0 at noise level 0.5. Groups (9, a partition of the
+      confirmatory cells): the SBM cells by mechanism (a)–(g), and all cells of each new family. Pass rule as in the Brief: (1) R² of the frozen score on log|bias| > 0
+      against the confirmatory mean, (2) R² gain over the confirmatory-best benchmark ≥ 0.05 with the 95% group-bootstrap interval (2000 resamples of the 9 groups) above 0,
+      (3) positive gain in at least 6 of the 9 groups; inconclusive if (1) holds and the interval includes 0, otherwise not supported. Reported beside it,
+      not counted: the same frozen fit with the pre-registered S (no noise adjustment) and with the corner term alone.
+  - rev. 1 addendum 5 (replaces addendum 4 for P6 and P7: the operational definitions follow Brief rev. 10-11; written before any confirmatory run was started and
+    before any P6/P7 number from the cubic arrays was read). Disclosure of the order of events: the spline-based `mhat` of addendum 4 was stored on the original
+    cells and a partial look at it was taken (I saw only that the interval could be computed; I did not read a coverage table, and no confirmatory cell existed). the study brief then fixed M̂ as a global cubic (Brief rev. 10), and the spline reruns and the first confirmatory jobs were stopped before they produced a file. Everything below
+    uses the cubic array. P6 on the original cells is **exploratory-after-results**, because the original cells are the cells on which P5 was judged and the explanation (non-identification)
+    was formulated after seeing them. The only P6/P7 evidence that is not exploratory-after-results is the `conf_*` block, run after κ̂ and the P7 coefficients are recorded
+    (`results/p6/p6_frozen.json`, `results/p7/p7_frozen_coefficients_recorded.csv`, committed before the block's jobs are started).
+    * **New stored arrays** (`src/gate/sim.py`; no random numbers are used, every earlier array is bit-identical, checked by `analysis/check_rerun.py`): `mhat3[row, j]` = M̂ at noise
+      level 0.5; `mhat3_0` = the same cubic fitted to the treatment part alone (no unit baseline, no noise: the "σ = 0" run of the same assignment); `mhat3_x`, `se_hc_x` = M̂ and the HC0 SE at
+      noise levels 0.25 and 1 (the same ε). M̂: for each own-treatment arm separately, an ordinary least-squares cubic in f (equivalent to z, f, f², f³ and all their interactions with z); the
+      second derivative 2c₂ + 6c₃f is linear in f, so its maximum modulus over [min f, max f] of the draw (both arms' units) is at an end point; the larger of the two arms is M̂. `mhat` (spline) is kept
+      and unused.
+    * **Mechanism (h)** (`mech.py`): (1−s)z + s·σ(f), σ the logistic in 6(f − ½) rescaled to σ(0) = 0, σ(1) = 1, so τ = 1. Confirmatory block (`scripts/grid.py runC`, `runH`): seed 20261126, SBM, Holme–Kim
+      (m = d/2, triad probability 0.5) and log-normal configuration model (log-scale SD 1, degrees clipped to [1, √(nd)]); n = 3000, d ∈ {5, 20, 80}, p ∈ {0.25, 0.5, 0.75}, mechanisms (a)–(h), s ∈ {0.25, 0.5, 0.75}
+      and the null column (s = 0); (g) additionally at p ∈ {0.1, 0.9} (SBM). G = 10 graph draws × R = 300 assignments, B = 100 on the first 30 per graph, as the original runs. The pair of new families is the pair named in the Brief (no substitution).
+    * **P6 interval** (`analysis/p6_interval.py`): τ̂_chin ± cv(κB/SE_HC0)·SE_HC0 with cv(t) the 0.90 quantile of |N(t,1)| (tabulated, exact below t = 12), per draw; B₁ = range of τ̂ over (chin, quad, spline, count, hop2);
+      B₂ = ½·M̂·((1−p)²+p²); κ ∈ {0.25, 0.5, 1, 2, 4, 8, 16, 32, 64}, every κ reported. Below the pre-registered grid, κ ∈ {1/64, 1/32, 1/16, 1/8} are also computed (exploratory, curves and controls only: they enter no κ*, κ̂
+      or verdict). Coverage is |τ̂ − τ| ≤ half-width in outcome units, width is the mean of 2·half-width/τ (τ = 1 up to (e)'s 1 − ρ³¹). Bernoulli designs only (HC0 is unit-level), every draw of a cell; the primary population is
+      iid baseline of SD 1, no edge noise (all families, d, p, n, mechanisms and shares of the grid; cell = run × column, equal weight per cell); degree/community baselines, weak baselines and edge noise are reported as robustness.
+    * **κ\*** per mechanism × d (pooled over p, s, families and graph draws; also by family), smallest grid κ at which the mean cell coverage ≥ 0.90, ∞ if none, for B₂ and B₁; κ\*₀ on the null column (s = 0) by d; excess = κ\* − κ\*₀
+      in log₂ grid steps. MC-SD check: one graph draw (the first) per mechanism × d at p = ½ of the core SBM cells (original: `core_SBM_n3000_*`, block: `conf_SBM_*`), κ\* recomputed with SE_HC0 replaced by the SD of τ̂ over that graph draw's 300 assignments.
+    * **Frozen κ̂**: smallest grid κ at which the mean over mechanisms (a), (b), (c), (e), (f) (equal weight per mechanism) of mean primary-cell coverage on the original cells (noise level 0.5, s > 0) is ≥ 0.90, for B₂ and for B₁, and
+      leave-one-mechanism-out (`p6_interval.py freeze`, `p6_frozen.json`). If no grid value reaches 0.90 κ̂ = ∞ and the pass rule is evaluated at 64 and said so; if the grid floor 0.25 is reached the text says κ̂ sits at the floor of the grid.
+    * **Predictions**: (1) median κ\*(B₂) over smooth mechanism × d cells ≤ 2 (original: (a), (b), (c), (e), (f); block: also (g), (h)). (2) (d) cells with q = P(Bin(round(d̄_realised), p)/·) ≥ 0.6) < 0.05 pooled over d: supported if κ\* is ∞ or ≥ max(8 × smooth
+      median κ\*, 4); inconclusive between 2 × the median and that bound; "argument wrong" at or below 2 × the median; the per-d values and the q ≥ 0.05 cells are reported separately. (3) information: the controls and the tests below.
+    * **Controls** (primary cells with s > 0, noise 0.5, each κ and bound; the HC0 base of every control is the 90% interval z = 1.645): C1 half-width = (median P6 half-width / median SE) × SE per cell; C2 = one global factor × 1.645·SE such that the mean width over all
+      primary cells equals P6's; C3 = 1.645·SE + λ·a(family, d, p) with a the mean over the cell group's mechanisms/shares of P6's mean added half-width and λ one global factor that matches the mean width; C3′ = 1.645·SE + λ·c(p) (B₂ only);
+      oracle = 1.645·SE + |bias of the cell|. Information test: coverage of P6 minus the control's, per group (mechanism × family), mean over groups with a 2000-resample group bootstrap, share of positive groups, rule (≥ 0.03, CI > 0, ≥ ⅔ of groups) from the Brief;
+      Spearman correlation within mechanism of the added mean half-width (width P6 − width HC0) with |bias| across cells. Tails (share ≥ 0.85, ≥ 0.90, 10th percentile, minimum by mechanism and family), width ratio to HC0 on (a) and where |bias|/SD < 0.25, coverage within |bias|/SD strata
+      (bins of the C8 table; |bias| and SD per cell as in `agg`), coverage by noise level m ∈ {0.25, 0.5, 1}, M̂ diagnostics (M̂ at σ = 0 against the analytic sup|g''| over the observed range for the mechanisms that are functions of f alone, (a), (c), (f), (g), (h); M̂(noise)/M̂(σ = 0) for all).
+    * **P6(1) pass rule on the block** at the frozen κ̂ (B₂ is the counted bound; B₁ reported): groups = SBM cells of (a), (b), (c), (e), (f), (g), (h) and all smooth-mechanism cells of HK and of LN (9 groups); supported if the group-averaged coverage ≥ 0.90, the share of cells ≥ 0.85 is ≥ 0.75 and no group is below 0.80; inconclusive if
+      the first holds only; otherwise not supported. The (d) cells of the block enter P6(2) only.
+    * **P7** (`analysis/p7_confirm.py`): as addendum 4 with these changes. The noise part of S_adj is the analytic limit of the parametric-bootstrap null on the reporting fit: redrawing outcomes from the fitted `chin` surface with i.i.d. N(0, σ̂²) noise gives signal disagreement exactly 0 for the four compared
+      specifications (they are nested in `chin` and OLS reproduces a linear surface), so E[S*²] = σ̂²·mean_e ‖w_e − w_chin‖²/τ_j², which is what is subtracted (`Sadjpb`; σ̂² = `s2hat`); this equals the bootstrap with infinitely many redraws under homoscedastic noise, which is the data-generating model here, and
+      would not be exact under heteroscedastic noise. Groups: 10 (SBM cells of (a)–(h) and the two new families' cells); criterion (3) is positive gain in at least ⌈2/3 × 10⌉ = 7 groups. The frozen coefficients are fitted on the original cells with s > 0 (frozen grid, X and Z; mechanisms (a)–(f)) and recorded before the block is run.

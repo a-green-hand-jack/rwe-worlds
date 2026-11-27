@@ -1,0 +1,4 @@
+# Reproducibility notes
+
+## Exposure to a closely related paper's summary
+See `PROTOCOL.md` ordering: the data repository's `README.md` (pinned commit 55faff49…) was fetched and its first ~80 lines printed on 2026-11-26 while listing the supplied files. It is the front page of the code repository of a published paper on this very task, which was deliberately not consulted and is not cited; those lines include a short summary of that paper's conclusions and the list of method names the repository implements. Nothing else was read (no paper, no other page, no `benchpred` source). The summary was not used to choose methods, splits or the primary endpoint, which were written in `PROTOCOL.md` afterwards and before any target was scored; readers should still treat the independence of the choices as unverifiable.

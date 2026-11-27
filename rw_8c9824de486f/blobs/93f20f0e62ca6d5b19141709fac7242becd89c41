@@ -1,0 +1,19 @@
+{
+  "analysis_commit": "66252a8",
+  "figure": "figtab/fig3c_estimation_vs_M.pdf",
+  "inputs": [
+    {
+      "path": "results/synth/synth_summary.csv",
+      "sha256": "01072d4f5918b3fb5731be84e053b65ac68f3f7a8d3a1614a7e72e3242c19e9b"
+    },
+    {
+      "path": "results/synth/synth_estimation_fit.csv",
+      "sha256": "b2768c6f69e7564038c2d102379f8bbe11807904eca83c5ae31044b8984ccada"
+    }
+  ],
+  "n_seeds_synthetic": 8.0,
+  "panels": {
+    "c": "synthetic, separated, correct model, k=1,5,20; line = c/M with c from synth_estimation_fit.csv"
+  },
+  "script": "figtab/make_fig3.py"
+}

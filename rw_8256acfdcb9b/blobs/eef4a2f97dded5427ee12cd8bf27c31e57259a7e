@@ -1,0 +1,15 @@
+{
+ "figure": "fig4_budget",
+ "width_in": 4.4,
+ "height_in": 3.7409999999999997,
+ "inputs": {
+  "results/tables/phi_error.csv": "2d4b91f5294c6dfdfcd2b4e2064428be9d301fd878fc4bc2d2c82bba820cddf0",
+  "results/tables/scaling_fit.csv": "3f66f29f813e197284603cfe325160a42afd00cdd27e32327ea9c85ffee0c0b4",
+  "results/tables/paired_diff.csv": "4c912cd43cd5bd66fc23a9fba3b7dfbfd8e2e85b29bae70d0d3d291791eb256b",
+  "results/tables/mstar_by_margin.csv": "43ef45ba45363e7319d006291dcbc3e9c8eecb62b3dbd163e3216ec87ff0209a",
+  "results/tables/cells.csv": "3266aaca4ea1f015193d53732614c8a75bfce1c998cbbf0b28dfb88aeb155ed3",
+  "results/tables/mstar_tobit.csv": "096fc8f4c7424fceda9826498670c6320d12355d3f1843be0ba5dc1a62a621c3"
+ },
+ "note": "estimator=shap_kernel; l1_reg=False; (a) median over instances, budgets >= 3d, LR omitted (zero variance); (b) at the default budget {'acs_employment': 2080, 'acs_income': 511, 'german': 2088, 'gmsc': 511, 'pima': 127}; (c) criterion=pc_exact, open triangle = not reached within the grid (largest budget tried), line = interval-censored (Tobit) fit log m* = a + s log g from analysis (mstar_tobit); points = interpolated m* per margin quartile, secondary (biased toward flat by the grid, Outline rev 6); (d) Tobit slope s with instance-bootstrap CI for the default, paired Kernel and antithetic-permutation estimators (strict P_c filled, P_c^eps open; LR omitted, zero variance; right-censored counts of the paired Kernel strict fits are 12-29 instances, in the csv); dotted -2 = H3's prediction. Outline rev 8: the Tobit fit is the primary M5 estimate (Gaussian residuals assumed, 8-29 of 40-60 paired-Kernel instances right-censored); H3's -2 is supported for antithetic permutation, not refuted for paired Kernel (its slope depends on the budget grid: -1.4..-1.8 on the full grid, -0.65..-1.1 on every third budget) and unresolved for the shap Kernel explainer (Tobit about -1, probit-implied about -2); the probit collapse and the grid variants are in figB_m5_robust",
+ "scope": "Intervals resample instances of one trained model per dataset x model (one seed, B=50 random background rows); variance from retraining and from the background is not in them (floors b and c measure those separately)."
+}

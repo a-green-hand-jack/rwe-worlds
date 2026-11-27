@@ -1,0 +1,63 @@
+"""Tidy result files for C1-C3 from the replicate-level rows of real_gap.py.
+Usage: python summarise_gap.py real_gap.jsonl OUTDIR [POOL_TAG]"""
+import sys, os, json
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "analysis"))
+import numpy as np, pandas as pd
+from intervals import pool_ci, total_ci
+
+d = pd.DataFrame([json.loads(l) for l in open(sys.argv[1])]); out = sys.argv[2]; os.makedirs(out, exist_ok=True)
+tag = dict(pool=sys.argv[3] if len(sys.argv) > 3 else "mmlu-pro-N1500-all", model="Qwen2.5-1.5B-Instruct", config_space="4 demo sets x 2 labels x 8 instructions x 2 cues (K=128)",
+           truth="pool_minus_S", arm="real", ci_kind="pool-bootstrap")
+
+
+def summarise(g, keys, cols, mc="gap_sd_draws"):
+    rows = []
+    for k, grp in g.groupby(keys, dropna=False):
+        o = grp[grp.rep < 0]; b = grp[grp.rep >= 0]
+        r = dict(zip(keys, k if isinstance(k, tuple) else (k,))); r["n_boot"] = len(b); r["draws0"] = int(o.draws.iloc[0]) if len(o) else None
+        for c in cols:
+            if c not in grp: continue
+            est = o[c].iloc[0] if len(o) else b[c].mean(); r[c] = est
+            mcv = (b[mc] ** 2 / b.draws).mean() if (mc in b and c == "gap") else 0.0
+            if c == "gap" and len(o) and mc in o:    # interval for the expected gap on the population of pools: between-pool (with its own sampling error) + the point's MC error
+                pse = float(o[mc].iloc[0] / np.sqrt(o.draws.iloc[0])); r["gap_mc_se_point"] = pse
+                lo, hi, se, se_ub, res = total_ci(b[c].values, mcv, pse, center=est)
+                r["gap_se_between_upper"], r["gap_between_resolved"] = se_ub, res
+            else: lo, hi, se = pool_ci(b[c].values, mcv, center=est)
+            r[c + "_lo"], r[c + "_hi"], r[c + "_se_between"] = lo, hi, se
+        rows.append(r)
+    return pd.DataFrame(rows)
+
+c1 = d[d.group == "c1"].copy(); c1["B"] = c1.B.fillna(-1)
+t = summarise(c1, ["n", "searcher", "B"], ["gap", "gap_vs_pool", "reported", "fresh", "fresh_se", "evals", "pred_kappa", "pred_refined", "keff", "sigma_theta_hat"])
+t = t.rename(columns={"reported": "reported", "fresh_se": "noise_floor"}); t["K"] = 128
+ref = summarise(d[d.group == "c1_ref"], ["n"], ["default_reported", "default_fresh", "mean_reported", "mean_fresh", "oracle_fresh", "best_reported_all"])
+t = t.merge(ref[["n", "default_reported", "default_fresh", "mean_reported", "mean_fresh", "oracle_fresh"]], on="n", how="left")
+for k, v in tag.items(): t[k] = v
+t["flag"] = np.where(t.n >= 400, "S draws overlap strongly (27% of pool)", "")
+t["pred_minus_gap"] = t.pred_kappa - t.gap; t["pred_over_gap"] = t.pred_kappa / t.gap
+t.to_csv(f"{out}/gap_vs_n.csv", index=False)
+# paired differences between searchers (C3) need the draw-level pairing: not recoverable from replicate means of different searchers
+# only when they came from the same draws, which they do (group c1 runs every searcher on the same S); difference of means is the paired mean.
+pv = c1.pivot_table(index=["rep", "n", "draws"], columns=["searcher", "B"], values="gap").reset_index()
+rows = []
+base = ("random", 100.0)
+for n, gn in pv.groupby("n"):
+    for col in [c for c in gn.columns if isinstance(c, tuple) and c[0] not in ("", "rep", "n", "draws") and c != base]:
+        diff = gn[col] - gn[base]; o = gn[gn.rep < 0]; b = gn[gn.rep >= 0]
+        est = (o[col] - o[base]).iloc[0] if len(o) else np.nan
+        lo, hi, se = pool_ci((b[col] - b[base]).values, 0.0, center=est)
+        rows.append(dict(n=n, searcher=col[0], B=col[1], vs="random100", paired_gap_diff=est, lo=lo, hi=hi, ci_kind="pool-bootstrap", **{k: tag[k] for k in ("pool", "model", "config_space")}))
+pd.DataFrame(rows).to_csv(f"{out}/searcher_paired_diff.csv", index=False)
+c2 = d[d.group == "c2"].copy()
+t2 = summarise(c2, ["n", "K_nominal", "stratum"], ["gap", "gap_vs_pool", "pred_kappa", "pred_refined", "keff", "sigma_theta_hat", "sigma_theta_pool", "sigma_bar"])
+t2["searcher"] = "exhaustive"
+for k, v in tag.items(): t2[k] = v
+t2["pred_minus_gap"] = t2.pred_kappa - t2.gap; t2["pred_over_gap"] = t2.pred_kappa / t2.gap; t2["pred_refined_minus_gap"] = t2.pred_refined - t2.gap
+t2["theta_noise_ratio"] = t2.sigma_theta_pool / (t2.sigma_bar / np.sqrt(t2.n))   # sigma_theta over the standard error of one configuration on n items: the term the equal-theta predictor ignores
+t2["flag"] = np.where(t2.n >= 240, "S is 16% of pool", "")
+t2.to_csv(f"{out}/gap_drivers.csv", index=False)
+print(t[["n", "searcher", "B", "gap", "gap_lo", "gap_hi", "noise_floor"]].round(3).to_string()); print(t2.round(3).to_string())
+
+for name in ("gap_vs_n", "gap_drivers", "searcher_paired_diff"):
+    pd.read_csv(f"{out}/{name}.csv").to_parquet(f"{out}/{name}_real.parquet", index=False); os.remove(f"{out}/{name}.csv")

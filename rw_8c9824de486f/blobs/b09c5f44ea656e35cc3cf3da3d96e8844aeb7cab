@@ -1,0 +1,16 @@
+#!/bin/bash
+# usage: ANALYSIS_COMMIT=<sha of experiment-repo> bash figtab/build_all.sh RESULTS_DIR   (repo root as cwd)
+set -e
+R=${1:?results dir}
+python3 -m figtab.make_fig1 "$R" figtab/fig1_error_vs_k.pdf
+python3 -m figtab.make_fig2 "$R" figtab/fig2_spectrum.pdf
+python3 -m figtab.make_fig3 "$R" figtab/fig3_theory_vs_measurement.pdf
+python3 -m figtab.make_fig4 "$R" figtab/fig4_scope_map.pdf
+python3 -m figtab.make_tables "$R" figtab
+python3 -m figtab.make_table3 "$R" figtab
+python3 -m figtab.make_table_olb "$R" figtab
+python3 -m figtab.make_table_ksrule "$R" figtab
+MINPT=$(python3 -c "from figtab import style; print(style.VENUE['min_pt'])")
+for f in figtab/fig*.pdf; do
+  case $f in *fig3c_*) python3 figtab/check_pdf.py $f $MINPT 3.51;; *) python3 figtab/check_pdf.py $f $MINPT 5.5;; esac
+done

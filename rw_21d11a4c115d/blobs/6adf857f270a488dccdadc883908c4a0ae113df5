@@ -1,0 +1,84 @@
+"""One style for every figure: sizes follow the venue, colours follow the method."""
+import json, os, sys, hashlib, datetime
+import matplotlib as mpl
+mpl.use("Agg")
+import matplotlib.pyplot as plt
+
+# Okabe-Ito (colour-blind safe); one colour = one method in every figure.
+# Keys are the selector spellings of experiment-repo's result files.
+COLORS = {
+    "greedyA": "#0072B2", "random": "#D55E00", "maxvar": "#009E73",
+    "onefactor": "#CC79A7", "kmedoids": "#E69F00", "pivqr": "#56B4E9",
+    "leverage": "#999933", "greedyD": "#7F7F7F", "oracle": "#000000",
+}
+MARKERS = {"greedyA": "o", "random": "s", "maxvar": "^", "onefactor": "D",
+           "kmedoids": "v", "pivqr": "P", "leverage": "h", "greedyD": "X", "oracle": "*"}
+LABELS = {"greedyA": "greedy A-optimal", "random": "random (mean of draws)",
+          "maxvar": "max variance", "onefactor": "best one-factor",
+          "kmedoids": "k-medoids", "pivqr": "pivoted QR",
+          "leverage": "leverage score", "greedyD": "greedy D-optimal",
+          "oracle": "oracle best-of-sampled (test-leaking)"}
+SHORT_LABELS = {"greedyA": "greedy A (primary)", "random": "random", "maxvar": "max variance", "onefactor": "best one-factor",
+                "kmedoids": "k-medoids", "pivqr": "pivoted QR", "leverage": "leverage", "greedyD": "greedy D",
+                "oracle": "oracle (test-leaking)"}
+# Reference lines: grey family, distinguished by line style, never by colour alone.
+REF_STYLE = {"colmean": dict(color="0.35", ls=":", label="column mean (floor of skill)"),
+             "lobo": dict(color="0.35", ls="--", label="leave-one-benchmark-out (ceiling)"),
+             "insample": dict(color="0.6", ls="-.", label="in-sample fit (reference)"),
+             "binomial": dict(color="0.2", ls=(0, (1, 1)), label="binomial noise floor")}
+PRED_LABELS = {"best_simple": "best simple predictor", "fa": "factor model", "colmean": "column mean", "onefactor": "one-factor",
+               "ridge": "ridge", "knn": "k-NN", "lw": "Ledoit-Wolf conditioning"}
+DATASET_TITLES = {"mteb_eng": "MTEB English (embedding models)", "mteb_multi": "MTEB multilingual (embedding models)",
+                  "helm_mmlu": "HELM MMLU (LLMs, 57 subjects)"}
+DATASET_SHORT = {"mteb_eng": "MTEB-Eng", "mteb_multi": "MTEB-Multi", "helm_mmlu": "HELM MMLU"}
+DATASET_COLORS = {"mteb_eng": "#0072B2", "mteb_multi": "#009E73", "helm_mmlu": "#D55E00",
+                  "synthetic_N60_r4": "#7F7F7F"}
+
+
+def setup(width_in, min_pt, height_in=None, aspect=0.62):
+    """Fix rcParams so that, at the printed width, the smallest text is >= min_pt."""
+    base = max(min_pt, 7.0) if min_pt else 7.0
+    mpl.rcParams.update({
+        "font.family": "sans-serif", "font.sans-serif": ["DejaVu Sans"],
+        "pdf.fonttype": 42, "ps.fonttype": 42,          # embedded TrueType, no Type 3
+        "font.size": base, "axes.labelsize": base, "axes.titlesize": base,
+        "xtick.labelsize": base, "ytick.labelsize": base, "legend.fontsize": base,
+        "figure.titlesize": base,
+        "axes.linewidth": 0.6, "lines.linewidth": 1.2, "lines.markersize": 4.0,
+        "xtick.major.width": 0.6, "ytick.major.width": 0.6,
+        "axes.spines.top": False, "axes.spines.right": False,
+        "axes.grid": True, "grid.linewidth": 0.4, "grid.alpha": 0.35,
+        "legend.frameon": False, "figure.dpi": 150, "savefig.dpi": 300,
+        "figure.constrained_layout.use": True,
+    })
+    return (width_in, height_in if height_in else width_in * aspect)
+
+
+def save(fig, name, outdir, sidecar):
+    """Write <name>.pdf and <name>.json (what the figure was computed on)."""
+    os.makedirs(outdir, exist_ok=True)
+    pdf = os.path.join(outdir, name + ".pdf")
+    fig.savefig(pdf)
+    sidecar = dict(sidecar, figure=name, generated=datetime.date.today().isoformat(),
+                   width_in=fig.get_size_inches()[0], height_in=fig.get_size_inches()[1])
+    with open(os.path.join(outdir, name + ".json"), "w") as f:
+        json.dump(sidecar, f, indent=2, sort_keys=True, default=str)
+    plt.close(fig)
+    return pdf
+
+
+def sha(path):
+    return hashlib.sha256(open(path, "rb").read()).hexdigest()[:12]
+
+
+def plain_log(ax, axis="y"):
+    """Log axis with plain decimal tick labels (mathtext exponents print below the type-size floor)."""
+    from matplotlib.ticker import FuncFormatter, NullFormatter
+    a = ax.yaxis if axis == "y" else ax.xaxis
+    a.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}")); a.set_minor_formatter(NullFormatter())
+
+# Evaluation splits (not methods): their own hues so they never read as a selector.
+SPLIT_COLORS = {"random": "#44AA99", "grouped": "#332288", "time": "#882255"}
+SPLIT_MARKERS = {"random": "s", "grouped": "o", "time": "^"}
+SPLIT_LABELS = {"random": "random K-fold (families shared)", "grouped": "grouped K-fold (new families)",
+                "time": "time-forward (newer models)"}

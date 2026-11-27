@@ -1,0 +1,9 @@
+\.forgejo/CODEOWNERS @paper-repo
+\.forgejo/document\.json @paper-repo
+README\.md @paper-repo
+paper/.* @paper-repo
+code/.* @experiment-repo
+results/.* @experiment-repo
+REPRODUCE\.md @experiment-repo @figtab-repo
+figures/.* @figtab-repo
+tables/.* @figtab-repo

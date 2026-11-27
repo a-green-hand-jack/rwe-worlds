@@ -1,0 +1,34 @@
+"""Fig. 3 (real-data part): measured error of S6+P5 against the T1 prediction, with the misfit decomposition, per split and k.
+Per held-out model (targets = its run set minus the revealed k), in raw points^2:
+  measured      = mse(S6+P5)
+  noise_pred    = mean psi_j sd_j^2        (T1 irreducible term, fitted model)
+  noise_misfit  = floor^2 - noise_pred     (all-others LOO error minus fitted noise: model misfit already at k = N-1)
+  design_pred   = T1 risk - noise_pred     (predicted excess from revealing only k benchmarks)
+  est_misfit    = measured - floor^2 - design_pred   (excess not explained by T1: estimation of V, mis-specified posterior)
+measured = noise_pred + noise_misfit + design_pred + est_misfit (exact). Means over models, group-bootstrap 90% CI (B=5000).
+usage: python 17_theory.py <data_dir> <res_dir> <out_dir>"""
+import os, sys, glob, numpy as np, pandas as pd
+sys.path.insert(0, os.path.dirname(__file__))
+from common import *
+data_dir, res_dir, out = sys.argv[1:4]
+Y, mods, tasks, et = load_matrix(data_dir); org = mods.org.values
+df = pd.concat([pd.read_parquet(f) for f in sorted(glob.glob(os.path.join(res_dir, "*_main.parquet")))], ignore_index=True)
+df = df[(df.inf == "P5") & (df.rule.isin(["S6", "S0"]))]
+for c in ("rmse_raw", "floor_raw", "t1_rmse_raw", "t1_floor_raw"): df[c + "2"] = df[c] ** 2
+pm = df.groupby(["split", "rule", "k", "model"]).agg(m=("rmse_raw2", "mean"), f=("floor_raw2", "mean"), t=("t1_rmse_raw2", "mean"), tf=("t1_floor_raw2", "mean")).reset_index()
+pm["org"] = org[pm.model.values]
+rows = []
+for (s, rule, k), d in pm.groupby(["split", "rule", "k"]):
+    if len(d) < 3: continue
+    comp = dict(measured=d.m.values, noise_pred=d.tf.values, noise_misfit=d.f.values - d.tf.values, design_pred=d.t.values - d.tf.values,
+                est_misfit=d.m.values - d.f.values - (d.t.values - d.tf.values), floor2=d.f.values, t1_total=d.t.values)
+    ug, inv = np.unique(d.org.values, return_inverse=True); rng = np.random.default_rng(5000 + k)
+    dr = rng.integers(0, len(ug), size=(5000, len(ug))); gn = np.bincount(inv, minlength=len(ug)).astype(float)
+    row = dict(split=s, rule=rule, k=k, n_models=len(d), n_groups=len(ug), N=Y.shape[1])
+    for name, v in comp.items():
+        gs = np.bincount(inv, weights=v, minlength=len(ug)); reps = gs[dr].sum(1) / gn[dr].sum(1)
+        row[name] = v.mean(); row[name + "_lo90"] = np.percentile(reps, 5); row[name + "_hi90"] = np.percentile(reps, 95)
+    rows.append(row)
+r = pd.DataFrame(rows); r.to_csv(os.path.join(out, "fig3_decomposition_rms.csv"), index=False)
+pd.set_option("display.width", 220)
+print(r[(r.rule == "S6")][["split", "k", "n_models", "measured", "noise_pred", "noise_misfit", "design_pred", "est_misfit", "est_misfit_lo90", "est_misfit_hi90"]].round(2).to_string(index=False))

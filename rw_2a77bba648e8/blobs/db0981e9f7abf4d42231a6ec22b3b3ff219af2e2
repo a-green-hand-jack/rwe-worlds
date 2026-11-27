@@ -1,0 +1,206 @@
+"""Tier A (data-adaptive) estimators and the diagnostic quantities, on a subset of cells.
+Every estimator sees the same noisy outcome y = y0 + m sd eps (m = NOISE_M) of the same assignment:
+  A_lasso : Han-Ugander-style selection from a pool of graph/treatment features; lasso path, lambda chosen by
+            graph-cluster-fold CV loss (+ buffer) PLUS corner loss (fit below the 0.7-quantile of an exposure feature,
+            score above it, averaged over f, c/dbar, f2); post-lasso OLS refit; tau = mean(pred(all-treated)-pred(all-control)).
+  A_ridge : same protocol with a ridge penalty (alpha grid), no refit.
+  A_rf, A_hgb : random forest / gradient boosting on (z, f, c/dbar, f2) with fixed hyper-parameters (not tuned).
+  A_ada   : Hajek exposure estimator with the threshold h in {.5,...,1} chosen by an estimated-MSE rule in the spirit of
+            Thiyageswaran et al. (2024): bias signal from a linear fit of y on (z,f) and the variance term reduced to its
+            diagonal (not the full Aronow-Samii covariance estimator) -> labelled 'adaptive-threshold Hajek (simplified)'.
+Bernoulli designs only."""
+import time
+
+import numpy as np
+from scipy.stats import binom
+from sklearn.ensemble import HistGradientBoostingRegressor, RandomForestRegressor
+from sklearn.linear_model import lasso_path
+
+from . import graphs, mech, sim
+from .mech import COLS, Exposure, corner, make_base
+from .sim import LADDER, NOISE_M, ols_w, phi, pinv_sym, seed_of
+
+TEST_COLS = [j for j, (m, s) in enumerate(COLS) if s in (0.0, 0.5)]   # null + six mechanisms at s=0.5
+AEST = ["dm", "chin", "quad", "spline", "count", "hop2", "inter", "A_lasso", "A_ridge", "A_rf", "A_hgb", "A_ada"]
+DIAG = ["cv_loss", "corner_loss", "n_sel", "ada_h"]
+
+
+def pool(E, logd, dbar, kn=None):
+    z, f = E.z, E.f
+    c = E.c / dbar
+    cols = [z, f, c, E.f2, z * f, f * f, f ** 3, c * c, E.f2 ** 2,
+            (f >= .25 - 1e-12).astype(float), (f >= .5 - 1e-12).astype(float), (f >= .75 - 1e-12).astype(float),
+            logd, z * logd, f * logd]
+    return np.stack(cols, 1)
+
+
+def _std(Xtr, Xte_list):
+    mu, sd = Xtr.mean(0), Xtr.std(0)
+    sd[sd < 1e-9] = 1.0
+    return [(X - mu) / sd for X in [Xtr] + Xte_list]
+
+
+def _path_lasso(Xtr, ytr, lams):
+    Xs, = _std(Xtr, [])[:1]
+    _, coefs, _ = lasso_path(Xs, ytr - ytr.mean(), alphas=lams, max_iter=2000)
+    return coefs     # p x nlam, in standardised units
+
+
+def _pred_path(Xtr, ytr, Xte, coefs):
+    mu, sd = Xtr.mean(0), Xtr.std(0)
+    sd[sd < 1e-9] = 1.0
+    return ((Xte - mu) / sd) @ coefs + ytr.mean()
+
+
+def _ridge_path(Xtr, ytr, alphas):
+    Xs = _std(Xtr, [])[0]
+    yc = ytr - ytr.mean()
+    U, s, Vt = np.linalg.svd(Xs, full_matrices=False)
+    Uy = U.T @ yc
+    return np.stack([Vt.T @ (s / (s ** 2 + a) * Uy) for a in alphas], 1)
+
+
+def select_loss(X, y, Ecols, folds, nbr_buffer, path_fn, grid, q=0.7):
+    """CV loss and corner loss for each grid point"""
+    n = len(y)
+    cv = np.zeros(len(grid)); wts = 0
+    for k in np.unique(folds):
+        te = folds == k
+        tr = ~te & ~nbr_buffer[k]
+        if tr.sum() < 0.3 * n:
+            tr = ~te
+        co = path_fn(X[tr], y[tr], grid)
+        pr = _pred_path(X[tr], y[tr], X[te], co)
+        cv += ((pr - y[te][:, None]) ** 2).sum(0); wts += te.sum()
+    cv /= wts
+    cor = np.zeros(len(grid))
+    for e in Ecols:
+        thr = np.quantile(e, q)
+        tr, te = e <= thr, e > thr
+        if te.sum() < 10 or tr.sum() < 30:
+            continue
+        co = path_fn(X[tr], y[tr], grid)
+        pr = _pred_path(X[tr], y[tr], X[te], co)
+        cor += ((pr - y[te][:, None]) ** 2).mean(0)
+    cor /= len(Ecols)
+    return cv, cor
+
+
+def ada_threshold(y, z, E, deg, p, H=(0.5, 0.6, 0.7, 0.8, 0.9, 1.0)):
+    n = len(y)
+    X = np.stack([z, E.f], 1)
+    Xc = X - X.mean(0)
+    gam = (pinv_sym(Xc.T @ Xc) @ (Xc.T @ (y - y.mean())))[1]
+    best, bh = np.inf, None
+    for h in H:
+        kt = np.ceil(h * deg - 1e-9); kc = np.floor((1 - h) * deg + 1e-9)
+        pt = np.maximum(p * binom.sf(kt - 1, deg, p), 1e-12)
+        pc = np.maximum((1 - p) * binom.cdf(kc, deg, p), 1e-12)
+        It = (z == 1) & (E.c >= kt); Ic = (z == 0) & (E.c <= kc)
+        if It.sum() < 2 or Ic.sum() < 2:
+            continue
+        b = (gam * ((1 - E.f) * It / pt).sum() + gam * (E.f * Ic / pc).sum()) / n
+        v = ((It * (1 - pt) * y ** 2 / pt ** 2).sum() + (Ic * (1 - pc) * y ** 2 / pc ** 2).sum()) / n ** 2
+        mse = b * b + v
+        if mse < best:
+            best, bh = mse, h
+    return bh, deg
+
+
+def run_tierA(cfg):
+    t0 = time.time()
+    Gn, R, p = cfg["G"], cfg["R"], cfg["p"]
+    NR = Gn * R
+    tau_hat = np.full((NR, len(AEST), len(COLS)), np.nan, np.float32)
+    diag = np.full((NR, len(DIAG), len(COLS)), np.nan, np.float32)
+    sdl, taul, gm = [], [], []
+    lam_n = 20
+    alphas = np.logspace(-2, 3, 16)
+    for gi in range(Gn):
+        rng = np.random.default_rng(seed_of(cfg.get("seed", 0), cfg["family"], cfg.get("n", 0), cfg["d"], gi, cfg.get("tag", ""), "graph"))
+        g = sim.make_graph(cfg, gi, rng)
+        gobs = g
+        n_ = g.n
+        deg, dbar = g.deg, g.dbar
+        logd = np.log(deg); logd = (logd - logd.mean()) / (logd.std() + 1e-12)
+        lab, _ = graphs.louvain(g, 1.0, rng)
+        K = lab.max() + 1
+        fold_of = rng.integers(0, 5, K)[lab]
+        Ab = g.A.tocsr()
+        nbr_buffer = {k: (Ab @ (fold_of == k).astype(float)) > 0 for k in range(5)}
+        base = make_base(g, cfg.get("base", "iid"), rng)
+        tau = mech.exact_tau(g)
+        E1, E0 = corner(g, 1), corner(g, 0)
+        pool1, pool0 = pool(E1, logd, dbar), pool(E0, logd, dbar)
+        small1 = np.stack([E1.z, E1.f, E1.c / dbar, E1.f2], 1)
+        small0 = np.stack([E0.z, E0.f, E0.c / dbar, E0.f2], 1)
+        design = sim.Design("bern", p)
+        prng = np.random.default_rng(seed_of(cfg.get("seed", 0), cfg["family"], cfg.get("n", 0), cfg["d"], gi, cfg.get("tag", ""), "pilot"))
+        pil = []
+        for _ in range(30):
+            z = design.draw(prng, n_); Et = Exposure(g, z); Dt = mech.diffusion(g, z)
+            pil.append(mech.outcomes(g, z, Et, Dt, base))
+        sd = np.concatenate(pil).std(0)
+        sdl.append(sd); taul.append(tau)
+        arng = np.random.default_rng(seed_of(cfg.get("seed", 0), cfg["family"], cfg.get("n", 0), cfg["d"], gi, cfg.get("tag", ""), "assign"))
+        for r in range(R):
+            row = gi * R + r
+            z = design.draw(arng, n_)
+            Et = Exposure(g, z); Dt = mech.diffusion(g, z)
+            eps = arng.standard_normal(n_)
+            Y0 = mech.outcomes(g, z, Et, Dt, base)
+            Ym = Y0 + NOISE_M * sd[None, :] * eps[:, None]
+            f = Et.f
+            kn = sorted(set(np.round([k for k in np.quantile(f, [0.25, 0.5, 0.75]) if 1e-9 < k < 1 - 1e-9], 9)))
+            Xp = pool(Et, logd, dbar)
+            small = np.stack([z, f, Et.c / dbar, Et.f2], 1)
+            # linear estimators on the noisy y
+            wdm = z / z.sum() - (1 - z) / (1 - z).sum()
+            W = {"dm": wdm}
+            for s_ in ("chin", "quad", "spline", "count", "hop2", "inter"):
+                X = phi(s_, Et, kn, dbar)
+                dx = (phi(s_, E1, kn, dbar) - phi(s_, E0, kn, dbar)).mean(0)
+                W[s_] = ols_w(X, dx)[0]
+            for en, w in W.items():
+                tau_hat[row, AEST.index(en), :] = w @ Ym
+            lam_max = None
+            for j in TEST_COLS:
+                y = Ym[:, j]
+                # ---- lasso protocol
+                Xs = (Xp - Xp.mean(0)) / np.where(Xp.std(0) < 1e-9, 1, Xp.std(0))
+                lmax = np.abs(Xs.T @ (y - y.mean())).max() / n_
+                lams = lmax * np.logspace(0, -3, lam_n)
+                cv, cor = select_loss(Xp, y, [Et.f, Et.c, Et.f2], fold_of, nbr_buffer, _path_lasso, lams)
+                k = int(np.argmin(cv + cor))
+                co = _path_lasso(Xp, y, lams)[:, k]
+                sel = np.abs(co) > 1e-10
+                if sel.sum() == 0:
+                    sel[0] = True
+                Xr = np.concatenate([np.ones((n_, 1)), Xp[:, sel]], 1)
+                beta = np.linalg.lstsq(Xr, y, rcond=None)[0]
+                pr1 = np.concatenate([np.ones((n_, 1)), pool1[:, sel]], 1) @ beta
+                pr0 = np.concatenate([np.ones((n_, 1)), pool0[:, sel]], 1) @ beta
+                tau_hat[row, AEST.index("A_lasso"), j] = pr1.mean() - pr0.mean()
+                diag[row, 0, j], diag[row, 1, j], diag[row, 2, j] = cv[k], cor[k], sel.sum()
+                # ---- ridge protocol
+                cvr, corr = select_loss(Xp, y, [Et.f, Et.c, Et.f2], fold_of, nbr_buffer, _ridge_path, alphas)
+                kr = int(np.argmin(cvr + corr))
+                cor_r = _ridge_path(Xp, y, [alphas[kr]])
+                mu, sdx = Xp.mean(0), np.where(Xp.std(0) < 1e-9, 1, Xp.std(0))
+                tau_hat[row, AEST.index("A_ridge"), j] = (((pool1 - mu) / sdx) @ cor_r).mean() - (((pool0 - mu) / sdx) @ cor_r).mean()
+                # ---- forest / boosting
+                rf = RandomForestRegressor(60, min_samples_leaf=10, n_jobs=1, random_state=row).fit(small, y)
+                tau_hat[row, AEST.index("A_rf"), j] = rf.predict(small1).mean() - rf.predict(small0).mean()
+                hg = HistGradientBoostingRegressor(max_iter=60, max_depth=3, learning_rate=0.1, random_state=row).fit(small, y)
+                tau_hat[row, AEST.index("A_hgb"), j] = hg.predict(small1).mean() - hg.predict(small0).mean()
+                # ---- adaptive threshold Hajek
+                h, _ = ada_threshold(y, z, Et, deg, p)
+                if h is not None:
+                    kt = np.ceil(h * deg - 1e-9); kc = np.floor((1 - h) * deg + 1e-9)
+                    pt = np.maximum(p * binom.sf(kt - 1, deg, p), 1e-12); pc = np.maximum((1 - p) * binom.cdf(kc, deg, p), 1e-12)
+                    w = sim.hajek_weights(Et.c, z, deg, pt, pc, h)
+                    if w is not None:
+                        tau_hat[row, AEST.index("A_ada"), j] = w @ y
+                    diag[row, 3, j] = h
+        gm.append(dict(gi=gi, n=int(n_), dbar=float(g.dbar)))
+    return dict(tau_hat=tau_hat, diag=diag, tau=np.array(taul), sd=np.array(sdl), gmeta=gm, cfg=cfg, seconds=time.time() - t0)

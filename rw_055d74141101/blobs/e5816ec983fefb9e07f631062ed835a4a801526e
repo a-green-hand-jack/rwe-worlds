@@ -1,0 +1,7 @@
+#!/bin/bash
+# usage: run_all.sh RESULTS_DIR [OUT_DIR=figures/out]; builds every item whose input file exists, reports the rest
+cd "$(dirname "$0")"; D=${1:?results dir}; O=${2:-out}
+for s in make_fig1 make_fig2 make_fig3 make_fig4 make_fig5 make_fig6 make_tab1 make_tab2 make_tab3 make_tab4 make_tab5; do
+  python3 $s.py --data "$D" --out "$O" || echo "NOT BUILT: $s"
+done
+python3 make_fig3.py --data "$D" --out "$O" --family flip || echo "NOT BUILT: make_fig3 --family flip"

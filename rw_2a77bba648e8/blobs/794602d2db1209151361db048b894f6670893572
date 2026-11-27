@@ -1,0 +1,228 @@
+"""Graph generators and loaders. Every graph is returned as a `Graph`: symmetric binary
+adjacency (scipy CSR, no self loops, giant component only), degrees, row-normalised W."""
+import gzip
+import hashlib
+import io
+import os
+import zipfile
+from dataclasses import dataclass, field
+
+import networkx as nx
+import numpy as np
+import scipy.sparse as sp
+from scipy.io import mmread
+
+RAW = os.environ.get("GATE_RAW", os.path.join(os.path.dirname(__file__), "..", "..", "data", "raw"))
+HASH = {
+    "socfb-Stanford3.zip": "b1221e414dbaf3278468f60881bac932e935b8813020157bc6fb3823f5e8720d",
+    "facebook_combined.txt.gz": "125e84db872eeba443d270c70315c256b0af43a502fcfe51f50621166ad035d7",
+}
+
+
+@dataclass
+class Graph:
+    A: sp.csr_matrix
+    name: str
+    blocks: np.ndarray = None          # planted communities (SBM) or None
+    meta: dict = field(default_factory=dict)
+
+    def __post_init__(self):
+        self.n = self.A.shape[0]
+        self.deg = np.asarray(self.A.sum(1)).ravel()
+        self.W = sp.diags(1.0 / self.deg) @ self.A
+        self.W = self.W.tocsr()
+        self.dbar = self.deg.mean()
+
+
+def _finish(A, name, blocks=None, meta=None):
+    """symmetrise, drop loops, keep the giant connected component"""
+    A = sp.csr_matrix(A)
+    A = ((A + A.T) > 0).astype(np.float64)
+    A.setdiag(0)
+    A.eliminate_zeros()
+    ncomp, lab = sp.csgraph.connected_components(A, directed=False)
+    if ncomp > 1:
+        big = np.argmax(np.bincount(lab))
+        keep = np.where(lab == big)[0]
+        A = A[keep][:, keep]
+        if blocks is not None:
+            blocks = blocks[keep]
+    meta = dict(meta or {})
+    return Graph(A.tocsr(), name, blocks, meta)
+
+
+def _sample_pairs(rng, na, nb, p, same):
+    """edges between node groups of size na, nb with prob p (same: within one group)"""
+    if same:
+        npairs = na * (na - 1) // 2
+    else:
+        npairs = na * nb
+    m = rng.binomial(npairs, p)
+    if m == 0:
+        return np.zeros((0, 2), dtype=np.int64)
+    idx = rng.choice(npairs, size=m, replace=False) if npairs < 5e7 else np.unique(rng.integers(0, npairs, m))
+    if same:  # decode upper-triangle index
+        i = (np.floor((1 + np.sqrt(1 + 8 * idx)) / 2)).astype(np.int64)
+        j = idx - i * (i - 1) // 2
+        fix = j >= i
+        i[fix] += 1  # guard against float error
+        j = idx - i * (i - 1) // 2
+        return np.stack([i, j], 1)
+    return np.stack([idx // nb, idx % nb], 1)
+
+
+def sbm(n, d, rng, k=None, mix=0.3):
+    """equal-size SBM, `mix` = expected fraction of edges leaving the block; mean degree d.
+    Block size is fixed at 100 (k = n/100 blocks)."""
+    k = k or max(2, n // 100)
+    sizes = np.full(k, n // k)
+    sizes[: n - sizes.sum()] += 1
+    start = np.concatenate([[0], np.cumsum(sizes)])
+    s = n / k
+    p_in = (1 - mix) * d / (s - 1)
+    p_out = mix * d / (n - s)
+    rows = []
+    for a in range(k):
+        e = _sample_pairs(rng, sizes[a], sizes[a], p_in, True)
+        rows.append(e + start[a])
+        for b in range(a + 1, k):
+            e = _sample_pairs(rng, sizes[a], sizes[b], p_out, False)
+            rows.append(np.stack([e[:, 0] + start[a], e[:, 1] + start[b]], 1))
+    e = np.concatenate(rows)
+    A = sp.coo_matrix((np.ones(len(e)), (e[:, 0], e[:, 1])), shape=(n, n))
+    blocks = np.repeat(np.arange(k), sizes)
+    return _finish(A, "SBM", blocks, dict(mix=mix, k=k))
+
+
+def dcsbm(n, d, rng, k=None, mix=0.3, sigma_theta=0.8):
+    """degree-corrected SBM: equal blocks of ~100, edge probability min(1, c theta_i theta_j omega_{b(i)b(j)}), theta lognormal(0, sigma_theta)
+    with mean 1; c is solved so that the expected mean degree (after clipping at 1) is d"""
+    k = k or max(2, n // 100)
+    sizes = np.full(k, n // k)
+    sizes[: n - sizes.sum()] += 1
+    blocks = np.repeat(np.arange(k), sizes)
+    theta = np.exp(sigma_theta * rng.standard_normal(n))
+    theta /= theta.mean()
+    s = n / k
+    w_in, w_out = (1 - mix) * d / (s - 1), mix * d / (n - s)
+    same = blocks[:, None] == blocks[None, :]
+    omega = np.where(same, w_in, w_out)
+    T = np.outer(theta, theta) * omega
+    np.fill_diagonal(T, 0.0)
+    lo, hi = 0.1, 20.0
+    for _ in range(40):
+        c = np.sqrt(lo * hi)
+        if np.minimum(c * T, 1.0).sum() / n < d:
+            lo = c
+        else:
+            hi = c
+    P = np.minimum(c * T, 1.0)
+    U = rng.random((n, n))
+    A = np.triu(U < P, 1)
+    A = sp.csr_matrix(A | A.T, dtype=float)
+    return _finish(A, "DCSBM", blocks, dict(mix=mix, k=k, sigma_theta=sigma_theta))
+
+
+def _from_nx(G, name, meta=None):
+    return _finish(nx.to_scipy_sparse_array(G, format="csr"), name, None, meta)
+
+
+def er(n, d, rng):
+    return _from_nx(nx.fast_gnp_random_graph(n, d / (n - 1), seed=int(rng.integers(2**31))), "ER")
+
+
+def ba(n, d, rng):
+    return _from_nx(nx.barabasi_albert_graph(n, max(1, int(round(d / 2))), seed=int(rng.integers(2**31))), "BA")
+
+
+def ws(n, d, rng, beta=0.1):
+    k = int(round(d / 2)) * 2
+    return _from_nx(nx.watts_strogatz_graph(n, k, beta, seed=int(rng.integers(2**31))), "WS", dict(beta=beta))
+
+
+def hk(n, d, rng, p_triad=0.5):
+    """Holme-Kim clustered scale-free graph (power-law cluster): m = d/2 edges per new node, triad-formation probability p_triad"""
+    return _from_nx(nx.powerlaw_cluster_graph(n, max(1, int(round(d / 2))), p_triad, seed=int(rng.integers(2**31))), "HK", dict(p_triad=p_triad))
+
+
+def lognormal_config(n, d, rng, sigma=1.0):
+    """configuration model with log-normal degrees of mean d (log-scale SD sigma), degrees at least 1 and at most sqrt(n d) (structural cutoff);
+    loops and multi-edges are dropped and the giant component kept, so the realised mean degree is slightly below d"""
+    mu = np.log(d) - sigma ** 2 / 2
+    k = np.clip(np.round(rng.lognormal(mu, sigma, n)), 1, np.sqrt(n * d)).astype(int)
+    if k.sum() % 2:
+        k[rng.integers(n)] += 1
+    G = nx.configuration_model(k.tolist(), seed=int(rng.integers(2**31)))
+    return _from_nx(nx.Graph(G), "LN", dict(sigma=sigma))
+
+
+def _check(fn):
+    path = os.path.join(RAW, fn)
+    h = hashlib.sha256(open(path, "rb").read()).hexdigest()
+    if h != HASH[fn]:
+        raise RuntimeError(f"{fn}: sha256 {h} != {HASH[fn]}")
+    return path
+
+
+def stanford3():
+    z = zipfile.ZipFile(_check("socfb-Stanford3.zip"))
+    name = [f for f in z.namelist() if f.endswith(".mtx")][0]
+    A = mmread(io.BytesIO(z.read(name))).tocsr()
+    return _finish(A, "Stanford3")
+
+
+def ego_facebook():
+    path = _check("facebook_combined.txt.gz")
+    e = np.loadtxt(gzip.open(path))
+    n = int(e.max()) + 1
+    A = sp.coo_matrix((np.ones(len(e)), (e[:, 0].astype(int), e[:, 1].astype(int))), shape=(n, n))
+    return _finish(A, "ego-Facebook")
+
+
+def thin(g, target_d, rng):
+    """keep each edge independently with prob target_d/mean-degree, then keep giant component.
+    Changes degree but also clustering, tail and n: callers report those covariates."""
+    if target_d >= g.dbar:
+        return g
+    keep = target_d / g.dbar
+    U = sp.triu(g.A, 1).tocoo()
+    m = rng.random(len(U.data)) < keep
+    A = sp.coo_matrix((np.ones(m.sum()), (U.row[m], U.col[m])), shape=g.A.shape)
+    return _finish(A, g.name, None, dict(thinned_to=target_d))
+
+
+def drop_edges(g, q, rng):
+    """observed graph with a fraction q of the (true) edges missing"""
+    U = sp.triu(g.A, 1).tocoo()
+    m = rng.random(len(U.data)) >= q
+    A = sp.coo_matrix((np.ones(m.sum()), (U.row[m], U.col[m])), shape=g.A.shape)
+    A = (A + A.T).tocsr()
+    # keep node set; isolated nodes get a self-free zero row -> give them their one true edge back
+    deg = np.asarray(A.sum(1)).ravel()
+    iso = np.where(deg == 0)[0]
+    if len(iso):
+        Ai = g.A[iso].tocoo()
+        pick = {}
+        for r, c in zip(Ai.row, Ai.col):
+            pick.setdefault(r, c)
+        rr = np.array([iso[r] for r in pick]); cc = np.array(list(pick.values()))
+        B = sp.coo_matrix((np.ones(len(rr)), (rr, cc)), shape=g.A.shape)
+        A = ((A + B + B.T) > 0).astype(np.float64).tocsr()
+    return Graph(A, g.name + f"-drop{q}", g.blocks, dict(drop=q))
+
+
+def louvain(g, resolution, rng):
+    """cluster labels from Louvain on `g` (the observed graph)"""
+    G = nx.from_scipy_sparse_array(g.A)
+    comms = nx.community.louvain_communities(G, resolution=resolution, seed=int(rng.integers(2**31)))
+    lab = np.empty(g.n, dtype=np.int64)
+    for i, c in enumerate(comms):
+        lab[list(c)] = i
+    mod = nx.community.modularity(G, comms, resolution=1.0)
+    return lab, mod
+
+
+def modularity_of(g, lab):
+    G = nx.from_scipy_sparse_array(g.A)
+    comms = [set(np.where(lab == c)[0]) for c in np.unique(lab)]
+    return nx.community.modularity(G, comms)

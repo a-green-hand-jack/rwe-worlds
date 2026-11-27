@@ -1,0 +1,75 @@
+"""Fig 7 (claim M6): floor b as a function of the background (B=20, 50, 200 random rows; 50 k-means medoids) against floor a, on the same instances.
+Top: top-k agreement of K independent backgrounds, each explained exactly, next to the run-to-run agreement (floor a) of the shap default
+(l1_reg=False) and of paired Kernel SHAP at the same budget. Bottom: paired difference floor b - floor a per instance with CI (below 0: changing the
+background moves the top-k more than rerunning the estimator).
+
+Reads: floor_b_by_background (analysis). Usage: python fig7_floor_b.py DATA_DIR OUT_PREFIX [--datasets german acs_employment] [--floora default|largest_sampled] [--k 3]
+"""
+import argparse
+import numpy as np, pandas as pd, matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
+import figstyle as fs
+
+ap = argparse.ArgumentParser()
+ap.add_argument("data"); ap.add_argument("out")
+ap.add_argument("--datasets", nargs="+", default=["german", "acs_employment"])
+ap.add_argument("--floora", default="default", choices=["default", "largest_sampled"]); ap.add_argument("--k", type=int, default=3)
+a = ap.parse_args()
+fs.setup()
+fb, p1 = fs.load(a.data, "floor_b_by_background")
+EST = [("shap_kernel", "shap Kernel", "-"), ("kernel_paired", "paired Kernel", "--")]
+need = ["dataset", "model", "background", "k", "n_instances", "K", "agreement", "ci_lo", "ci_hi"]
+for e, _, _ in EST:
+    need += [f"floor_a_{a.floora}_{e}", f"floor_a_{a.floora}_{e}_budget_m", f"paired_diff_{a.floora}_{e}", f"paired_diff_{a.floora}_{e}_ci_lo", f"paired_diff_{a.floora}_{e}_ci_hi"]
+fs.require(fb, need, "floor_b_by_background")
+BG = [("B20", "$B$=20"), ("B50", "$B$=50"), ("B200", "$B$=200"), ("kmeans50", "k-means 50")]
+fb = fb[(fb.k == a.k) & fb.dataset.isin(a.datasets)]
+dsets = [d for d in fs.DATASET_TITLE if d in set(fb.dataset)]
+if not dsets: raise SystemExit("no floor_b rows for the selection")
+fig, ax = plt.subplots(2, len(dsets), figsize=(fs.WIDTH_IN, 3.7), squeeze=False, sharey="row")
+rows = []
+xs = {b: i for i, (b, _) in enumerate(BG)}
+for j, ds in enumerate(dsets):
+    g = fb[fb.dataset == ds]
+    models = [m for m in fs.MODELS if m in set(g.model)]
+    for mi, m in enumerate(models):
+        st = fs.MODEL_STYLE[m]; off = (mi - (len(models) - 1) / 2) * 0.12
+        gm = g[g.model == m].set_index("background")
+        pts = [(xs[b] + off, gm.loc[b]) for b, _ in BG if b in gm.index]
+        for x, r in pts:
+            ax[0, j].plot([x, x], [r.ci_lo, r.ci_hi], color=st["color"], lw=0.8)
+        bp = [(xs[b] + off, gm.loc[b]) for b in ("B20", "B50", "B200") if b in gm.index]
+        ax[0, j].plot([x for x, _ in bp], [r.agreement for _, r in bp], color=st["color"], lw=0.6, alpha=0.6)  # B curve (random rows; a missing B is bridged)
+        ax[0, j].plot([x for x, _ in pts], [r.agreement for _, r in pts], color=st["color"], marker=st["marker"], ls="none")
+        for ei, (e, _, _) in enumerate(EST):
+            r0 = gm.iloc[0]; fa = r0[f"floor_a_{a.floora}_{e}"]
+            if pd.notna(fa):  # floor a: run-to-run agreement of the estimator, same instances, drawn right of the backgrounds
+                ax[0, j].plot(4.4 + ei * 0.9 + off, fa, color=st["color"], marker=st["marker"], ls="none", mfc="white" if ei else st["color"], mew=0.9 if ei else None)
+            for b, _ in BG:
+                if b not in gm.index: continue
+                r = gm.loc[b]; dff = r[f"paired_diff_{a.floora}_{e}"]
+                if pd.isna(dff): continue
+                x = xs[b] + off + (ei - 0.5) * 0.05
+                ax[1, j].plot([x, x], [r[f"paired_diff_{a.floora}_{e}_ci_lo"], r[f"paired_diff_{a.floora}_{e}_ci_hi"]], color=st["color"], lw=0.8)
+                ax[1, j].plot(x, dff, color=st["color"], marker=st["marker"], ls="none", mfc="white" if ei else st["color"], mew=0.9 if ei else None)
+                rows.append(dict(dataset=ds, model=m, background=b, estimator_floor_a=e, floor_b=r.agreement, floor_b_ci_lo=r.ci_lo, floor_b_ci_hi=r.ci_hi,
+                                 floor_a=r0[f"floor_a_{a.floora}_{e}"], floor_a_budget_m=r0[f"floor_a_{a.floora}_{e}_budget_m"], paired_diff=dff,
+                                 diff_ci_lo=r[f"paired_diff_{a.floora}_{e}_ci_lo"], diff_ci_hi=r[f"paired_diff_{a.floora}_{e}_ci_hi"], n_instances=int(r.n_instances), K=int(r.K)))
+    nk = g.groupby("model").agg(n=("n_instances", "max"), K=("K", "min"))
+    top = nk.sort_values("n").iloc[-1]; odd = nk[(nk.n != top.n) | (nk.K != top.K)]
+    ax[0, j].set_title(f"{fs.DATASET_TITLE[ds]}\n$n$={int(top.n)}, $K$={int(top.K)}" + "".join(f"; {m.upper()} $n$={int(r.n)}, $K$={int(r.K)}" for m, r in odd.iterrows()), fontsize=fs.MIN_PT)
+    ax[1, j].axhline(0, color="0.4", lw=0.6)
+    ax[0, j].set_xticks(list(range(4)) + [4.4, 5.3]); ax[0, j].set_xticklabels([l for _, l in BG] + ["shap", "paired"], rotation=40, ha="right", rotation_mode="anchor")
+    ax[1, j].set_xticks(range(4)); ax[1, j].set_xticklabels([l for _, l in BG], rotation=40, ha="right", rotation_mode="anchor")
+    ax[0, j].axvline(3.75, color="0.8", lw=0.5); ax[0, j].grid(axis="y", color="0.92", lw=0.4)
+    ax[1, j].grid(axis="y", color="0.92", lw=0.4)
+    ax[0, j].text(4.85, 0.03, "floor a", ha="center", fontsize=fs.MIN_PT, transform=ax[0, j].get_xaxis_transform())
+ax[0, 0].set_ylabel(f"top-{a.k} agreement"); ax[1, 0].set_ylabel("floor b $-$ floor a")
+h = [Line2D([], [], color=fs.MODEL_STYLE[m]["color"], marker=fs.MODEL_STYLE[m]["marker"], ls="none") for m in fs.MODELS if m in set(fb.model)]
+l = [fs.MODEL_STYLE[m]["label"] for m in fs.MODELS if m in set(fb.model)]
+h += [Line2D([], [], color="0.3", marker="o", ls="none"), Line2D([], [], color="0.3", marker="o", mfc="white", ls="none")]
+l += ["floor a: shap Kernel", "floor a: paired Kernel"]
+fig.legend(h, l, loc="upper center", ncol=3, frameon=False, bbox_to_anchor=(0.5, 1.0), columnspacing=1.0, handletextpad=0.3)
+fig.tight_layout(pad=0.4, w_pad=0.4, h_pad=0.6, rect=(0, 0, 1, 0.88))
+bm = {e: sorted(set(r["floor_a_budget_m"] for r in rows if r["estimator_floor_a"] == e and pd.notna(r["floor_a_budget_m"]))) for e, _, _ in EST}
+fs.save(fig, a.out, pd.DataFrame(rows), [p1], note=f"k={a.k}; floor b = pairwise top-k agreement of K independent backgrounds (random rows of B=20/50/200, or 50 k-means medoids), each explained exactly, instance-bootstrap CI; floor a = run-to-run agreement of the same instances at the {a.floora.replace('_', ' ')} budget (m per estimator: {bm}) for the shap Kernel explainer (l1_reg=False) and paired Kernel SHAP (pairs of R=100 runs); bottom = per-instance difference floor b - floor a with CI (negative: the background moves the top-k more than rerunning the estimator); one trained model per cell; the CI is over instances only; models or backgrounds absent from the plot were not delivered: " + str(sorted(set((d_, m_) for d_ in dsets for m_ in fs.MODELS if m_ not in set(fb[fb.dataset == d_].model)))) + ", " + f"backgrounds per model with fewer than four: " + str({f"{k_[0]}/{k_[1]}": sorted(set(x[0] for x in BG) - set(v_.background)) for k_, v_ in fb.groupby(["dataset", "model"]) if v_.background.nunique() < 4}))

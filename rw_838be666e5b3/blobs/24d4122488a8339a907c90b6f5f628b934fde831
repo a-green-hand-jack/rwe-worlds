@@ -1,0 +1,15 @@
+\section{Estimator and intervals}
+\label{sec:method}
+
+The estimator we use to measure headroom is an AIPW-type, cross-fitted version of \eqref{eq:est}; it is textbook cross-fitting \citep{schick1986asymptotically} and double machine learning with a known propensity \citep{chernozhukov2018double} and is not offered as a new method. Split the labeled records into $K$ folds. Fit $\hat g^{(-k)}$ on the labeled records outside fold $k$ (a calibrator of $Y$ on $Z$: isotonic or spline regression on $f$ for T1, gradient boosting on $(f,X)$ for T2), and let $\bar g$ be the average of the fold models. With out-of-fold residuals $h_i=Y_i-\hat g^{(-k(i))}(Z_i)$,
+\begin{align}
+  \hat\theta&=\frac1M\Bigl[\sum_{i\in\mathrm{unl}}\bar g(Z_i)+\sum_{i\in\mathrm{lab}}\hat g^{(-k(i))}(Z_i)\Bigr]+\frac1n\sum_{i\in\mathrm{lab}}h_i,\\
+  \widehat{\mathrm{SE}}^2&=\frac{\widehat\Var(Y)}{M}+\Bigl(\frac1n-\frac1M\Bigr)\widehat\Var(h),
+\end{align}
+with $\widehat\Var(Y)$ the labeled sample variance and $\widehat\Var(h)$ the variance of the pooled out-of-fold residuals. The interval is $\hat\theta\pm z_{1-\alpha/2}\widehat{\mathrm{SE}}$ unless another construction is named.
+
+\paragraph{Validity needs stability, not accuracy.}
+Because the propensity is known, \eqref{eq:Vg} holds for the limit of $\hat g$ whatever that limit is: if $\hat g$ converges in $L^2$ to some fixed $g_{\lim}$ (cross-fit stability), with i.i.d.\ records, MCAR labels and finite second moments, the interval is asymptotically valid. A poor calibrator therefore costs width ($V(g_{\lim})>\Vstar$), not coverage. So the comparison with PPI++ is fair: both are valid, and what differs is width. In finite samples the learning noise in $\hat g$ is not covered by this argument, which is why coverage is measured in every cell (\cref{sec:experiments}).
+
+\paragraph{Interval construction as a second factor.}
+Width is the standard error times a critical value. For binary $Y$ the Wald construction is not the only choice (Wilson-type, bootstrap-$t$, $t$ quantiles) and others may be better calibrated at small $n$ for every method; we treat it as a second factor in \cref{app:constructions}.

@@ -1,0 +1,12 @@
+{
+  "claim": "C0",
+  "figure": "figA1_spectra",
+  "generated": "2026-11-25",
+  "height_in": 2.2,
+  "inputs": {
+    "datasets.csv": "d1fd92f9a98f",
+    "spectra.csv": "26032df1acb5"
+  },
+  "scope": "first 20 components of the standardised dense-pool correlation matrix",
+  "width_in": 5.5
+}

@@ -1,0 +1,24 @@
+import fitz,re,sys,glob,json
+res=[]
+for f in sorted(glob.glob('/hutian/venue_data/pdfs/*.pdf')):
+    d=fitz.open(f); n=len(d)
+    pages=[p.get_text() for p in d]
+    # first page with References heading (line-only)
+    ref=None
+    for i,t in enumerate(pages):
+        if re.search(r'^\s*(References|REFERENCES|Bibliography)\s*$',t,re.M): ref=i;break
+    # main text = pages[0..ref] ; text before heading on ref page counts as a partial page
+    main=''.join(pages[:ref])+re.split(r'^\s*(?:References|REFERENCES|Bibliography)\s*$',pages[ref],flags=re.M)[0] if ref is not None else ''
+    figs=sorted(set(int(x) for x in re.findall(r'^\s*(?:Figure|Fig\.)\s+(\d+)\s*[:.]',main,re.M)))
+    tabs=sorted(set(int(x) for x in re.findall(r'^\s*Table\s+(\d+)\s*[:.]',main,re.M)))
+    # abstract
+    m=re.search(r'Abstract\s*(.+?)(?:\n\s*1\s+Introduction|\n\s*1\s*\n\s*Introduction|\n\s*Introduction)',pages[0],re.S)
+    ab=m.group(1) if m else ''
+    # refs count on pages ref..
+    reft=''.join(pages[ref:]) if ref is not None else ''
+    reft=re.split(r'^\s*(?:Appendix|A\s+Appendix|Checklist|NeurIPS Paper Checklist)',reft,flags=re.M)[0]
+    nref=len(re.findall(r'^\s*\[\d+\]',reft,re.M))
+    # fallback: count years
+    res.append(dict(f=f.split('/')[-1],pages=n,ref_page=ref+1 if ref is not None else None,figs=figs,tabs=tabs,abstract_words=len(ab.split()),nref=nref))
+    print(res[-1])
+json.dump(res,open('/hutian/venue_data/analysis_raw.json','w'))

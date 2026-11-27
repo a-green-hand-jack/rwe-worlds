@@ -1,0 +1,30 @@
+"""Load result files from experiment-repo and fail loudly on a missing column."""
+import os
+import pandas as pd
+
+REQUIRED = {
+    "curves": ["dataset", "split", "selector", "predictor", "k", "metric", "mean", "ci_lo", "ci_hi",
+               "n_families", "n_models", "n_targets"],
+    "refs": ["dataset", "split", "reference", "metric", "value"],
+    "closure": ["dataset", "split", "selector", "predictor", "k", "C_lobo", "C_lobo_lo", "C_lobo_hi"],
+    "kstar": ["dataset", "level", "reference", "kstar", "censored", "r_eff", "h1_outcome"],
+    "gap": ["dataset", "comparison", "k", "gap", "ci_lo", "ci_hi"],
+    "bias": ["dataset", "split", "k", "stratum", "signed_bias", "ci_lo", "ci_hi", "n"],
+    "theory": ["dataset", "tier", "k", "predicted_reducible", "empirical_reducible", "ci_lo", "ci_hi"],
+    "theory_gap": ["dataset", "tier", "median_rel_gap"],
+    "coherence": ["dataset", "fit_id", "k", "gap_random_greedy", "coherence"],
+    "datasets": ["dataset", "n_models", "n_tasks", "density", "dense_pool_models", "dense_pool_tasks", "n_families"],
+    "spectra": ["dataset", "component", "explained_variance_share"],
+}
+
+
+def load(resdir, name):
+    for ext, rd in ((".csv", pd.read_csv), (".parquet", pd.read_parquet)):
+        p = os.path.join(resdir, name + ext)
+        if os.path.exists(p):
+            df = rd(p)
+            miss = [c for c in REQUIRED[name] if c not in df.columns]
+            if miss:
+                raise SystemExit(f"{p}: missing columns {miss}")
+            return df, p
+    raise SystemExit(f"{resdir}/{name}.csv|parquet not found (delivered by experiment-repo)")

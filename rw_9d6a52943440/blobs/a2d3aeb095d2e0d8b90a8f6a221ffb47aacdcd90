@@ -1,0 +1,83 @@
+"""Loading, de-duplication and family derivation for the 13 binary score matrices."""
+import re
+from pathlib import Path
+import joblib
+import numpy as np
+
+RAW = Path(__file__).resolve().parents[2] / "data" / "raw"
+PROC = Path(__file__).resolve().parents[2] / "data" / "processed"
+OLL = ["arc_challenge", "bbh", "gpqa", "ifeval", "mmlu_pro", "musr", "openllm_math"]
+HELM = ["commonsense", "gsm", "legalbench", "math", "med_qa", "mmlu"]
+BENCHES = OLL + HELM
+
+# ordered keyword -> family; first match on the lower-cased model name wins, else the org prefix.
+_KEYS = [
+    ("qwen", "qwen"), ("llama", "llama"), ("mixtral", "mistral"), ("mistral", "mistral"), ("gemma", "gemma"),
+    ("phi-", "phi"), ("phi_", "phi"), ("microsoft_phi", "phi"), ("/phi", "phi"), ("yi-", "yi"), ("yi_", "yi"),
+    ("falcon", "falcon"), ("olmo", "olmo"), ("deepseek", "deepseek"), ("gpt-4", "openai-gpt"),
+    ("gpt-3.5", "openai-gpt"), ("gpt-neo", "eleuther"), ("pythia", "eleuther"), ("davinci", "openai-gpt"),
+    ("claude", "claude"), ("gemini", "gemini"), ("command", "cohere"), ("jamba", "jamba"), ("solar", "solar"),
+    ("smollm", "smollm"), ("internlm", "internlm"), ("glm", "glm"), ("nemotron", "nemotron"),
+    ("tulu", "llama"), ("zephyr", "mistral"), ("opt-", "opt"), ("bloom", "bloom"), ("granite", "granite"),
+    ("luminous", "luminous"), ("j2-", "jurassic"), ("palmyra", "palmyra"), ("bison", "palm"), ("unicorn", "palm"),
+    ("dbrx", "dbrx"), ("arctic", "arctic"),
+]
+
+
+def family_of(name: str) -> str:
+    n = name.lower()
+    for k, f in _KEYS:
+        if k in n:
+            return f
+    org = re.split(r"[/_]", n)[0]
+    return org
+
+
+def _load_oll(b):
+    X = np.asarray(joblib.load(RAW / f"scores_{b}.jbl"))
+    names = list(joblib.load(RAW / f"{b}_models.jbl"))
+    seen, keep = set(), []
+    for i, n in enumerate(names):
+        if n not in seen:
+            seen.add(n); keep.append(i)
+    return X[keep].astype(np.uint8), [names[i] for i in keep], len(names) - len(keep)
+
+
+def _load_helm(b):
+    X = np.asarray(joblib.load(RAW / f"scores_{b}.jbl")).astype(np.uint8)
+    lst = [l for l in (RAW / "helm_model_list.txt").read_text().split("\n") if l]
+    if X.shape[0] == len(lst):
+        return X, lst, 0
+    return X, None, 0  # legalbench: 79 rows, row->model mapping not published
+
+
+def load_raw(b):
+    return _load_oll(b) if b in OLL else _load_helm(b)
+
+
+def prepare(b):
+    """Return dict with Y (M,N) uint8, names, families, info. Drops rows identical to an earlier row
+    (same response vector under another name) and items answered identically by all models."""
+    X, names, ndup_name = load_raw(b)
+    assert set(np.unique(X)) <= {0, 1}
+    unknown_names = names is None
+    if unknown_names:
+        names = [f"{b}_row{i}" for i in range(X.shape[0])]
+    _, first = np.unique(X, axis=0, return_index=True)
+    keep = np.sort(first)
+    ndup_row = X.shape[0] - len(keep)
+    X, names = X[keep], [names[i] for i in keep]
+    fams = [family_of(n) if not unknown_names else n for n in names]
+    const = (X.min(0) == X.max(0))
+    return dict(Y=X, names=np.array(names), families=np.array(fams), n_const_items=int(const.sum()),
+                n_dup_name=ndup_name, n_dup_row=ndup_row, families_known=not unknown_names, bench=b)
+
+
+def get(b):
+    PROC.mkdir(parents=True, exist_ok=True)
+    f = PROC / f"{b}.npz"
+    if not f.exists():
+        d = prepare(b)
+        np.savez_compressed(f, **{k: v for k, v in d.items()})
+    z = np.load(f, allow_pickle=False)
+    return {k: z[k] for k in z.files}

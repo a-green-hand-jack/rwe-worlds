@@ -1,0 +1,35 @@
+# Review of paper-repo#7 (main -> final), head 13c249e537a1
+
+Document read: `document` branch, `main/document.pdf`, built-from 13c249e537a179f2e8e5b712371046b74a68cff7 (= head of main). 24 pages: main text 9 pages, references, appendices A-D, checklist.
+
+## What the paper claims
+Protocol (family-held-out, fit-before-select, paired family-clustered intervals) for "which k benchmarks to run on a new model"; factor model + greedy Bayesian A-optimal selection; on three dense blocks (MTEB-Eng 124x70, MTEB-Multi 117x247, HELM MMLU 79x57) k=3 closes 81-96% of the column-mean-to-LOBO gap, k*(0.9) = 1 (HELM MMLU) vs >=9 (MTEB, wide CIs); greedy beats random by 6-11% of error (mostly k<=3); later/stronger models predicted worse and too low; closed-form risk exact with known parameters, 36-69% off in level on real data; pre-specified H1 and H4 fail, H2 holds on one pool.
+
+## Checked against code and results
+Recomputed from `results/*.csv` (closure.csv, kstar.csv, gap.csv, paired_comparisons.csv, theory_gap.csv): C(3) 0.81/0.82/0.96; k* table incl. CIs and censoring shares; grid-averaged greedy-minus-random gaps and CIs (-0.038/-0.076/-0.044; 6.1/11.3/7.6%); per-k relative gaps (5-18% at k<=3, 1-5% at k=10, <3% at k=20); theory medians (0.5%, 26.7%->1.5%, 36/47/69%). All match the paper. `code/DEVIATIONS.md` and `code/RESULTS.md` agree with the paper's account of departures. The README maps every result file to a script, with pins, seeds, versions and run times. Negative and unexpected results (H1, H2 margin, H4, coherence argument, vacuous Chernoff, factor model no better than ridge) are reported as they fell. No fabricated number found.
+
+## Strongest objections a reviewer would raise, and whether answered
+1. **Setting and external validity (not answered) - must M1.** The task's setting is a leaderboard matrix with missing cells and a new model with a few measured entries. Every result is on dense blocks the study cut out (124 of 535 models x 70 of 567 tasks; 117 x 247 of 535 x 1256), which Table 1 shows differ from the rest (outside models larger, newer, 0.7-0.9 SD higher). The method and code already have a masked-EM variant (`bmk/fa.py`), yet it is never run on a sparse matrix; the history sweep only masks cells of a dense history while test models stay complete. Narrowing the claim to "the pool" (as the paper does) is honest but leaves the central question - does greedy selection + factor model work on the leaderboard as it is - unanswered. What would answer it: run the grouped protocol on the full sparse MTEB matrix (or on graded-density subsets, e.g. models/tasks with coverage >= 30/50/70%), with the factor model fitted by masked EM, candidate set = benchmarks observed for the test model, targets = a random 30% of its observed cells; report greedy A vs random vs column mean and the k-curve with family-clustered intervals, and say how closure is defined there (LOBO analogue on observed cells). A main-text paragraph/figure plus an appendix table is enough; the dense-pool results stay the controlled experiment.
+2. **Novelty (partly answered, may).** Method is a known toolkit; the contribution is protocol + empirical findings + theory test. The paper says so openly; it is thin on method novelty but honest.
+3. **Baselines (answered).** Seven selectors incl. oracle, five predictors, adaptive selection, best-simple; paired intervals.
+4. **Certainty of numbers (answered).** Family-clustered paired bootstrap, censoring shares, transform sensitivity, organisation-level families, near-duplicate removal.
+5. **Readability (mostly answered, may).** The main text is dense: Section 6.2-6.5 carry many numbers and parenthetical caveats; the abstract uses undefined terms (A-optimal, closure) for a first reader.
+
+## Findings
+- **must M1**: above (no sparse-matrix evaluation; objective item 3 and the stated setting with missing cells).
+- may m1: abstract states greedy beats random by 6-11% but not that the pre-specified 10% margin (H2) is met on one pool of three; the body says so. Say it in one clause.
+- may m2: checklist item 2 says "seven limitations", Section 7 lists six; checklist item 8 says 5-20 CPU minutes, Appendix D says 2-22.
+- may m3: define "closure" and "A-optimal" in one phrase each in the abstract.
+- may m4: "pre-specified/pre-registered" is asserted; state where the record is (Brief revision/commit) so a reader can check.
+
+## Decision
+Request changes on #7: M1 holds the final. Everything else checked is supported.
+
+## Update: check of the answer to M1 (experiment-repo#6, paper-repo dev 4aaa293)
+
+Checked the delivered sparse-matrix results against the CSVs and `code/bmk/sparse.py` (`run_sparse`):
+- Closure at k=3 for greedy A and random under `fa` and `pw`, recomputed from `results/sparse_closure.csv`, matches the figures reported in the issue (greedy A 0.71-0.80; random with `pw` 0.55-0.74).
+- The protocol is sound for the question: the selector and predictors are fitted on training families only, with columns standardised on observed cells; candidates and targets are drawn from the test model's own observed cells; greedy A and random use the same candidate set and targets; the LOBO analogue is the lower of two predictors using all of C, so closure is not capped at 1 (stated).
+- Density runs from 21 % to 70 %, English and all-task subsets; this answers M1 as a result. Open conditions for the paper: identity transform only, no density below 21 %, models with fewer than 30 observed cells are not tested, k* intervals wide (e.g. [3, >20] on eng_full), `pw` k=20 gap on eng_full includes 0.
+
+Status: M1 is answered by the analysis. It is not yet in the paper: `paper-repo` dev (4aaa293) holds the code and CSVs, but the text and a figure/table for them are still to come, and #7 is still at 13c249e. Approval waits for a new version whose text reports the sparse results with their intervals and conditions, and does not claim k* without its interval.

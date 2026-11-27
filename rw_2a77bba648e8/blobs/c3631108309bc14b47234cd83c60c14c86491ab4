@@ -1,0 +1,54 @@
+"""Exposure-based estimators under cluster designs:  python analysis/make_ht.py RAWK_DIR OUT.csv
+Per (cluster run, mechanism, s) at noise level m = 0.5: bias, SD, RMSE (95% graph-draw CI), fraction of draws where the estimator is defined, and the paired log RMSE ratio to
+DM and to the Chin regression, for the self-normalised exposure estimators hajek75 / hajek100 (Hajek form of the Ugander et al. cluster-randomisation estimator, q = 0.75
+and 1) and their unnormalised Horvitz-Thompson forms ht75 / ht100 (exposure probabilities of the cluster design by Monte Carlo, M = 1000, floor 1e-4)."""
+import glob
+import os
+import sys
+
+import numpy as np
+import pandas as pd
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import agg  # noqa: E402
+from gate import mech  # noqa: E402
+from gate.sim import NOISE_M  # noqa: E402
+
+EST = ["dm", "chin", "hajek75", "ht75", "hajek100", "ht100"]
+
+
+def main(rawk, out):
+    rows = []
+    for f in sorted(glob.glob(os.path.join(rawk, "*.pkl"))):
+        run = agg.Run(f)
+        cfg = run.cfg
+        gm = run.o["gmeta"]
+        for j, (mname, s) in enumerate(run.cols):
+            if s not in (0.0, 0.5):
+                continue
+            xs = {e: run.err(e, j, NOISE_M) for e in EST}
+            for e in EST:
+                x = xs[e]
+                if x is None or np.all(np.isnan(x)):
+                    continue
+                st = agg.metrics(x, seed=j)
+                if st is None:
+                    continue
+                r = dict(run_id=cfg["id"], graph=cfg["family"], d_target=cfg["d"], p=cfg["p"], resolution=cfg.get("res", np.nan),
+                         n_clusters=float(np.mean([g["nclus"] for g in gm])), mechanism=mname, s=s, estimator=e,
+                         n_draws=st["n_draws"], defined=st["defined"], bias=st["bias"], sd=st["sd"], rmse=st["rmse"],
+                         rmse_mc_lo=st["rmse_lo"], rmse_mc_hi=st["rmse_hi"])
+                for ref in ("dm", "chin"):
+                    if e != ref and xs[ref] is not None:
+                        lr = agg.log_ratio(x, xs[ref], seed=j)
+                        if lr is not None:
+                            r[f"log_ratio_vs_{ref}"], r[f"log_ratio_vs_{ref}_lo"], r[f"log_ratio_vs_{ref}_hi"] = lr
+                rows.append(r)
+    df = pd.DataFrame(rows)
+    df.to_csv(out, index=False)
+    print(df.groupby("estimator").agg(cells=("rmse", "size"), defined=("defined", "mean"), median_rmse=("rmse", "median")))
+
+
+if __name__ == "__main__":
+    main(sys.argv[1], sys.argv[2])

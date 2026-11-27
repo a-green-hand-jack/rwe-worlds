@@ -1,0 +1,57 @@
+"""Step 0a: parse MTEB results (pinned commit 6dabbcc) into a long table.
+
+One row per (model dir, revision dir, task, split, hf_subset) with main_score.
+Run: python3 parse_mteb.py <results_dir> <out.parquet>
+"""
+import json, os, sys
+from multiprocessing import Pool
+import pandas as pd
+
+root, out = sys.argv[1], sys.argv[2]
+SPLIT_PRIORITY = ["test", "validation", "dev", "train"]
+
+def parse_model(m):
+    rows, meta_rows = [], []
+    mp = os.path.join(root, m)
+    for rev in sorted(os.listdir(mp)):
+        rp = os.path.join(mp, rev)
+        if not os.path.isdir(rp):
+            continue
+        meta = {}
+        mf = os.path.join(rp, "model_meta.json")
+        if os.path.exists(mf):
+            try:
+                meta = json.load(open(mf))
+            except Exception:
+                meta = {}
+        meta_rows.append(dict(model=m, rev=rev, name=meta.get("name"), release_date=meta.get("release_date"),
+                              n_parameters=meta.get("n_parameters"), adapted_from=meta.get("adapted_from"),
+                              open_weights=meta.get("open_weights"), embed_dim=meta.get("embed_dim"),
+                              max_tokens=meta.get("max_tokens")))
+        for f in os.listdir(rp):
+            if not f.endswith(".json") or f == "model_meta.json":
+                continue
+            try:
+                d = json.load(open(os.path.join(rp, f)))
+            except Exception:
+                continue
+            sc = d.get("scores", {})
+            for split in SPLIT_PRIORITY:
+                if split in sc and sc[split]:
+                    for e in sc[split]:
+                        if e.get("main_score") is None:
+                            continue
+                        rows.append((m, rev, d.get("task_name", f[:-5]), split, e.get("hf_subset", "default"),
+                                     float(e["main_score"])))
+    return rows, meta_rows
+
+if __name__ == "__main__":
+    models = sorted(x for x in os.listdir(root) if os.path.isdir(os.path.join(root, x)))
+    with Pool(4) as p:
+        res = p.map(parse_model, models, chunksize=4)
+    rows = [r for a, _ in res for r in a]
+    meta = [r for _, b in res for r in b]
+    df = pd.DataFrame(rows, columns=["model", "rev", "task", "split", "subset", "score"])
+    df.to_parquet(out)
+    pd.DataFrame(meta).to_parquet(out.replace(".parquet", "_meta.parquet"))
+    print(len(models), "models", len(df), "rows", df.task.nunique(), "tasks", flush=True)

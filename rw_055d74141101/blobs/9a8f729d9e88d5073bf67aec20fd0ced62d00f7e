@@ -1,0 +1,55 @@
+"""Table 3: predictive rule log k* ~ intercept + log z + log N + log density + tie rate (z in [1,8]), one column per perturbation family.
+Blocks: full-fit coefficients (data-set-bootstrap intervals); leave-one-data-set-out RMSE of the rule against the reference predictors of C5
+(all held-out units); the squared-error gain of the rule over each reference; the design term; leave-one-design-out RMSE.
+The 89-unit `design_comparison_units` variant of the reference rows is in predictive_rule.csv and not printed here."""
+import os
+from common import args, load, write_table, tex_escape as E, fmt
+a = args("tab3"); os.makedirs(a.out, exist_ok=True); prov = {"inputs": {}}
+df = load(a.data, "predictive_rule.csv", ["term", "coef", "lo", "hi", "heldout_scheme", "n_heldout_units", "perturbation"], prov)
+fams = [f for f in ("delete", "flip") if f in set(df.perturbation)] + sorted(set(df.perturbation) - {"delete", "flip"})
+NAME = {"intercept": "intercept", "log_z": r"$\log z$", "log_N": r"$\log N$", "log_density": r"$\log$ density", "tie_rate": "tie rate"}
+REF = [("intercept_only", "mean only"), ("log_z_only", r"$\log z$ only"), ("base_model", "regression (base)"),
+       ("first_order_rescaled", "first-order estimate rescaled by its median bias"), ("null_mean", "same-graph null mean at the pair's $z$"),
+       ("null_mean_rescaled", "null mean at the pair's $z$, rescaled")]
+def get(t, f, scheme=None):
+    g = df[(df.term == t) & (df.perturbation == f)]
+    if scheme: g = g[g.heldout_scheme.str.contains(scheme, regex=False)]
+    return g.iloc[0] if len(g) else None
+def fx(x, nd):
+    s = f"{x:.{nd}f}"
+    return "$-$" + s.lstrip("-") if x < 0 else s
+def cell(r, nd=3):
+    if r is None: return "--"
+    iv = "" if r.lo != r.lo else f" [{fx(r.lo, nd)}, {fx(r.hi, nd)}]"
+    return fx(r.coef, nd) + iv
+def units(t, scheme=None):
+    us = [get(t, f, scheme) for f in fams]; us = [int(u.n_heldout_units) for u in us if u is not None]
+    return str(max(us)) if us else ""
+def block(title): return [rf"\multicolumn{{{len(fams) + 2}}}{{l}}{{\textit{{{title}}}}}"]
+rows = [block(r"full-fit coefficients of $\log k^*$ (all data sets; 95\% data-set bootstrap)")]
+full = df[df.heldout_scheme.str.startswith("none")]
+for t in NAME:
+    if t in set(full.term):
+        rows.append([NAME[t]] + [cell(get(t, f, "none")) for f in fams] + [""])
+rows += [[r"\midrule"], block(r"leave-one-data-set-out RMSE of $\log k^*$ (95\% bootstrap over units)")]
+for k, nm in REF:
+    rows.append([nm] + [cell(get(f"heldout_rmse_ref[{k}][all_units]", f)) for f in fams] + [units(f"heldout_rmse_ref[{k}][all_units]")])
+rows.append(["regression plus design term"] + [cell(get("heldout_rmse_design_model", f)) for f in fams] + [units("heldout_rmse_design_model")])
+rows += [[r"\midrule"], block(r"squared-error difference to the base regression (reference $-$ base; $>0$: reference worse)")]
+for k, nm in REF:
+    if k == "base_model": continue
+    rows.append([nm] + [cell(get(f"heldout_sq_err_diff({k}-base)[all_units]", f)) for f in fams] + [units(f"heldout_sq_err_diff({k}-base)[all_units]")])
+rows += [[r"\midrule"], block("design term: gain of adding design dummies to the rule (held-out)")]
+for lab, t in (("mean gain", "heldout_sq_err_diff(base-design)"), ("median gain", "heldout_sq_err_diff(base-design)_median_over_units"),
+               ("mean gain, ridge-shrunk dummies", "heldout_sq_err_diff(base-design)_ridge"), ("median gain, ridge-shrunk dummies", "heldout_sq_err_diff(base-design)_ridge_median_over_units")):
+    rows.append([lab] + [cell(get(t, f), 4) for f in fams] + [units(t)])
+for lab, t in (("units improved", "n_heldout_units_where_design_better"), ("units improved, ridge", "n_heldout_units_where_design_better_ridge")):
+    rows.append([lab] + [str(int(get(t, f).coef)) if get(t, f) is not None else "--" for f in fams] + [units(t)])
+rows += [[r"\midrule"], block("leave-one-design-out RMSE of the rule (units of the left-out design)")]
+for d in ("crowd", "expert", "llm_judge", "sports"):
+    t = f"heldout_rmse_base[{d}]"
+    if (df.term == t).any():
+        rows.append([E(d.replace("_", " "))] + [cell(get(t, f)) for f in fams] + [units(t)])
+prov["families"] = fams; prov["n_full_fit_units"] = {f: int(full[full.perturbation == f].n_units.iloc[0]) for f in fams if "n_units" in full and (full.perturbation == f).any()}
+prov["omitted"] = "design_comparison_units (89-unit) variants of the reference rows; see predictive_rule.csv"
+write_table(a.out, "tab3", ["term"] + fams + ["units"], rows, "p{2.1in}" + "r" * len(fams) + "r", prov, tabcolsep=3)

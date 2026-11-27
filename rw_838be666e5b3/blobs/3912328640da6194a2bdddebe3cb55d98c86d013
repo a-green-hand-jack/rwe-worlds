@@ -1,0 +1,43 @@
+"""E2: PPI++ (ppi-python 0.2.3, tuned lambda) vs the pooled linear estimator with the in-sample OLS slope b:
+identical estimators iff lambda = b N / M (algebra in the Brief). Checks, per pool, over 500 draws:
+(i) |est difference| in units of the interval half-width, (ii) width ratio, (iii) lambda_hat / (b_hat N/M).
+Writes results/exp2_equiv.csv."""
+import sys
+from common import *
+import pandas as pd
+from ppi_py import ppi_mean_ci
+from ppi_py.ppi import _calc_lam_glm
+from ppi_py import ppi_mean_pointestimate
+
+rows = []
+for name in ["galaxies", "forest", "alphafold", "gene_expression", "census_income", "census_healthcare", "census_education", "plankton", "ballots"]:
+    pop = load_pool(name)
+    for n, N in ((100, 1000), (500, 5000), (500, 500)):
+        if name in ("forest",) and n > 200:
+            continue
+        if name == "ballots" and n > 200:
+            continue
+        rng = np.random.default_rng(1)
+        dest, wr, lr = [], [], []
+        for r in range(500):
+            s = pop.draw(rng, n, N)
+            y, fl, fu = s["y"], s["fl"], s["fu"]
+            lo, hi = ppi_mean_ci(y, fl, fu, alpha=0.05)
+            lo, hi = float(np.squeeze(lo)), float(np.squeeze(hi))
+            est_p = (float(lo) + float(hi)) / 2
+            # lambda used by the package (re-derived as in ppi_mean_ci)
+            p1 = ppi_mean_pointestimate(y, fl, fu, lam=1)
+            lam = float(np.squeeze(_calc_lam_glm((y - p1)[:, None], (fl - p1)[:, None], (fu - p1)[:, None], np.eye(1), clip=True)))
+            A = np.column_stack([np.ones(n), fl]); b = np.linalg.lstsq(A, y, rcond=None)[0][1]
+            M = n + N
+            g_l, g_u = A @ np.linalg.lstsq(A, y, rcond=None)[0], np.column_stack([np.ones(N), fu]) @ np.linalg.lstsq(A, y, rcond=None)[0]
+            h = y - g_l
+            est_q = (g_u.sum() + g_l.sum()) / M + h.mean()
+            se_q = np.sqrt(y.var(ddof=1) / M + (1 / n - 1 / M) * h.var(ddof=1))
+            hw_p = (float(hi) - float(lo)) / 2
+            dest.append(abs(est_p - est_q) / hw_p); wr.append(se_q * 1.96 / hw_p)
+            lr.append(lam / (b * N / M) if abs(b) > 1e-12 else np.nan)
+        rows.append(dict(pop=name, n=n, N=N, med_abs_est_diff_over_halfwidth=np.median(dest), max_abs_est_diff_over_halfwidth=np.max(dest),
+                         mean_width_ratio_pool_over_ppi=np.mean(wr), sd_width_ratio=np.std(wr), median_lam_ratio=np.nanmedian(lr)))
+        print(rows[-1], flush=True)
+        pd.DataFrame(rows).to_csv(os.path.join(RESULTS, "exp2_equiv.csv"), index=False)

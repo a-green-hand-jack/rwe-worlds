@@ -1,0 +1,122 @@
+"""Gap between the reported (naive) score and fresh-item accuracy on the real item x configuration matrix
+(claims C1-C3).  Truth = accuracy on pool items outside S.  Uncertainty: pool-bootstrap replicates (rep >= 0) plus the
+original pool (rep = -1, more draws).  One row = (rep, group, cell) aggregated over draws of S.
+
+group "c1": per draw one S; every searcher runs on the same S (paired comparisons for C3):
+            random B in {5, 20, 100}, exhaustive grid, hill-climb, successive halving matched to B = 20 and 100.
+group "c2": factorial arm for the drivers: K nominal in {8, 32, 128} x spread stratum (full / central half / tight window
+            of the configurations by pool accuracy) x n; exhaustive search inside the candidate set; search-log
+            predictors computed on the same S.
+Usage: python real_gap.py --matrix data/matrix_Y.npz --out FILE.jsonl --workers W [--draws D] [--reps R]"""
+import sys, os, json, time, argparse, zlib
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "analysis"))
+import numpy as np
+from multiprocessing import Pool
+from core import World, SEARCHERS, kappa_max, predictor_refined, keff
+from run_protocols import calibrate_f0
+
+NS = (30, 60, 100, 200, 400)
+C1_SEARCH = [("random", 5), ("random", 20), ("random", 100), ("exhaustive", 128), ("hillclimb", None), ("sh", 20), ("sh", 100)]
+KS = (8, 32, 128); STRATA = ("full", "half", "tight"); C2_NS = (60, 120, 240)
+DEFAULT = 0
+M = None
+
+
+def world_of(rep):
+    Y, factors = M
+    if rep < 0: return World(Y, ids=np.arange(len(Y)), factors=factors)
+    rng = np.random.default_rng([11, rep]); idx = rng.integers(0, len(Y), len(Y))
+    return World(Y[idx], ids=idx, factors=factors)
+
+
+def stratum_cands(world, stratum, K, rng):
+    p = world.Y.mean(0); order = np.argsort(p)
+    if stratum == "full": pool = np.arange(world.K)
+    elif stratum == "half": pool = order[world.K // 4: 3 * world.K // 4]               # central half by pool accuracy
+    else:                                                                          # densest window of 0.02
+        j = [np.searchsorted(p[order], p[order[i]] + 0.02, side="right") - i for i in range(len(p))]; i0 = int(np.argmax(j))
+        pool = order[i0:i0 + j[i0]]
+    K = min(K, len(pool)); return np.sort(rng.choice(pool, K, replace=False)), len(pool)
+
+
+def task(a):
+    group, rep, n, draws, spec = a
+    t0 = time.time(); world = world_of(rep); Y = world.Y
+    rng = np.random.default_rng([19, rep + 1, n, zlib.crc32((group + str(spec)).encode()) % 10000])
+    rows = []
+    if group == "c1":
+        specs = C1_SEARCH; acc = {s: [] for s in specs}; ref = []
+        f0 = {B: calibrate_f0(world.K, n, B) for (nm, B) in specs if nm == "sh"}
+        allc = np.arange(world.K)
+        for _ in range(draws):
+            S = world.draw_S(n, rng); tv = world.truth_vec(S); se = lambda c: world.fresh_se(S, c)
+            ref.append((Y[S, DEFAULT].mean(), tv[DEFAULT], Y[S].mean(), tv.mean(), tv.max(), Y[S].mean(0).max()))
+            for (nm, B) in specs:
+                if nm == "random": c, cells, info = SEARCHERS["random"](world, S, allc, rng, B=B)
+                elif nm == "exhaustive": c, cells, info = SEARCHERS["random"](world, S, allc, rng, B=None)
+                elif nm == "hillclimb": c, cells, info = SEARCHERS["hillclimb"](world, S, allc, rng)
+                else: c, cells, info = SEARCHERS["sh"](world, S, allc, rng, f0=f0[B])
+                rep_, fresh = Y[S, c].mean(), tv[c]
+                r = dict(rep_=rep_, fresh=fresh, se=se(c), cells=cells / n, c=c, poolacc=Y[:, c].mean())
+                if nm in ("random", "exhaustive") and (B in (20, 100) or nm == "exhaustive"):
+                    ev = info["evaluated"]; Ys = Y[S][:, ev].astype(float)
+                    k = kappa_max(Ys, rng, B=200); r["pk"] = k[0]; r["ps"] = k[2]
+                    ref_ = predictor_refined(Ys, rng, B=200); r["pr"] = ref_[0]; r["sh"] = ref_[1]; r["keff"] = keff(k[1], len(ev))
+                acc[(nm, B)].append(r)
+        for (nm, B), L in acc.items():
+            g = lambda k: np.array([x[k] for x in L], float)
+            row = dict(group="c1", rep=rep, n=n, searcher=nm, B=B, draws=draws, gap=float((g("rep_") - g("fresh")).mean()),
+                       reported=float(g("rep_").mean()), fresh=float(g("fresh").mean()), fresh_se=float(g("se").mean()),
+                       evals=float(g("cells").mean()), gap_sd_draws=float((g("rep_") - g("fresh")).std()),
+                       gap_vs_pool=float((g("rep_") - g("poolacc")).mean()))   # against accuracy on the whole pool (S included): free of the finite-population shift at large n/N
+            if "pk" in L[0]:
+                row.update(pred_kappa=float(g("pk").mean()), pred_refined=float(g("pr").mean()), keff=float(g("keff").mean()),
+                           sigma_theta_hat=float(g("sh").mean()), sigma_bar=float(g("ps").mean()))
+            rows.append(row)
+        R = np.array(ref); row = dict(group="c1_ref", rep=rep, n=n, draws=draws, default_reported=float(R[:, 0].mean()), default_fresh=float(R[:, 1].mean()),
+                                      mean_reported=float(R[:, 2].mean()), mean_fresh=float(R[:, 3].mean()), oracle_fresh=float(R[:, 4].mean()),
+                                      best_reported_all=float(R[:, 5].mean()))
+        rows.append(row)
+    else:
+        K, stratum = spec; cand, npool = stratum_cands(world, stratum, K, rng)
+        p = Y.mean(0)[cand]; L = []
+        for _ in range(draws):
+            S = world.draw_S(n, rng); c, cells, info = SEARCHERS["random"](world, S, cand, rng, B=None)
+            Ys = Y[S][:, cand].astype(float); k = kappa_max(Ys, rng, B=200); rf = predictor_refined(Ys, rng, B=200)
+            L.append((Y[S, c].mean() - world.truth(S, c), k[0], rf[0], keff(k[1], len(cand)), rf[1], k[2]))
+        L = np.array(L)
+        rows.append(dict(group="c2", rep=rep, n=n, K_nominal=int(len(cand)), stratum=stratum, stratum_size=int(npool), draws=draws,
+                         sigma_theta_pool=float(p.std()), gap=float(L[:, 0].mean()), pred_kappa=float(L[:, 1].mean()), pred_refined=float(L[:, 2].mean()),
+                         keff=float(L[:, 3].mean()), sigma_theta_hat=float(L[:, 4].mean()), sigma_bar=float(L[:, 5].mean()), gap_sd_draws=float(L[:, 0].std())))
+    key = (group, rep, n, str(spec))
+    for r in rows: r["tk"] = str(key)
+    return key, rows, time.time() - t0
+
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser(); ap.add_argument("--matrix", default="data/matrix_Y.npz"); ap.add_argument("--out", required=True)
+    ap.add_argument("--workers", type=int, default=4); ap.add_argument("--draws", type=int, default=100); ap.add_argument("--draws0", type=int, default=1000)
+    ap.add_argument("--reps", type=int, default=200); ap.add_argument("--groups", default="c1,c2"); ap.add_argument("--quick", action="store_true")
+    a = ap.parse_args()
+    z = np.load(a.matrix); M = (z["Y"], z["factors"])
+    reps = list(range(-1, a.reps)); ns1 = NS[:2] if a.quick else NS
+    tasks = []
+    for rep in reps:
+        d = a.draws0 if rep < 0 else a.draws
+        if "c1" in a.groups:
+            for n in ns1: tasks.append(("c1", rep, n, d, None))
+        if "c2" in a.groups:
+            for n in C2_NS[:1] if a.quick else C2_NS:
+                for K in KS:
+                    for s in STRATA:
+                        if K == 128 and s != "full": continue      # the full grid has only one candidate set
+                        tasks.append(("c2", rep, n, d, (K, s)))
+    done = set()
+    if os.path.exists(a.out):
+        for l in open(a.out): done.add(json.loads(l)["tk"])
+    tasks = [t for t in tasks if str((t[0], t[1], t[2], str(t[4]))) not in done]
+    print(f"{len(tasks)} tasks", flush=True); t0 = time.time()
+    with Pool(a.workers) as pool, open(a.out, "a") as f:
+        for key, rows, dt in pool.imap_unordered(task, tasks):
+            for r in rows: f.write(json.dumps(r) + "\n")
+            f.flush(); print(f"done {key} {dt:.0f}s total {time.time()-t0:.0f}s", flush=True)

@@ -1,0 +1,27 @@
+\section{Method}
+\label{sec:method}
+
+\paragraph{Setting.}
+A historical matrix $Y\in\mathbb{R}^{M\times N}$ of scores of $M$ models on $N$ benchmarks has observed entries $\Omega$; the rest are missing. A new model has a run set $R\subseteq[N]$ of benchmarks it could be run on. The evaluator picks $S\subseteq R$ with $|S|=k$, runs it, and predicts the model's scores on the other benchmarks from $y_S$ and the historical matrix. Everything below is fitted on the historical models only. Scores are standardised per benchmark with the historical mean and standard deviation; errors are reported after the inverse transform, in the benchmark's own points.
+
+\paragraph{Inference model.}
+We use a probabilistic factor model with missing data~\citep{tipping1999ppca},
+\begin{equation}
+y_{mj}=\mu_j+v_j^{\top}z_m+\varepsilon_{mj},\qquad z_m\sim\mathcal N(0,I_r),\quad \varepsilon_{mj}\sim\mathcal N(0,\psi_j),
+\end{equation}
+with $\mu_j,v_j\in\mathbb{R}^r,\psi_j$ estimated by EM on the observed entries. For a new model with revealed scores $y_S$ the posterior of its latent vector is Gaussian,
+\begin{equation}
+\Sigma_{\mathrm{post}}(S)=\Bigl(I_r+\sum_{j\in S}\psi_j^{-1}v_jv_j^{\top}\Bigr)^{-1},\qquad
+\hat z=\Sigma_{\mathrm{post}}(S)\sum_{j\in S}\psi_j^{-1}v_j\,(y_j-\mu_j),
+\end{equation}
+and the prediction for any benchmark $j'$ is $\mu_{j'}+v_{j'}^{\top}\hat z$. The rank $r$ is chosen by inner cross-validation over groups of training models, at the same number of revealed scores $k$ at which the model is evaluated. We write P5 for this inference rule, and the baselines we compare it with are P0 and P1 of Section~\ref{sec:experiments}.
+
+\paragraph{Selection.}
+$\Sigma_{\mathrm{post}}(S)$ does not depend on the revealed scores, so selection is an offline subset problem. Given a target set $T$ of benchmarks to be predicted, the expected posterior variance of the predictions is
+$F_T(S)=\sum_{j\in T}v_j^{\top}\Sigma_{\mathrm{post}}(S)\,v_j=\operatorname{tr}\bigl(V_T\Sigma_{\mathrm{post}}(S)V_T^{\top}\bigr)$, a Bayesian V-optimal design criterion (the A-optimal criterion for the linear map $V_T$)~\citep{chaloner1995bayesian,mulder2009multidimensional}. We minimise it greedily over $S\subseteq R$, adding the benchmark with the largest decrease; each gain is a rank-one update (Sherman--Morrison). We write S6 for this rule with $T$ taken to be all benchmarks, which is what an evaluator who does not know which scores will matter would use; S6T takes $T$ to be the evaluation target set of Section~\ref{sec:protocol} and is reported separately. Greedy selection carries a guarantee through the submodularity ratio of the objective~\citep{das2011submodular,bian2017guarantees}, but the guarantee can be vacuous when noise is small, and we do not claim that greedy selection is optimal. The rule is classical; we do not claim it as a contribution.
+
+\paragraph{Reading $k^*$ from the training models.}
+The training models give a reveal curve of their own: the same inner group cross-validation that chooses the rank yields the excess over the floor of S6 with P5 on held-out training groups at each $k$. The rule $\hat k(\epsilon)$ is the smallest $k$ on the grid at which this pooled curve is at most $\epsilon$; no scores of the new model, and no held-out model, enter. It is meant for a user with a historical matrix and no new model yet. On MTEB we devised it after seeing interim results, so it is post hoc there; on the second matrix its definition was fixed before any result.
+
+\paragraph{Applicability and cost.}
+The method needs a historical matrix with enough models and coverage to estimate $r$ factors and the noise levels, a new model whose run set contains at least $k$ benchmarks, and scores that are roughly linear in the latent factors. Its computational cost is the EM fit once per training set plus one greedy pass per new model, which is small next to running even one benchmark; the evaluator's cost is $k/N$ of the benchmarks.

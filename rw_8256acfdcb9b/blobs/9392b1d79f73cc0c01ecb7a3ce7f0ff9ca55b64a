@@ -1,0 +1,41 @@
+"""M1 validity: (a) stored value table vs direct evaluation of the real model; (b) unchanged shap.KernelExplainer on the
+real model (50-row background) vs the same explainer on the lookup model, same seed and nsamples.
+usage: validate_lookup.py OUT.csv [n_inst]"""
+import sys, os, pickle, warnings
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+import numpy as np, pandas as pd, shap
+from shapreliab import pipeline as P, estimators as E
+
+warnings.filterwarnings("ignore")
+out_csv = sys.argv[1]
+n_inst = int(sys.argv[2]) if len(sys.argv) > 2 else 2
+rows = []
+for ds in ["pima", "acs_income", "gmsc", "acs_employment", "german"]:
+    cd = P.cell_dir(ds, 0)
+    sp = np.load(os.path.join(cd, "split.npz"))
+    bg, X = sp["bg"], sp["X"]
+    d = X.shape[1]
+    bud = P.budgets(d)
+    for kind in P.KINDS:
+        m = pickle.load(open(os.path.join(cd, f"model_{kind}.pkl"), "rb"))
+        for i in range(n_inst):
+            r = np.load(os.path.join(cd, f"inst_{kind}_{i:04d}.npz"))
+            v, x = r["v"], X[i]
+            rng = np.random.default_rng(i)
+            S = rng.integers(0, 1 << d, 200)
+            direct = np.array([m.f(np.where(((s >> np.arange(d)) & 1).astype(bool)[None, :], x[None, :], bg)).mean() for s in S])
+            row = dict(dataset=ds, model=kind, inst=i, check="table_vs_direct", m=-1, l1_reg="", max_abs_diff=float(np.abs(direct - v[S]).max()),
+                       scale=float(np.abs(v).max()))
+            rows.append(row)
+            sl = E.ShapLookup(v, x)
+            kx = shap.KernelExplainer(m.f, bg)
+            for mm in (bud[0], bud[min(2, len(bud) - 1)]):
+                for l1 in (False, "auto"):
+                    seed = 1234 + i
+                    np.random.seed(seed)
+                    real = np.asarray(kx.shap_values(x[None, :], nsamples=int(mm), l1_reg=l1, silent=True)).ravel()
+                    lk = sl.kernel(mm, seed, l1)
+                    rows.append(dict(dataset=ds, model=kind, inst=i, check="shap_real_vs_lookup", m=mm, l1_reg=str(l1),
+                                     max_abs_diff=float(np.abs(real - lk).max()), scale=float(np.abs(r["phi"]).max())))
+        print(ds, kind, "done", flush=True)
+pd.DataFrame(rows).to_csv(out_csv, index=False)

@@ -1,0 +1,9 @@
+number,name,definition,runs
+2193,"Table 1, all cells","s in {0.25,0.5,0.75}, mechanisms a-f, one noise level, Bernoulli and cluster designs, no fine-s or p-grid runs",126
+1797,"Table 1, Bernoulli rows","the same, Bernoulli designs only (includes edge-noise, no-baseline sanity and convex-mirror runs)",104
+2178,diagnostic cells,"s > 0, mechanisms a-f, sigma = 0.5, both designs, edge-noise and sanity runs included, convex mirror and fine/p-grid runs excluded",121
+1800,coverage figure (Fig. 4),"Bernoulli, true feature graph, mechanisms a-f, sigma = 0.5, fine-s runs included, no sanity, convex-mirror or p-grid runs",94
+1974,oracle rule,"every Bernoulli cell with s > 0 at sigma = 0.5 except the p-grid runs, mechanisms a-g (includes edge-noise, sanity, the 15 convex-mirror cells of (g))",107
+1440,s-hat rule,"the cells of the oracle rule that have an estimated share in the exported table (36 of them are edge-noise or sanity cells, 18 each; without them the rule is right in 91.95% of the remaining 1404 cells, against 91.8% of 1440)",80
+1224,exact bias prediction (Table 2 absolute R2 of log|bias|),"non-null cells a-f with s in {0.25,0.5,0.75} that have the exact population-OLS prediction (iid baseline, true graph, Bernoulli: families, real graphs, core, size runs and sanity runs)",68
+9795,variance figure (Fig. A2A),"every Bernoulli cell with a mechanism a-f at all five noise multiples, tier G regression, no p-grid runs",107

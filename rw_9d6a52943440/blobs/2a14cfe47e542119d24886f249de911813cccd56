@@ -1,0 +1,123 @@
+"""Class representatives chosen without the outcomes of the held-out benchmark, and suite aggregates.
+usage: python3 -I scripts/06_select.py TARGET_LEVEL.parquet OUTDIR [--n 100] [--extra TARGET_LEVEL_EXTRA.parquet] [--tag ""]
+
+selected{tag}.csv       per (split, class, held-out benchmark): the method chosen on the *other* non-thin benchmarks (smallest geometric-mean RMSE ratio to
+                        uniform|mean) and its ratio on the held-out benchmark; rows with held_out = ALL give the geometric mean over held-out benchmarks
+                        (suite = all/OLL/HELM) with a 95% family bootstrap, vs uniform|mean and vs strat|mean, next to the post-hoc best of the class
+                        (selected on all benchmarks, held_out = POSTHOC).
+primary_suite{tag}.csv  every method at n: geometric-mean ratio with 95% CI for suite = all/OLL/HELM, both baselines (non-thin benchmarks).
+per_bench.csv.gz gains n_draws and bias2_unbiased = bias2 - var/n_draws (only with --n 100 and no tag).
+Bootstrap: families resampled within each benchmark (2000 replicates, the same replicate for every method of a benchmark)."""
+import os
+for v in ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS"):
+    os.environ[v] = "1"
+import sys, pathlib, argparse
+import numpy as np, pandas as pd
+
+ap = argparse.ArgumentParser()
+ap.add_argument("tl"); ap.add_argument("out")
+ap.add_argument("--n", type=int, default=100); ap.add_argument("--extra", default=None); ap.add_argument("--tag", default="")
+a = ap.parse_args()
+out = pathlib.Path(a.out)
+B = 2000
+rng = np.random.default_rng(6)
+OLL = {"arc_challenge", "bbh", "gpqa", "ifeval", "mmlu_pro", "musr", "openllm_math"}
+SHARED = ("uniform", "strat", "pps", "balanced")
+BASES = ("uniform|mean", "strat|mean")
+
+
+def klass(m):
+    d, e = m.split("|", 1)
+    if e.startswith("fixed:") or e.startswith("diffnaive") or e.startswith("irtw") or "irtw" in e:
+        return None
+    if d in ("infotop", "cat"): return "info/adaptive selection"
+    if d == "anchor": return "anchor"
+    if e.startswith("recal"): return "target-recalibrated"
+    if e.startswith("diff-"): return "difference-corrected"
+    if e in ("mean", "calreg"): return "design-based (mean, calreg)"
+    return "model-based"
+
+
+tg = pd.read_csv(out / "targets.csv"); thin = {(r.bench, r.split): r.thin for r in tg.itertuples()}
+cols = ["bench", "split", "n", "method", "family", "sq_err"]
+tl = pd.read_parquet(a.tl, columns=cols, filters=[("n", "==", a.n)])
+tl = tl[~tl.method.str.contains("fixed:")]
+if a.extra:
+    ex = pd.read_parquet(a.extra, columns=cols, filters=[("n", "==", a.n)])
+    ex = ex[ex.method.str.contains("recal-|irtw")]
+    ex = ex[ex.set_index(["bench", "split"]).index.isin(tl.set_index(["bench", "split"]).index)]   # only cells the base run also has
+    tl = pd.concat([tl, ex], ignore_index=True)
+store = {}          # (split, bench) -> (point log-rmse {m}, boot log-rmse {m} (B,))
+for (sp, b), g in tl.groupby(["split", "bench"]):
+    if thin[(b, sp)]: continue
+    fam = g.family.values
+    ufam, fidx = np.unique(fam, return_inverse=True)
+    F = len(ufam)
+    C = rng.multinomial(F, np.ones(F) / F, size=B).astype(float)
+    cnt_full = {}
+    pt, bt = {}, {}
+    for m, gm in g.groupby("method"):
+        order = gm.family.values
+        fi = np.searchsorted(ufam, order)
+        cnt = np.bincount(fi, minlength=F).astype(float)
+        se = np.bincount(fi, gm.sq_err.values.astype(float), F)
+        pt[m] = 0.5 * np.log(se.sum() / cnt.sum())
+        bt[m] = 0.5 * (np.log(C @ se) - np.log(C @ cnt))
+    store[(sp, b)] = (pt, bt)
+print("bootstrap stores", len(store), flush=True)
+
+
+def agg(items, suite):
+    """items: list of (bench, point-logratio, boot-logratio(B,))"""
+    sel = [x for x in items if suite == "all" or (x[0] in OLL) == (suite == "OLL")]
+    if not sel: return None
+    p = np.exp(np.mean([x[1] for x in sel])); L = np.exp(np.mean([x[2] for x in sel], 0))
+    return p, np.percentile(L, 2.5), np.percentile(L, 97.5), len(sel)
+
+
+rows_sel, rows_suite = [], []
+for sp in sorted({k[0] for k in store}):
+    benches = sorted(b for (s, b) in store if s == sp)
+    methods = sorted(set.intersection(*[set(store[(sp, b)][0]) for b in benches]))
+    # primary_suite: every method
+    for m in methods:
+        for bl in BASES:
+            items = [(b, store[(sp, b)][0][m] - store[(sp, b)][0][bl], store[(sp, b)][1][m] - store[(sp, b)][1][bl]) for b in benches]
+            for suite in ("all", "OLL", "HELM"):
+                r = agg(items, suite)
+                if r: rows_suite.append(dict(split=sp, n=a.n, baseline=bl, method=m, suite=suite, geomean_ratio=r[0], ci_lo=r[1], ci_hi=r[2], n_bench=r[3]))
+    cls = {m: klass(m) for m in methods}
+    for c in sorted({v for v in cls.values() if v}):
+        cand = [m for m in methods if cls[m] == c]
+        # post-hoc best of the class (all benchmarks)
+        score = {m: np.mean([store[(sp, b)][0][m] - store[(sp, b)][0]["uniform|mean"] for b in benches]) for m in cand}
+        best = min(score, key=score.get)
+        per = {}
+        for bho in benches:
+            others = [b for b in benches if b != bho]
+            sc = {m: np.mean([store[(sp, b)][0][m] - store[(sp, b)][0]["uniform|mean"] for b in others]) for m in cand}
+            per[bho] = min(sc, key=sc.get)
+        for bho in benches:
+            m = per[bho]
+            rows_sel.append(dict(split=sp, cls=c, held_out=bho, suite="", baseline="uniform|mean", chosen=m,
+                                 ratio=float(np.exp(store[(sp, bho)][0][m] - store[(sp, bho)][0]["uniform|mean"])),
+                                 ci_lo=np.nan, ci_hi=np.nan, n_bench=1))
+        for bl in BASES:
+            for label, pick in (("ALL", lambda b: per[b]), ("POSTHOC", lambda b: best)):
+                items = [(b, store[(sp, b)][0][pick(b)] - store[(sp, b)][0][bl], store[(sp, b)][1][pick(b)] - store[(sp, b)][1][bl]) for b in benches]
+                for suite in ("all", "OLL", "HELM"):
+                    r = agg(items, suite)
+                    if r:
+                        ch = best if label == "POSTHOC" else f"{len(set(per.values()))} distinct, mode {pd.Series(list(per.values())).mode().iloc[0]}"
+                        rows_sel.append(dict(split=sp, cls=c, held_out=label, suite=suite, baseline=bl, chosen=ch, ratio=r[0], ci_lo=r[1], ci_hi=r[2], n_bench=r[3]))
+    print("done", sp, flush=True)
+pd.DataFrame(rows_sel).to_csv(out / f"selected{a.tag}.csv", index=False)
+pd.DataFrame(rows_suite).to_csv(out / f"primary_suite{a.tag}.csv", index=False)
+
+if a.n == 100 and not a.tag and not a.extra:       # unbiased bias^2 column in per_bench
+    pb = pd.read_csv(out / "per_bench.csv.gz")
+    if "bias2_unbiased" not in pb.columns:
+        nd = pd.read_parquet(a.tl, columns=["bench", "split", "n", "method", "n_draws"]).drop_duplicates()
+        pb = pb.merge(nd, on=["bench", "split", "n", "method"], how="left")
+        pb["bias2_unbiased"] = pb.bias2 - pb["var"] / pb.n_draws
+        pb.to_csv(out / "per_bench.csv.gz", index=False)

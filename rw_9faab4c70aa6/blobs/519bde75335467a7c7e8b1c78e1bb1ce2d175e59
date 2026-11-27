@@ -1,0 +1,102 @@
+"""Claim C7: does the semi-synthetic arm reproduce the real-matrix gap, and what does it say beyond the real matrix?
+  check1  split-half prediction: generator fitted on the items of half A (all K configurations), predicted gap for pool = half B
+          size, against the gap measured on half B (item-bootstrap interval of the measured gap).
+  check2  within-support extrapolation: generator fitted on half A with only 75 random configurations, predicting the gap with all
+          128 (the real matrix has no K = 150), against the measured gap on half B.
+  check3  mis-specification sweep: the check-1 prediction under the fitted, independent-configuration and equicorrelated dependence.
+  curves  extrapolated gap and max-t / Bonferroni lower-bound coverage on worlds fitted to all items, n up to 800 and K up to 512
+          (marked outside the validated support by the paper).
+Truth: exact accuracy in generated worlds; accuracy on the half-B items outside S in the real measurement.
+Usage: python run_c7.py MATRIX.npz FITINFO.npz OUT.jsonl [--workers W] [--quick]   (FITINFO from fit_semisynth.py: rank, l2 selected)"""
+import sys, os, json, time, argparse
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "analysis"))
+import numpy as np
+from multiprocessing import Pool
+from scipy.stats import norm
+from core import World, search_random
+from semisynth import fit, gen_world
+from protocols import maxt_quantile, _se
+from intervals import pool_ci
+
+NS = (30, 60, 100, 200); BS = (20, 100)
+Y = FACT = BEST = None
+
+
+def gap_draws(w, n, B, draws, rng, cand=None):
+    cand = np.arange(w.K) if cand is None else cand; g = []
+    for _ in range(draws):
+        S = w.draw_S(n, rng); c, _, _ = search_random(w, S, cand, rng, B=B)
+        g.append(w.Y[S, c].mean() - w.truth(S, c))
+    return np.array(g)
+
+
+def real_half(items, draws, rng, boot):
+    """measured gap on the items given (pool), with an item-bootstrap interval of the mean gap per cell."""
+    out = {}
+    for n in NS:
+        for B in BS:
+            w = World(Y[items], factors=FACT); m = gap_draws(w, n, B, draws, rng).mean(); bs, mv = [], []
+            for _ in range(boot):
+                idx = rng.integers(0, len(items), len(items)); wb = World(Y[items][idx], ids=idx, factors=FACT)
+                g = gap_draws(wb, n, B, 40, rng); bs.append(g.mean()); mv.append(g.var(ddof=1) / len(g))
+            mb = float(np.mean(bs)); qlo, qhi = np.quantile(bs, [0.025, 0.975])
+            # interval used by the check: plain item-bootstrap percentiles of the replicate means, centred on the point estimate.  It includes the
+            # Monte-Carlo noise of the 40 S draws per replicate, so it is conservative; the MC-free interval (pool_ci) collapses to a point when the
+            # between-pool spread is below that noise (first run: 44 of 120 intervals) and is recorded only as measured_lo_mcfree/hi_mcfree.
+            lo2, hi2, _ = pool_ci(bs, mv)
+            out[(n, B)] = (float(m), float(m - (mb - qlo)), float(m + (qhi - mb)), float(m - (mb - lo2)), float(m + (hi2 - mb)))
+    return out
+
+
+def task(a):
+    kind, seed = a; t0 = time.time(); rng = np.random.default_rng([29, seed, zlib_id(kind)])
+    perm = np.random.default_rng([31, seed]).permutation(len(Y)); A, Bh = perm[:len(Y) // 2], perm[len(Y) // 2:]
+    rows = []; fl = dict(rank=BEST["rank"], l2=BEST["l2"], epochs=BEST.get("epochs", 400))
+    if kind in ("check1", "check2", "check3"):
+        cfg = np.arange(Y.shape[1]) if kind != "check2" else np.sort(rng.permutation(Y.shape[1])[:75])
+        f = fit(Y[A][:, cfg], fl["rank"], fl["l2"], epochs=fl["epochs"], seed=seed)
+        real = real_half(Bh, DRAWS, rng, BOOT)
+        modes = ("fitted", "indep", "equicorr") if kind == "check3" else ("fitted",)
+        for mode in modes:
+            for (n, B), (m, lo, hi, lo2, hi2) in real.items():
+                pg = []
+                for _ in range(NW):
+                    w = gen_world(f, len(Bh), Y.shape[1], rng, mode=mode, grid_factors=FACT if len(cfg) == Y.shape[1] else None)
+                    pg.append(gap_draws(w, n, B, DRAWS // 2, rng).mean())
+                rows.append(dict(kind=kind, seed=seed, mode=mode, n=n, B=B, K_fit=int(len(cfg)), K=int(Y.shape[1]), N=int(len(Bh)), predicted=float(np.mean(pg)),
+                                 pred_sd_worlds=float(np.std(pg)), measured=m, measured_lo=lo, measured_hi=hi, measured_lo_mcfree=lo2, measured_hi_mcfree=hi2, inside=bool(lo <= np.mean(pg) <= hi)))
+    else:   # curves on all items
+        f = fit(Y, fl["rank"], fl["l2"], epochs=fl["epochs"], seed=seed)
+        for K in KCURVE:
+            w = gen_world(f, 1500 + 1000, K, rng, grid_factors=FACT if K == Y.shape[1] else None)
+            for n in NCURVE:
+                gaps, cov_m, cov_b, wd = [], [], [], []
+                for _ in range(DRAWS):
+                    S = w.draw_S(n, rng); c, _, _ = search_random(w, S, np.arange(K), rng); yb = w.Y[S, c].mean(); th = w.theta[c]
+                    q = maxt_quantile(w.Y[S].astype(float), rng, 0.05, B=200); zb = norm.ppf(1 - 0.05 / K)
+                    gaps.append(yb - th); cov_m.append(yb - q * _se(yb, n) <= th); cov_b.append(yb - zb * _se(yb, n) <= th); wd.append(q * _se(yb, n))
+                rows.append(dict(kind="curve", seed=seed, K=int(K), n=n, gap=float(np.mean(gaps)), gap_sd=float(np.std(gaps)), coverage_maxt=float(np.mean(cov_m)),
+                                 coverage_bonferroni=float(np.mean(cov_b)), maxt_halfwidth=float(np.mean(wd)), draws=DRAWS, sigma_theta=float(w.theta.std())))
+    return a, rows, time.time() - t0
+
+
+def zlib_id(s): import zlib; return zlib.crc32(s.encode()) % 1000
+
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser(); ap.add_argument("matrix"); ap.add_argument("fitinfo"); ap.add_argument("out")
+    ap.add_argument("--workers", type=int, default=4); ap.add_argument("--quick", action="store_true"); ap.add_argument("--seeds", type=int, default=3)
+    a = ap.parse_args()
+    z = np.load(a.matrix); Y, FACT = z["Y"], z["factors"]; BEST = np.load(a.fitinfo, allow_pickle=True)["best"].item()
+    DRAWS, BOOT, NW = (60, 4, 2) if a.quick else (400, 100, 10)
+    KCURVE = (32, 128, 512); NCURVE = (30, 60, 100, 200, 400, 800)
+    if a.quick: KCURVE = (32, 128); NCURVE = (60, 400); BEST = dict(BEST, epochs=60)
+    tasks = [(k, s) for s in range(a.seeds) for k in ("check1", "check2", "check3", "curves")]
+    done = set()
+    if os.path.exists(a.out):
+        for l in open(a.out): d = json.loads(l); done.add((d["kind"] if d["kind"] != "curve" else "curves", d["seed"]))
+    tasks = [t for t in tasks if t not in done]; print(len(tasks), "tasks", flush=True); t0 = time.time()
+    with Pool(a.workers) as pool, open(a.out, "a") as f:
+        for key, rows, dt in pool.imap_unordered(task, tasks):
+            for r in rows: f.write(json.dumps(r) + "\n")
+            f.flush(); print(f"done {key} {dt:.0f}s total {time.time()-t0:.0f}s", flush=True)

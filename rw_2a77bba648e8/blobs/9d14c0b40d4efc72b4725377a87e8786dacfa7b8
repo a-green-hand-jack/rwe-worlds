@@ -1,0 +1,9 @@
+{
+ "script": "analysis/hk_compare.py",
+ "code_commit": "d90789d52201311ac3a21f1ff998186a82744310",
+ "seed": 20261125,
+ "n_draws": "3000 per run (synthetic graphs: 10 graph draws x 300 assignments; real graphs: 1 graph x 3000 assignments); bootstrap and coverage on a subset",
+ "date": "2026-11-26",
+ "description": "hk_compare.csv averaged over the spillover shares",
+ "population": "mechanism (d), Bernoulli p = 0.5, iid baseline SD 1, no edge noise, noise level 0.5, s in {0.25, 0.5, 0.75}, target degree 20 and 80; one run per family: original SBM, ER, WS, BA, DCSBM, Stanford3, ego-Facebook and the block's SBM, HK, LN; mean over the three spillover shares"
+}

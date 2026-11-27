@@ -1,0 +1,102 @@
+@article{candes2009exact,
+  author={Cand{\`e}s, Emmanuel J. and Recht, Benjamin},
+  title={Exact Matrix Completion via Convex Optimization},
+  journal={Foundations of Computational Mathematics}, volume={9}, pages={717--772}, year={2009}}
+@article{mazumder2010spectral,
+  author={Mazumder, Rahul and Hastie, Trevor and Tibshirani, Robert},
+  title={Spectral Regularization Algorithms for Learning Large Incomplete Matrices},
+  journal={Journal of Machine Learning Research}, volume={11}, pages={2287--2322}, year={2010}}
+@article{tipping1999probabilistic,
+  author={Tipping, Michael E. and Bishop, Christopher M.},
+  title={Probabilistic Principal Component Analysis},
+  journal={Journal of the Royal Statistical Society: Series B}, volume={61}, number={3}, pages={611--622}, year={1999}}
+@inproceedings{salakhutdinov2007pmf,
+  author={Salakhutdinov, Ruslan and Mnih, Andriy},
+  title={Probabilistic Matrix Factorization},
+  booktitle={Advances in Neural Information Processing Systems 20}, year={2007}}
+@inproceedings{hernandezlobato2014pmf,
+  author={Hern{\'a}ndez-Lobato, Jos{\'e} Miguel and Houlsby, Neil and Ghahramani, Zoubin},
+  title={Probabilistic Matrix Factorization with Non-random Missing Data},
+  booktitle={Proceedings of the 31st International Conference on Machine Learning}, series={PMLR 32}, year={2014}}
+@article{udell2016glrm,
+  author={Udell, Madeleine and Horn, Corinne and Zadeh, Reza and Boyd, Stephen},
+  title={Generalized Low Rank Models},
+  journal={Foundations and Trends in Machine Learning}, volume={9}, number={1}, pages={1--118}, year={2016}}
+@article{mahoney2009cur,
+  author={Mahoney, Michael W. and Drineas, Petros},
+  title={{CUR} matrix decompositions for improved data analysis},
+  journal={Proceedings of the National Academy of Sciences}, volume={106}, number={3}, pages={697--702}, year={2009}}
+@inproceedings{krause2005sensors,
+  author={Guestrin, Carlos and Krause, Andreas and Singh, Ajit P.},
+  title={Near-optimal sensor placements in {G}aussian processes},
+  booktitle={Proceedings of the 22nd International Conference on Machine Learning}, year={2005}}
+@inproceedings{das2011submodular,
+  author={Das, Abhimanyu and Kempe, David},
+  title={Submodular meets Spectral: Greedy Algorithms for Subset Selection, Sparse Approximation and Dictionary Selection},
+  booktitle={Proceedings of the 28th International Conference on Machine Learning}, year={2011}, note={arXiv:1102.3975}}
+@article{ranieri2014framesense,
+  author={Ranieri, Juri and Chebira, Amina and Vetterli, Martin},
+  title={Near-Optimal Sensor Placement for Linear Inverse Problems},
+  journal={IEEE Transactions on Signal Processing}, volume={62}, number={5}, pages={1135--1146}, year={2014}}
+@article{elahi2016active,
+  author={Elahi, Mehdi and Ricci, Francesco and Rubens, Neil},
+  title={A survey of active learning in collaborative filtering recommender systems},
+  journal={Computer Science Review}, volume={20}, pages={29--50}, year={2016}}
+@inproceedings{polo2024tiny,
+  author={Polo, Felipe Maia and Weber, Lucas and Choshen, Leshem and Sun, Yuekai and Xu, Gongjun and Yurochkin, Mikhail},
+  title={{tinyBenchmarks}: evaluating {LLMs} with fewer examples},
+  booktitle={Proceedings of the 41st International Conference on Machine Learning}, year={2024}, note={arXiv:2402.14992}}
+@misc{kipnis2024metabench,
+  author={Kipnis, Alex and Voudouris, Konstantinos and Schulze Buschoff, Luca M. and Schulz, Eric},
+  title={metabench -- A Sparse Benchmark of Reasoning and Knowledge in Large Language Models}, year={2024}, note={arXiv:2407.12844}}
+@misc{perlitz2024benchbench,
+  author={Perlitz, Yotam and Gera, Ariel and Arviv, Ofir and Yehudai, Asaf and Bandel, Elron and Shnarch, Eyal and Shmueli-Scheuer, Michal and Choshen, Leshem},
+  title={Do These {LLM} Benchmarks Agree? Fixing Benchmark Evaluation with {BenchBench}}, year={2024}, note={arXiv:2407.13696}}
+@inproceedings{perlitz2024efficient,
+  author={Perlitz, Yotam and Bandel, Elron and Gera, Ariel and Arviv, Ofir and Ein-Dor, Liat and Shnarch, Eyal and Slonim, Noam and Shmueli-Scheuer, Michal and Choshen, Leshem},
+  title={Efficient Benchmarking of Language Models},
+  booktitle={Proceedings of the 2024 Conference of the North American Chapter of the Association for Computational Linguistics}, year={2024}, note={arXiv:2308.11696}}
+@inproceedings{vivek2024anchor,
+  author={Vivek, Rajan and Ethayarajh, Kawin and Yang, Diyi and Kiela, Douwe},
+  title={Anchor Points: Benchmarking Models with Much Fewer Examples},
+  booktitle={Proceedings of the 18th Conference of the European Chapter of the Association for Computational Linguistics (Volume 1: Long Papers)}, pages={1576--1601}, year={2024}}
+@inproceedings{ruan2024observational,
+  author={Ruan, Yangjun and Maddison, Chris J. and Hashimoto, Tatsunori},
+  title={Observational Scaling Laws and the Predictability of Language Model Performance},
+  booktitle={Advances in Neural Information Processing Systems 37}, year={2024}}
+@misc{polo2024sloth,
+  author={Polo, Felipe Maia and Somerstep, Seamus and Choshen, Leshem and Sun, Yuekai and Yurochkin, Mikhail},
+  title={Sloth: scaling laws for {LLM} skills to predict multi-benchmark performance across families}, year={2024}, note={arXiv:2412.06540}}
+@misc{fluid2025,
+  author={Hofmann, Valentin and Heineman, David and Magnusson, Ian and Lo, Kyle and Dodge, Jesse and Sap, Maarten and Koh, Pang Wei and Wang, Chun and Hajishirzi, Hannaneh and Smith, Noah A.},
+  title={Fluid Language Model Benchmarking}, year={2025}, note={arXiv:2509.11106}}
+@misc{muennighoff2022mteb,
+  author={Muennighoff, Niklas and Tazi, Nouamane and Magne, Lo{\"i}c and Reimers, Nils},
+  title={{MTEB}: Massive Text Embedding Benchmark}, year={2022}, note={arXiv:2210.07316}}
+@article{liang2022helm,
+  author={Liang, Percy and Bommasani, Rishi and Lee, Tony and Tsipras, Dimitris and Soylu, Dilara and Yasunaga, Michihiro and Zhang, Yian and Narayanan, Deepak and Wu, Yuhuai and Kumar, Ananya and Newman, Benjamin and Yuan, Binhang and Yan, Bobby and Zhang, Ce and Cosgrove, Christian and Manning, Christopher D. and Ré, Christopher and Acosta-Navas, Diana and Hudson, Drew A. and Zelikman, Eric and Durmus, Esin and Ladhak, Faisal and Rong, Frieda and Ren, Hongyu and Yao, Huaxiu and Wang, Jue and Santhanam, Keshav and Orr, Laurel and Zheng, Lucia and Yuksekgonul, Mert and Suzgun, Mirac and Kim, Nathan and Guha, Neel and Chatterji, Niladri and Khattab, Omar and Henderson, Peter and Huang, Qian and Chi, Ryan and Xie, Sang Michael and Santurkar, Shibani and Ganguli, Surya and Hashimoto, Tatsunori and Icard, Thomas and Zhang, Tianyi and Chaudhary, Vishrav and Wang, William and Li, Xuechen and Mai, Yifan and Zhang, Yuhui and Koreeda, Yuta},
+  title={Holistic Evaluation of Language Models},
+  journal={Transactions on Machine Learning Research}, year={2023}, note={arXiv:2211.09110}}
+@inproceedings{hendrycks2020mmlu,
+  author={Hendrycks, Dan and Burns, Collin and Basart, Steven and Zou, Andy and Mazeika, Mantas and Song, Dawn and Steinhardt, Jacob},
+  title={Measuring Massive Multitask Language Understanding},
+  booktitle={International Conference on Learning Representations}, year={2021}, note={arXiv:2009.03300}}
+@inproceedings{bian2017greedy,
+  author={Bian, Andrew An and Buhmann, Joachim M. and Krause, Andreas and Tschiatschek, Sebastian},
+  title={Guarantees for Greedy Maximization of Non-submodular Functions with Applications},
+  booktitle={Proceedings of the 34th International Conference on Machine Learning}, year={2017}, note={arXiv:1703.02100}}
+@article{tropp2012user,
+  author={Tropp, Joel A.},
+  title={User-Friendly Tail Bounds for Sums of Random Matrices},
+  journal={Foundations of Computational Mathematics}, volume={12}, number={4}, pages={389--434}, year={2012}}
+@misc{gross2010note,
+  author={Gross, David and Nesme, Vincent},
+  title={Note on sampling without replacing from a finite collection of matrices}, year={2010}, note={arXiv:1001.2738}}
+@article{rubin1982em,
+  author={Rubin, Donald B. and Thayer, Dorothy T.},
+  title={{EM} algorithms for {ML} factor analysis},
+  journal={Psychometrika}, volume={47}, number={1}, pages={69--76}, year={1982}}
+@article{ledoit2004well,
+  author={Ledoit, Olivier and Wolf, Michael},
+  title={A well-conditioned estimator for large-dimensional covariance matrices},
+  journal={Journal of Multivariate Analysis}, volume={88}, number={2}, pages={365--411}, year={2004}}

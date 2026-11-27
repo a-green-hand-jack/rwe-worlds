@@ -1,0 +1,40 @@
+"""Tab 3 (C8): the gap of a real search tool (dspy BootstrapFewShotWithRandomSearch, live) against the replay prediction of random search at the same n and budget.
+Booktabs/array tabular fragment (needs booktabs, array; sets its own \\footnotesize) from real_tool.parquet (one row) and real_tool_draws.parquet (24 rows).
+Tool column: mean over draws of S with a t-interval over the draws (ci_kind draw-spread-t). Replay column: pool-bootstrap interval fixed before the result (the verdict's),
+and, marked as not used for the verdict, the corrected total_ci interval. Gaps and scores in accuracy points = 100 x accuracy.
+usage: python tables/src/tab3.py RESULTS_DIR OUT.tex"""
+import re
+import sys
+import numpy as np
+import pandas as pd
+from scipy import stats
+
+
+def main(rd, out):
+    r = pd.read_parquet(f"{rd}/real_tool.parquet").iloc[0]
+    d = pd.read_parquet(f"{rd}/real_tool_draws.parquet")
+    nd = len(d)
+    assert nd == r.n_draws and r.status == "tested"
+    B = int(re.search(r"B=(\d+)", r.replay_def).group(1))
+    tint = lambda x: stats.t.interval(0.95, nd - 1, loc=x.mean(), scale=x.std(ddof=1) / np.sqrt(nd))
+    lf = d.gap_leak_free; lo_lf, hi_lf = tint(lf)
+    assert abs(d.gap.mean() - r.gap) < 1e-9
+    print("Tab 3 data:", r.pool, "|", r.model, "| n =", int(r.n), "| draws =", nd, "| tool programs evaluated =", int(r.budget), "| truth on", int(r.n_truth), "pool items outside S",
+          "| tool interval:", r.ci_kind, "| replay: random B =", B, "pool-bootstrap (verdict) and total_ci (not used) | status:", r.status, "| verdict:", r.verdict)
+    print(f"  mean gap {100*r.gap:.2f} ({100*r.gap_lo:.2f}-{100*r.gap_hi:.2f}); replay {100*r.replay_gap:.2f} ({100*r.replay_lo:.2f}-{100*r.replay_hi:.2f}); total {100*r.replay_lo_total:.2f}-{100*r.replay_hi_total:.2f};"
+          f" above upper end by {100*(r.gap-r.replay_hi):.2f} points; leak-free {100*lf.mean():.2f} ({100*lo_lf:.2f}-{100*hi_lf:.2f}); positive draws {(d.gap > 0).sum()}/{nd}")
+    p = lambda x: f"{100 * x:.1f}"
+    iv = lambda v, lo, hi: f"{p(v)} ({p(lo)}--{p(hi)})"
+    L = [r"{\footnotesize\setlength{\tabcolsep}{2.5pt}", r"\begin{tabular}{@{}l c c c c c c@{}}", r"\toprule",
+         rf"Search at $n={int(r.n)}$ (accuracy points) & evaluated & reported & true & \shortstack{{gap\\(95\% interval)}} & \shortstack{{gap without\\own demos}} & predicted \\", r"\midrule",
+         rf"\textsf{{dspy}} tool ($t$, {nd} draws) & {int(r.budget)} & {p(r.reported)} & {p(r.truth)} & {iv(r.gap, r.gap_lo, r.gap_hi)} & {iv(lf.mean(), lo_lf, hi_lf)} & {p(r.pred_kappa)} \\",
+         rf"replay $B={B}$, pool-bootstrap* & {B} & -- & -- & {iv(r.replay_gap, r.replay_lo, r.replay_hi)} & -- & -- \\",
+         rf"replay $B={B}$, with draw noise & {B} & -- & -- & {iv(r.replay_gap, r.replay_lo_total, r.replay_hi_total)} & -- & -- \\",
+         r"\midrule",
+         rf"\multicolumn{{7}}{{@{{}}p{{\dimexpr\linewidth-5pt\relax}}}}{{*Used for the verdict: {r.verdict} (tool gap {100 * (r.gap - r.replay_hi):.2f} above the interval; {nd} draws, tested).}} \\",
+         r"\bottomrule", r"\end{tabular}}"]
+    open(out, "w").write("\n".join(L) + "\n")
+
+
+if __name__ == "__main__":
+    main(sys.argv[1], sys.argv[2])

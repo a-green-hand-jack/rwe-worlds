@@ -1,0 +1,5 @@
+"""Entry point kept under its numbered name; the implementation is core01.py (importable by other scripts)."""
+import os, sys
+sys.path.insert(0, os.path.dirname(__file__))
+import core01
+core01.main()

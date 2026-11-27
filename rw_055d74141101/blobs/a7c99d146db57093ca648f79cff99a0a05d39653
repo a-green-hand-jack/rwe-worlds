@@ -1,0 +1,14 @@
+#!/bin/bash
+# runs core01.py for every data unit, 4 in parallel; usage: run_core_all.sh [boot] [null]
+BOOT=${1:-500}; NULL=${2:-20}
+cd "$(dirname "$0")/.."
+python3 - <<'PY' > /tmp/units.txt
+import sys; sys.path.insert(0,'src')
+import datasets as D, os
+print('arena55k'); print('arena_single')
+for f in sorted(os.listdir(D.DATA+'/potsawee/prob-avg')): print('judge:'+f[:-6])
+for u in ['human','gpt4','gpt4_matched']: print('mtbench_'+u)
+for y in D.nba_years(): print(f'nba:{y}')
+PY
+cat /tmp/units.txt | xargs -P 4 -I{} sh -c "python3 -u scripts/core01.py {} --boot $BOOT --null $NULL > /hutian/results/log_{}.txt 2>&1"
+echo "HUTIAN_WAKE: core done"

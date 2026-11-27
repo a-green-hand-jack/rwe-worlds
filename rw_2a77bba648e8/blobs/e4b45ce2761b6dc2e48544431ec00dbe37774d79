@@ -1,0 +1,139 @@
+"""Build the per-cell tables from the run files:  python analysis/make_cells.py OUTDIR RAWDIR [RAWDIR ...]
+cells.parquet  one row per (run, mechanism, s, noise multiple m, estimator)
+ratios.parquet RMSE ratio to DM with paired CI, plus estimated vs oracle spillover share
+calibration.csv sanity / Table 1."""
+import glob
+import json
+import os
+import subprocess
+import sys
+
+import numpy as np
+import pandas as pd
+
+sys.path.insert(0, os.path.dirname(__file__))
+import agg  # noqa: E402
+from gate import mech  # noqa: E402
+from gate.sim import EI  # noqa: E402
+
+COLS = mech.COLS
+
+
+def S_of(run, j, m):
+    """RMS deviation of the other ladder specifications from the reporting specification (chin), per draw"""
+    base = run.err("chin", j, m)
+    devs = [run.err(e, j, m) - base for e in ("quad", "spline", "count", "hop2")]
+    D = np.stack(devs)
+    return np.sqrt((D ** 2).mean(0)), D.std(0)    # S, S' (SD among the other specs)
+
+
+def run_rows(run):
+    cfg = run.cfg
+    o = run.o
+    G, R = run.G, run.R
+    rows, ratio_rows = [], []
+    gm = o["gmeta"]
+    fm = o["expo"][:, 0].reshape(G, R)
+    base = dict(run_id=run.id, graph=cfg["family"], n=int(np.mean([x["n"] for x in gm])),
+                d=float(np.mean([x["dbar"] for x in gm])), d_target=cfg["d"], p=cfg["p"],
+                design=cfg.get("design", "bern"), cluster_resolution=cfg.get("res", np.nan) if cfg.get("clustering", "louvain") == "louvain" else np.nan,
+                clustering=cfg.get("clustering", "") if cfg.get("design", "bern") == "cluster" else "",
+                cluster_modularity=float(np.nanmean([x["mod"] for x in gm])), edge_noise_q=cfg.get("q_edge", 0.0),
+                baseline=cfg.get("base", "iid"), base_sd=cfg.get("base_sd", 1.0), mix=cfg.get("mix", np.nan), G=G, R=R,
+                n_clusters=float(np.mean([x["nclus"] for x in gm])) if cfg.get("design", "bern") == "cluster" else np.nan,
+                dmax=float(np.mean([x["dmax"] for x in gm])), clustering_coef=float(np.mean([x["clustering"] for x in gm])),
+                corner_dist_treated=float(1 - fm.mean()), corner_dist_control=float(fm.mean()))
+    Rb = cfg.get("Rb", 0)
+    for j, (mname, s) in enumerate(run.cols):
+        tau = float(o["tau"][:, j].mean())
+        dm_err = {m: run.err("dm", j, m) for m in agg.MLEVELS}
+        for m in agg.MLEVELS:
+            S, Sp = S_of(run, j, m)
+            sh = run.s_hat(j, m)
+            cell = f"{run.id}|{mname}|{s}|{m}"
+            sig_abs = float(m * o["sd"][:, j].mean())
+            dm_bias = float(np.nanmean(dm_err[m]))
+            for est in agg.ALL_EST:
+                x = run.err(est, j, m)
+                if x is None or np.all(np.isnan(x)):
+                    continue
+                st = agg.metrics(x, seed=j * 1000 + int(m * 100))
+                if st is None:
+                    continue
+                row = dict(base, cell_id=cell, mechanism=mname, s=s, sigma=m, sigma_abs=sig_abs, tau=tau,
+                           tier=agg.TIER[est], estimator=est, n_draws=st["n_draws"], defined=st["defined"],
+                           bias=st["bias"], sd=st["sd"], rmse=st["rmse"],
+                           rmse_mc_lo=st["rmse_lo"], rmse_mc_hi=st["rmse_hi"], bias_mc_lo=st["bias_lo"], bias_mc_hi=st["bias_hi"],
+                           sd_mc_lo=st["sd_lo"], sd_mc_hi=st["sd_hi"],
+                           sign_error_rate=float(np.nanmean(x[~np.isnan(x)] <= -1)),
+                           dm_bias=dm_bias, S=float(S.mean()), S_prime=float(Sp.mean()))
+                if est in EI and est not in ("or_fit",):
+                    e = EI[est]
+                    row["L"] = float(run.o["wn2"][:, e, j].mean() * row["n"]) if not np.all(np.isnan(run.o["wn2"][:, e, j])) else np.nan
+                if est in ("chin", "quad", "spline", "count", "hop2", "inter") or est == "dm":
+                    vc = run.var_components(est, j, m)
+                    tot = vc["vt"].mean()
+                    row.update(var_noise_share=float(vc["vn"].mean() / tot), var_base_share=float(vc["vb"].mean() / tot),
+                               var_misfit_share=float(vc["vm"].mean() / tot), var_cross_share=float(vc["vx"].mean() / tot))
+                # coverage of normal CIs at the in-run noise level (m = 0.5): HC0 on every draw (chin), bootstrap on the first Rb draws per graph
+                if m == 0.5 and est in ("chin", "dm"):
+                    tj = o["tau"][:, j].repeat(R)
+                    err = (x.ravel())
+                    if est == "chin":
+                        se = o["se_hc"][:, j] / tj
+                        cov = (np.abs(err) <= 1.96 * se).astype(float)
+                        row["coverage_hc"] = float(cov.mean())
+                        row["coverage_hc_mc_se"] = float(cov.std(ddof=1) / np.sqrt(len(cov)))
+                        row["width_hc"] = float(3.92 * se.mean())
+                        row["coverage"], row["ci_width"], row["coverage_method"] = row["coverage_hc"], row["width_hc"], "HC0, all draws"
+                    if Bboot_ok(cfg):
+                        idx = (np.arange(G * R) % R) < Rb
+                        k = 0 if est == "chin" else 1
+                        se = o["se_bt"][:, k, j] / tj
+                        cb = (np.abs(err[idx]) <= 1.96 * se[idx]).astype(float)
+                        row["coverage_boot"] = float(cb.mean())
+                        row["coverage_boot_mc_se"] = float(cb.std(ddof=1) / np.sqrt(len(cb)))
+                        row["width_boot"] = float(3.92 * se[idx].mean())
+                        row["se_boot_mean"] = float(se[idx].mean())
+                        if est == "dm":
+                            row["coverage"], row["ci_width"], row["coverage_method"] = row["coverage_boot"], row["width_boot"], "cluster/unit bootstrap (B=100), first Rb draws per graph"
+                rows.append(row)
+                if est != "dm":
+                    xd = dm_err[m]
+                    lr = agg.log_ratio(x, xd, seed=j)
+                    if lr is not None:
+                        ratio_rows.append(dict(cell_id=cell, run_id=run.id, mechanism=mname, s=s, sigma=m, estimator=est,
+                                               log_ratio=lr[0], log_ratio_lo=lr[1], log_ratio_hi=lr[2],
+                                               s_estimated=float(np.mean(sh)), s_estimated_sd_graphs=float(np.std(sh, ddof=1)) if len(sh) > 1 else np.nan))
+    return rows, ratio_rows
+
+
+def Bboot_ok(cfg):
+    return cfg.get("B", 0) > 0
+
+
+def main(outdir, *rawdirs):
+    os.makedirs(outdir, exist_ok=True)
+    allrows, allratio = [], []
+    files = sorted(f for d in rawdirs for f in glob.glob(os.path.join(d, "*.pkl")))
+    for f in files:
+        run = agg.Run(f)
+        r, q = run_rows(run)
+        allrows += r
+        allratio += q
+        print("done", run.id, len(r), flush=True)
+    cells = pd.DataFrame(allrows)
+    ratios = pd.DataFrame(allratio)
+    # s_oracle = the mechanism's share parameter; s_estimated = 1 - beta_z/tau_hat of the chin regression (NaN for runs without `bz`)
+    ratios["s_oracle"] = ratios["cell_id"].str.split("|").str[2].astype(float)
+    cells.to_parquet(os.path.join(outdir, "cells.parquet"))
+    ratios.to_parquet(os.path.join(outdir, "ratios.parquet"))
+    commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True,
+                            cwd=os.path.dirname(__file__)).stdout.strip()
+    meta = dict(script="analysis/make_cells.py", code_commit=commit, n_runs=len(files), seed=files and agg.load(files[0])["cfg"]["seed"],
+                note="errors normalised by tau; sigma = multiple of SD of noise-free outcome; sigma 2,4 are extensions")
+    json.dump(meta, open(os.path.join(outdir, "cells.meta.json"), "w"), indent=1)
+
+
+if __name__ == "__main__":
+    main(*sys.argv[1:])

@@ -1,0 +1,9 @@
+#!/bin/bash
+# Copy the delivered paths of this repository into a clone of the delivery root: code/, results/ (+ prereg/ -> results/prereg/, data/ -> results/data/).
+# usage: bash code/deliver.sh <delivery_clone_dir>
+set -e
+R="$(cd "$(dirname "$0")/.." && pwd)"; T=$1
+rsync -a --delete --exclude '__pycache__' "$R/code/" "$T/code/"
+rsync -a --delete --exclude '__pycache__' "$R/results/" "$T/results/"
+mkdir -p "$T/results/prereg" "$T/results/data"
+rsync -a "$R/prereg/" "$T/results/prereg/"; rsync -a "$R/data/" "$T/results/data/"

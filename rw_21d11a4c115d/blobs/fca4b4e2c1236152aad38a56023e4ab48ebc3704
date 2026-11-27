@@ -1,0 +1,33 @@
+"""Best simple predictor per outer fold, chosen on TRAINING rows only (Brief rev 4: 'k* for two predictors').
+For each outer fold of a result pickle: inner grouped 5-fold over the training rows; on each inner-train, FA (rank = outer fold r_eff) is
+fitted, greedy-A selects S (k = 1..min(10,N/2)) among the candidate columns of the first column partition of that fold, and every
+candidate predictor in SIMPLE predicts the partition's target columns of the inner-test rows.  The predictor with the smallest
+grid-averaged inner squared error is the fold's 'best simple' predictor.  The held-out rows of the outer fold are never used.
+python3 best_simple.py <results_raw/ds__split__fixed.pkl> <data_out> <out.json>"""
+import sys, os, json, pickle, numpy as np
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+sys.path.insert(0, os.path.dirname(__file__))
+from bmk.protocol import grouped_folds, fit_fold, make_transform
+from bmk.select_predict import Predictors, sel_greedy_A
+SIMPLE = ['onefactor', 'ridge', 'knn', 'lw']
+f, dout, out = sys.argv[1:4]
+R = pickle.load(open(f, 'rb')); ds = R['dataset']; X = np.load(f"{dout}/{ds}.npz", allow_pickle=True)['X']; M, N = X.shape; fam = R['family']
+SEED = R['seed']; kg = [k for k in R['k_grid'] if k <= min(10, N // 2)]; ranks = [r for r in (1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25) if r <= N // 3]
+tfname = R.get('transform', 'identity'); choice = {}
+for fi, (tr, te) in enumerate(R['folds']):
+    r = R['info'][fi]['r_eff']
+    rng = np.random.default_rng([SEED, fi, 0]); perm = rng.permutation(N); nT = int(round(0.3 * N)); T = list(np.sort(perm[:nT])); Cd = list(np.sort(perm[nT:]))
+    inner = grouped_folds(fam[tr], 5, SEED + 200 + fi); err = {p: [] for p in SIMPLE}
+    for ite in inner:
+        a = tr[np.setdiff1d(np.arange(len(tr)), ite)]; b = tr[ite]
+        fwd, inv = make_transform(X[a], tfname); Z = fwd(X)
+        F = fit_fold(Z, a, ranks, 0, r_fixed=r); Yb = (Z[b] - F['mu']) / F['sd']; P = Predictors(F['Ytr'], F['W'], F['D'])
+        mo = X[a].mean(0); so = X[a].std(0) + 1e-9; Yo = (X[b] - mo) / so
+        def back(pv):   # standardised transformed-space prediction of the T columns -> original standardised scale
+            full = np.zeros((len(b), N)); full[:, T] = pv * F['sd'][T] + F['mu'][T]; return (inv(full)[:, T] - mo[T]) / so[T]
+        S_all = sel_greedy_A(dict(W=F['W'], D=F['D'], C=Cd, T=T), max(kg))
+        for p in SIMPLE:
+            e = np.mean([((back(P.predict(p, S_all[:k], T, Yb[:, S_all[:k]])) - Yo[:, T]) ** 2).mean() for k in kg]); err[p].append(e * len(b))
+    tot = {p: sum(v) / len(tr) for p, v in err.items()}; choice[fi] = dict(best=min(tot, key=tot.get), inner_mse=tot)
+    print(ds, fi, choice[fi]['best'], {p: round(v, 3) for p, v in tot.items()}, flush=True)
+json.dump(choice, open(out, 'w'), indent=1)

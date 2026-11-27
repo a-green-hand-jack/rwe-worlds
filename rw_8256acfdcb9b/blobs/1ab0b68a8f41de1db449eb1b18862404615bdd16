@@ -1,0 +1,120 @@
+"""Cell preparation (split, models, background, instances) and per-instance experiment."""
+import os, json, pickle, time
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import roc_auc_score, accuracy_score
+from . import data, models, exact, estimators as E
+
+WORK = os.environ.get("SHAPRELIAB_WORK", "/hutian/work")
+B_DEF = 50
+TRAIN_CAP = 30000
+N_INST = {"arrhythmia": 40, "german": 40, "acs_employment": 60, "acs_income": 100, "pima": 100, "gmsc": 100}
+KINDS = ["lr", "rf", "gbm", "mlp"]
+
+
+def budgets(d):
+    """Coalition-sample budgets m for shap Kernel SHAP and for the own estimators."""
+    nmax = (1 << d) - 2
+    if d >= 16:
+        return [256, 1024, 2 * d + 2048, 4096, 16384]
+    return sorted({max(2, round(f * nmax)) for f in (0.05, 0.10, 0.15, 0.25, 0.50)})
+
+
+def cell_dir(ds, seed):
+    return os.path.join(WORK, f"{ds}_s{seed}")
+
+
+def prepare(ds, seed=0, kinds=KINDS):
+    """Fit models (deterministic), choose background and instances; store in the cell directory."""
+    X, names, cat, y = data.load(ds)
+    d = X.shape[1]
+    Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.3, random_state=seed, stratify=y)
+    if len(ytr) > TRAIN_CAP:
+        Xtr, ytr = Xtr[:TRAIN_CAP], ytr[:TRAIN_CAP]
+    rs = np.random.RandomState(seed)
+    bg_idx = rs.choice(len(Xtr), B_DEF, replace=False)
+    n = N_INST[ds]
+    inst_idx = rs.choice(len(Xte), n, replace=False)
+    out = cell_dir(ds, seed)
+    os.makedirs(out, exist_ok=True)
+    meta = dict(dataset=ds, seed=seed, d=d, names=names, cat_idx=cat, n_train=len(ytr), n_test=len(yte),
+                B=B_DEF, n_inst=n, models={})
+    for k in kinds:
+        t = time.time()
+        m = models.Model(k, d, cat, seed=seed).fit(Xtr, ytr)
+        s = m.f(Xte)
+        meta["models"][k] = dict(auc=float(roc_auc_score(yte, s)),
+                                 acc=float(accuracy_score(yte, m.proba(Xte) > 0.5)),
+                                 fit_s=time.time() - t, output_space=models.OUTPUT_SPACE[k])
+        pickle.dump(m, open(os.path.join(out, f"model_{k}.pkl"), "wb"))
+    np.savez(os.path.join(out, "split.npz"), bg=Xtr[bg_idx], X=Xte[inst_idx], y=yte[inst_idx],
+             Xtr=Xtr, ytr=ytr, bg_idx=bg_idx, inst_idx=inst_idx)
+    json.dump(meta, open(os.path.join(out, "meta.json"), "w"), indent=1)
+    return meta
+
+
+SHAP_L1 = {"noreg": False, "auto": "auto", "nf10": "num_features(10)"}
+
+
+def run_instance(ds, kind, i, seed=0, R=100, with_shap=True, shap_l1=("noreg", "auto", "nf10"), tree_check=True):
+    out = cell_dir(ds, seed)
+    fn = os.path.join(out, f"inst_{kind}_{i:04d}.npz")
+    if os.path.exists(fn):
+        return fn
+    sp = np.load(os.path.join(out, "split.npz"))
+    m = pickle.load(open(os.path.join(out, f"model_{kind}.pkl"), "rb"))
+    bg, x = sp["bg"], sp["X"][i]
+    d = len(x)
+    t0 = time.time()
+    if kind == "lr":
+        v = exact.lr_value_table(m.f, x, bg)  # additive: closed form (checked against the direct table)
+    elif kind == "mlp":
+        v = exact.mlp_value_table(m, x, bg)  # first layer additive over attributes (checked, max diff 2e-15)
+    else:
+        v = exact.value_table(m.f, x, bg)
+    t_table = time.time() - t0
+    phi = exact.exact_shapley(v)
+    res = dict(v=v, phi=phi, x=x, t_table=t_table, fx=m.f(x[None])[0])
+    if tree_check and kind in ("rf", "gbm"):
+        import shap
+        te = shap.TreeExplainer(m.m, data=bg, feature_perturbation="interventional")
+        sv = np.asarray(te.shap_values(x[None], check_additivity=False))
+        sv = sv[0, :, 1] if sv.ndim == 3 else sv[0]
+        res["phi_treeshap"] = sv
+    bud = budgets(d)
+    # own estimators, nested streams, one per repeat
+    uk = E.UnbiasedKernel(d)
+    Tmax, Pmax = max(bud) // 2, E.pairs_for_budget(max(bud), d)
+    rng = np.random.default_rng([seed, i, KINDS.index(kind), 1])
+    U = []
+    for r in range(R):
+        zi, zc = E.paired_kernel_stream(d, Tmax, rng)
+        U.append(uk.u(v, zi, zc))
+    prng = np.random.default_rng([seed, i, KINDS.index(kind), 2])
+    perms = [E.antithetic_permutation_stream(d, Pmax, prng) for _ in range(R)]
+    for mm in bud:
+        T = mm // 2
+        ph, se = zip(*[uk.estimate(v, U[r], T) for r in range(R)])
+        res[f"unb_{mm}"], res[f"unb_se_{mm}"] = np.array(ph), np.array(se)
+        P = E.pairs_for_budget(mm, d)
+        ph, se = zip(*[E.permutation_estimate(v, perms[r], P) for r in range(R)])
+        res[f"perm_{mm}"], res[f"perm_se_{mm}"] = np.array(ph), np.array(se)
+    if with_shap:
+        sl = E.ShapLookup(v, x)
+        for name in shap_l1:
+            for bi, mm in enumerate(bud):
+                if name == "auto" and d >= 16 and mm not in (1024, 2 * d + 2048):
+                    continue
+                if name == "nf10" and d < 16:
+                    continue  # num_features(10) selects all d <= 10 features: identical to noreg
+                res[f"shap_{name}_{mm}"] = np.array(
+                    [sl.kernel(mm, (i * 1000003 + bi * 1009 + r * 7 + 13) % (2**31 - 1), SHAP_L1[name]) for r in range(R)])
+        if d <= 10:
+            # shap default budget 2d+2048 >= 2^d-2: complete enumeration -> deterministic
+            res["shap_default_budget"] = 2 * d + 2048
+            res["shap_default_exact"] = sl.kernel(2 * d + 2048, 0, False)
+    res["t_total"] = time.time() - t0
+    tmp = fn + ".tmp.npz"
+    np.savez_compressed(tmp, **res)
+    os.replace(tmp, fn)  # atomic: a killed job never leaves a partial file
+    return fn

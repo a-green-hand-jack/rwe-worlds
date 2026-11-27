@@ -1,0 +1,80 @@
+"""Loading of the result files (code/results) and the fixed vocabulary of the figures (labels, method classes).
+
+Method names are `<design>|<estimator group>` (code/RESULTS_SCHEMA.md).
+The sets of methods shown are fixed here by method class (class representatives), not picked by results.
+"""
+import sys
+import pandas as pd
+
+SPLIT_LABEL = {"interp": "interpolation", "lineage": "lineage-held-out", "extrap": "extrapolation"}
+SPLITS = ["interp", "extrap", "lineage"]
+BASE = "uniform|mean"
+
+DESIGN_LABEL = {"uniform": "uniform", "strat": "stratified", "pps": "PPS", "balanced": "balanced",
+                "anchor": "anchor", "infotop": "info-top", "cat": "IRT-CAT"}
+EST_LABEL = {"mean": "mean", "calreg": "cal. reg.", "irt-model": "IRT model", "knn-model": "kNN model",
+             "ridge-model": "ridge model", "irt-plugin": "IRT plug-in", "knn-plugin": "kNN plug-in",
+             "ridge-plugin": "ridge plug-in", "diff-irt": "diff. IRT", "diff-knn": "diff. kNN",
+             "diff-ridge": "diff. ridge", "diffnaive-irt": "diff. IRT (naive)",
+             "recal-s": "recal. reg. (s)", "recal-sirt": "recal. reg. (s + IRT)", "recal-q": "recal. reg. (q)",
+             "irtw-model": "IRT model, weak prior", "irtw-plugin": "IRT plug-in, weak prior"}
+
+
+def label(m):
+    d, e = m.split("|", 1)
+    return f"{DESIGN_LABEL.get(d, d)} × {EST_LABEL.get(e, e)}"
+
+
+# (method, class) shown in Fig. 2 / Fig. 7 / Table 1: one family each (class -> colour in style.CLASS_STYLE)
+SHOWN = [
+    ("uniform|mean", "uniform"),
+    ("strat|mean", "stratified"),
+    ("uniform|calreg", "regression"),
+    ("anchor|irt-plugin", "anchor"),
+    ("balanced|mean", "balanced"),
+    ("uniform|irt-model", "model-based"),
+    ("uniform|diff-irt", "design-based"),
+    # post hoc: the best methods by the primary endpoint, not pre-declared
+    ("balanced|calreg", "post hoc: balanced + regression"),
+    ("balanced|diff-irt", "post hoc: balanced + difference"),
+    ("pps|diff-irt", "post hoc: PPS + difference"),
+]
+# methods that also get a row against the second baseline strat|mean in Table 1
+VS_STRAT = ["uniform|diff-irt", "balanced|calreg", "balanced|diff-irt", "pps|diff-irt"]
+BASE2 = "strat|mean"
+
+
+class Results:
+    """Reads the CSVs of the results directory (path given on the command line)."""
+
+    def __init__(self, root):
+        self.root = root
+
+    def has(self, name):
+        import os
+        path = f"{self.root}/results/{name}"
+        return os.path.exists(path) or os.path.exists(path + ".gz")
+
+    def csv(self, name):
+        import os
+        path = f"{self.root}/results/{name}"
+        if not os.path.exists(path) and os.path.exists(path + ".gz"):
+            path += ".gz"
+        return pd.read_csv(path)
+
+    def vs(self, df, baseline=BASE):
+        """Rows of a primary/ratio_by_n frame against one baseline (the files carry both uniform|mean and strat|mean)."""
+        return df[df.baseline == baseline] if "baseline" in df else df
+
+    def shown(self, available):
+        """SHOWN restricted to methods present; a missing one is reported, never replaced."""
+        out = []
+        for m, c in SHOWN:
+            if m in set(available):
+                out.append((m, c))
+            else:
+                print(f"WARNING: method {m} not in results; omitted from the figure", file=sys.stderr)
+        return out
+
+# The estimator whose ceiling Fig. 4 checks: the design-based method of the paper (difference estimator, uniform design)
+OURS = "uniform|diff-irt"

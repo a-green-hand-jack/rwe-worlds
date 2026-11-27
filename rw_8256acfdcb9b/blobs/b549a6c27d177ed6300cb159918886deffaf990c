@@ -1,0 +1,7 @@
+import pymupdf,re,sys
+f=sys.argv[1]; d=pymupdf.open(f)
+for k,p in enumerate(d):
+    t=p.get_text()
+    for m in re.finditer(r'^\s*(Figure|Fig\.|Table)\s*\d+\s*[:.][^\n]{0,60}',t,re.M|re.I): print(k+1,m.group(0).strip())
+    for m in re.finditer(r'^\s*(references|bibliography|appendix[^\n]{0,30}|[A-Z]\s+[A-Z][a-z]+[^\n]{0,40})$',t,re.M|re.I):
+        if re.match(r'\s*(references|bibliography|appendix)',m.group(0),re.I): print(k+1,'##',m.group(0).strip())

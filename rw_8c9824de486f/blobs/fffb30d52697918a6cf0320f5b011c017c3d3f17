@@ -1,0 +1,56 @@
+"""Stage B2: inference grid (P2,P3,P4,P6 on S0 and S6), selection grid (S3, S7, S6u on P5/P1), same metrics as stage B.
+usage: python 05b_eval_extra.py <data_dir> <work_dir> <split> <fold> <out_dir> [tag]"""
+import os, sys, warnings, pickle, time, importlib.util, numpy as np, pandas as pd
+sys.path.insert(0, os.path.dirname(__file__))
+from common import *
+from fa import design_risk
+from state import loo_predictions
+import select_rules as SR, infer_rules as IR, baselines as BL
+spec = importlib.util.spec_from_file_location("ev", os.path.join(os.path.dirname(__file__), "05_eval.py")); EV = importlib.util.module_from_spec(spec); spec.loader.exec_module(EV)
+
+def main():
+    warnings.filterwarnings('ignore')
+    data_dir, work, split, fold, out = sys.argv[1:6]; fold = int(fold); tag = sys.argv[6] if len(sys.argv) > 6 else "extra"
+    Y, mods, tasks, et = load_matrix(data_dir)
+    st = pickle.load(open(os.path.join(work, "state", f"{split}_{fold}.pkl"), "rb")); b = pickle.load(open(os.path.join(work, "state", f"{split}_{fold}_b.pkl"), "rb"))
+    train, test, mu, sd = st["train"], st["test"], st["mu"], st["sd"]
+    Z = (Y - mu) / sd; mask = ~np.isnan(Y); Ztr = Z[train]; mk = mask[train]; N = Y.shape[1]
+    cover = mk.sum(0).astype(float)
+    rows = []; t0 = time.time()
+    for m in test:
+        obs = np.where(mask[m])[0]; z = Z[m]
+        floor_fit = st["fits"][st["best_rank"]["loo"]]
+        e_loo = np.zeros(N); e_loo[obs] = (loo_predictions(floor_fit, obs, z[obs]) - z[obs]) * sd[obs]
+        rng_m = np.random.default_rng(SEED * 37 + int(m))
+        path7 = SR.s7_interview(Ztr, mk, z, obs, 32)           # adaptive interview path (uses the model's own answers), prefix = run set
+        for k in K_GRID:
+            if len(obs) <= k: continue
+            r = st["best_rank"][k]; fit = st["fits"][r]
+            def add(rule, inf, S, d, pred):
+                T = np.setdiff1d(obs, S)
+                base = dict(split=split, fold=fold, model=int(m), k=k, rule=rule, draw=d, rank=r, runset=len(obs), cost_sel=np.nan, inf=inf)
+                dr = design_risk(fit, S); base["t1_rmse_raw"] = float(np.sqrt(np.mean(dr[T] * sd[T] ** 2))); base["t1_floor_raw"] = float(np.sqrt(np.mean(fit["psi"][T] * sd[T] ** 2)))
+                rows.append({**base, **EV.metrics(pred, z, sd, T, e_loo, st["delta"], st["gap"], st["floor"])})
+            def infs(S, rule, d):
+                y = z[S]
+                add(rule, "P2", S, d, BL.p2_predict(b["p2"][b["best"][("P2", k)]], S, y))
+                add(rule, "P3", S, d, BL.p3_predict(Ztr, mk, S, y, b["best"][("P3", k)]))
+                add(rule, "P4", S, d, BL.p4_predict(b["p4"][b["best"][("P4", k)]], S, y))
+                add(rule, "P6", S, d, BL.p6_predict(b["p6"], st["fits"][b["r12"]], S, y))
+            for d in range(10): infs(SR.s0_random(obs, k, rng_m), "S0", d)
+            S6 = SR.s6_greedy(fit, obs, k); infs(S6, "S6", 0)
+            # selection grid on P5 / P1 (S6u everywhere; S3, S7 for k <= 32)
+            sel = {"S6u": SR.s6_unrun(fit, obs, k)}
+            if k <= 32:
+                oset = set(obs.tolist()); s3 = [int(j) for j in b["s3_order"] if j in oset][:k]
+                if len(s3) < k:   # run set misses some of the ordered benchmarks: pad with the most-observed remaining ones
+                    rest = np.array([j for j in obs if j not in set(s3)]); s3 += [int(j) for j in SR.s1_popular(rest, k - len(s3), cover)]
+                sel["S3"] = np.array(s3); sel["S7"] = path7[:k]
+            for rule, S in sel.items():
+                S = np.asarray(S)
+                add(rule, "P5", S, 0, IR.p5_fa(fit, S, z[S])); add(rule, "P1", S, 0, IR.p1_offset(N, z[S]))
+    df = pd.DataFrame(rows); os.makedirs(out, exist_ok=True)
+    df.to_parquet(os.path.join(out, f"{split}_{fold}_{tag}.parquet")); print(split, fold, tag, len(df), round(time.time() - t0, 1), "s", flush=True)
+
+if __name__ == "__main__":
+    main()

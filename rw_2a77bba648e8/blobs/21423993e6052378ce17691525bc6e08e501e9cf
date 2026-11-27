@@ -1,0 +1,5 @@
+quantity,estimate,ci_lo,ci_hi,n_cells,n_runs,ci_type
+accuracy rule B,0.9180555555555555,0.8930555555555556,0.9381944444444444,1440,80,"bootstrap of runs, all their cells"
+accuracy constant rule (always: regression wins),0.8020833333333334,0.7472048611111112,0.8541666666666666,1440,80,"bootstrap of runs, all their cells"
+accuracy B minus constant,0.11597222222222214,0.07152777777777786,0.16319444444444442,1440,80,"bootstrap of runs, all their cells"
+balanced accuracy rule B (constant rule: 0.5),0.8484848484848484,0.7944527283663868,0.8901711665527454,1440,80,"bootstrap of runs, all their cells"

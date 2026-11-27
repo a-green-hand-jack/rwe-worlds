@@ -1,0 +1,27 @@
+import fitz,re,sys,json,glob
+res=[]
+for f in sorted(glob.glob('/hutian/work/corpus/*.pdf')):
+    d=fitz.open(f); pages=[p.get_text() for p in d]
+    n=len(pages)
+    refp=None
+    for k,t in enumerate(pages):
+        if re.search(r'^\s*(references|bibliography)\s*$',t,re.I|re.M): refp=k;break
+    full='\n'.join(pages)
+    # main text = text before the References heading
+    cut=re.search(r'^\s*(references|bibliography)\s*$',full,re.I|re.M)
+    main=full[:cut.start()] if cut else full
+    # last main page fill: lines of ref page before heading
+    lines_before=0
+    if refp is not None:
+        t=pages[refp]; m=re.search(r'^\s*(references|bibliography)\s*$',t,re.I|re.M)
+        frac=len(t[:m.start()].split())/max(1,len(pages[0].split()))
+    figs=sorted(set(int(x) for x in re.findall(r'^\s*(?:Figure|Fig\.)\s*(\d+)\s*[:.]',main,re.M|re.I)))
+    tabs=sorted(set(int(x) for x in re.findall(r'^\s*Table\s*(\d+)\s*[:.]',main,re.M|re.I)))
+    ab=re.search(r'abstract\s*(.*?)(?=\n\s*(?:1\.?\s*)?introduction\s*\n)',main,re.I|re.S)
+    abw=len(ab.group(1).split()) if ab else None
+    intro=re.search(r'\n\s*(?:1\.?\s*)?Introduction\s*\n(.*?)(?=\n\s*2\.?\s+[A-Z][^\n]{2,60}\n)',main,re.S)
+    iw=len(intro.group(1).split()) if intro else None
+    ip=None
+    if intro: ip=len([p for p in re.split(r'\n(?=[A-Z])',intro.group(1)) if len(p.split())>25])
+    res.append(dict(id=f.split('/')[-1][:-4],pages=n,ref_page=None if refp is None else refp+1,frac_on_ref_page=None if refp is None else round(frac,2),figs=figs,tabs=tabs,abs_words=abw,intro_words=iw))
+for r in res: print(json.dumps(r))

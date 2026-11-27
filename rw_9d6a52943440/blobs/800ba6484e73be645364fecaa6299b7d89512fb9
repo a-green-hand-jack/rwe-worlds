@@ -1,0 +1,44 @@
+\begingroup\setlength{\tabcolsep}{2.5pt}
+\begin{longtable}{lccc}
+\toprule
+Method (design $\times$ estimator) & interpolation & extrapolation & lineage-held-out \\
+\midrule
+\endhead
+\multicolumn{4}{l}{\emph{Open LLM Leaderboard: against uniform $\times$ mean}} \\
+uniform $\times$ mean & 1.00 [1.00, 1.00] & 1.00 [1.00, 1.00] & 1.00 [1.00, 1.00] \\
+stratified $\times$ mean & 0.79 [0.79, 0.81] & 0.84 [0.83, 0.85] & 0.84 [0.82, 0.85] \\
+uniform $\times$ cal. reg. & 0.72 [0.71, 0.73] & 1.13 [1.08, 1.16] & 0.74 [0.73, 0.76] \\
+anchor $\times$ IRT plug-in & 0.73 [0.69, 0.76] & 2.05 [1.90, 2.14] & 0.83 [0.76, 0.88] \\
+balanced $\times$ mean & 0.69 [0.68, 0.70] & 0.80 [0.78, 0.81] & 0.74 [0.73, 0.75] \\
+uniform $\times$ IRT model & 0.66 [0.64, 0.68] & 1.77 [1.61, 1.85] & 0.73 [0.70, 0.76] \\
+uniform $\times$ diff. IRT & 0.62 [0.61, 0.63] & 0.87 [0.83, 0.90] & 0.67 [0.66, 0.69] \\
+balanced $\times$ cal. reg. & 0.65 [0.64, 0.66] & 0.75 [0.73, 0.76] & 0.70 [0.69, 0.71] \\
+balanced $\times$ diff. IRT & 0.57 [0.55, 0.58] & 0.81 [0.77, 0.83] & 0.62 [0.61, 0.64] \\
+PPS $\times$ diff. IRT & 0.58 [0.57, 0.59] & 0.86 [0.82, 0.88] & 0.63 [0.61, 0.64] \\
+\multicolumn{4}{l}{\emph{Open LLM Leaderboard: against stratified $\times$ mean}} \\
+uniform $\times$ diff. IRT & 0.78 [0.76, 0.80] & 1.04 [1.00, 1.06] & 0.81 [0.79, 0.82] \\
+balanced $\times$ cal. reg. & 0.82 [0.80, 0.83] & 0.89 [0.87, 0.91] & 0.83 [0.82, 0.85] \\
+balanced $\times$ diff. IRT & 0.71 [0.70, 0.73] & 0.96 [0.92, 0.99] & 0.75 [0.73, 0.76] \\
+PPS $\times$ diff. IRT & 0.73 [0.71, 0.75] & 1.02 [0.98, 1.04] & 0.75 [0.74, 0.77] \\
+Benchmarks & 7 & 7 & 7 \\
+\midrule
+\multicolumn{4}{l}{\emph{HELM: against uniform $\times$ mean}} \\
+uniform $\times$ mean & 1.00 [1.00, 1.00] & 1.00 [1.00, 1.00] & 1.00 [1.00, 1.00] \\
+stratified $\times$ mean & 0.83 [0.80, 0.86] & 0.85 [0.82, 0.88] & 0.83 [0.80, 0.86] \\
+uniform $\times$ cal. reg. & 0.84 [0.82, 0.87] & 0.95 [0.92, 0.99] & 0.82 [0.80, 0.85] \\
+anchor $\times$ IRT plug-in & 1.30 [1.13, 1.44] & 1.61 [1.45, 1.72] & 1.39 [1.13, 1.59] \\
+balanced $\times$ mean & 0.80 [0.77, 0.82] & 0.81 [0.78, 0.84] & 0.83 [0.80, 0.86] \\
+uniform $\times$ IRT model & 0.95 [0.89, 1.02] & 2.21 [1.99, 2.37] & 0.97 [0.87, 1.07] \\
+uniform $\times$ diff. IRT & 0.80 [0.77, 0.84] & 0.83 [0.80, 0.87] & 0.81 [0.78, 0.84] \\
+balanced $\times$ cal. reg. & 0.79 [0.76, 0.82] & 0.80 [0.77, 0.82] & 0.82 [0.79, 0.85] \\
+balanced $\times$ diff. IRT & 0.76 [0.72, 0.80] & 0.82 [0.78, 0.86] & 0.83 [0.75, 0.91] \\
+PPS $\times$ diff. IRT & 0.75 [0.72, 0.78] & 0.84 [0.80, 0.88] & 0.80 [0.73, 0.88] \\
+\multicolumn{4}{l}{\emph{HELM: against stratified $\times$ mean}} \\
+uniform $\times$ diff. IRT & 0.97 [0.93, 1.01] & 0.98 [0.94, 1.02] & 0.97 [0.94, 1.01] \\
+balanced $\times$ cal. reg. & 0.95 [0.92, 0.99] & 0.94 [0.91, 0.97] & 0.98 [0.94, 1.02] \\
+balanced $\times$ diff. IRT & 0.92 [0.87, 0.96] & 0.96 [0.92, 1.00] & 1.00 [0.91, 1.09] \\
+PPS $\times$ diff. IRT & 0.91 [0.87, 0.94] & 0.99 [0.94, 1.03] & 0.97 [0.89, 1.06] \\
+Benchmarks & 6 & 6 & 5 \\
+\bottomrule
+\end{longtable}
+\endgroup

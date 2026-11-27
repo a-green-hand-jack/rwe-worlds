@@ -1,0 +1,10 @@
+import json,sys,subprocess,os,re
+rows=json.load(open('/hutian/ac/sample.json'))
+for y,u,t in rows:
+    if 'Abstract-Conference' not in u: continue
+    pdf=u.replace('/hash/','/file/').replace('Abstract-Conference.html','Paper-Conference.pdf')
+    h=re.search(r'hash/([0-9a-f]+)-',u).group(1)
+    out=f'/hutian/ac/pdf/{y}_{h[:8]}.pdf'
+    if not os.path.exists(out):
+        r=subprocess.run(['curl','-sS','-m','120','-fLo',out,'https://proceedings.neurips.cc'+pdf])
+        print(r.returncode,out,t[:50])

@@ -1,0 +1,12 @@
+{
+ "figure": "figB_m5_robust",
+ "width_in": 5.5,
+ "height_in": 4.5,
+ "inputs": {
+  "results/tables/probit_collapse.csv": "df4c97acd59e1e82fb15b06104cbeccae4c134404a92f2a9598c89c0627d6b8e",
+  "results/tables/probit_fit.csv": "1262de731f6f4912c13f2215683c2600eeb7e527fff9a6628dbbdb77eadb609f",
+  "results/tables/mstar_robust.csv": "c2b88d4515935625165e9649565257c02f1936801b2b3ab292ea24fc7514cc46"
+ },
+ "note": "(a-c) probit_collapse.csv, sigma_loo, budget range m_eff>=256, each marker is one bin of x holding 3-110 (instance, budget) points of R=100 runs each (counts in the csv), x clipped at 8 (last bin of each cell is beyond the axis); (d) probit_fit.csv (sigma_loo), beta with instance-bootstrap CI, CI upper bound 20 (separation: every point at large x correct) is not an estimate and is drawn to the axis edge; (e) mstar_robust.csv, Tobit slope of log m* on log g (strict P_c), 100 bootstrap resamples, under thinning of the budget grid (the every-2nd-from-2nd variant and the stable-crossing variant are in mstar_robust.csv, not drawn: the stable crossing equals the full grid to two decimals); German Credit (40 instances) and ACS Employment (60); non-linear models only; the paired Kernel slope is grid-dependent (full and every-2nd: -1.4..-1.8; every 3rd: -0.65..-1.1), antithetic permutation is not; the shap Kernel slope stays near -1 while its probit-implied slope is about -2 (unresolved, Outline rev 8); the Tobit fit remains the primary M5 estimate and assumes Gaussian residuals under heavy right-censoring",
+ "scope": "Intervals resample instances of one trained model per dataset x model (one seed, B=50 random background rows); variance from retraining and from the background is not in them (floors b and c measure those separately)."
+}

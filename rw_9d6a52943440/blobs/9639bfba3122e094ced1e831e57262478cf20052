@@ -1,0 +1,18 @@
+# Review of paper-repo PR #7 at head b44a3af (version 1, `main` into `release`)
+
+Built from b44a3af2f1ca (document/main). Decision: approve for `release`.
+
+## Checked
+- N1 (page limit): main text ends on page 9 (Discussion and limitations), References start on page 9's end/page 10; 29 pages in all. Fixed.
+- N2 (broken reference): no "effig", "??" or raw labels in the PDF text; `\ref{fig:msrc}` restored. Fixed.
+- New R = 100 check (Section 5.2): `code/scripts/14_bias_r100.py` and `results/highR_vs_main.csv` ship; the quoted IRT-model extrapolation squared bias 4.29 -> 4.42 matches (4.290 / 4.415).
+- Discussion now says the stronger-clustering runs have different draws and no intervals; consistent with `kmstrong.csv` use.
+- Cell-level reproduction package synced (scripts 13 and 14, highR results, REPRODUCE.md).
+
+## Minor, not blocking
+- Section 5.2 says "changes no entry of that table by more than 0.13"; over all methods in `highR_vs_main.csv` the largest squared-bias difference is 0.137 (extrap, balanced|knn-plugin). If Table 3 contains that row the text should say 0.14; if it does not, say which methods the sentence covers.
+- `app:families` and `app:repro` appear as undefined in the first latex pass of build.log only; the final PDF has none.
+
+## For `final` (unchanged)
+- M6: report the public-baseline run (`13_public_compare.py` is shipped; its result is not in the paper).
+- M7: the recalibrated estimator and 100-draw run, or a statement of what was attempted.

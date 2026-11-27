@@ -1,0 +1,52 @@
+"""M5 robustness of the m*(g) slope (story-repo#5 ask 1a): the Tobit slope of log m* on log margin under variants of the budget grid and of the m* definition.
+usage: mstar_robust.py DATASET [OUT_DIR] -> OUT_DIR/mstar_robust_<dataset>.csv ; `mstar_robust.py merge [OUT_DIR]` -> OUT_DIR/mstar_robust.csv
+variants (criterion pc_exact, target 0.9, cells with R > 1):
+  full           the whole grid of the cell (as in mstar_tobit.csv; first budget with P_c >= 0.9)
+  thin2_off0/1   every second budget (x2 coarser grid), starting at the 1st / 2nd budget
+  thin3_off0     every third budget
+  stable         the whole grid, but m* = the smallest budget from which P_c >= 0.9 at it and at every larger budget (a single noisy crossing at R repeats does not count)
+Instance bootstrap (100 resamples)."""
+import sys, os, glob
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+import numpy as np, pandas as pd
+from shapreliab import derive as D
+
+arg = sys.argv[1]
+out = sys.argv[2] if len(sys.argv) > 2 else "results/tables"
+if arg == "merge":
+    parts = sorted(glob.glob(os.path.join(out, "mstar_robust_*.csv")))
+    pd.concat([pd.read_csv(p, keep_default_na=False) for p in parts]).to_csv(os.path.join(out, "mstar_robust.csv"), index=False)
+    for p in parts:
+        os.remove(p)
+    sys.exit()
+il = pd.read_parquet(os.path.join(out, "instance_level.parquet"))
+il = il[(il.dataset == arg) & (il.kind == "topk3") & (il.R > 1) & (il.estimator != "exact_explanation")]
+il = il[~((il.estimator == "shap_kernel") & (il.l1_reg.astype(str) != "False"))]
+il = D.dedupe_evals(il)
+CELL = D.CELL
+parts = []
+for variant, (step, off, stable) in dict(full=(1, 0, False), thin2_off0=(2, 0, False), thin2_off1=(2, 1, False), thin3_off0=(3, 0, False), stable=(1, 0, True)).items():
+    keep = []
+    for cell, g in il.groupby(CELL, sort=False):
+        evs = np.sort(g.evals_per_run.unique())
+        sel = evs[off::step]
+        if len(sel) >= 3:
+            keep.append(g[g.evals_per_run.isin(sel)])
+    if not keep:
+        continue
+    ilv = pd.concat(keep)
+    rows = []
+    for cell, g in ilv.groupby(CELL, sort=False):
+        evs = np.sort(g.evals_per_run.unique())
+        for iid, h in g.groupby("instance_id"):
+            h = h.sort_values("evals_per_run")
+            ok = (h["n_correct"] / h.R >= 0.9 - 1e-12).to_numpy()
+            if stable:
+                ok = np.flip(np.logical_and.accumulate(np.flip(ok)))
+            ms = h.evals_per_run.to_numpy()[ok.argmax()] if ok.any() else np.inf
+            rows.append(dict(zip(CELL, cell), criterion="pc_exact", instance_id=iid, mstar_evals=ms, margin_gk=h.margin_gk.iloc[0]))
+    pi = pd.DataFrame(rows)
+    fit = D.mstar_tobit(ilv, pi, 100)
+    fit.insert(0, "variant", variant)
+    parts.append(fit)
+pd.concat(parts).to_csv(os.path.join(out, f"mstar_robust_{arg}.csv"), index=False)

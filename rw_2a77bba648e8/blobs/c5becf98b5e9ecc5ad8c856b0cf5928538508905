@@ -1,0 +1,52 @@
+"""calibration.csv: Table 1 / sanity.  python analysis/make_calibration.py RAWDIR OUTDIR
+tau: exact GATE (mean over graph draws of the run `core_SBM_n3000_d20_p0.5`); tau_direct: own-treatment effect with no treated neighbour;
+dm_bias: measured mean normalised DM error in that cell; snr: Var(treatment part of the outcome)/Var(noise) at sigma = 0.5;
+noise_var_share: share of the chin estimator's variance that is outcome noise (exact, from the stored weights); null_check_error: max |error| of
+the `or_known` estimator with sigma = 0 (correct form, no baseline) over all draws of the sanity runs."""
+import datetime
+import json
+import os
+import subprocess
+import sys
+
+import numpy as np
+import pandas as pd
+
+sys.path.insert(0, os.path.dirname(__file__))
+import agg  # noqa: E402
+from gate import mech  # noqa: E402
+
+
+def direct(mname, s):
+    # own-treatment effect with every neighbour untreated: a-d, f: (1-s); e: (1-rho)
+    return 1.0 - s if mname != "0" else 1.0
+
+
+def main(rawdir, outdir):
+    os.makedirs(outdir, exist_ok=True)
+    core = agg.Run(os.path.join(rawdir, "core_SBM_n3000_d20_p0.5.pkl"))
+    sanity = [agg.Run(os.path.join(rawdir, f"sanity_{f}_d20_p0.5.pkl")) for f in ("SBM", "BA")]
+    rows = []
+    for j, (mname, s) in enumerate(core.cols):
+        x_dm = core.err("dm", j, 0.5)
+        x_ch = core.err("chin", j, 0.5)
+        sig_ch = core.o["sig"][:, agg.EI["chin"], j].astype(float)
+        nz_ch = core.o["nz"][:, agg.EI["chin"], j].astype(float)
+        tot = x_ch.var()
+        noise_var = (core.cond_noise_var("chin", j, 0.5) / core.tau[:, j][:, None] ** 2).mean()
+        sd = core.sd[:, j].mean()
+        # variance of the treatment part of the outcome = Var(Y) - Var(baseline) ; baseline SD 1 (iid)
+        treat_var = max(sd ** 2 - 1.0, 0.0)
+        nerr = max(float(np.nanmax(np.abs(sr.err("or_known", j, 0.0)))) for sr in sanity)
+        rows.append(dict(mechanism=mname, s=s, tau=float(core.tau[:, j].mean()), tau_direct=direct(mname, s),
+                         dm_bias=float(np.nanmean(x_dm)), snr=treat_var / (0.5 * sd) ** 2, noise_var_share=float(noise_var / tot) if tot > 0 else np.nan,
+                         null_check_error=nerr, sd_noise_free_outcome=float(sd), sd_across_graphs=float(core.sd[:, j].std()), tau_se_across_graphs=float(core.tau[:, j].std())))
+    pd.DataFrame(rows).to_csv(os.path.join(outdir, "calibration.csv"), index=False)
+    commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, cwd=os.path.dirname(os.path.abspath(__file__))).stdout.strip()
+    json.dump(dict(script="analysis/make_calibration.py", code_commit=commit, date=str(datetime.date.today()), seed=core.cfg["seed"],
+                   n_draws=int(core.G * core.R), source_runs=[core.id] + [r.id for r in sanity]),
+              open(os.path.join(outdir, "calibration.meta.json"), "w"), indent=1)
+
+
+if __name__ == "__main__":
+    main(*sys.argv[1:3])

@@ -1,0 +1,20 @@
+"""E6 T2 arms (side information X): census sets and alphafold indicators, plus synthetic X populations.
+usage: python exp6_T2.py PART PROCS  (PART: real | synth)"""
+import sys
+from common import *
+
+part, procs = sys.argv[1], int(sys.argv[2])
+T2_CFG = dict(cals=["linear", "spline", "isotonic"], K=5, n_knots=5, T2=True, gbm=True, gbm_iter=100, gbm_leaf=8,
+              safe_among=["linear", "spline", "isotonic"])
+cells = []
+if part == "real":
+    for nm in ("census_healthcare", "census_income", "census_education", "alphafold"):
+        pop = load_pool(nm)
+        for n in (200, 1000):
+            cells.append(dict(id=f"{nm}_n{n}_N5000", pop=pop, n=n, N=5000, R=1000, cfg=T2_CFG))
+else:
+    for kw in (dict(tau1=0.0, tau2=0.0), dict(tau1=0.6, tau2=0.0), dict(tau1=0.0, tau2=0.6), dict(tau1=0.6, tau2=0.6)):
+        pop = synth_x(**kw)
+        for n in (100, 400, 1600):
+            cells.append(dict(id=f"{pop.name}_n{n}_N4000", pop=pop, n=n, N=4000, R=1000, cfg=T2_CFG))
+run_grid("exp6", cells, procs)

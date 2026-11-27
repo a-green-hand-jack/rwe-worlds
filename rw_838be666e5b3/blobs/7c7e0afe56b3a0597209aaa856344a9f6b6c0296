@@ -1,0 +1,48 @@
+"""Caption-ready note next to each exhibit (figures/<name>.md, tables/<name>.md) for report.
+
+What the exhibit is for and how to read it is fixed text; what it was computed on is read from the
+result rows themselves (datasets, n and N values, reps, sampling schemes, seeds), never typed.
+"""
+import pandas as pd
+import style
+
+
+def computed_on(df):
+    out = []
+    for col, lab in [("dataset", "datasets/scenarios"), ("n", "n"), ("N", "N"), ("tier", "tier"),
+                     ("method", "methods"), ("construction", "constructions"),
+                     ("sampling", "sampling"), ("seed", "base seeds"), ("commit", "code commits")]:
+        if col in df.columns:
+            v = sorted(df[col].dropna().unique().tolist(), key=str)
+            if v:
+                out.append(f"- {lab}: {', '.join(str(x) for x in v)}")
+    if {"dataset", "n", "N"} <= set(df.columns):
+        per = []
+        for d, g in df.groupby("dataset"):
+            ns = ", ".join(str(int(x)) for x in sorted(g.n.dropna().unique()))
+            Ns = ", ".join(str(int(x)) for x in sorted(g.N.dropna().unique()))
+            per.append(f"{d} n={ns} (N={Ns})")
+        out.append("- n (and N) per dataset: " + "; ".join(per))
+    if "reps" in df.columns and df.reps.notna().any():
+        out.append(f"- Monte-Carlo repetitions per row: min {int(df.reps.min())}, max {int(df.reps.max())}")
+    out.append(f"- rows: {len(df)}")
+    return "\n".join(out)
+
+
+def write(kind, name, claim, shows, read, df, extra=""):
+    txt = (f"# {name}\n\n**Claim carried:** {claim}\n\n**Shows:** {shows}\n\n**How to read:** {read}\n\n"
+           f"**Computed on** (from the rows drawn):\n{computed_on(df)}\n")
+    pdf = style.outdir(kind) / f"{name}.pdf"
+    if kind == "figures" and pdf.exists():
+        import pymupdf
+        r = pymupdf.open(pdf)[0].rect
+        w, h = r.width / 72, r.height / 72
+        env = "a single-column `figure`" if w <= style.COL_W else "a `figure*`"
+        txt += (f"\n**Placement:** natural size {w:.2f} in wide, {h:.2f} in tall; the smallest type is {style.FONT:g} pt at that size "
+                f"(column {style.COL_W:g} in, text block {style.FULL_W:g} in). Intended for {env}; include it at `width={w:.2f}in` or up to the full "
+                f"width of its float, never narrower (scaling by s gives {style.FONT:g}s pt).\n")
+    if extra:
+        txt += f"\n{extra}\n"
+    p = style.outdir(kind) / f"{name}.md"
+    p.write_text(txt)
+    print("wrote", p)

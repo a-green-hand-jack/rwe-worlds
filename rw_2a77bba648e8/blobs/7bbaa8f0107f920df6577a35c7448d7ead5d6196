@@ -1,0 +1,115 @@
+"""Why the data-computable bias score fails, part (a): how well does the estimated curvature (2 x the f^2 coefficient of `quad`) track the exact curvature,
+and how large is its noise next to |bias|?     python analysis/why_curvature.py RAWDIR OUTDIR
+Exact curvature: 2 x the population OLS coefficient of f^2 when h(f) (the part of the outcome that depends on the treated-neighbour fraction) is regressed on
+(f, f^2), f = Bin(d_i, p)/d_i mixed over the realised degrees of the first graph draws (z is independent of f, so the other terms do not enter).
+Defined for (a) 0, (b) count/dbar, (c), (d), (g) and (f) (the z x f term has no f^2 component: 0); not computed for the diffusion (e).
+Estimated curvature: draw-level 2*b2/tau at the in-run noise level (as in make_diag.part2_cells); its mean, SD over draws and SD of the graph-draw means are recorded.
+Writes why_curvature_cells.csv (per run x mechanism x share) and why_curvature_summary.csv (per mechanism)."""
+import glob
+import json
+import os
+import subprocess
+import sys
+from datetime import date
+
+import numpy as np
+import pandas as pd
+from scipy.stats import binom, spearmanr
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import agg  # noqa: E402
+from gate import mech, sim  # noqa: E402
+
+SIG = 0.5
+
+
+def exact_curv(deg, p, h):
+    """2 x f^2 coefficient of the population regression of h(f, d) on (f, f^2); deg: realised degrees"""
+    ds, cnt = np.unique(deg, return_counts=True)
+    w = cnt / cnt.sum()
+    M = np.zeros(5)            # E f, E f^2, E f^3, E f^4 (centred later) and bookkeeping
+    Ef = Eq = Ef3 = Ef4 = Eh = Ehf = Ehq = 0.0
+    for d, wt in zip(ds, w):
+        k = np.arange(d + 1)
+        pm = binom.pmf(k, d, p)
+        f = k / d
+        hv = h(f, d)
+        Ef += wt * (pm @ f); Eq += wt * (pm @ f ** 2); Ef3 += wt * (pm @ f ** 3); Ef4 += wt * (pm @ f ** 4)
+        Eh += wt * (pm @ hv); Ehf += wt * (pm @ (hv * f)); Ehq += wt * (pm @ (hv * f ** 2))
+    C = np.array([[Eq - Ef ** 2, Ef3 - Ef * Eq], [Ef3 - Ef * Eq, Ef4 - Eq ** 2]])
+    r = np.array([Ehf - Eh * Ef, Ehq - Eh * Eq])
+    return 2 * np.linalg.solve(C, r)[1]
+
+
+def hfun(mname, dbar):
+    if mname == "a":
+        return lambda f, d: f
+    if mname == "b":
+        return lambda f, d: f * d / dbar
+    if mname == "c":
+        return lambda f, d: mech.g_sat(f)
+    if mname == "d":
+        return lambda f, d: mech.thr(f)
+    if mname == "g":
+        return lambda f, d: mech.g_conv(f)
+    return None
+
+
+def main(rawdir, out):
+    rows = []
+    for fpath in sorted(glob.glob(os.path.join(rawdir, "*.pkl"))):
+        run = agg.Run(fpath)
+        cfg = run.cfg
+        if cfg.get("design", "bern") != "bern" or cfg.get("base", "iid") not in ("iid", "none") or cfg.get("q_edge", 0) or cfg.get("base_sd", 1.0) != 1.0:
+            continue
+        if run.o["sig"].shape[1] <= agg.EI["b2"]:
+            continue
+        gs = []
+        for gi in range(min(run.G, 3)):
+            rng = np.random.default_rng(sim.seed_of(cfg.get("seed", 0), cfg["family"], cfg.get("n", 0), cfg["d"], gi, cfg.get("tag", ""), "graph"))
+            gs.append(sim.make_graph(cfg, gi, rng))
+        e = agg.EI["b2"]
+        G, R = run.G, run.R
+        for j, (mname, s) in enumerate(run.cols):
+            if mname == "0":
+                continue
+            sdj = np.repeat(run.sd[:, j], R)
+            tau = np.repeat(run.tau[:, j], R)
+            curv = (2 * (run.o["sig"][:, e, j].astype(float) + SIG * sdj * run.o["nz"][:, e, j].astype(float)) / tau).reshape(G, R)
+            ce = np.nan
+            if mname == "f":
+                ce = 0.0
+            elif mname != "e":
+                ce = float(np.mean([s * exact_curv(g.deg.astype(int), cfg["p"], hfun(mname, g.dbar)) for g in gs]))
+            x = run.err("chin", j, SIG)
+            rows.append(dict(run_id=run.id, graph=cfg["family"], d=cfg["d"], p=cfg["p"], mechanism=mname, s=s, curv_exact=ce, curv_est_mean=curv.mean(),
+                             curv_est_sd_draws=curv.std(), curv_est_sd_graph_means=curv.mean(1).std(ddof=1) if G > 1 else np.nan,
+                             curv_signal_mean=float((2 * run.o["sig"][:, e, j].astype(float) / tau).mean()), bias=float(np.nanmean(x)), sd=float(np.nanstd(x))))
+    t = pd.DataFrame(rows)
+    os.makedirs(out, exist_ok=True)
+    t.to_csv(os.path.join(out, "why_curvature_cells.csv"), index=False)
+    srows = []
+    for m, g in t.groupby("mechanism"):
+        ok = g[g.curv_exact.notna()]
+        r = dict(mechanism=m, n_cells=len(g), n_with_exact=len(ok), median_abs_bias=g.bias.abs().median(),
+                 median_curv_est_sd_draws=g.curv_est_sd_draws.median(), median_abs_curv_est_mean=g.curv_est_mean.abs().median(),
+                 median_noise_over_abs_mean=(g.curv_est_sd_draws / g.curv_est_mean.abs()).median())
+        if len(ok):
+            r.update(median_abs_curv_exact=ok.curv_exact.abs().median(), median_abs_est_minus_exact=(ok.curv_est_mean - ok.curv_exact).abs().median(),
+                     median_abs_signal_minus_exact=(ok.curv_signal_mean - ok.curv_exact).abs().median(),
+                     spearman_exact_vs_est_mean=spearmanr(ok.curv_exact, ok.curv_est_mean)[0] if ok.curv_exact.std() > 0 else np.nan,
+                     spearman_abs_exact_vs_abs_bias=spearmanr(ok.curv_exact.abs(), ok.bias.abs())[0] if ok.curv_exact.std() > 0 else np.nan,
+                     spearman_abs_est_vs_abs_bias=spearmanr(ok.curv_est_mean.abs(), ok.bias.abs())[0])
+        srows.append(r)
+    sm = pd.DataFrame(srows)
+    sm.to_csv(os.path.join(out, "why_curvature_summary.csv"), index=False)
+    commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, cwd=os.path.dirname(os.path.abspath(__file__))).stdout.strip()
+    for nm, v in (("why_curvature_cells", t), ("why_curvature_summary", sm)):
+        json.dump(dict(script="analysis/why_curvature.py", code_commit=commit, seed=20261125, n_draws="3000 (synthetic) / 3000 (real); in-run noise level 0.5",
+                       date=str(date.today()), rows=len(v)), open(os.path.join(out, nm + ".meta.json"), "w"), indent=1)
+    print(sm.round(3).to_string())
+
+
+if __name__ == "__main__":
+    main(*sys.argv[1:3])

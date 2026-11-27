@@ -1,0 +1,266 @@
+"""Tables 1, 3, 4, 5, 6, 7 and 9 from the result files.
+usage: python3 figures/scripts/tables_results.py CODE_DIR OUT_DIR
+  table1_primary.tex       main text: primary endpoint (n = 100) for the shown methods, per split, with interval and counts
+  table9_primary_all.tex  appendix: every method, non-thin benchmarks (longtable); table9_primary_allbench.tex: all benchmarks
+  table6_twopct.tex        appendix: the secondary endpoint, n/N = 2%, shown methods and both baselines
+  table5_lobo.tex          appendix: class representatives chosen by leave-one-benchmark-out, per split, next to the post-hoc best of the class
+  table7_suite.tex         appendix: the shown methods per suite (OLL, HELM), both baselines (longtable)
+  table3_biasvar.tex       appendix: variance and MSE as shares of the uniform MSE, n = 100 (+ bias^2 when supplied); _all = every method (longtable)
+  table4_ordering.tex      appendix: Spearman, Kendall, top-decile precision, n = 100
+"""
+import sys
+import numpy as np
+import pandas as pd
+sys.path.insert(0, __file__.rsplit("/", 1)[0])
+import common
+
+R = common.Results(sys.argv[1]); out = sys.argv[2]
+SP = common.SPLITS
+tg = R.csv("targets.csv"); pr0 = R.csv("primary.csv")
+pr0 = pr0[pr0.n == 100]; pr = R.vs(pr0)
+
+
+def wrap(L, long=False):
+    """Tables are \\input at the text width (396 pt): tight column separation, set in the caller's font size.
+    long=True: a longtable (needs \\usepackage{longtable}) whose header repeats on every page."""
+    if long:
+        L = [l.replace("{tabular}", "{longtable}") for l in L]
+        i = next(k for k, l in enumerate(L) if l == r"\midrule")
+        L = L[:i + 1] + [r"\endhead"] + L[i + 1:]
+    return "\\begingroup\\setlength{\\tabcolsep}{2.5pt}\n" + "\n".join(L) + "\n\\endgroup\n"
+
+
+def tex(s):
+    return s.replace("×", r"$\times$").replace("&", r"\&").replace("_", r"\_")
+
+
+def cell(r):
+    return f"{r.geomean_ratio:.2f} [{r.ci_lo:.2f}, {r.ci_hi:.2f}]"
+
+
+def count_rows(flavours):
+    """Three rows of counts per split; families are summed over benchmarks (a family in two benchmarks counts twice)."""
+    rows = []
+    for name, f in [("Benchmarks", lambda t: len(t)), ("Targets, summed over benchmarks", lambda t: t.k_targets.sum()),
+                    ("Target families, summed over benchmarks", lambda t: t.n_families.sum())]:
+        cells = []
+        for fl in flavours:
+            for sp in SP:
+                t = tg[tg.split == sp]
+                t = t[~t.thin] if fl == "non_thin" else t
+                cells.append(str(int(f(t))))
+        rows.append(name + " & " + " & ".join(cells) + r" \\")
+    return rows
+
+
+sel = R.csv("selected.csv") if R.has("selected.csv") else None
+CLS = {"design-based (mean, calreg)": "design-based (mean, cal. reg.)", "model-based": "model-based (IRT, kNN, ridge)",
+       "difference-corrected": "difference-corrected", "anchor": "anchor-based", "info/adaptive selection": "info-top / IRT-CAT selection"}
+
+
+def lobo_rows(ncol, base="uniform|mean", suite="all", sel=sel):
+    """One row per method class: ratio of the class representative chosen on the other benchmarks (leave-one-benchmark-out)."""
+    rows = []
+    for c in CLS:
+        row = [CLS[c]]
+        for sp in SP:
+            g = sel[(sel.cls == c) & (sel.held_out == "ALL") & (sel.split == sp) & (sel.suite == suite) & (sel.baseline == base)]
+            row.append(cell(g.assign(geomean_ratio=g.ratio).iloc[0]) if len(g) else "--")
+        rows.append(" & ".join(row) + r" \\")
+    return rows
+
+
+def primary_table(path, methods, flavours, strat_methods=(), long=False, lobo=False):
+    ncol = len(SP)
+    L = [r"\begin{tabular}{l" + "c" * ncol * len(flavours) + "}", r"\toprule"]
+    if len(flavours) > 1:
+        L.append(" & " + " & ".join(rf"\multicolumn{{{ncol}}}{{c}}{{{'non-thin benchmarks' if f == 'non_thin' else 'all benchmarks'}}}" for f in flavours) + r" \\")
+        L.append(" ".join(rf"\cmidrule(lr){{{2 + i * ncol}-{1 + (i + 1) * ncol}}}" for i in range(len(flavours))))
+    L.append("Method (design $\\times$ estimator) & " + " & ".join(common.SPLIT_LABEL[sp] for _ in flavours for sp in SP) + r" \\")
+    L.append(r"\midrule")
+    for m in methods:
+        row = [tex(common.label(m))]
+        for f in flavours:
+            for sp in SP:
+                g = pr[(pr.method == m) & (pr.split == sp) & (pr.flavour == f)]
+                row.append(cell(g.iloc[0]) if len(g) else "--")
+        L.append(" & ".join(row) + r" \\")
+    if lobo and sel is not None:
+        L.append(r"\midrule")
+        L.append(r"\multicolumn{%d}{l}{\emph{Representative of each class chosen without the outcomes (leave-one-benchmark-out)}} \\" % (1 + ncol * len(flavours)))
+        L += lobo_rows(ncol)
+    if strat_methods:
+        L.append(r"\midrule")
+        L.append(r"\multicolumn{%d}{l}{\emph{Against stratified $\times$ mean as the baseline}} \\" % (1 + ncol * len(flavours)))
+        for m in strat_methods:
+            row = [tex(common.label(m))]
+            for f in flavours:
+                for sp in SP:
+                    g = R.vs(pr0, common.BASE2)
+                    g = g[(g.method == m) & (g.split == sp) & (g.flavour == f)]
+                    row.append(cell(g.iloc[0]) if len(g) else "--")
+            L.append(" & ".join(row) + r" \\")
+    L.append(r"\midrule")
+    L += count_rows(flavours)
+    L += [r"\bottomrule", r"\end{tabular}"]
+    open(path, "w").write(wrap(L, long))
+
+
+avail = pr.method.unique()
+primary_table(f"{out}/table1_primary.tex", [m for m, _ in R.shown(avail)], ["non_thin"],
+       [m for m in common.VS_STRAT if m in set(avail)], lobo=True)
+allm = sorted(avail, key=lambda m: (m.split("|")[0] != "uniform", m))
+primary_table(f"{out}/table9_primary_all.tex", allm, ["non_thin"], long=True)
+primary_table(f"{out}/table9_primary_allbench.tex", allm, ["all"], long=True)
+
+# Table 3: mean over non-thin benchmarks of the variance and MSE relative to the MSE of uniform|mean.
+# The bias^2 column of per_bench includes var/n_draws (squared mean of finitely many draws), so bias^2 + var exceeds
+# the MSE by up to 10%; it is shown only if the result files supply the corrected column `bias2_unbiased`.
+pb = R.csv("per_bench.csv"); pb = pb[(pb.n == 100) & (~pb.thin) & (~pb.method.str.contains("fixed:"))]
+mse_u = (pb.rmse / pb.ratio) ** 2
+pb = pb.assign(v=pb["var"] / mse_u, m=pb.ratio ** 2)
+has_b = "bias2_unbiased" in pb
+if has_b:
+    pb["b2"] = pb.bias2_unbiased / mse_u
+cols = ([("b2", "bias$^2$")] if has_b else []) + [("v", "var."), ("m", "MSE")]
+k = len(cols)
+shown = [m for m, _ in R.shown(avail)]
+
+
+def table3(path, methods, long):
+    L = [r"\begin{tabular}{l" + "r" * k * len(SP) + "}", r"\toprule",
+         " & " + " & ".join(rf"\multicolumn{{{k}}}{{c}}{{{common.SPLIT_LABEL[sp]}}}" for sp in SP) + r" \\",
+         " ".join(rf"\cmidrule(lr){{{2 + k * i}-{1 + k * (i + 1)}}}" for i in range(len(SP))),
+         "Method & " + " & ".join(n for _ in SP for _, n in cols) + r" \\", r"\midrule"]
+    for m in methods:
+        row = [tex(common.label(m))]
+        for sp in SP:
+            g = pb[(pb.method == m) & (pb.split == sp)]
+            row += [f"{g[c].mean() + 0.0:.2f}".replace("-0.00", "0.00") for c, _ in cols] if len(g) else ["--"] * k
+        L.append(" & ".join(row) + r" \\")
+    L += [r"\bottomrule", r"\end{tabular}"]
+    open(path, "w").write(wrap(L, long))
+
+
+table3(f"{out}/table3_biasvar.tex", shown, False)
+table3(f"{out}/table3_biasvar_all.tex", allm, True)
+
+# Table 4: mean over non-thin benchmarks of the ordering metrics
+od = R.csv("ordering.csv"); od = od[(od.n == 100) & (~od.thin) & (~od.method.str.contains("fixed:"))]
+met = [("spearman", r"$\rho$"), ("kendall", r"$\tau$"), ("prec_topdecile", "P@10\\%")]
+
+
+def table4(path, methods, long):
+    L = [r"\begin{tabular}{l" + "r" * 3 * len(SP) + "}", r"\toprule",
+         " & " + " & ".join(rf"\multicolumn{{3}}{{c}}{{{common.SPLIT_LABEL[sp]}}}" for sp in SP) + r" \\",
+         " ".join(rf"\cmidrule(lr){{{2 + 3 * i}-{4 + 3 * i}}}" for i in range(len(SP))),
+         "Method & " + " & ".join(n for _ in SP for _, n in met) + r" \\", r"\midrule"]
+    for m in methods:
+        row = [tex(common.label(m))]
+        for sp in SP:
+            g = od[(od.method == m) & (od.split == sp)]
+            row += [f"{g[c].mean():.2f}" if len(g) else "--" for c, _ in met]
+        L.append(" & ".join(row) + r" \\")
+    L += [r"\bottomrule", r"\end{tabular}"]
+    open(path, "w").write(wrap(L, long))
+
+
+table4(f"{out}/table4_ordering.tex", shown, False)
+table4(f"{out}/table4_ordering_all.tex", sorted(od.method.unique(), key=lambda m: (m.split("|")[0] != "uniform", m)), True)
+
+
+# Table 5 (appendix): LOBO-selected class representatives per split, with the post-hoc best of the class
+def lobo_table(path):
+    def pick(c, sp, hold, base):
+        g = sel[(sel.cls == c) & (sel.held_out == hold) & (sel.split == sp) & (sel.suite == "all") & (sel.baseline == base)]
+        return g.iloc[0] if len(g) else None
+
+    def meth(ch):
+        # "k distinct, mode X" for the leave-one-out rows, "X" for the post-hoc best
+        if ", mode " in ch:
+            k, m = ch.split(", mode ")
+            return tex(common.label(m)) + f" ({k.split()[0]})"
+        return tex(common.label(ch))
+
+    L = [r"\begin{tabular}{lcccc}", r"\toprule",
+         r"Class & LOBO-selected (no. of choices) & vs uniform & vs stratified & Post hoc \\", r"\midrule"]
+    for sp in SP:
+        L.append(rf"\multicolumn{{5}}{{l}}{{\emph{{{common.SPLIT_LABEL[sp]}}}}} \\")
+        for i, c in enumerate(CLS):
+            a, b, p = pick(c, sp, "ALL", "uniform|mean"), pick(c, sp, "ALL", "strat|mean"), pick(c, sp, "POSTHOC", "uniform|mean")
+            if a is None:
+                continue
+            short = {"design-based (mean, calreg)": "design", "model-based": "model", "difference-corrected": "diff.",
+                     "anchor": "anchor", "info/adaptive selection": "info/CAT"}[c]
+            f = lambda r: f"{r.ratio:.2f} [{r.ci_lo:.2f}, {r.ci_hi:.2f}]"
+            L.append(" & ".join([short, meth(a.chosen), f(a), f(b),
+                                 f"{p.ratio:.2f}"]) + r" \\")
+        L.append(r"\midrule")
+    L[-1] = r"\bottomrule"
+    L.append(r"\end{tabular}")
+    open(path, "w").write(wrap(L))
+
+
+if sel is not None:
+    lobo_table(f"{out}/table5_lobo.tex")
+
+# Table 7 (appendix): suites separately (the shown methods; baseline uniform x mean, then stratified x mean)
+if R.has("primary_suite.csv"):
+    ps = R.csv("primary_suite.csv"); ps = ps[ps.n == 100]
+    L = [r"\begin{tabular}{l" + "c" * len(SP) + "}", r"\toprule",
+         "Method (design $\\times$ estimator) & " + " & ".join(common.SPLIT_LABEL[sp] for sp in SP) + r" \\", r"\midrule"]
+    for su, name in [("OLL", "Open LLM Leaderboard"), ("HELM", "HELM")]:
+        L.append(rf"\multicolumn{{{1 + len(SP)}}}{{l}}{{\emph{{{name}: against uniform $\times$ mean}}}} \\")
+        for m in shown:
+            row = [tex(common.label(m))]
+            for sp in SP:
+                g = ps[(ps.method == m) & (ps.split == sp) & (ps.suite == su) & (ps.baseline == "uniform|mean")]
+                row.append(cell(g.iloc[0]) if len(g) else "--")
+            L.append(" & ".join(row) + r" \\")
+        L.append(rf"\multicolumn{{{1 + len(SP)}}}{{l}}{{\emph{{{name}: against stratified $\times$ mean}}}} \\")
+        for m in [m for m in common.VS_STRAT if m in set(avail)]:
+            row = [tex(common.label(m))]
+            for sp in SP:
+                g = ps[(ps.method == m) & (ps.split == sp) & (ps.suite == su) & (ps.baseline == "strat|mean")]
+                row.append(cell(g.iloc[0]) if len(g) else "--")
+            L.append(" & ".join(row) + r" \\")
+        row = ["Benchmarks"]
+        for sp in SP:
+            g = ps[(ps.method == "uniform|diff-irt") & (ps.split == sp) & (ps.suite == su) & (ps.baseline == "uniform|mean")]
+            row.append(str(int(g.n_bench.iloc[0])) if len(g) else "--")
+        L.append(" & ".join(row) + r" \\")
+        L.append(r"\midrule")
+    L[-1] = r"\bottomrule"; L.append(r"\end{tabular}")
+    open(f"{out}/table7_suite.tex", "w").write(wrap(L, True))
+
+
+# Secondary endpoint (appendix): n/N = 2% of each benchmark's items (label n = 0 in results/twopct; actual n in per_bench.n_actual)
+if R.has("twopct/ratio_by_n.csv"):
+    t2 = R.csv("twopct/ratio_by_n.csv"); t2 = t2[(t2.n == 0) & (t2.flavour == "non_thin")]
+    tg2 = R.csv("twopct/targets.csv"); tg2 = tg2[~tg2.thin]
+    av2 = set(t2.method)
+    ncol = len(SP)
+    L = [r"\begin{tabular}{l" + "c" * ncol + "}", r"\toprule",
+         "Method (design $\\times$ estimator) & " + " & ".join(common.SPLIT_LABEL[sp] for sp in SP) + r" \\", r"\midrule"]
+
+    def rows2(methods, base):
+        for m in methods:
+            row = [tex(common.label(m))]
+            for sp in SP:
+                g = R.vs(t2, base)
+                g = g[(g.method == m) & (g.split == sp)]
+                row.append(cell(g.iloc[0]) if len(g) else "--")
+            L.append(" & ".join(row) + r" \\")
+
+    rows2([m for m, _ in R.shown(av2)], common.BASE)
+    if R.has("twopct/selected.csv"):
+        sel2 = R.csv("twopct/selected.csv")
+        L += [r"\midrule", r"\multicolumn{%d}{l}{\emph{Representative of each class chosen without the outcomes (leave-one-benchmark-out)}} \\" % (1 + ncol)]
+        L += lobo_rows(ncol, sel=sel2)
+    L += [r"\midrule", r"\multicolumn{%d}{l}{\emph{Against stratified $\times$ mean as the baseline}} \\" % (1 + ncol)]
+    rows2([m for m in common.VS_STRAT if m in av2], common.BASE2)
+    L.append(r"\midrule")
+    for name, f in [("Benchmarks", len), ("Targets, summed over benchmarks", lambda t: t.k_targets.sum())]:
+        L.append(name + " & " + " & ".join(str(int(f(tg2[tg2.split == sp]))) for sp in SP) + r" \\")
+    L += [r"\bottomrule", r"\end{tabular}"]
+    open(f"{out}/table6_twopct.tex", "w").write(wrap(L))

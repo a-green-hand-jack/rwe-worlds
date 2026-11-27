@@ -1,0 +1,21 @@
+"""Step 0d: language set (union over subsets) and dataset name of each MTEB task (from one result file per task).
+Run: python3 mteb_task_langs.py <results_dir> <long.parquet> <out.json>"""
+import json, os, sys, pandas as pd
+root, lp, out = sys.argv[1:4]
+tasks = set(pd.read_parquet(lp, columns=["task"]).task)
+res = {}
+for m in sorted(os.listdir(root)):
+    mp = os.path.join(root, m)
+    if not os.path.isdir(mp): continue
+    for rev in os.listdir(mp):
+        rp = os.path.join(mp, rev)
+        if not os.path.isdir(rp): continue
+        for t in list(tasks):
+            f = os.path.join(rp, t + ".json")
+            if os.path.exists(f):
+                d = json.load(open(f)); langs = set()
+                for sp in d["scores"].values():
+                    for e in sp: langs.update(e.get("languages", []))
+                res[t] = sorted(langs); tasks.discard(t)
+    if not tasks: break
+json.dump(res, open(out, "w")); print(len(res), "tasks;", len(tasks), "missing")
